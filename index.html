@@ -1,0 +1,588 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Projektzentrale</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#2f5d7c">
+<style>
+:root{
+  --bg:#f4f3ef; --panel:#ffffff; --panel2:#f9f8f5; --line:#e2dfd7; --text:#1d1c1a; --muted:#6f6b63;
+  --accent:#2f5d7c; --accent-2:#244a63; --ok:#2f7a46; --warn:#b07a12; --err:#b3261e;
+  --focus:#e8f0f6; --on-accent:#fff; --mono:ui-monospace,"Cascadia Mono",Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#171614; --panel:#201f1c; --panel2:#262521; --line:#36342f; --text:#ecebe6; --muted:#a09b91;
+    --accent:#6fa3c8; --accent-2:#8bb8d8; --ok:#6cc08a; --warn:#e2b34f; --err:#f07a70; --focus:#1f2a33; --on-accent:#0f1b24; }
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--text);font:14px/1.45 "Segoe UI",system-ui,sans-serif;display:flex;flex-direction:column}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:6px 12px}
+button:hover{border-color:var(--muted)}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
+button.primary:hover{background:var(--accent-2)}
+button:disabled{opacity:.45;cursor:not-allowed}
+input[type=text],input[type=search],input[type=date],select,textarea{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:5px 8px}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+input[readonly]{background:var(--panel2);color:var(--muted)}
+
+header{background:var(--panel);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.brand{font-weight:700;letter-spacing:.2px;margin-right:6px}
+.brand span{color:var(--accent)}
+.ver{font:600 11px/1 var(--mono);padding:3px 6px;margin-left:4px;color:var(--muted);vertical-align:middle}
+.upd{font-size:12px;padding:3px 9px;margin-left:4px;vertical-align:middle;background:var(--ok);border-color:var(--ok);color:#fff;font-weight:600}
+.folder{font-family:var(--mono);font-size:13px;color:var(--muted)}
+.spacer{flex:1}
+#q{width:240px}
+.years{display:flex;gap:4px;flex-wrap:wrap}
+.years button{padding:3px 9px;font-size:12.5px;border-radius:12px}
+.years button.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+
+#banner{display:none;padding:8px 16px;font-size:13px;border-bottom:1px solid var(--line);align-items:center;gap:10px;flex-wrap:wrap}
+#banner.show{display:flex}
+#banner.info{background:var(--panel2)}
+#banner.ok{background:color-mix(in srgb,var(--ok) 12%,var(--panel))}
+#banner.err{background:color-mix(in srgb,var(--err) 12%,var(--panel))}
+
+main{flex:1;display:flex;min-height:0}
+#listWrap{flex:1 1 52%;overflow:auto;padding:10px 12px 40px}
+#detail{flex:1 1 48%;border-left:1px solid var(--line);background:var(--panel);overflow:auto;padding:16px 20px 40px;min-width:0}
+
+.empty{max-width:560px;margin:60px auto;text-align:center;color:var(--muted)}
+.empty h2{color:var(--text);font-size:18px;margin:0 0 8px}
+.empty p{margin:6px 0 16px}
+.empty code{font-family:var(--mono);background:var(--panel2);border:1px solid var(--line);padding:1px 6px;border-radius:4px;color:var(--text)}
+
+.count{font-size:12.5px;color:var(--muted);margin:2px 4px 8px}
+.proj{display:grid;grid-template-columns:86px 1fr auto;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:6px;cursor:pointer}
+.proj:hover{border-color:var(--muted)}
+.proj.active{background:var(--focus);border-color:var(--accent)}
+.proj .nr{font:600 13px var(--mono)}
+.proj .ort{min-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.proj .ort small{color:var(--muted);margin-left:6px}
+.chips{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.chip{font-size:11.5px;padding:1px 7px;border-radius:10px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.chip.yes{border-color:color-mix(in srgb,var(--ok) 55%,var(--line));color:var(--ok)}
+.chip.miss{border-style:dashed}
+.chip.wait{opacity:.5}
+.group{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:16px 4px 6px}
+
+#detail h2{margin:0;font-size:20px}
+#detail h2 .nr{font-family:var(--mono);color:var(--accent)}
+#detail .sub{color:var(--muted);font-size:13px;margin:2px 0 14px}
+#detail h3{font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:22px 0 8px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.actions .hint{font-size:12px;color:var(--muted);flex-basis:100%}
+table.folders{width:100%;border-collapse:collapse;font-size:13px}
+table.folders td{padding:5px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+table.folders td:first-child{font-weight:600;white-space:nowrap;width:150px}
+table.folders .m{color:var(--muted)}
+table.folders .ok{color:var(--ok)}
+table.folders .miss{color:var(--warn)}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px}
+.form label{display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--muted)}
+.form label.wide{grid-column:1 / -1}
+.form input,.form textarea{color:var(--text)}
+.save{font-size:12.5px;color:var(--muted);margin-top:8px;min-height:18px}
+.save.err{color:var(--err)}
+.save.ok{color:var(--ok)}
+.warn{color:var(--warn)}
+
+#dlgBack{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:50}
+#dlgBack.show{display:flex}
+.dialog{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px 20px;width:min(640px,94vw);max-height:90vh;display:flex;flex-direction:column;gap:12px}
+.dialog h3{margin:0}
+.dialog .btns{display:flex;gap:8px;justify-content:flex-end}
+.dialog table td{padding:3px 12px 3px 0;vertical-align:top;font-size:13px}
+.dialog table td:first-child{color:var(--muted);white-space:nowrap}
+.dialog .m{font-size:13px;color:var(--muted);overflow:auto}
+#support{display:none;background:color-mix(in srgb,var(--err) 12%,var(--panel));padding:10px 16px;border-bottom:1px solid var(--line)}
+@media (max-width:860px){ main{flex-direction:column} #detail{border-left:0;border-top:1px solid var(--line)} .form{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">Projekt<span>zentrale</span> <button id="btnInfo" class="ver" title="Version, Speicherorte, Änderungen">v1.0.0</button> <button id="btnUpd" class="upd" hidden>Update verfügbar – neu laden</button></div>
+  <button id="btnArchive" class="primary">Archivordner wählen …</button>
+  <button id="btnRescan" disabled title="Ordner neu einlesen (z. B. nachdem Kollegen etwas geändert haben)">Neu einlesen</button>
+  <span class="folder" id="archiveName"></span>
+  <span class="spacer"></span>
+  <div class="years" id="years"></div>
+  <input type="search" id="q" placeholder="Suchen: Nummer oder Ort …" disabled>
+</header>
+<div id="support">Dieser Browser unterstützt keinen Ordnerzugriff. Bitte <b>Google Chrome</b> oder <b>Microsoft Edge</b> verwenden.</div>
+<div id="banner"></div>
+
+<main>
+  <div id="listWrap"><div id="list"></div></div>
+  <div id="detail"><div class="empty"><p>Links ein Projekt auswählen.</p></div></div>
+</main>
+
+<div id="dlgBack"><div class="dialog" id="dialog"></div></div>
+
+<script>
+(() => {
+'use strict';
+/* =====================================================================================================
+   Projektzentrale – Übersicht über alle Projektordner im „Mosaik Archivordner“ und Absprung in die Apps.
+
+   Inhalt
+     version            APP_VERSION, CHANGELOG
+     suite store        gemeinsamer Browser-Speicher aller Apps unter derselben Adresse (Archivordner-Zugriff)
+     folder contract    Ordnernamen („26.0123 Köln“), Standard-Unterordner
+     _Projekt.json      gemeinsame Projektdaten im Projektordner
+     scanning           Projekte auflisten, Status je Unterordner
+     list / detail      Oberfläche
+     online version     Service Worker, Update-Hinweis
+   ===================================================================================================== */
+
+/* ---------- version ---------- */
+const APP_VERSION = '1.0.0';
+const APP_DATE = '2026-10-13';
+const CHANGELOG = [
+  ['1.0.0', '13.10.2026', 'Erste Version: Archivordner einmal wählen, alle Projekte mit Status je Unterordner, gemeinsame Projektdaten in _Projekt.json, Fotos direkt im Bildumbenenner öffnen.'],
+];
+const verNum = v => String(v || '0').split('.').map(x => parseInt(x, 10) || 0);
+const verCmp = (a, b) => { const x = verNum(a), y = verNum(b); for (let i = 0; i < 3; i++){ if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0); } return 0; };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const deDate = iso => { const m = (iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? `${m[3]}.${m[2]}.${m[1]}` : (iso || ''); };
+
+/* ---------- suite store ----------
+   All apps under kaspersebastian83-dot.github.io share one origin and therefore one IndexedDB. The database
+   „mosaik-suite“ holds the handle of the archive folder, so Bildumbenenner (and later Probenplan) can open a project
+   without asking for the folder again. Contract (keep identical in every app):
+     DB „mosaik-suite“, version 1, object store „kv“
+     key „archiv“ → FileSystemDirectoryHandle of „Mosaik Archivordner“                                       */
+const SUITE = {
+  db: null,
+  open(){
+    return this.db || (this.db = new Promise((res, rej) => {
+      const r = indexedDB.open('mosaik-suite', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('kv');
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    }));
+  },
+  async get(k){
+    const db = await this.open();
+    return new Promise((res, rej) => { const r = db.transaction('kv').objectStore('kv').get(k); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+  },
+  async set(k, v){
+    const db = await this.open();
+    return new Promise((res, rej) => { const t = db.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = () => res(); t.onerror = () => rej(t.error); });
+  }
+};
+
+/* ---------- folder contract ----------
+   Project folders are named „<YY>.<Nummer> <Schadenort>“, e.g. „26.0123 Köln“. Standard subfolders below. */
+const PROJ_RE = /^(\d{2})\.(\d{2,6})(?:[\s_-]+(.*))?$/;
+function parseProjName(name){
+  const m = PROJ_RE.exec(String(name).normalize('NFC').trim());
+  if (!m) return null;
+  return { nr: `${m[1]}.${m[2]}`, yy: m[1], ort: (m[3] || '').trim(), key: (+m[1]) * 1e6 + (+m[2]) };
+}
+const norm = s => String(s).normalize('NFC').toLowerCase();
+const SUBS = [
+  // key, folder name, label
+  ['fotos',     'Fotos',            'Fotos'],
+  ['plaene',    'Pläne',            'Pläne'],
+  ['labauf',    'Laboraufträge',    'Laboraufträge'],
+  ['laberg',    'Laborergebnisse',  'Laborergebnisse'],
+  ['mitteil',   'Mitteilungen',     'Mitteilungen'],
+  ['emails',    'Emails',           'E-Mails'],
+  ['rechnung',  'Rechnung Labore',  'Rechnung Labore'],
+];
+const IMG_EXT = /\.(jpe?g|png|webp|gif|bmp|tiff?|heic|heif)$/i;
+const BILDUMBENENNER_URL = '../Bildumbenenner/';
+const PROBENPLAN_URL = '../Probenplan/';
+
+/* ---------- _Projekt.json ----------
+   Shared project data, one file in the project folder. Every app keeps fields it does not know and only writes the
+   fields that changed (read fresh → patch → write), so two apps or two people editing different fields never
+   overwrite each other. Projektnummer and Schadenort always come from the folder name.                      */
+const PJ_FILE = '_Projekt.json';
+const PJ_FIELDS = [
+  // key, label, type, wide, placeholder
+  ['objekt',            'Objekt / Adresse',                 'text', true,  'z. B. EFH, Musterstr. 1, 50667 Köln'],
+  ['auftraggeber',      'Auftraggeber / Versicherung',      'text', false, ''],
+  ['schadennummer',     'Schaden-Nr. des Auftraggebers',    'text', false, ''],
+  ['schadenereignis',   'Schadenereignis',                  'text', true,  'z. B. Brand im Erdgeschoss (Küche)'],
+  ['schadendatum',      'Schadendatum',                     'date', false, ''],
+  ['ortstermin',        'Ortstermin',                       'date', false, ''],
+  ['sachverstaendiger', 'Sachverständiger',                 'text', false, 'z. B. Dr. S. Kasper'],
+  ['notizen',           'Notizen',                          'area', true,  ''],
+];
+async function readPJ(dir){
+  try{
+    const f = await (await dir.getFileHandle(PJ_FILE)).getFile();
+    const txt = await f.text();
+    if (!txt.trim()) return { data: {}, exists: true };
+    const o = JSON.parse(txt);
+    if (o && o.format === 'mosaik-projekt' && o.version > 1) return { data: o, exists: true, newer: true };
+    return { data: o && typeof o === 'object' ? o : {}, exists: true };
+  }catch(e){
+    if (e.name === 'NotFoundError') return { data: {}, exists: false };
+    return { data: {}, exists: true, error: e.message };
+  }
+}
+async function patchPJ(dir, name, patch){
+  const cur = await readPJ(dir);
+  if (cur.error) throw new Error(`„${PJ_FILE}“ ist nicht lesbar (${cur.error}) und wird nicht überschrieben.`);
+  if (cur.newer) throw new Error(`„${PJ_FILE}“ stammt von einer neueren Version – bitte Projektzentrale aktualisieren.`);
+  const p = parseProjName(name) || {};
+  const o = Object.assign({}, cur.data, patch, {
+    format: 'mosaik-projekt', version: 1,
+    hinweis: 'Gemeinsame Projektdaten (Projektzentrale, Bildumbenenner, Probenplan). Bitte nicht löschen oder umbenennen.',
+    projektnummer: p.nr || cur.data.projektnummer || '', schadenort: p.ort || cur.data.schadenort || '',
+    geaendert: new Date().toISOString(), geaendertMit: 'Projektzentrale ' + APP_VERSION
+  });
+  const order = ['format', 'version', 'hinweis', 'projektnummer', 'schadenort', ...PJ_FIELDS.map(f => f[0]), 'geaendert', 'geaendertMit'];
+  const sorted = {};
+  for (const k of order) if (k in o) sorted[k] = o[k];
+  for (const k of Object.keys(o)) if (!(k in sorted)) sorted[k] = o[k];   // unknown fields from other apps stay
+  const fh = await dir.getFileHandle(PJ_FILE, { create: true });
+  const w = await fh.createWritable(); await w.write(JSON.stringify(sorted, null, 2) + '\n'); await w.close();
+  return sorted;
+}
+
+/* ---------- state ---------- */
+const S = { archive: null, projects: [], others: [], sel: null, year: '', q: '', scanToken: 0, pj: null, pjDirty: {}, pjTimer: null, pjWriting: Promise.resolve() };
+
+/* ---------- archive folder ---------- */
+const supported = 'showDirectoryPicker' in window;
+if (!supported){ $('support').style.display = 'block'; $('btnArchive').disabled = true; }
+
+async function pickArchive(){
+  let dir;
+  try{ dir = await window.showDirectoryPicker({ mode: 'readwrite', id: 'mosaik-archiv' }); }
+  catch(e){ if (e.name !== 'AbortError') banner('err', 'Ordner konnte nicht geöffnet werden: ' + esc(e.message)); return; }
+  const p = parseProjName(dir.name);
+  if (p || SUBS.some(s => norm(s[1]) === norm(dir.name))){
+    banner('err', `„${esc(dir.name)}“ ist ein Projekt- bzw. Unterordner. Bitte den übergeordneten Ordner wählen, in dem alle Projekte liegen (z. B. <code>C:\\daten\\Mosaik Archivordner</code>).`);
+    return;
+  }
+  await SUITE.set('archiv', dir).catch(() => {});
+  await useArchive(dir);
+}
+async function restoreArchive(){
+  if (!supported) return;
+  let dir = null;
+  try{ dir = await SUITE.get('archiv'); }catch(e){}
+  if (!dir){ showStart(); return; }
+  const st = await dir.queryPermission({ mode: 'readwrite' }).catch(() => 'denied');
+  if (st === 'granted'){ await useArchive(dir); return; }
+  showStart(dir);
+}
+function showStart(dir){
+  $('list').innerHTML = dir
+    ? `<div class="empty"><h2>Zugriff erneut erlauben</h2>
+         <p>Der Browser fragt nach jedem Neustart einmal nach, ob die Projektzentrale auf <code>${esc(dir.name)}</code> zugreifen darf.</p>
+         <button class="primary" id="btnGrant">Zugriff auf „${esc(dir.name)}“ erlauben</button>
+         <p><small>Anderer Ordner? Oben „Archivordner wählen …“.</small></p></div>`
+    : `<div class="empty"><h2>Archivordner wählen</h2>
+         <p>Einmal den Ordner wählen, in dem alle Projektordner liegen – im Büro <code>C:\\daten\\Mosaik Archivordner</code>. Der Browser merkt sich die Auswahl.</p>
+         <button class="primary" id="btnStart">Archivordner wählen …</button>
+         <p><small>Nichts wird hochgeladen – die App arbeitet nur im Browser auf diesem Rechner.</small></p></div>`;
+  if (dir) $('btnGrant').onclick = async () => {
+    const st = await dir.requestPermission({ mode: 'readwrite' }).catch(() => 'denied');
+    if (st === 'granted') await useArchive(dir); else banner('err', 'Ohne Zugriff kann die Projektzentrale die Projekte nicht anzeigen.');
+  };
+  else $('btnStart').onclick = pickArchive;
+}
+
+async function useArchive(dir){
+  S.archive = dir; S.sel = null;
+  $('archiveName').textContent = '📁 ' + dir.name;
+  $('btnRescan').disabled = false; $('q').disabled = false;
+  await listProjects();
+}
+
+/* ---------- scanning ---------- */
+async function listProjects(){
+  const token = ++S.scanToken;
+  banner('info', 'Lese Projektordner …');
+  const projects = [], others = [];
+  try{
+    for await (const h of S.archive.values()){
+      if (h.kind !== 'directory') continue;
+      const p = parseProjName(h.name);
+      if (p) projects.push({ handle: h, name: h.name, ...p, st: null });
+      else if (!h.name.startsWith('.') && !h.name.startsWith('~')) others.push({ handle: h, name: h.name });
+    }
+  }catch(e){ banner('err', 'Archivordner nicht lesbar: ' + esc(e.message)); return; }
+  if (token !== S.scanToken) return;
+  projects.sort((a, b) => b.key - a.key || a.name.localeCompare(b.name, 'de'));
+  others.sort((a, b) => a.name.localeCompare(b.name, 'de', { numeric: true }));
+  S.projects = projects; S.others = others;
+  hideBanner();
+  renderYears(); renderList();
+  if (S.sel){ const again = projects.find(p => p.name === S.sel.name); if (again) selectProject(again); }
+  scanAll(token);
+}
+async function scanProject(p){
+  const st = { subs: {}, extra: [], pj: false, err: '' };
+  try{
+    for await (const h of p.handle.values()){
+      if (h.kind === 'file'){ if (h.name === PJ_FILE) st.pj = true; continue; }
+      const sub = SUBS.find(s => norm(s[1]) === norm(h.name));
+      if (!sub){ st.extra.push(h.name); continue; }
+      const info = { handle: h, name: h.name, files: 0, images: 0, pdfDoc: [], probenplan: 0, daten: [], bu: false };
+      for await (const f of h.values()){
+        if (f.kind !== 'file' || f.name.startsWith('~$')) continue;
+        info.files++;
+        if (IMG_EXT.test(f.name)) info.images++;
+        if (/bilddokumentation.*\.pdf$/i.test(f.name)) info.pdfDoc.push(f.name);
+        if (/\.probenplan$/i.test(f.name)) info.probenplan++;
+        if (/_Daten\.json$/i.test(f.name)) info.daten.push(f.name);
+        if (f.name === '_Bildumbenenner.json') info.bu = true;
+      }
+      st.subs[sub[0]] = info;
+    }
+  }catch(e){ st.err = e.message; }
+  return st;
+}
+async function scanAll(token){
+  const queue = [...S.projects];
+  const prio = () => { const v = visibleProjects(); return v.find(p => !p.st && !p.scanning) || queue.find(p => !p.st && !p.scanning); };
+  const worker = async () => {
+    for (let p = prio(); p && token === S.scanToken; p = prio()){
+      p.scanning = true;
+      p.st = await scanProject(p);
+      p.scanning = false;
+      if (token !== S.scanToken) return;
+      updateRow(p);
+      if (S.sel === p) renderDetail();
+    }
+  };
+  await Promise.all([worker(), worker(), worker(), worker()]);
+}
+
+/* ---------- list ---------- */
+function visibleProjects(){
+  const q = norm(S.q).trim();
+  return S.projects.filter(p => (!S.year || p.yy === S.year) && (!q || norm(p.name).includes(q)));
+}
+function renderYears(){
+  const ys = [...new Set(S.projects.map(p => p.yy))].sort((a, b) => b - a);
+  $('years').innerHTML = ys.length > 1 ? ['', ...ys].map(y => `<button data-y="${y}" class="${S.year === y ? 'on' : ''}">${y ? '20' + y : 'Alle'}</button>`).join('') : '';
+  $('years').querySelectorAll('button').forEach(b => b.onclick = () => { S.year = b.dataset.y; renderYears(); renderList(); });
+}
+function chipsHtml(p){
+  if (!p.st) return '<span class="chip wait">…</span>';
+  if (p.st.err) return `<span class="chip" title="${esc(p.st.err)}">nicht lesbar</span>`;
+  const s = p.st.subs, out = [];
+  const c = (cls, txt, title) => out.push(`<span class="chip ${cls}" title="${esc(title)}">${txt}</span>`);
+  const fo = s.fotos;
+  if (!fo) c('miss', 'Fotos –', 'Unterordner „Fotos“ fehlt');
+  else c(fo.images ? 'yes' : '', `Fotos ${fo.images}`, `${fo.images} Bilder in „Fotos“`);
+  if (fo && fo.pdfDoc.length) c('yes', 'Bilddoku ✓', fo.pdfDoc.join(', '));
+  const pl = s.plaene;
+  if (pl && (pl.probenplan || pl.files)) c(pl.probenplan ? 'yes' : '', pl.probenplan ? 'Plan ✓' : `Pläne ${pl.files}`, pl.probenplan ? `${pl.probenplan} Probenplan-Datei(en)` : `${pl.files} Datei(en) in „Pläne“`);
+  const la = s.labauf;
+  if (la && la.daten.length) c('yes', 'Proben ✓', la.daten.join(', '));
+  const le = s.laberg;
+  if (le && le.files) c('yes', `Ergebnisse ${le.files}`, `${le.files} Datei(en) in „Laborergebnisse“`);
+  return out.join('');
+}
+function rowHtml(p){
+  return `<div class="proj${S.sel === p ? ' active' : ''}" data-name="${esc(p.name)}">
+    <span class="nr">${esc(p.nr)}</span>
+    <span class="ort">${esc(p.ort || '–')}</span>
+    <span class="chips">${chipsHtml(p)}</span></div>`;
+}
+function renderList(){
+  if (!S.archive) return;
+  const vis = visibleProjects();
+  let html = `<div class="count">${vis.length} von ${S.projects.length} Projekt${S.projects.length === 1 ? '' : 'en'}</div>`;
+  html += vis.map(rowHtml).join('');
+  if (!S.projects.length) html += `<div class="empty"><p>In „${esc(S.archive.name)}“ wurden keine Projektordner gefunden. Erwartet werden Ordnernamen wie <code>26.0123 Köln</code>.</p></div>`;
+  if (S.others.length && !S.q && !S.year){
+    html += `<div class="group">Andere Ordner (kein Projektnummer-Schema)</div><div class="count">${S.others.map(o => esc(o.name)).join(' · ')}</div>`;
+  }
+  $('list').innerHTML = html;
+  $('list').querySelectorAll('.proj').forEach(el => el.onclick = () => selectProject(S.projects.find(p => p.name === el.dataset.name)));
+}
+function updateRow(p){
+  const el = [...$('list').querySelectorAll('.proj')].find(e => e.dataset.name === p.name);
+  if (el) el.querySelector('.chips').innerHTML = chipsHtml(p);
+}
+
+/* ---------- detail ---------- */
+async function selectProject(p){
+  if (!p) return;
+  await flushPJ();
+  S.sel = p; S.pj = null; S.pjDirty = {};
+  $('list').querySelectorAll('.proj').forEach(el => el.classList.toggle('active', el.dataset.name === p.name));
+  if (!p.st){ p.scanning = true; p.st = await scanProject(p); p.scanning = false; updateRow(p); }
+  S.pj = await readPJ(p.handle);
+  if (S.sel !== p) return;
+  renderDetail();
+}
+function folderRows(p){
+  const s = p.st.subs;
+  return SUBS.map(([key, , label]) => {
+    const i = s[key];
+    if (!i) return `<tr><td>${esc(label)}</td><td class="miss">fehlt</td></tr>`;
+    let t = `${i.files} Datei${i.files === 1 ? '' : 'en'}`;
+    if (key === 'fotos'){
+      t = `${i.images} Bild${i.images === 1 ? '' : 'er'}` + (i.bu ? ' · bearbeitet im Bildumbenenner' : '') +
+          (i.pdfDoc.length ? ` · <span class="ok">Bilddokumentation: ${i.pdfDoc.map(esc).join(', ')}</span>` : '');
+    }
+    if (key === 'plaene' && i.probenplan) t += ` · <span class="ok">${i.probenplan} Probenplan-Datei${i.probenplan > 1 ? 'en' : ''}</span>`;
+    if (key === 'labauf') t += i.daten.length ? ` · <span class="ok">Probenerfassung: ${i.daten.map(esc).join(', ')}</span>` : ' · <span class="m">noch keine Probenerfassung (…_Daten.json)</span>';
+    return `<tr><td>${esc(label)}</td><td>${t}</td></tr>`;
+  }).join('') + (p.st.extra.length ? `<tr><td class="m">Weitere</td><td class="m">${p.st.extra.map(esc).join(', ')}</td></tr>` : '');
+}
+function renderDetail(){
+  const p = S.sel;
+  if (!p){ $('detail').innerHTML = '<div class="empty"><p>Links ein Projekt auswählen.</p></div>'; return; }
+  const pj = S.pj || { data: {} }, d = pj.data;
+  const nrWarn = d.projektnummer && d.projektnummer !== p.nr ? `<div class="warn">Achtung: In „${PJ_FILE}“ steht Projektnummer ${esc(d.projektnummer)}, der Ordner heißt ${esc(p.nr)}. Maßgeblich ist der Ordnername.</div>` : '';
+  const ro = pj.error || pj.newer;
+  $('detail').innerHTML = `
+    <h2><span class="nr">${esc(p.nr)}</span> ${esc(p.ort)}</h2>
+    <div class="sub">${esc(S.archive.name)} › ${esc(p.name)}</div>
+    <div class="actions">
+      <button class="primary" id="goFotos">Fotos bearbeiten → Bildumbenenner</button>
+      <button id="goPlan">Probenplan öffnen</button>
+      <span class="hint">Der Bildumbenenner öffnet direkt den Ordner „Fotos“ dieses Projekts. Im Probenplan den Plan wie gewohnt über „Öffnen“ aus „Pläne“ laden – die direkte Verknüpfung folgt.</span>
+    </div>
+    <h3>Ordner</h3>
+    ${p.st && !p.st.err ? `<table class="folders">${folderRows(p)}</table>
+      ${SUBS.some(([k]) => !p.st.subs[k]) ? '<div class="actions" style="margin-top:8px"><button id="mkSubs">Fehlende Unterordner anlegen</button></div>' : ''}`
+      : `<div class="m">${p.st && p.st.err ? 'Nicht lesbar: ' + esc(p.st.err) : 'Wird gelesen …'}</div>`}
+    <h3>Projektdaten <small style="text-transform:none;letter-spacing:0">(${esc(PJ_FILE)} im Projektordner – gilt für alle Apps)</small></h3>
+    ${nrWarn}
+    ${pj.error ? `<div class="warn">„${PJ_FILE}“ ist nicht lesbar (${esc(pj.error)}) und wird nicht überschrieben.</div>` : ''}
+    ${pj.newer ? `<div class="warn">„${PJ_FILE}“ stammt von einer neueren Version – bitte Projektzentrale aktualisieren. Nur Ansicht.</div>` : ''}
+    <div class="form">
+      <label>Projektnummer <input type="text" value="${esc(p.nr)}" readonly title="aus dem Ordnernamen"></label>
+      <label>Schadenort <input type="text" value="${esc(p.ort)}" readonly title="aus dem Ordnernamen"></label>
+      ${PJ_FIELDS.map(([k, label, type, wide, ph]) => `<label class="${wide ? 'wide' : ''}">${esc(label)}
+        ${type === 'area' ? `<textarea id="pj_${k}" rows="3" ${ro ? 'readonly' : ''}></textarea>`
+          : `<input type="${type}" id="pj_${k}" placeholder="${esc(ph)}" ${ro ? 'readonly' : ''}>`}</label>`).join('')}
+    </div>
+    <div class="save" id="pjSave">${pj.exists ? (d.geaendert ? `Zuletzt gespeichert ${esc(new Date(d.geaendert).toLocaleString('de-DE'))}${d.geaendertMit ? ' mit ' + esc(d.geaendertMit) : ''}` : '') : 'Noch keine Projektdaten – wird beim ersten Eintrag angelegt.'}</div>`;
+  for (const [k] of PJ_FIELDS){
+    const el = $('pj_' + k);
+    el.value = d[k] || '';
+    if (!ro) el.addEventListener('input', () => { S.pjDirty[k] = el.value; schedulePJ(); });
+  }
+  $('goFotos').onclick = () => openBildumbenenner(p);
+  $('goPlan').onclick = () => window.open(PROBENPLAN_URL, 'probenplan');
+  if ($('mkSubs')) $('mkSubs').onclick = () => makeSubs(p);
+}
+
+function schedulePJ(){
+  $('pjSave').className = 'save'; $('pjSave').textContent = 'Änderungen werden gespeichert …';
+  clearTimeout(S.pjTimer); S.pjTimer = setTimeout(flushPJ, 600);
+}
+function flushPJ(){
+  clearTimeout(S.pjTimer);
+  const p = S.sel, patch = S.pjDirty;
+  if (!p || !Object.keys(patch).length) return S.pjWriting;
+  S.pjDirty = {};
+  for (const k of Object.keys(patch)) patch[k] = patch[k].trim();
+  S.pjWriting = S.pjWriting.then(async () => {
+    try{
+      const o = await patchPJ(p.handle, p.name, patch);
+      if (S.sel === p){
+        S.pj = { data: o, exists: true };
+        const el = $('pjSave'); if (el){ el.className = 'save ok'; el.textContent = `✓ Gespeichert ${new Date().toLocaleTimeString('de-DE')} in ${PJ_FILE}`; }
+      }
+      if (p.st) p.st.pj = true;
+    }catch(e){
+      S.pjDirty = Object.assign({}, patch, S.pjDirty);   // newer edits win
+      const el = $('pjSave'); if (el && S.sel === p){ el.className = 'save err'; el.textContent = 'Nicht gespeichert: ' + e.message; }
+    }
+  });
+  return S.pjWriting;
+}
+
+async function makeSubs(p){
+  const miss = SUBS.filter(([k]) => !p.st.subs[k]).map(s => s[1]);
+  if (!(await confirmDialog('Fehlende Unterordner anlegen?', `In „${p.name}“ werden angelegt: <b>${miss.map(esc).join(', ')}</b>`, 'Anlegen'))) return;
+  try{
+    for (const n of miss) await p.handle.getDirectoryHandle(n, { create: true });
+  }catch(e){ banner('err', 'Unterordner konnten nicht angelegt werden: ' + esc(e.message)); }
+  p.st = await scanProject(p); updateRow(p); renderDetail();
+}
+
+async function openBildumbenenner(p){
+  await flushPJ();
+  await SUITE.set('archiv', S.archive).catch(() => {});
+  const url = new URL(BILDUMBENENNER_URL, location.href);
+  url.searchParams.set('projekt', p.name);
+  window.open(url.href, 'bildumbenenner');
+}
+
+/* ---------- dialogs / banner ---------- */
+function showDialog(html){ $('dialog').innerHTML = html; $('dlgBack').classList.add('show'); }
+function closeDialog(){ $('dlgBack').classList.remove('show'); $('dialog').innerHTML = ''; }
+function confirmDialog(title, html, ok){
+  return new Promise(res => {
+    showDialog(`<h3>${esc(title)}</h3><div class="m">${html}</div><div class="btns"><button id="dNo">Abbrechen</button><button class="primary" id="dYes">${esc(ok)}</button></div>`);
+    $('dNo').onclick = () => { closeDialog(); res(false); };
+    $('dYes').onclick = () => { closeDialog(); res(true); };
+  });
+}
+function banner(type, html){ const b = $('banner'); b.className = 'show ' + type; b.innerHTML = html; }
+function hideBanner(){ $('banner').className = ''; $('banner').innerHTML = ''; }
+
+/* ---------- online version ---------- */
+const IS_WEB = location.protocol === 'https:' || location.hostname === 'localhost';
+if (IS_WEB && 'serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+async function checkUpdate(){
+  if (!IS_WEB || !navigator.onLine) return;
+  try{
+    const txt = await (await fetch('./index.html', { cache: 'no-store' })).text();
+    const m = txt.match(/const APP_VERSION = '(\d+\.\d+\.\d+)'/);
+    if (m && verCmp(m[1], APP_VERSION) > 0){ const b = $('btnUpd'); b.textContent = `Version ${m[1]} verfügbar – neu laden`; b.hidden = false; }
+  }catch(e){}
+}
+setTimeout(checkUpdate, 4000);
+setInterval(checkUpdate, 30 * 60 * 1000);
+
+function openInfo(){
+  showDialog(`<h3>Projektzentrale ${APP_VERSION}</h3>
+    <div class="m"><table>
+      <tr><td>Version</td><td>${APP_VERSION} vom ${deDate(APP_DATE)}</td></tr>
+      <tr><td>Ausführung</td><td>${IS_WEB ? `Online-Version (${esc(location.host + location.pathname)}) – nach dem ersten Aufruf auch offline nutzbar. Installieren: im Browser-Menü „App installieren“.` : 'Lokale Datei – „Fotos bearbeiten“ funktioniert nur in der Online-Version.'}</td></tr>
+      <tr><td>Archivordner</td><td>${S.archive ? esc(S.archive.name) : '–'} (in diesem Browser gemerkt, gemeinsam mit Bildumbenenner)</td></tr>
+      <tr><td>Projektordner</td><td>Name „Projektnummer Schadenort“, z. B. „26.0123 Köln“. Unterordner: ${SUBS.map(s => esc(s[1])).join(', ')}.</td></tr>
+      <tr><td>Projektdaten</td><td>„${PJ_FILE}“ im Projektordner – gemeinsam für alle Apps und alle Kollegen. Nicht löschen oder umbenennen.</td></tr>
+      <tr><td>Datenschutz</td><td>Nichts wird hochgeladen. Die App liest und schreibt nur im gewählten Ordner auf diesem Rechner.</td></tr>
+    </table>
+    <p><b>Änderungen</b><br>${CHANGELOG.map(([v, d, t]) => `<b>${v}</b> (${d}): ${esc(t)}`).join('<br>')}</p></div>
+    <div class="btns"><button class="primary" id="iClose">Schließen</button></div>`);
+  $('iClose').onclick = closeDialog;
+}
+
+/* ---------- wiring ---------- */
+$('btnInfo').textContent = 'v' + APP_VERSION;
+document.title = 'Projektzentrale ' + APP_VERSION;
+$('btnInfo').onclick = openInfo;
+$('btnUpd').onclick = async () => { await flushPJ(); location.reload(); };
+$('btnArchive').onclick = pickArchive;
+$('btnRescan').onclick = async () => { await flushPJ(); S.projects.forEach(p => p.st = null); await listProjects(); };
+$('q').addEventListener('input', () => { S.q = $('q').value; renderList(); });
+$('dlgBack').addEventListener('click', e => { if (e.target === $('dlgBack')) closeDialog(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('dlgBack').classList.contains('show')) closeDialog(); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushPJ(); });
+window.addEventListener('beforeunload', e => { if (Object.keys(S.pjDirty).length){ flushPJ(); e.preventDefault(); e.returnValue = ''; } });
+window.addEventListener('focus', () => { if (S.sel && !Object.keys(S.pjDirty).length) readPJ(S.sel.handle).then(pj => {   // pick up changes from Bildumbenenner / coworkers
+  if (!S.sel || Object.keys(S.pjDirty).length || JSON.stringify(pj.data) === JSON.stringify(S.pj && S.pj.data)) return;
+  S.pj = pj; scanProject(S.sel).then(st => { S.sel.st = st; updateRow(S.sel); renderDetail(); });
+}); });
+
+restoreArchive();
+})();
+</script>
+</body>
+</html>
