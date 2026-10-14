@@ -238,7 +238,7 @@ async function patchPJ(dir, name, patch){
   const p = parseProjName(name) || {};
   const o = Object.assign({}, cur.data, patch, {
     format: 'mosaik-projekt', version: 1,
-    hinweis: 'Gemeinsame Projektdaten (Projektzentrale, Bildumbenenner, Probenplan). Bitte nicht löschen oder umbenennen.',
+    hinweis: 'Gemeinsame Projektdaten (Projektzentrale, FotoKit, Probenplan). Bitte nicht löschen oder umbenennen.',
     projektnummer: p.nr || cur.data.projektnummer || '', schadenort: p.ort || cur.data.schadenort || '',
     geaendert: new Date().toISOString(), geaendertMit: 'Projektzentrale ' + APP_VERSION
   });
@@ -431,7 +431,7 @@ function folderRows(p){
     if (!i) return `<tr><td>${esc(label)}</td><td class="miss">fehlt</td></tr>`;
     let t = `${i.files} Datei${i.files === 1 ? '' : 'en'}`;
     if (key === 'fotos'){
-      t = `${i.images} Bild${i.images === 1 ? '' : 'er'}` + (i.bu ? ' · bearbeitet im Bildumbenenner' : '') +
+      t = `${i.images} Bild${i.images === 1 ? '' : 'er'}` + (i.bu ? ' · bearbeitet in FotoKit' : '') +
           (i.pdfDoc.length ? ` · <span class="ok">Bilddokumentation: ${i.pdfDoc.map(esc).join(', ')}</span>` : '');
     }
     if (key === 'plaene' && i.probenplan) t += ` · <span class="ok">${i.probenplan} Probenplan-Datei${i.probenplan > 1 ? 'en' : ''}</span>`;
@@ -449,9 +449,9 @@ function renderDetail(){
     <h2><span class="nr">${esc(p.nr)}</span> ${esc(p.ort)}</h2>
     <div class="sub">${esc(S.archive.name)} › ${esc(p.name)}</div>
     <div class="actions">
-      <button class="primary" id="goFotos">Fotos bearbeiten → Bildumbenenner</button>
+      <button class="primary" id="goFotos">Fotos bearbeiten → FotoKit</button>
       <button id="goPlan">Probenplan öffnen</button>
-      <span class="hint">Der Bildumbenenner öffnet direkt den Ordner „Fotos“ dieses Projekts. Im Probenplan den Plan wie gewohnt über „Öffnen“ aus „Pläne“ laden – die direkte Verknüpfung folgt.</span>
+      <span class="hint">FotoKit öffnet direkt den Ordner „Fotos“ dieses Projekts. Im Probenplan den Plan wie gewohnt über „Öffnen“ aus „Pläne“ laden – die direkte Verknüpfung folgt.</span>
     </div>
     <h3>Ordner</h3>
     ${p.st && !p.st.err ? `<table class="folders">${folderRows(p)}</table>
@@ -554,7 +554,7 @@ function openInfo(){
     <div class="m"><table>
       <tr><td>Version</td><td>${APP_VERSION} vom ${deDate(APP_DATE)}</td></tr>
       <tr><td>Ausführung</td><td>${IS_WEB ? `Online-Version (${esc(location.host + location.pathname)}) – nach dem ersten Aufruf auch offline nutzbar. Installieren: im Browser-Menü „App installieren“.` : 'Lokale Datei – „Fotos bearbeiten“ funktioniert nur in der Online-Version.'}</td></tr>
-      <tr><td>Archivordner</td><td>${S.archive ? esc(S.archive.name) : '–'} (in diesem Browser gemerkt, gemeinsam mit Bildumbenenner)</td></tr>
+      <tr><td>Archivordner</td><td>${S.archive ? esc(S.archive.name) : '–'} (in diesem Browser gemerkt, gemeinsam mit FotoKit)</td></tr>
       <tr><td>Projektordner</td><td>Name „Projektnummer Schadenort“, z. B. „26.0123 Köln“. Unterordner: ${SUBS.map(s => esc(s[1])).join(', ')}.</td></tr>
       <tr><td>Projektdaten</td><td>„${PJ_FILE}“ im Projektordner – gemeinsam für alle Apps und alle Kollegen. Nicht löschen oder umbenennen.</td></tr>
       <tr><td>Datenschutz</td><td>Nichts wird hochgeladen. Die App liest und schreibt nur im gewählten Ordner auf diesem Rechner.</td></tr>
