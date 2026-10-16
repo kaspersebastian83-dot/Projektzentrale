@@ -602,9 +602,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.6.1';
-const APP_DATE = '2026-10-16';
+const APP_VERSION = '1.6.2';
+const APP_DATE = '2026-10-17';
 const CHANGELOG = [
+  ['1.6.2', '17.10.2026', 'Fehlerbehebungen: Unter „Pläne“ zählen die „(vorher …)“-Sicherungskopien von PlanKit nicht mehr als eigene PlanKit-Dateien („Probenplan · 4 Sicherungskopien“ statt „5 PlanKit-Dateien“). Wird die Projektansicht neu aufgebaut, während man in den Projektdaten tippt, bleiben Eingabe und Cursor erhalten. Wer beim Zurückkehren ins Fenster schnell ein anderes Projekt anklickte, konnte dort Projektdaten und Ordnerstand des vorherigen Projekts sehen – behoben.'],
   ['1.6.1', '16.10.2026', 'Anlagen zum Gutachten stehen im Projekt direkt unter den App-Knöpfen; neu „Anlage Probenahme in PlanKit erstellen …“ öffnet PlanKit gleich im Export der Anlage.'],
   ['1.6.0', '16.10.2026', 'Vierter Knopf im Projekt: „Abrechnung → AufwandKit“ – Zeiten, km und Spesen je Kollege, Proben aus LabelKit, Berichtsseiten und Fotos mit den Positionsnummern der Rechnung.'],
   ['1.5.1', '16.10.2026', 'Knöpfe im Projekt in der Reihenfolge der Arbeit: Proben erfassen (LabelKit), Fotos bearbeiten (FotoKit), Plan bearbeiten (PlanKit).'],
@@ -805,13 +806,14 @@ async function scanProject(p){
       if (h.kind === 'file'){ if (h.name === PJ_FILE) st.pj = true; continue; }
       const sub = SUBS.find(s => norm(s[1]) === norm(h.name));
       if (!sub){ st.extra.push(h.name); continue; }
-      const info = { handle: h, name: h.name, files: 0, images: 0, pdfDoc: [], probenplan: 0, daten: [], bu: false };
+      const info = { handle: h, name: h.name, files: 0, images: 0, pdfDoc: [], probenplan: 0, sicherungen: 0, daten: [], bu: false };
       for await (const f of h.values()){
         if (f.kind !== 'file' || f.name.startsWith('~$')) continue;
         info.files++;
         if (IMG_EXT.test(f.name)) info.images++;
         if (/bilddokumentation.*\.pdf$/i.test(f.name)) info.pdfDoc.push(f.name);
-        if (/\.probenplan$/i.test(f.name)) info.probenplan++;
+        // PlanKit legt bei jedem Speichern eine „(vorher …)“-Kopie an; Sicherungen sind keine eigenen Pläne
+        if (/\.probenplan$/i.test(f.name)){ if (/ \((vorher|Wiederherstellung) [^)]*\)\.probenplan$/i.test(f.name)) info.sicherungen++; else info.probenplan++; }
         if (/_Daten\.json$/i.test(f.name)) info.daten.push(f.name);
         if (f.name === '_Bildumbenenner.json') info.bu = true;
       }
@@ -907,7 +909,8 @@ function folderRows(p){
       t = `${i.images} Bild${i.images === 1 ? '' : 'er'}` + (i.bu ? ' · bearbeitet in FotoKit' : '') +
           (i.pdfDoc.length ? ` · <span class="ok">Bilddokumentation: ${i.pdfDoc.map(esc).join(', ')}</span>` : '');
     }
-    if (key === 'plaene' && i.probenplan) t += ` · <span class="ok">${i.probenplan} PlanKit-Datei${i.probenplan > 1 ? 'en' : ''}</span>`;
+    if (key === 'plaene' && i.probenplan) t += ` · <span class="ok">${i.probenplan === 1 ? 'Probenplan' : i.probenplan + ' PlanKit-Dateien'}</span>`;
+    if (key === 'plaene' && i.sicherungen) t += ` · <span class="m">${i.sicherungen} Sicherungskopie${i.sicherungen === 1 ? '' : 'n'} von PlanKit</span>`;
     if (key === 'labauf') t += i.daten.length ? ` · <span class="ok">Probenerfassung: ${i.daten.map(esc).join(', ')}</span>` : ' · <span class="m">noch keine Probenerfassung (…_Daten.json)</span>';
     return `<tr><td>${esc(label)}</td><td>${t}</td></tr>`;
   }).join('') + (p.st.extra.length ? `<tr><td class="m">Weitere</td><td class="m">${p.st.extra.map(esc).join(', ')}</td></tr>` : '');
@@ -918,6 +921,8 @@ function renderDetail(){
   const pj = S.pj || { data: {} }, d = pj.data;
   const nrWarn = d.projektnummer && d.projektnummer !== p.nr ? `<div class="warn">Achtung: In „${PJ_FILE}“ steht Projektnummer ${esc(d.projektnummer)}, der Ordner heißt ${esc(p.nr)}. Maßgeblich ist der Ordnername.</div>` : '';
   const ro = pj.error || pj.newer;
+  // Wird neu gezeichnet, während jemand in den Projektdaten schreibt (Ordner fertig gelesen, Anlage erstellt …), bleibt der Cursor im Feld.
+  const ae = document.activeElement, fokus = ae && /^pj_/.test(ae.id) && $('detail').contains(ae) ? { id: ae.id, a: ae.selectionStart, b: ae.selectionEnd } : null;
   $('detail').innerHTML = `
     <h2><span class="nr">${esc(p.nr)}</span> ${esc(p.ort)}</h2>
     <div class="sub">${esc(S.archive.name)} › ${esc(p.name)}</div>
@@ -950,9 +955,11 @@ function renderDetail(){
     <div class="save" id="pjSave">${pj.exists ? (d.geaendert ? `Zuletzt gespeichert ${esc(new Date(d.geaendert).toLocaleString('de-DE'))}${d.geaendertMit ? ' mit ' + esc(d.geaendertMit) : ''}` : '') : 'Noch keine Projektdaten – wird beim ersten Eintrag angelegt.'}</div>`;
   for (const [k] of PJ_FIELDS){
     const el = $('pj_' + k);
-    el.value = d[k] || '';
+    el.value = k in S.pjDirty ? S.pjDirty[k] : (d[k] || '');   // noch nicht gespeicherte Eingaben nicht durch den alten Stand ersetzen
     if (!ro) el.addEventListener('input', () => { S.pjDirty[k] = el.value; schedulePJ(); });
   }
+  if (fokus && $(fokus.id)){ const el = $(fokus.id); el.focus(); try{ if (fokus.a != null) el.setSelectionRange(fokus.a, fokus.b); }catch(e){} }
+  if (Object.keys(S.pjDirty).length){ $('pjSave').className = 'save'; $('pjSave').textContent = 'Änderungen werden gespeichert …'; }
   $('goFotos').onclick = () => openBildumbenenner(p);
   $('goPlan').onclick = () => openPlanKit(p);
   $('goLabel').onclick = () => openApp(p, LABELKIT_URL, 'labelkit');
@@ -1320,9 +1327,10 @@ $('dlgBack').addEventListener('click', e => { if (e.target === $('dlgBack')) clo
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('dlgBack').classList.contains('show')) closeDialog(); });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushPJ(); });
 window.addEventListener('beforeunload', e => { if (Object.keys(S.pjDirty).length){ flushPJ(); e.preventDefault(); e.returnValue = ''; } });
-window.addEventListener('focus', () => { if (S.sel && !Object.keys(S.pjDirty).length) readPJ(S.sel.handle).then(pj => {   // pick up changes from Bildumbenenner / coworkers
-  if (!S.sel || Object.keys(S.pjDirty).length || JSON.stringify(pj.data) === JSON.stringify(S.pj && S.pj.data)) return;
-  S.pj = pj; scanProject(S.sel).then(st => { S.sel.st = st; updateRow(S.sel); renderDetail(); });
+window.addEventListener('focus', () => { const p = S.sel; if (p && !Object.keys(S.pjDirty).length) readPJ(p.handle).then(pj => {   // pick up changes from Bildumbenenner / coworkers
+  // inzwischen ein anderes Projekt gewählt? Dann gehören Daten und Ordnerstand nicht zu ihm
+  if (S.sel !== p || Object.keys(S.pjDirty).length || JSON.stringify(pj.data) === JSON.stringify(S.pj && S.pj.data)) return;
+  S.pj = pj; scanProject(p).then(st => { p.st = st; updateRow(p); if (S.sel === p) renderDetail(); });
 }); });
 
 restoreArchive();
