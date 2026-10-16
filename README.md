@@ -1,6 +1,6 @@
 # Projektzentrale
 
-Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in FotoKit (früher Bildumbenenner) (und später Probenplan).
+Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in FotoKit (früher Bildumbenenner) und PlanKit (früher Probenplan).
 
 **App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/
 
@@ -20,6 +20,7 @@ Die App läuft vollständig im Browser auf dem eigenen Rechner. **Ordner, Dateie
 - Legt fehlende Standard-Unterordner auf Wunsch an.
 - **Projektdaten** (Objekt, Auftraggeber, Schaden-Nr., Schadenereignis, Schadendatum, Ortstermin, Sachverständiger, Notizen) in `_Projekt.json` im Projektordner – gemeinsam für alle Apps und Kollegen.
 - **„Fotos bearbeiten“** öffnet FotoKit direkt im Ordner `Fotos` des Projekts, mit vorausgefüllten Projektdaten.
+- **„Plan bearbeiten“** öffnet PlanKit direkt im Ordner `Pläne`: automatisches Speichern als `Probenplan <Projekt>.probenplan`, Bilder ebenfalls dorthin, Laborberichte aus `Laborergebnisse`.
 
 ## Vereinbarungen zwischen den Apps
 
@@ -27,10 +28,10 @@ Die App läuft vollständig im Browser auf dem eigenen Rechner. **Ordner, Dateie
 |---|---|
 | Projektordner | `<JJ>.<Nummer> <Schadenort>`, z. B. `26.0123 Köln`. Projektnummer und Schadenort kommen immer aus dem Ordnernamen. |
 | Unterordner | `Fotos`, `Pläne`, `Laboraufträge`, `Laborergebnisse`, `Mitteilungen`, `Emails`, `Rechnung Labore` |
-| Wer schreibt wohin | FotoKit → `Fotos` (Bilder, `_Bildumbenenner.json`, Bilddokumentation-PDF/ZIP) · Probenplan → `Pläne` · LabelKit → `Laboraufträge` |
+| Wer schreibt wohin | FotoKit → `Fotos` (Bilder, `_Bildumbenenner.json`, Bilddokumentation-PDF/ZIP) · PlanKit → `Pläne` (`Probenplan <Projekt>.probenplan`, exportierte Bilder) · LabelKit → `Laboraufträge` |
 | `_Projekt.json` | `format: "mosaik-projekt"`, `version: 1`. Jede App liest frisch, ändert nur die eigenen geänderten Felder und behält unbekannte Felder. Nicht löschen oder umbenennen. |
 | Gemeinsamer Browser-Speicher | IndexedDB `mosaik-suite` (v1), Store `kv`, Schlüssel `archiv` = Archivordner. Alle Apps unter `kaspersebastian83-dot.github.io` teilen ihn. |
-| Absprung | `../Bildumbenenner/?projekt=<Ordnername>` |
+| Absprung | `../Bildumbenenner/?projekt=<Ordnername>` (FotoKit) · `../Probenplan/?projekt=<Ordnername>` (PlanKit) |
 | Offline-Speicher | Jede App verwaltet nur Caches mit eigenem Präfix (`projektzentrale:`, `bildumbenenner:`, `probenplan:`). |
 
 Felder in `_Projekt.json`: `projektnummer`, `schadenort`, `objekt`, `auftraggeber`, `schadennummer`, `schadenereignis`, `schadendatum`, `ortstermin` (Datum `JJJJ-MM-TT`), `sachverstaendiger`, `notizen`, `geaendert`, `geaendertMit`.
