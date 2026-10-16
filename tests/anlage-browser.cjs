@@ -34,7 +34,7 @@ const daten = {
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
   await page.goto(url);
   await page.waitForSelector('#btnInfo');
-  assert.equal(await page.locator('#btnInfo').textContent(), 'v1.4.0');
+  assert.equal(await page.locator('#btnInfo').textContent(), 'v1.4.1');
 
   const kann = await page.evaluate(async () => {
     if (!('showDirectoryPicker' in window) || !navigator.storage || !navigator.storage.getDirectory) return false;
@@ -102,7 +102,7 @@ const daten = {
   const protokoll = new TextDecoder().decode(Uint8Array.from(out['_Anlagen-Protokoll.txt']));
   assert.match(protokoll, /^Anlagen-Protokoll/);
   const docxSha = await page.evaluate(async b => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array(b))), x => x.toString(16).padStart(2, '0')).join(''), out[docxName]);
-  assert.ok(protokoll.includes(`| ${docxName} | ${docxSha} | Laboraufträge/26.0142_16.10.2026_Daten.json | ${sha} | Projektzentrale 1.4.0`), 'Protokollzeile mit beiden Prüfsummen');
+  assert.ok(protokoll.includes(`| ${docxName} | ${docxSha} | Laboraufträge/26.0142_16.10.2026_Daten.json | ${sha} | Projektzentrale 1.4.1`), 'Protokollzeile mit beiden Prüfsummen');
 
   // Zweites Mal: nichts überschrieben, neuer Name; Bezeichnung gemerkt
   await page.locator('#anlPn98').waitFor();

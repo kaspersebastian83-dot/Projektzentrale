@@ -19,6 +19,7 @@ const bytes = DOCX.build({ title: 'Test <&>', author: 'Projektzentrale', created
     { cells: [{ text: 'über zwei', span: 2 }, { text: '' }] }] },
   { t: 'pagebreak' },
   { t: 'image', data: png, ext: 'png', widthMm: 50, heightMm: 50, alt: 'Foto "1"' },
+  { t: 'table', widths: [4535, 4535], borders: false, rows: [{ cells: [{ image: { data: png, ext: 'png', widthMm: 20, heightMm: 20 }, paras: [{ text: 'Bildunterschrift' }] }, { text: '' }] }] },
 ] });
 const files = lade.unzip(bytes, DOCX.crc32);
 for (const n of ['[Content_Types].xml', '_rels/.rels', 'word/document.xml', 'word/styles.xml', 'word/settings.xml', 'word/_rels/document.xml.rels', 'docProps/core.xml', 'docProps/app.xml', 'word/media/bild1.png'])
@@ -37,6 +38,9 @@ assert.match(doc, /<w:tblHeader\/>/);
 assert.match(doc, /<w:shd w:val="clear" w:color="auto" w:fill="F2F2F2"\/>/);
 assert.match(doc, /<w:br w:type="page"\/>/);
 assert.match(doc, /r:embed="rIdImg1"/);
+assert.equal((doc.match(/<wp:docPr /g) || []).length, 2, 'Bild zweimal gezeigt (auch in einer Tabellenzelle) …');
+assert.equal(Object.keys(files).filter(n => n.startsWith('word/media/')).length, 1, '… aber nur einmal in der Datei');
+assert.match(doc, /<w:tc>.*?<w:drawing>.*?Bildunterschrift/s, 'Bild und Unterschrift in derselben Zelle');
 assert.match(doc, /<wp:extent cx="1800000" cy="1800000"\/>/, '50 mm = 1 800 000 EMU');
 assert.match(doc, /descr="Foto &quot;1&quot;"/);
 assert.match(doc, /<w:pgSz w:w="11906" w:h="16838"\/>/, 'A4');
