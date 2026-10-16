@@ -107,7 +107,7 @@ table.folders .miss{color:var(--warn)}
 <body>
 
 <header>
-  <div class="brand">Projekt<span>zentrale</span> <button id="btnInfo" class="ver" title="Version, Speicherorte, Änderungen">v1.0.0</button> <button id="btnUpd" class="upd" hidden>Update verfügbar – neu laden</button></div>
+  <div class="brand">Projekt<span>zentrale</span> <button id="btnInfo" class="ver" title="Version, Speicherorte, Änderungen">v1.1.0</button> <button id="btnUpd" class="upd" hidden>Update verfügbar – neu laden</button></div>
   <button id="btnArchive" class="primary">Archivordner wählen …</button>
   <button id="btnRescan" disabled title="Ordner neu einlesen (z. B. nachdem Kollegen etwas geändert haben)">Neu einlesen</button>
   <span class="folder" id="archiveName"></span>
@@ -142,9 +142,10 @@ table.folders .miss{color:var(--warn)}
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 const APP_DATE = '2026-10-13';
 const CHANGELOG = [
+  ['1.1.0', '16.10.2026', '„Plan bearbeiten → PlanKit“ und „Proben erfassen → LabelKit“ öffnen die Apps direkt im Projekt (Ordner „Pläne“ bzw. „Laboraufträge“).'],
   ['1.0.0', '13.10.2026', 'Erste Version: Archivordner einmal wählen, alle Projekte mit Status je Unterordner, gemeinsame Projektdaten in _Projekt.json, Fotos direkt im Bildumbenenner öffnen.'],
 ];
 const verNum = v => String(v || '0').split('.').map(x => parseInt(x, 10) || 0);
@@ -155,7 +156,7 @@ const deDate = iso => { const m = (iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/)
 
 /* ---------- suite store ----------
    All apps under kaspersebastian83-dot.github.io share one origin and therefore one IndexedDB. The database
-   „mosaik-suite“ holds the handle of the archive folder, so Bildumbenenner (and later Probenplan) can open a project
+   „mosaik-suite“ holds the handle of the archive folder, so FotoKit and PlanKit can open a project
    without asking for the folder again. Contract (keep identical in every app):
      DB „mosaik-suite“, version 1, object store „kv“
      key „archiv“ → FileSystemDirectoryHandle of „Mosaik Archivordner“                                       */
@@ -201,6 +202,7 @@ const SUBS = [
 const IMG_EXT = /\.(jpe?g|png|webp|gif|bmp|tiff?|heic|heif)$/i;
 const BILDUMBENENNER_URL = '../Bildumbenenner/';
 const PROBENPLAN_URL = '../Probenplan/';
+const LABELKIT_URL = '../labelkit/';
 
 /* ---------- _Projekt.json ----------
    Shared project data, one file in the project folder. Every app keeps fields it does not know and only writes the
@@ -238,7 +240,7 @@ async function patchPJ(dir, name, patch){
   const p = parseProjName(name) || {};
   const o = Object.assign({}, cur.data, patch, {
     format: 'mosaik-projekt', version: 1,
-    hinweis: 'Gemeinsame Projektdaten (Projektzentrale, FotoKit, Probenplan). Bitte nicht löschen oder umbenennen.',
+    hinweis: 'Gemeinsame Projektdaten (Projektzentrale, FotoKit, PlanKit). Bitte nicht löschen oder umbenennen.',
     projektnummer: p.nr || cur.data.projektnummer || '', schadenort: p.ort || cur.data.schadenort || '',
     geaendert: new Date().toISOString(), geaendertMit: 'Projektzentrale ' + APP_VERSION
   });
@@ -383,7 +385,7 @@ function chipsHtml(p){
   else c(fo.images ? 'yes' : '', `Fotos ${fo.images}`, `${fo.images} Bilder in „Fotos“`);
   if (fo && fo.pdfDoc.length) c('yes', 'Bilddoku ✓', fo.pdfDoc.join(', '));
   const pl = s.plaene;
-  if (pl && (pl.probenplan || pl.files)) c(pl.probenplan ? 'yes' : '', pl.probenplan ? 'Plan ✓' : `Pläne ${pl.files}`, pl.probenplan ? `${pl.probenplan} Probenplan-Datei(en)` : `${pl.files} Datei(en) in „Pläne“`);
+  if (pl && (pl.probenplan || pl.files)) c(pl.probenplan ? 'yes' : '', pl.probenplan ? 'Plan ✓' : `Pläne ${pl.files}`, pl.probenplan ? `${pl.probenplan} PlanKit-Datei(en)` : `${pl.files} Datei(en) in „Pläne“`);
   const la = s.labauf;
   if (la && la.daten.length) c('yes', 'Proben ✓', la.daten.join(', '));
   const le = s.laberg;
@@ -434,7 +436,7 @@ function folderRows(p){
       t = `${i.images} Bild${i.images === 1 ? '' : 'er'}` + (i.bu ? ' · bearbeitet in FotoKit' : '') +
           (i.pdfDoc.length ? ` · <span class="ok">Bilddokumentation: ${i.pdfDoc.map(esc).join(', ')}</span>` : '');
     }
-    if (key === 'plaene' && i.probenplan) t += ` · <span class="ok">${i.probenplan} Probenplan-Datei${i.probenplan > 1 ? 'en' : ''}</span>`;
+    if (key === 'plaene' && i.probenplan) t += ` · <span class="ok">${i.probenplan} PlanKit-Datei${i.probenplan > 1 ? 'en' : ''}</span>`;
     if (key === 'labauf') t += i.daten.length ? ` · <span class="ok">Probenerfassung: ${i.daten.map(esc).join(', ')}</span>` : ' · <span class="m">noch keine Probenerfassung (…_Daten.json)</span>';
     return `<tr><td>${esc(label)}</td><td>${t}</td></tr>`;
   }).join('') + (p.st.extra.length ? `<tr><td class="m">Weitere</td><td class="m">${p.st.extra.map(esc).join(', ')}</td></tr>` : '');
@@ -450,8 +452,9 @@ function renderDetail(){
     <div class="sub">${esc(S.archive.name)} › ${esc(p.name)}</div>
     <div class="actions">
       <button class="primary" id="goFotos">Fotos bearbeiten → FotoKit</button>
-      <button id="goPlan">Probenplan öffnen</button>
-      <span class="hint">FotoKit öffnet direkt den Ordner „Fotos“ dieses Projekts. Im Probenplan den Plan wie gewohnt über „Öffnen“ aus „Pläne“ laden – die direkte Verknüpfung folgt.</span>
+      <button class="primary" id="goPlan">Plan bearbeiten → PlanKit</button>
+      <button class="primary" id="goLabel">Proben erfassen → LabelKit</button>
+      <span class="hint">Jede App öffnet direkt ihren Ordner dieses Projekts – FotoKit „Fotos“, PlanKit „Pläne“, LabelKit „Laboraufträge“ – und speichert dort.</span>
     </div>
     <h3>Ordner</h3>
     ${p.st && !p.st.err ? `<table class="folders">${folderRows(p)}</table>
@@ -475,7 +478,8 @@ function renderDetail(){
     if (!ro) el.addEventListener('input', () => { S.pjDirty[k] = el.value; schedulePJ(); });
   }
   $('goFotos').onclick = () => openBildumbenenner(p);
-  $('goPlan').onclick = () => window.open(PROBENPLAN_URL, 'probenplan');
+  $('goPlan').onclick = () => openPlanKit(p);
+  $('goLabel').onclick = () => openApp(p, LABELKIT_URL, 'labelkit');
   if ($('mkSubs')) $('mkSubs').onclick = () => makeSubs(p);
 }
 
@@ -514,6 +518,20 @@ async function makeSubs(p){
   p.st = await scanProject(p); updateRow(p); renderDetail();
 }
 
+async function openApp(p, base, target){
+  await flushPJ();
+  await SUITE.set('archiv', S.archive).catch(() => {});
+  const url = new URL(base, location.href);
+  url.searchParams.set('projekt', p.name);
+  window.open(url.href, target);
+}
+async function openPlanKit(p){
+  await flushPJ();
+  await SUITE.set('archiv', S.archive).catch(() => {});
+  const url = new URL(PROBENPLAN_URL, location.href);
+  url.searchParams.set('projekt', p.name);
+  window.open(url.href, 'plankit');
+}
 async function openBildumbenenner(p){
   await flushPJ();
   await SUITE.set('archiv', S.archive).catch(() => {});
