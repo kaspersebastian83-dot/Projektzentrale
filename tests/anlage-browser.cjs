@@ -34,7 +34,7 @@ const daten = {
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
   await page.goto(url);
   await page.waitForSelector('#btnInfo');
-  assert.equal(await page.locator('#btnInfo').textContent(), 'v1.4.1');
+  assert.equal(await page.locator('#btnInfo').textContent(), 'v1.5.0');
 
   const kann = await page.evaluate(async () => {
     if (!('showDirectoryPicker' in window) || !navigator.storage || !navigator.storage.getDirectory) return false;
@@ -102,7 +102,7 @@ const daten = {
   const protokoll = new TextDecoder().decode(Uint8Array.from(out['_Anlagen-Protokoll.txt']));
   assert.match(protokoll, /^Anlagen-Protokoll/);
   const docxSha = await page.evaluate(async b => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array(b))), x => x.toString(16).padStart(2, '0')).join(''), out[docxName]);
-  assert.ok(protokoll.includes(`| ${docxName} | ${docxSha} | Laboraufträge/26.0142_16.10.2026_Daten.json | ${sha} | Projektzentrale 1.4.1`), 'Protokollzeile mit beiden Prüfsummen');
+  assert.ok(protokoll.includes(`| ${docxName} | ${docxSha} | Laboraufträge/26.0142_16.10.2026_Daten.json | ${sha} | Projektzentrale 1.5.0`), 'Protokollzeile mit beiden Prüfsummen');
 
   // Zweites Mal: nichts überschrieben, neuer Name; Bezeichnung gemerkt
   await page.locator('#anlPn98').waitFor();
@@ -129,6 +129,47 @@ const daten = {
   assert.equal(await page.locator('#aBrand').isDisabled(), true);
   assert.equal(await page.locator('#aBrand').isChecked(), false);
   await page.locator('#aNo').click();
+
+  // PN 98-Feldbogen mit Scans (LabelKit 4.27): Prüfsumme nachgeprüft, stimmiger JPEG-Scan eingebettet, veränderter nicht
+  await page.evaluate(async d => {
+    const r = await navigator.storage.getDirectory();
+    const proj = await (await r.getDirectoryHandle('Mosaik Archivordner')).getDirectoryHandle('26.0142 Teststadt');
+    const fp = await proj.getDirectoryHandle('Feldprotokolle', { create: true });
+    const c = document.createElement('canvas'); c.width = 620; c.height = 877;
+    const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, 620, 877); g.fillStyle = '#000'; g.fillText('Feldprotokoll 26.0142-PN-01', 30, 40);
+    const jpg = new Uint8Array(await (await new Promise(res => c.toBlob(res, 'image/jpeg', 0.9))).arrayBuffer());
+    const hex = async b => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', b)), x => x.toString(16).padStart(2, '0')).join('');
+    const schreibe = async (dir, n, data) => { const w = await (await dir.getFileHandle(n, { create: true })).createWritable(); await w.write(data); await w.close(); };
+    await schreibe(fp, 'A_Scan.jpg', jpg); await schreibe(fp, 'B_Scan.jpg', jpg);
+    const sha = await hex(jpg);
+    await schreibe(fp, 'B_Scan.jpg', 'nachträglich verändert');
+    const rec = { id: 'fp-1', typ: 'pn98', formularId: '26.0142-PN-01', erfasstVon: 'AB', erfasstAm: '2026-10-22T07:00:00.000Z',
+      kopf: { projektNr: '26.0142', probenehmer: 'S. Kasper', unterschrift: true }, mp: [{ nr: 1, w: { probenNr: 'P7', stelle: 'Haufwerk H1' } }], unl: {},
+      scans: [{ datei: 'A_Scan.jpg', sha256: sha, abgelegtAm: '2026-10-22T07:30:00.000Z', abgelegtVon: 'AB' }, { datei: 'B_Scan.jpg', sha256: sha, abgelegtAm: '2026-10-22T07:31:00.000Z', abgelegtVon: 'AB' }],
+      abgeschlossen: { von: 'AB', am: '2026-10-22T08:00:00.000Z' }, pruefung: { von: 'SK', am: '2026-10-22T09:00:00.000Z', selbst: false }, aenderungen: [] };
+    const lab = await proj.getDirectoryHandle('Laboraufträge');
+    await schreibe(lab, '26.0142_16.10.2026_Daten.json', JSON.stringify(Object.assign({}, d, { feldprotokolle: [rec] })));
+  }, daten);
+  await page.locator('#btnRescan').click();
+  await page.locator('.proj[data-name="26.0142 Teststadt"]').click();
+  await page.waitForFunction(() => /1 Feldprotokoll PN 98 \(vor Ort\)/.test(document.getElementById('anl')?.textContent || ''));
+  await page.locator('#anlPn98').click();
+  await page.locator('#aTitel').waitFor();
+  assert.match(await page.locator('#dialog').textContent(), /1 Feldprotokoll mit Scan \+ 1 am Bildschirm/);
+  await page.locator('#aBrand').uncheck();
+  await page.locator('#aYes').click();
+  await page.waitForFunction(() => /ACHTUNG: 1 Scan fehlt oder weicht ab/.test(document.getElementById('banner').textContent));
+  ({ out } = await lies());
+  const neu = Object.keys(out).find(n => /_PN98_.*\.docx$/.test(n));
+  const ff = lade.unzip(Uint8Array.from(out[neu]), DOCX.crc32);
+  const fdoc = new TextDecoder().decode(ff['word/document.xml']);
+  assert.match(fdoc, /Übertragung des Feldbogens 26\.0142-PN-01/);
+  assert.match(fdoc, /A_Scan\.jpg · abgelegt [^<]* · Prüfsumme beim Erstellen der Anlage bestätigt/);
+  assert.match(fdoc, /B_Scan\.jpg · abgelegt [^<]* · ACHTUNG: Datei weicht von der abgelegten Prüfsumme ab/);
+  assert.match(fdoc, /Übertragung geprüft von SK/);
+  const media = Object.keys(ff).filter(k => k.startsWith('word/media/'));
+  assert.equal(media.length, 1, 'nur der stimmige Scan als Bild');
+  assert.deepEqual([...ff[media[0]].slice(0, 2)], [0xff, 0xd8], 'JPEG');
 
   assert.deepEqual(errors, [], 'keine Fehler in der Konsole');
   await browser.close(); server.close();

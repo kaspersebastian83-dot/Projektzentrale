@@ -81,4 +81,64 @@ assert.match(n, /Anlage-fur-Grosse-A-x/);
 assert.equal(ANLAGE.datum('2026-10-21'), '21.10.2026');
 assert.equal(ANLAGE.datum('21.10.26'), '21.10.26', 'anderes Format bleibt wie erfasst');
 
+// PN 98-Feldbögen (LabelKit 4.27): Übertragung mit Vermerken, Scans mit Prüfstatus, Bild angehängt
+const feldRec = (o) => Object.assign({
+  id: 'fp-1', typ: 'pn98', formularId: '26.0142-PN-01', erfasstVon: 'AB', erfasstAm: '2026-10-22T07:00:00.000Z',
+  kopf: { projektNr: '26.0142', datum: '21.10.2026', objekt: 'EFH Musterweg 7', auftraggeber: 'AG', probenehmer: 'S. Kasper', anwesende: 'Hr. Muster',
+    grund: ['Entsorgung / Deklaration'], grundSonstiges: '', schadstoffe: ['PAK', 'Asbest'], schadstoffeSonstige: 'Chlorid', labor: 'Labor X', uebergabeAm: '22.10.2026',
+    material: ['Haufwerk außen'], gelagertTage: '14', witterung: ['trocken'], geraet: ['Schaufel'], geraetSonstiges: '', gefaess: ['PE-Eimer'], gefaessSonstiges: '',
+    kuehl: true, lage: ['im Probenplan', 'Fotos'], ortDatum: 'Würselen, 21.10.26', unterschrift: true, zeugen: false },
+  mp: [
+    { nr: 1, w: { probenNr: 'P1', uhrzeit: '10:15', foto: '12', stelle: 'Haufwerk H1', material: 'Brandschutt', art: 'Mischprobe', einzelproben: '4', volumen: '25', menge: '2,5', farbe: 'grau', geruch: 'brandtypisch', geruchAnders: '', konsistenz: ['stückig', 'körnig'], feuchte: 'trocken', anmerkung: '' } },
+    { nr: 2, w: { probenNr: '', uhrzeit: '', foto: '', stelle: 'EG Küche', material: 'Estrich', art: 'Einzelprobe / Hot-Spot', einzelproben: '', volumen: '', menge: '1,O', farbe: '', geruch: '', geruchAnders: '', konsistenz: [], feuchte: '', anmerkung: 'Probe unter Fliesen' } }],
+  unl: { 'mp.1.menge': true, 'kopf.anwesende': true },
+  scans: [{ datei: '26-0142-PN-01_Scan_2026-10-22.jpg', sha256: 'cd'.repeat(32), abgelegtAm: '2026-10-22T07:30:00.000Z', abgelegtVon: 'AB', bytes: 9, original: 'a.jpg' },
+    { datei: '26-0142-PN-01_Scan_2026-10-22_2.pdf', sha256: 'ef'.repeat(32), abgelegtAm: '2026-10-22T07:31:00.000Z', abgelegtVon: 'AB', ungueltig: { grund: 'falscher Bogen' } }],
+  abgeschlossen: { von: 'AB', am: '2026-10-22T08:00:00.000Z' }, pruefung: null,
+  aenderungen: [{ am: '2026-10-22T09:00:00.000Z', von: 'SK', feld: 'Probe 1 · Laborprobe ca.', alt: '2,0', neu: '2,5' }] }, o || {});
+const mitFeld = () => Object.assign(daten(), { feldprotokolle: [feldRec(), { typ: 'asbest', id: 'x', kopf: {}, mp: [] }] });
+c = ANLAGE.pruefen(mitFeld(), '26.0142');
+assert.equal(c.feld, 1, 'nur PN 98-Feldbögen zählen');
+assert.match(c.hinweise.join(' '), /26\.0142-PN-01: Übertragung noch nicht durch eine zweite Person geprüft/);
+assert.doesNotMatch(c.hinweise.join(' '), /kein Scan/);
+const offen = Object.assign(daten(), { pn98Proben: [], feldprotokolle: [feldRec({ abgeschlossen: null, scans: [] })] });
+c = ANLAGE.pruefen(offen, '26.0142');
+assert.equal(c.pn98Moeglich, true, 'Feldbogen allein reicht');
+assert.match(c.hinweise.join(' '), /noch nicht abgeschlossen/);
+assert.match(c.hinweise.join(' '), /kein Scan des Papierbogens/);
+
+const bild = { data: new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), ext: 'jpg', widthPx: 1240, heightPx: 1754 };
+const scans = { 'fp-1': [Object.assign({}, feldRec().scans[0], { status: 'ok', bild }), Object.assign({}, feldRec().scans[1], { status: 'fehlt' })] };
+const rf = ANLAGE.pn98Brand(mitFeld(), { ...opt, brand: false, scans });
+const ff = lade.unzip(DOCX.build({ created: opt.erstellt, blocks: rf.blocks }), DOCX.crc32);
+const fdoc = dec.decode(ff['word/document.xml']);
+const ft = fdoc.slice(fdoc.indexOf('<w:body>')).replace(/<\/w:p>/g, '\n').replace(/<[^>]+>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/&quot;/g, '"');
+assert.match(ft, /Übertragung des Feldbogens 26\.0142-PN-01 · Feldprotokoll 1 von 1/);
+assert.match(ft, /in Anlehnung an LAGA PN 98 · Protokoll 1 von 2/, 'Bildschirm-Protokolle folgen unverändert');
+assert.ok(ft.indexOf('Feldprotokoll 1 von 1') < ft.indexOf('Protokoll 1 von 2'), 'Feldbögen zuerst');
+assert.match(ft, /Probe 1 · Proben-Nr\. P1/);
+assert.match(ft, /Probe 2 · ohne Proben-Nr\./);
+assert.match(ft, /Mischprobe aus 4 Einzelproben/);
+assert.match(ft, /ca\. 25 m³ \/ ca\. 2,5 kg/);
+assert.match(ft, /ca\. 1,O \[unleserlich\] kg/, 'Gelesenes bleibt, Vermerk dazu');
+assert.match(ft, /Anwesende:\nHr\. Muster \[unleserlich\]/);
+assert.match(ft, /PAK, Asbest · Chlorid/);
+assert.match(ft, /stückig, körnig/);
+assert.match(ft, /Transport kühl und dunkel:\nja/);
+assert.match(ft, /Probenehmer:\nvorhanden\nAnwesende \/ Zeugen:\n—/);
+assert.match(ft, /erfasst von AB ab 22\.10\.2026 09:00 Uhr; abgeschlossen von AB am 22\.10\.2026 10:00 Uhr; Übertragung nicht durch eine zweite Person geprüft/);
+assert.match(ft, /Änderungen nach Abschluss der Erfassung \(1\)/);
+assert.match(ft, /Probe 1 · Laborprobe ca\.\n2,0\n2,5/);
+assert.match(ft, /26-0142-PN-01_Scan_2026-10-22\.jpg · abgelegt 22\.10\.2026 09:30 Uhr von AB · Prüfsumme beim Erstellen der Anlage bestätigt/);
+assert.match(ft, /_2\.pdf · abgelegt .* · als ungültig vermerkt: falscher Bogen/);
+assert.match(ft, new RegExp('SHA-256 ' + 'cd'.repeat(32)));
+assert.match(ft, /verkleinerte Wiedergabe; maßgeblich ist die Datei/);
+assert.equal(Object.keys(ff).filter(k => k.startsWith('word/media/')).length, 1, 'ein Scan eingebettet (der ungültige nicht)');
+const abw = ANLAGE.pn98Brand(mitFeld(), { ...opt, brand: false, scans: { 'fp-1': [Object.assign({}, feldRec().scans[0], { status: 'abweichend' })] } });
+const at = JSON.stringify(abw.blocks);
+assert.match(at, /ACHTUNG: Datei weicht von der abgelegten Prüfsumme ab/);
+assert.doesNotMatch(at, /"t":"image"/, 'abweichender Scan wird nicht als Bild gezeigt');
+const ohneScans = JSON.stringify(ANLAGE.pn98Brand(mitFeld(), { ...opt, brand: false }).blocks);
+assert.match(ohneScans, /Prüfsumme nicht nachgeprüft/, 'ohne Nachprüfung ehrlich vermerkt');
+
 console.log('Anlage: alle Prüfungen bestanden');
