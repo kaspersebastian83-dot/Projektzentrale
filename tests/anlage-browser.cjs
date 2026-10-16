@@ -34,7 +34,7 @@ const daten = {
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
   await page.goto(url);
   await page.waitForSelector('#btnInfo');
-  assert.equal(await page.locator('#btnInfo').textContent(), 'v1.6.1');
+  assert.equal(await page.locator('#btnInfo').textContent(), 'v1.6.2');
 
   const kann = await page.evaluate(async () => {
     if (!('showDirectoryPicker' in window) || !navigator.storage || !navigator.storage.getDirectory) return false;
@@ -59,11 +59,28 @@ const daten = {
     await schreibe(lab, '26.0142_15.10.2026_Daten.json', JSON.stringify({ projekt: { nr: '26.0142' }, pn98Proben: [] }));
     await new Promise(res => setTimeout(res, 30));
     await schreibe(lab, '26.0142_16.10.2026_Daten.json', JSON.stringify(d, null, 2));
+    // PlanKit: ein Probenplan und zwei „(vorher …)“-Sicherungen vom Speichern
+    const pl = await proj.getDirectoryHandle('Pläne', { create: true });
+    for (const n of ['Probenplan 26.0142 Teststadt.probenplan', 'Probenplan 26.0142 Teststadt (vorher 2026-10-16T19-37-16-853Z-95805c53).probenplan', 'Probenplan 26.0142 Teststadt (vorher 2026-10-16T19-37-48-520Z-024f648d).probenplan']) await schreibe(pl, n, '{}');
     window.showDirectoryPicker = async () => archiv;
   }, daten);
   await page.locator('#btnStart, #btnArchive').first().click();
   await page.locator('.proj[data-name="26.0142 Teststadt"]').click();
   await page.locator('#anlPn98').waitFor();
+  // Sicherungskopien von PlanKit zählen nicht als eigene Pläne
+  assert.match(await page.locator('#detail').textContent(), /3 Dateien · Probenplan · 2 Sicherungskopien von PlanKit/);
+  assert.match(await page.locator('.proj.active .chips').textContent(), /Plan ✓/);
+  // Projektdaten: Neuzeichnen der Ansicht, bevor die Eingabe gespeichert ist (hier: fehlende Unterordner anlegen), behält die Eingabe
+  await page.locator('#pj_objekt').fill('EFH, Testweg 1');
+  await page.locator('#mkSubs').click(); await page.locator('#dYes').click();
+  await page.waitForFunction(() => !document.getElementById('mkSubs'));
+  assert.equal(await page.locator('#pj_objekt').inputValue(), 'EFH, Testweg 1', 'Eingabe bleibt beim Neuzeichnen');
+  await page.locator('#pjSave.ok').waitFor();
+  const projektJson = await page.evaluate(async () => {
+    const proj = await (await (await navigator.storage.getDirectory()).getDirectoryHandle('Mosaik Archivordner')).getDirectoryHandle('26.0142 Teststadt');
+    return JSON.parse(await (await (await proj.getFileHandle('_Projekt.json')).getFile()).text());
+  });
+  assert.equal(projektJson.objekt, 'EFH, Testweg 1', 'Eingabe in _Projekt.json gespeichert');
   // Anlage Probenahme: Absprung nach PlanKit mit geöffnetem Anlagen-Export
   await page.evaluate(() => { window.__geoeffnet = []; window.open = u => { window.__geoeffnet.push(u); return null; }; });
   await page.locator('#anlPlan').click();
@@ -107,7 +124,7 @@ const daten = {
   const protokoll = new TextDecoder().decode(Uint8Array.from(out['_Anlagen-Protokoll.txt']));
   assert.match(protokoll, /^Anlagen-Protokoll/);
   const docxSha = await page.evaluate(async b => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array(b))), x => x.toString(16).padStart(2, '0')).join(''), out[docxName]);
-  assert.ok(protokoll.includes(`| ${docxName} | ${docxSha} | Laboraufträge/26.0142_16.10.2026_Daten.json | ${sha} | Projektzentrale 1.6.1`), 'Protokollzeile mit beiden Prüfsummen');
+  assert.ok(protokoll.includes(`| ${docxName} | ${docxSha} | Laboraufträge/26.0142_16.10.2026_Daten.json | ${sha} | Projektzentrale 1.6.2`), 'Protokollzeile mit beiden Prüfsummen');
 
   // Zweites Mal: nichts überschrieben, neuer Name; Bezeichnung gemerkt
   await page.locator('#anlPn98').waitFor();
