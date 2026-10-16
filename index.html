@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>Projektzentrale</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -155,9 +156,10 @@ table.folders .miss{color:var(--warn)}
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.2.1';
 const APP_DATE = '2026-10-16';
 const CHANGELOG = [
+  ['1.2.1', '16.10.2026', 'Sicherheit: strenge Inhaltsrichtlinie (Content Security Policy) – die Seite kann keine Daten an andere Server senden und lädt keinen fremden Code.'],
   ['1.2.0', '16.10.2026', 'Kurzanleitung für alle Projekt-Apps eingebaut: Knopf „? Kurzanleitung“ oder F1, mit Ablaufbild und Druck/PDF.'],
   ['1.1.0', '16.10.2026', '„Plan bearbeiten → PlanKit“ und „Proben erfassen → LabelKit“ öffnen die Apps direkt im Projekt (Ordner „Pläne“ bzw. „Laboraufträge“).'],
   ['1.0.0', '13.10.2026', 'Erste Version: Archivordner einmal wählen, alle Projekte mit Status je Unterordner, gemeinsame Projektdaten in _Projekt.json, Fotos direkt im Bildumbenenner öffnen.'],
