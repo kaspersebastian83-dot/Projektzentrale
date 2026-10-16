@@ -34,7 +34,7 @@ const daten = {
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
   await page.goto(url);
   await page.waitForSelector('#btnInfo');
-  assert.equal(await page.locator('#btnInfo').textContent(), 'v1.6.0');
+  assert.equal(await page.locator('#btnInfo').textContent(), 'v1.6.1');
 
   const kann = await page.evaluate(async () => {
     if (!('showDirectoryPicker' in window) || !navigator.storage || !navigator.storage.getDirectory) return false;
@@ -64,6 +64,11 @@ const daten = {
   await page.locator('#btnStart, #btnArchive').first().click();
   await page.locator('.proj[data-name="26.0142 Teststadt"]').click();
   await page.locator('#anlPn98').waitFor();
+  // Anlage Probenahme: Absprung nach PlanKit mit geöffnetem Anlagen-Export
+  await page.evaluate(() => { window.__geoeffnet = []; window.open = u => { window.__geoeffnet.push(u); return null; }; });
+  await page.locator('#anlPlan').click();
+  await page.waitForFunction(() => window.__geoeffnet.length === 1);
+  assert.match(await page.evaluate(() => window.__geoeffnet[0]), /\/Probenplan\/\?projekt=26\.0142\+Teststadt&aktion=anlage$/);
   const status = await page.locator('#anl').textContent();
   assert.match(status, /1 PN 98-Protokoll · 1 Brandgeruch-Probe/);
   assert.match(status, /26\.0142_16\.10\.2026_Daten\.json/, 'neueste Projektdatei');
@@ -102,7 +107,7 @@ const daten = {
   const protokoll = new TextDecoder().decode(Uint8Array.from(out['_Anlagen-Protokoll.txt']));
   assert.match(protokoll, /^Anlagen-Protokoll/);
   const docxSha = await page.evaluate(async b => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array(b))), x => x.toString(16).padStart(2, '0')).join(''), out[docxName]);
-  assert.ok(protokoll.includes(`| ${docxName} | ${docxSha} | Laboraufträge/26.0142_16.10.2026_Daten.json | ${sha} | Projektzentrale 1.6.0`), 'Protokollzeile mit beiden Prüfsummen');
+  assert.ok(protokoll.includes(`| ${docxName} | ${docxSha} | Laboraufträge/26.0142_16.10.2026_Daten.json | ${sha} | Projektzentrale 1.6.1`), 'Protokollzeile mit beiden Prüfsummen');
 
   // Zweites Mal: nichts überschrieben, neuer Name; Bezeichnung gemerkt
   await page.locator('#anlPn98').waitFor();

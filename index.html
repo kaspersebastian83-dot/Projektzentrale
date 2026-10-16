@@ -146,7 +146,7 @@ table.folders .miss{color:var(--warn)}
 <header>
   <div class="appbar">
     <div class="brand"><span class="hex">⬡</span> Projektzentrale <small>Projekte &amp; Apps</small></div>
-    <button id="btnInfo" class="hbadge" title="Version, Speicherorte, Änderungen">v1.6.0</button>
+    <button id="btnInfo" class="hbadge" title="Version, Speicherorte, Änderungen">v1.6.1</button>
     <button id="btnHelp" class="hbadge help" title="Kurzanleitung für alle Projekt-Apps (F1)"><b>?</b> Kurzanleitung</button>
     <button id="btnUpd" class="upd" hidden>Update verfügbar – neu laden</button>
     <span class="spacer"></span>
@@ -602,9 +602,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.6.0';
+const APP_VERSION = '1.6.1';
 const APP_DATE = '2026-10-16';
 const CHANGELOG = [
+  ['1.6.1', '16.10.2026', 'Anlagen zum Gutachten stehen im Projekt direkt unter den App-Knöpfen; neu „Anlage Probenahme in PlanKit erstellen …“ öffnet PlanKit gleich im Export der Anlage.'],
   ['1.6.0', '16.10.2026', 'Vierter Knopf im Projekt: „Abrechnung → AufwandKit“ – Zeiten, km und Spesen je Kollege, Proben aus LabelKit, Berichtsseiten und Fotos mit den Positionsnummern der Rechnung.'],
   ['1.5.1', '16.10.2026', 'Knöpfe im Projekt in der Reihenfolge der Arbeit: Proben erfassen (LabelKit), Fotos bearbeiten (FotoKit), Plan bearbeiten (PlanKit).'],
   ['1.5.0', '16.10.2026', 'Anlage PN 98: vor Ort ausgefüllte und in LabelKit übertragene Feldbögen (ab LabelKit 4.27) mit Erfassungs- und Prüfvermerk, Änderungen nach Abschluss und Scan des Bogens – Prüfsumme jedes Scans wird beim Erstellen nachgeprüft, JPEG/PNG-Scans verkleinert angehängt. Hinweise bei offener Erfassung, fehlender Prüfung oder fehlendem Scan.'],
@@ -927,12 +928,14 @@ function renderDetail(){
       <button id="goAufwand" title="Zeiten, km, Spesen eintragen; Proben, Berichtsseiten und Fotos für die Rechnung zusammenstellen">Abrechnung → AufwandKit</button>
       <span class="hint">In der Reihenfolge der Arbeit: Proben, Fotos, Plan – und zum Schluss die Abrechnung. Jede App öffnet direkt ihren Ordner dieses Projekts – LabelKit „Laboraufträge“, FotoKit „Fotos“, PlanKit „Pläne“, AufwandKit „Abrechnung“ – und speichert dort.</span>
     </div>
+    <h3>Anlagen zum Gutachten <small style="text-transform:none;letter-spacing:0">(Word, zum Einfügen in den Bericht)</small></h3>
+    <table class="folders"><tr><td>Probenahme</td><td>Lageplan je Geschoss, Probenverzeichnis, je Probe Ausschnitt, Fotos und Laborwerte
+      <div class="actions" style="margin-top:6px"><button class="primary" id="anlPlan">Anlage Probenahme in PlanKit erstellen …</button></div></td></tr></table>
+    <div id="anl" style="margin-top:6px"><div class="m">${p.st && !p.st.err ? 'Wird geprüft …' : ''}</div></div>
     <h3>Ordner</h3>
     ${p.st && !p.st.err ? `<table class="folders">${folderRows(p)}</table>
       ${SUBS.some(([k]) => !p.st.subs[k]) ? '<div class="actions" style="margin-top:8px"><button id="mkSubs">Fehlende Unterordner anlegen</button></div>' : ''}`
       : `<div class="m">${p.st && p.st.err ? 'Nicht lesbar: ' + esc(p.st.err) : 'Wird gelesen …'}</div>`}
-    <h3>Anlagen zum Gutachten <small style="text-transform:none;letter-spacing:0">(Word, zum Einfügen in den Bericht)</small></h3>
-    <div id="anl"><div class="m">${p.st && !p.st.err ? 'Wird geprüft …' : ''}</div></div>
     <h3>Projektdaten <small style="text-transform:none;letter-spacing:0">(${esc(PJ_FILE)} im Projektordner – gilt für alle Apps)</small></h3>
     ${nrWarn}
     ${pj.error ? `<div class="warn">„${PJ_FILE}“ ist nicht lesbar (${esc(pj.error)}) und wird nicht überschrieben.</div>` : ''}
@@ -954,6 +957,7 @@ function renderDetail(){
   $('goPlan').onclick = () => openPlanKit(p);
   $('goLabel').onclick = () => openApp(p, LABELKIT_URL, 'labelkit');
   $('goAufwand').onclick = () => openApp(p, AUFWANDKIT_URL, 'aufwandkit');
+  $('anlPlan').onclick = () => openPlanKit(p, 'anlage');
   if ($('mkSubs')) $('mkSubs').onclick = () => makeSubs(p);
   if (p.st && !p.st.err) anlStatus(p);
 }
@@ -1000,11 +1004,12 @@ async function openApp(p, base, target){
   url.searchParams.set('projekt', p.name);
   window.open(url.href, target);
 }
-async function openPlanKit(p){
+async function openPlanKit(p, aktion){
   await flushPJ();
   await SUITE.set('archiv', S.archive).catch(() => {});
   const url = new URL(PROBENPLAN_URL, location.href);
   url.searchParams.set('projekt', p.name);
+  if (aktion) url.searchParams.set('aktion', aktion);   // PlanKit öffnet dann den Export mit „Word · Anlage Probenahme“
   window.open(url.href, 'plankit');
 }
 async function openBildumbenenner(p){
@@ -1264,7 +1269,8 @@ function helpHtml(){
     <li><b>Laborbericht da:</b> XML und PDF in „Laborergebnisse“ ablegen. In PlanKit den Bericht importieren und <b>„Alle Konflikte: Aktualisieren“</b> klicken – die Messwerte hängen dann an den Proben.</li>
     <li><b>Auswerten:</b> PlanKit „Ergebnisse“ → Ergebniskarte exportieren. FotoKit „Ergebnistabelle …“ → Tabelle für Word.</li>
     <li><b>Abrechnung → AufwandKit:</b> Jede Person trägt ihre Ortstermine (Stunden, km, Spesen, Übernachtung) und Auswertungsstunden selbst ein. Proben aus LabelKit, Berichtsseiten und Fotos werden gezählt; „Abrechnung“ zeigt alle Positionen mit Nummern zum Übertragen ins Rechnungsprogramm.</li>
-    <li><b>Anlagen:</b> Hier im Projekt „Anlage PN 98 / Brandgeruch erstellen (Word)“. Die Datei liegt danach in „Mitteilungen“ – in Word an der gewünschten Stelle <b>Einfügen › Objekt › Text aus Datei</b>.</li>
+    <li><b>Anlage Probenahme:</b> Hier im Projekt „Anlage Probenahme in PlanKit erstellen …“ – PlanKit öffnet den Export mit „Word · Anlage Probenahme“ (Lagepläne, Probenverzeichnis, Ausschnitte, Fotos, Laborwerte).</li>
+    <li><b>Anlagen PN 98 / Brandgeruch:</b> Hier im Projekt „Anlage PN 98 / Brandgeruch erstellen (Word)“. Die Datei liegt danach in „Mitteilungen“ – in Word an der gewünschten Stelle <b>Einfügen › Objekt › Text aus Datei</b>.</li>
   </ol>
   <h4>Gut zu wissen</h4>
   <ul>
