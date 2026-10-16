@@ -15,6 +15,8 @@ Die App läuft vollständig im Browser auf dem eigenen Rechner. **Ordner, Dateie
 
 ## Was die App kann
 
+- **„? Kurzanleitung“** (oder F1): wie Projektzentrale, LabelKit, FotoKit und PlanKit zusammenarbeiten – Einrichtung, Ablauf je Projekt mit Bild, Hinweise, Adressen; druckbar als PDF.
+
 - Listet alle Projektordner (`26.0123 Köln`), neueste zuerst, mit Suche und Jahresfilter.
 - Zeigt je Projekt, was schon da ist: Fotos, Bilddokumentation, Probenplan, Probenerfassung (LabelKit `…_Daten.json`), Laborergebnisse.
 - Legt fehlende Standard-Unterordner auf Wunsch an.

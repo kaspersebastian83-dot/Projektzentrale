@@ -96,6 +96,18 @@ table.folders .miss{color:var(--warn)}
 #dlgBack.show{display:flex}
 .dialog{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px 20px;width:min(640px,94vw);max-height:90vh;display:flex;flex-direction:column;gap:12px}
 .dialog h3{margin:0}
+.dialog.help{width:min(900px,96vw)}
+.help-body{overflow:auto;color:var(--text);font-size:14px;line-height:1.55;padding-right:6px}
+.help-body h4{margin:18px 0 6px;font-size:15px}
+.help-body p,.help-body li{margin:4px 0}
+.help-body ol,.help-body ul{padding-left:22px;margin:4px 0}
+.help-body svg{width:100%;height:auto;margin:6px 0 2px;display:block}
+.help-body .cap{font-size:12px;color:var(--muted);margin-bottom:6px}
+.help-body table{border-collapse:collapse;width:100%}
+.help-body table td{padding:4px 12px 4px 0;font-size:13px;color:var(--text)}
+.help-body table td:first-child{white-space:nowrap;font-weight:600;color:var(--text)}
+.help-body code{font-family:var(--mono);font-size:12.5px}
+.help-link{border:0;background:none;color:var(--accent);padding:0;text-decoration:underline}
 .dialog .btns{display:flex;gap:8px;justify-content:flex-end}
 .dialog table td{padding:3px 12px 3px 0;vertical-align:top;font-size:13px}
 .dialog table td:first-child{color:var(--muted);white-space:nowrap}
@@ -107,7 +119,8 @@ table.folders .miss{color:var(--warn)}
 <body>
 
 <header>
-  <div class="brand">Projekt<span>zentrale</span> <button id="btnInfo" class="ver" title="Version, Speicherorte, Änderungen">v1.1.0</button> <button id="btnUpd" class="upd" hidden>Update verfügbar – neu laden</button></div>
+  <div class="brand">Projekt<span>zentrale</span> <button id="btnInfo" class="ver" title="Version, Speicherorte, Änderungen">v1.2.0</button> <button id="btnUpd" class="upd" hidden>Update verfügbar – neu laden</button></div>
+  <button id="btnHelp" title="Kurzanleitung für alle Projekt-Apps (F1)">? Kurzanleitung</button>
   <button id="btnArchive" class="primary">Archivordner wählen …</button>
   <button id="btnRescan" disabled title="Ordner neu einlesen (z. B. nachdem Kollegen etwas geändert haben)">Neu einlesen</button>
   <span class="folder" id="archiveName"></span>
@@ -120,7 +133,7 @@ table.folders .miss{color:var(--warn)}
 
 <main>
   <div id="listWrap"><div id="list"></div></div>
-  <div id="detail"><div class="empty"><p>Links ein Projekt auswählen.</p></div></div>
+  <div id="detail"><div class="empty"><p>Links ein Projekt auswählen.</p><p><button class="help-link" data-help>Kurzanleitung öffnen</button></p></div></div>
 </main>
 
 <div id="dlgBack"><div class="dialog" id="dialog"></div></div>
@@ -142,9 +155,10 @@ table.folders .miss{color:var(--warn)}
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.1.0';
-const APP_DATE = '2026-10-13';
+const APP_VERSION = '1.2.0';
+const APP_DATE = '2026-10-16';
 const CHANGELOG = [
+  ['1.2.0', '16.10.2026', 'Kurzanleitung für alle Projekt-Apps eingebaut: Knopf „? Kurzanleitung“ oder F1, mit Ablaufbild und Druck/PDF.'],
   ['1.1.0', '16.10.2026', '„Plan bearbeiten → PlanKit“ und „Proben erfassen → LabelKit“ öffnen die Apps direkt im Projekt (Ordner „Pläne“ bzw. „Laboraufträge“).'],
   ['1.0.0', '13.10.2026', 'Erste Version: Archivordner einmal wählen, alle Projekte mit Status je Unterordner, gemeinsame Projektdaten in _Projekt.json, Fotos direkt im Bildumbenenner öffnen.'],
 ];
@@ -290,7 +304,8 @@ function showStart(dir){
     : `<div class="empty"><h2>Archivordner wählen</h2>
          <p>Einmal den Ordner wählen, in dem alle Projektordner liegen – im Büro <code>C:\\daten\\Mosaik Archivordner</code>. Der Browser merkt sich die Auswahl.</p>
          <button class="primary" id="btnStart">Archivordner wählen …</button>
-         <p><small>Nichts wird hochgeladen – die App arbeitet nur im Browser auf diesem Rechner.</small></p></div>`;
+         <p><small>Nichts wird hochgeladen – die App arbeitet nur im Browser auf diesem Rechner.</small></p>
+         <p><button class="help-link" data-help>Kurzanleitung: so arbeiten Projektzentrale, LabelKit, FotoKit und PlanKit zusammen</button></p></div>`;
   if (dir) $('btnGrant').onclick = async () => {
     const st = await dir.requestPermission({ mode: 'readwrite' }).catch(() => 'denied');
     if (st === 'granted') await useArchive(dir); else banner('err', 'Ohne Zugriff kann die Projektzentrale die Projekte nicht anzeigen.');
@@ -443,7 +458,7 @@ function folderRows(p){
 }
 function renderDetail(){
   const p = S.sel;
-  if (!p){ $('detail').innerHTML = '<div class="empty"><p>Links ein Projekt auswählen.</p></div>'; return; }
+  if (!p){ $('detail').innerHTML = '<div class="empty"><p>Links ein Projekt auswählen.</p><p><button class="help-link" data-help>Kurzanleitung öffnen</button></p></div>'; return; }
   const pj = S.pj || { data: {} }, d = pj.data;
   const nrWarn = d.projektnummer && d.projektnummer !== p.nr ? `<div class="warn">Achtung: In „${PJ_FILE}“ steht Projektnummer ${esc(d.projektnummer)}, der Ordner heißt ${esc(p.nr)}. Maßgeblich ist der Ordnername.</div>` : '';
   const ro = pj.error || pj.newer;
@@ -542,7 +557,7 @@ async function openBildumbenenner(p){
 
 /* ---------- dialogs / banner ---------- */
 function showDialog(html){ $('dialog').innerHTML = html; $('dlgBack').classList.add('show'); }
-function closeDialog(){ $('dlgBack').classList.remove('show'); $('dialog').innerHTML = ''; }
+function closeDialog(){ $('dlgBack').classList.remove('show'); $('dialog').innerHTML = ''; $('dialog').className = 'dialog'; }
 function confirmDialog(title, html, ok){
   return new Promise(res => {
     showDialog(`<h3>${esc(title)}</h3><div class="m">${html}</div><div class="btns"><button id="dNo">Abbrechen</button><button class="primary" id="dYes">${esc(ok)}</button></div>`);
@@ -586,6 +601,89 @@ function openInfo(){
 $('btnInfo').textContent = 'v' + APP_VERSION;
 document.title = 'Projektzentrale ' + APP_VERSION;
 $('btnInfo').onclick = openInfo;
+
+/* ---------- Kurzanleitung (alle Projekt-Apps) ---------- */
+function helpDiagram(){
+  const W = 164, cA = 100, cB = 280, cC = 460, cD = 640, appY = 150, appH = 60, dirY = 300, dirH = 56;
+  const edge = 'var(--muted)', ink = 'var(--text)', quiet = 'var(--muted)', acc = 'var(--accent)';
+  const t = (x, y, words, o = '') => `<text x="${x}" y="${y}" text-anchor="middle" fill="${o.includes('q') ? quiet : ink}" font-size="${o.includes('q') ? 11.5 : 13}" ${o.includes('b') ? 'font-weight="600"' : ''}>${words}</text>`;
+  const box = (cx, y, h, fill) => `<rect x="${cx - W / 2}" y="${y}" width="${W}" height="${h}" rx="8" fill="${fill}" stroke="${edge}" stroke-width="1.25"/>`;
+  const app = (cx, name, line) => box(cx, appY, appH, 'none') + t(cx, appY + 24, name, 'b') + t(cx, appY + 42, line, 'q');
+  const dir = (cx, name, line) => box(cx, dirY, dirH, 'var(--panel2)') + t(cx, dirY + 24, name, 'b') + t(cx, dirY + 42, line, 'q');
+  const arrow = d => `<path d="${d}" fill="none" stroke="${edge}" stroke-width="1.25" marker-end="url(#help-arrow)"/>`;
+  const dashed = d => `<path d="${d}" fill="none" stroke="${edge}" stroke-width="1.25" stroke-dasharray="4 4" marker-end="url(#help-arrow)"/>`;
+  return `<svg viewBox="0 0 760 372" role="img" aria-label="Jede App arbeitet in ihrem eigenen Projektordner" font-family="Segoe UI, system-ui, sans-serif">
+    <defs><marker id="help-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${edge}"/></marker></defs>
+    ${arrow(`M${cB} 104V${appY - 2}`)}<path d="M${cA} 127H${cC}" fill="none" stroke="${edge}" stroke-width="1.25"/>${arrow(`M${cA} 127V${appY - 2}`)}${arrow(`M${cC} 127V${appY - 2}`)}
+    ${arrow(`M${cA} ${appY + appH}V${dirY - 2}`)}${arrow(`M${cB} ${appY + appH}V${dirY - 2}`)}${arrow(`M${cC} ${appY + appH}V${dirY - 2}`)}
+    ${dashed(`M${cA + 50} ${dirY}V258H${cC - 40}V${appY + appH + 2}`)}${dashed(`M${cD} ${dirY}V258H${cC + 40}V${appY + appH + 2}`)}
+    <rect x="${cB - 150}" y="56" width="300" height="48" rx="8" fill="color-mix(in srgb, var(--accent) 12%, transparent)" stroke="${acc}" stroke-width="2"/>
+    ${t(cB, 76, 'Projektzentrale', 'b')}${t(cB, 94, 'Projekt wählen, App öffnen', 'q')}
+    ${app(cA, 'LabelKit', 'Proben, Etiketten')}${app(cB, 'FotoKit', 'Fotos, Doku, Tabelle')}${app(cC, 'PlanKit', 'Plan, Ergebniskarte')}
+    ${dir(cA, 'Laboraufträge', '…_Daten.json, Übergabe')}${dir(cB, 'Fotos', 'Bilder, Bilddoku-PDF')}${dir(cC, 'Pläne', 'Probenplan, Bilder')}${dir(cD, 'Laborergebnisse', 'XML und PDF vom Labor')}
+    ${t(350, 251, 'Proben vorab', 'q')}${t(570, 251, 'Messwerte', 'q')}
+  </svg>`;
+}
+function helpHtml(){
+  return `<p><b>Alle Arbeit startet hier in der Projektzentrale:</b> Sie öffnet FotoKit, PlanKit und LabelKit direkt im richtigen Projektordner, gespeichert wird dort automatisch.</p>
+  <h4>Einmalig einrichten</h4>
+  <ol>
+    <li>Auf dem Terminalserver <b>Google Chrome oder Microsoft Edge</b> öffnen (Firefox kann keine Ordner beschreiben).</li>
+    <li>Hier <b>„Archivordner wählen …“</b> → <code>C:\\daten\\Mosaik Archivordner</code> → <b>Zulassen</b>.</li>
+    <li>Im Browsermenü <b>„App installieren“</b> wählen – die Projektzentrale startet dann wie ein normales Programm.</li>
+    <li>Nach jedem Browserneustart einmal <b>„Zugriff erlauben“</b> klicken. Das ist eine Schutzregel des Browsers, kein Fehler.</li>
+  </ol>
+  <p>Die Einrichtung gilt pro Windows-Benutzer. FotoKit, PlanKit und LabelKit übernehmen den Archivordner automatisch.</p>
+  <h4>Ablauf je Projekt</h4>
+  ${helpDiagram()}
+  <div class="cap">Durchgezogene Pfeile: Die App speichert dort. Gestrichelt: PlanKit liest die Proben aus LabelKit und die Messwerte vom Labor.</div>
+  <ol>
+    <li><b>Projektzentrale:</b> Projekt wählen, Projektdaten ergänzen (Objekt, Auftraggeber, Schadendatum …). Alle Apps übernehmen sie.</li>
+    <li><b>Proben erfassen → LabelKit:</b> Proben anlegen, Etiketten drucken, Laborübergabe erstellen, <b>Strg+S</b>. Alles landet in „Laboraufträge“.</li>
+    <li><b>Fotos bearbeiten → FotoKit:</b> Fotos benennen und die Bilddokumentation als PDF erstellen (Ordner „Fotos“).</li>
+    <li><b>Plan bearbeiten → PlanKit:</b> Grundriss aus „Pläne“ wählen. Unter „Laborbericht importieren …“ die <b>Probenerfassung aus LabelKit</b> übernehmen und die Proben auf den Plan ziehen.</li>
+    <li><b>Laborbericht da:</b> XML und PDF in „Laborergebnisse“ ablegen. In PlanKit den Bericht importieren und <b>„Alle Konflikte: Aktualisieren“</b> klicken – die Messwerte hängen dann an den Proben.</li>
+    <li><b>Auswerten:</b> PlanKit „Ergebnisse“ → Ergebniskarte exportieren. FotoKit „Ergebnistabelle …“ → Tabelle für Word.</li>
+  </ol>
+  <h4>Gut zu wissen</h4>
+  <ul>
+    <li><b>Speichern:</b> PlanKit speichert jede Änderung selbst in „Pläne“. In LabelKit genügt <b>Strg+S</b>, ohne Ordnerdialog. FotoKit benennt die Fotos direkt im Ordner um.</li>
+    <li><b>Zu zweit am selben Projekt:</b> Hat ein Kollege zwischendurch gespeichert, fragt PlanKit nach, statt zu überschreiben. FotoKit führt beide Fassungen zusammen.</li>
+    <li><b>Ersetzen:</b> Lädt man in PlanKit einen neuen Grundriss, bleibt die alte Datei als „(vorher …)“-Kopie in „Pläne“.</li>
+    <li><b>Mehrere Geschosse:</b> In PlanKit unten „＋ Plan“ (EG, 1. OG …). Probennummern laufen über alle Geschosse weiter. Eine mehrseitige PDF mit „Alle Seiten als einzelne Pläne“ übernehmen.</li>
+    <li><b>Ergebniskarte:</b> In PlanKit „Ergebnisse“ (Taste K) färbt die Proben nach der Bewertungsskala – dieselbe wie in der FotoKit-Ergebnistabelle. Beim Export „Darstellung: Ergebniskarte“ wählen.</li>
+    <li><b>Hilfe:</b> In jeder App erklärt der <b>?</b>-Knopf (oder F1) die Bedienung.</li>
+    <li><b>Problem melden:</b> In FotoKit „Problem melden“, sonst Screenshot und kurze Beschreibung an <b>sebastian.kasper@dr-schiffers.de</b>.</li>
+  </ul>
+  <h4>Adressen</h4>
+  <table>
+    <tr><td>Projektzentrale</td><td>Projekte, Projektdaten, Start der Apps</td><td>kaspersebastian83-dot.github.io/Projektzentrale</td></tr>
+    <tr><td>LabelKit</td><td>Proben erfassen, Etiketten, Laborübergabe</td><td>kaspersebastian83-dot.github.io/labelkit</td></tr>
+    <tr><td>FotoKit</td><td>Fotos benennen, Bilddokumentation, Ergebnistabelle</td><td>kaspersebastian83-dot.github.io/Bildumbenenner</td></tr>
+    <tr><td>PlanKit</td><td>Probenplan, Ergebniskarte</td><td>kaspersebastian83-dot.github.io/Probenplan</td></tr>
+  </table>
+  <p>Alle Daten bleiben auf dem Server im Archivordner. Die Apps laden nichts hoch.</p>`;
+}
+function openHelp(){
+  showDialog(`<h3>Kurzanleitung – Projekt-Apps</h3><div class="help-body">${helpHtml()}</div>
+    <div class="btns"><button id="hPrint">Drucken / PDF</button><button class="primary" id="hClose">Schließen</button></div>`);
+  $('dialog').classList.add('help');
+  $('hClose').onclick = closeDialog;
+  $('hPrint').onclick = () => {
+    const w = window.open('', '_blank'); if (!w) return;
+    const css = getComputedStyle(document.documentElement), v = n => css.getPropertyValue(n).trim();
+    w.document.write(`<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Kurzanleitung – Projekt-Apps</title><style>
+      :root{--text:#1d2a33;--muted:#5f6f7d;--accent:${v('--accent') || '#3f7cc0'};--panel2:#f1f5f9;--mono:Consolas,monospace}
+      body{font:11pt/1.45 "Segoe UI",Arial,sans-serif;color:#1d2a33;margin:14mm 16mm}h1{font-size:17pt;margin:0 0 6px}h4{font-size:12pt;margin:12px 0 4px}
+      ol,ul{padding-left:20px;margin:3px 0}li,p{margin:2px 0}svg{width:100%;height:auto}.cap{font-size:9pt;color:#5f6f7d}table{border-collapse:collapse}td{padding:2px 10px 2px 0;font-size:10pt}td:first-child{font-weight:600}code{font-family:Consolas,monospace}
+      @page{size:A4;margin:0}</style></head><body><h1>Kurzanleitung – Projekt-Apps</h1>${helpHtml()}<script>window.onload=()=>window.print()<\/script></body></html>`);
+    w.document.close();
+  };
+}
+$('btnHelp').onclick = openHelp;
+document.addEventListener('click', e => { if (e.target.closest && e.target.closest('[data-help]')) openHelp(); });
+document.addEventListener('keydown', e => { if (e.key === 'F1'){ e.preventDefault(); openHelp(); } });
+
 $('btnUpd').onclick = async () => { await flushPJ(); location.reload(); };
 $('btnArchive').onclick = pickArchive;
 $('btnRescan').onclick = async () => { await flushPJ(); S.projects.forEach(p => p.st = null); await listProjects(); };
