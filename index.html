@@ -146,7 +146,7 @@ table.folders .miss{color:var(--warn)}
 <header>
   <div class="appbar">
     <div class="brand"><span class="hex">⬡</span> Projektzentrale <small>Projekte &amp; Apps</small></div>
-    <button id="btnInfo" class="hbadge" title="Version, Speicherorte, Änderungen">v1.2.0</button>
+    <button id="btnInfo" class="hbadge" title="Version, Speicherorte, Änderungen">v1.4.0</button>
     <button id="btnHelp" class="hbadge help" title="Kurzanleitung für alle Projekt-Apps (F1)"><b>?</b> Kurzanleitung</button>
     <button id="btnUpd" class="upd" hidden>Update verfügbar – neu laden</button>
     <span class="spacer"></span>
@@ -171,6 +171,328 @@ table.folders .miss{color:var(--warn)}
 <div id="dlgBack"><div class="dialog" id="dialog"></div></div>
 
 <script>
+'use strict';
+/* =====================================================================================================
+   DOCX – kleiner Word-Schreiber (Office Open XML) für die Anlagen zum Gutachten. Ohne Bibliotheken, ohne Netz.
+   Gedacht zum Einfügen in den Bericht mit Word „Einfügen › Objekt › Text aus Datei“. Deshalb:
+     • nur direkte Formatierung (Arial, Größen, Abstände) – keine Formatvorlagen, die beim Einfügen von den
+       Vorlagen des Berichts überschrieben würden;
+     • keine Kopf- und Fußzeilen (die kommen aus dem Bericht), Seitenformat wie im Bericht (A4, Ränder 25 mm);
+     • echter Text und echte Tabellen, keine Bilder von Text.
+   Bausteine (blocks):
+     {t:'p', text|runs, align, size, b, i, u, before, after, line, keepNext, pageBreakBefore, mono}
+     {t:'table', widths:[twips…], rows:[{header, cells:[{text|runs|paras, span, shade, align, b, size}]}], size}
+     {t:'image', data:Uint8Array, ext:'png'|'jpeg', widthMm, heightMm, alt, align}
+     {t:'pagebreak'}
+   DOCX.build({title, author, created, blocks}) → Uint8Array (ZIP, unkomprimiert gespeichert; Word liest das).
+   Der Teil zwischen DOCX-START und DOCX-ENDE läuft auch in Node (tests/docx.cjs).                     */
+/* DOCX-START */
+const DOCX = (() => {
+  const PAGE = { w: 11906, h: 16838, top: 1418, bottom: 1134, left: 1418, right: 1418 };   // A4, Ränder wie Bericht (25 mm seitlich)
+  const TEXT_W = PAGE.w - PAGE.left - PAGE.right;                                             // 9070 twips nutzbare Breite
+  const FONT = 'Arial';
+  const enc = new TextEncoder();
+  // XML: Sonderzeichen maskieren und in XML 1.0 unzulässige Steuerzeichen entfernen (würden Word „beschädigt“ melden lassen)
+  const ohneEinzelSurrogate = s => { let o = ''; for (let i = 0; i < s.length; i++){ const c = s.charCodeAt(i);
+    if (c >= 0xD800 && c <= 0xDBFF){ const d = s.charCodeAt(i + 1); if (d >= 0xDC00 && d <= 0xDFFF){ o += s[i] + s[i + 1]; i++; } continue; }
+    if (c >= 0xDC00 && c <= 0xDFFF) continue; o += s[i]; } return o; };
+  const x = s => ohneEinzelSurrogate(String(s == null ? '' : s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g, ''))
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+  function rPr(o){
+    const f = o.mono ? 'Courier New' : (o.font || FONT), sz = Math.round((o.size || 11) * 2);
+    return `<w:rPr><w:rFonts w:ascii="${f}" w:hAnsi="${f}" w:cs="${f}" w:eastAsia="${f}"/>${o.b ? '<w:b/><w:bCs/>' : ''}${o.i ? '<w:i/><w:iCs/>' : ''}${o.u ? '<w:u w:val="single"/>' : ''}${o.color ? `<w:color w:val="${o.color}"/>` : ''}<w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/><w:lang w:val="de-DE"/></w:rPr>`;
+  }
+  // Ein Lauf; Zeilenumbrüche → <w:br/>, Tabs → <w:tab/>
+  function run(r, base){
+    const o = Object.assign({}, base, r);
+    const parts = String(o.text == null ? '' : o.text).split(/(\n|\t)/);
+    let inner = '';
+    for (const p of parts){
+      if (p === '\n') inner += '<w:br/>';
+      else if (p === '\t') inner += '<w:tab/>';
+      else if (p) inner += `<w:t xml:space="preserve">${x(p)}</w:t>`;
+    }
+    return `<w:r>${rPr(o)}${inner}</w:r>`;
+  }
+  function runsOf(o){ return o.runs || [{ text: o.text == null ? '' : o.text }]; }
+  function pPr(o, inCell){
+    const jc = { left: 'left', center: 'center', right: 'right', both: 'both' }[o.align || 'left'];
+    const line = o.line || (inCell ? 240 : 240);
+    return `<w:pPr>${o.keepNext ? '<w:keepNext/>' : ''}${o.keepLines ? '<w:keepLines/>' : ''}${o.pageBreakBefore ? '<w:pageBreakBefore/>' : ''}`
+      + `<w:spacing w:before="${o.before || 0}" w:after="${o.after == null ? (inCell ? 0 : 120) : o.after}" w:line="${line}" w:lineRule="auto"/>`
+      + (o.indent ? `<w:ind w:left="${o.indent}"/>` : '') + `<w:jc w:val="${jc}"/>${rPr(o)}</w:pPr>`;
+  }
+  function para(o, inCell){
+    const base = { size: o.size, b: o.b, i: o.i, u: o.u, mono: o.mono, font: o.font, color: o.color };
+    return `<w:p>${pPr(o, inCell)}${runsOf(o).map(r => run(r, base)).join('')}</w:p>`;
+  }
+  function table(o, ctx){
+    const widths = o.widths, total = widths.reduce((a, b) => a + b, 0), size = o.size || 10;
+    const bd = v => `<w:top w:val="${v}" w:sz="4" w:space="0" w:color="000000"/><w:left w:val="${v}" w:sz="4" w:space="0" w:color="000000"/><w:bottom w:val="${v}" w:sz="4" w:space="0" w:color="000000"/><w:right w:val="${v}" w:sz="4" w:space="0" w:color="000000"/>`;
+    const border = o.borders === false ? 'nil' : 'single';
+    let xml = `<w:tbl><w:tblPr><w:tblW w:w="${total}" w:type="dxa"/>${o.align === 'center' ? '<w:jc w:val="center"/>' : ''}<w:tblLayout w:type="fixed"/>`
+      + `<w:tblBorders>${bd(border)}<w:insideH w:val="${border}" w:sz="4" w:space="0" w:color="000000"/><w:insideV w:val="${border}" w:sz="4" w:space="0" w:color="000000"/></w:tblBorders>`
+      + `<w:tblCellMar><w:top w:w="40" w:type="dxa"/><w:left w:w="80" w:type="dxa"/><w:bottom w:w="40" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tblCellMar>`
+      + `<w:tblLook w:val="0000" w:firstRow="0" w:lastRow="0" w:firstColumn="0" w:lastColumn="0" w:noHBand="1" w:noVBand="1"/></w:tblPr>`
+      + `<w:tblGrid>${widths.map(w => `<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>`;
+    for (const row of o.rows){
+      xml += `<w:tr><w:trPr><w:cantSplit/>${row.header ? '<w:tblHeader/>' : ''}${row.minHeight ? `<w:trHeight w:val="${row.minHeight}" w:hRule="atLeast"/>` : ''}</w:trPr>`;
+      let col = 0;
+      for (const c of row.cells){
+        const span = c.span || 1, w = widths.slice(col, col + span).reduce((a, b) => a + b, 0); col += span;
+        const paras = c.paras || [{ text: c.text, runs: c.runs }];
+        xml += `<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/>${span > 1 ? `<w:gridSpan w:val="${span}"/>` : ''}`
+          + (c.shade ? `<w:shd w:val="clear" w:color="auto" w:fill="${c.shade}"/>` : '')
+          + `<w:vAlign w:val="${c.vAlign || 'top'}"/></w:tcPr>`
+          + paras.map(p => para(Object.assign({ size, align: c.align, b: c.b, i: c.i, after: 0 }, p), true)).join('') + '</w:tc>';
+      }
+      if (col !== widths.length) throw new Error(`Tabellenzeile hat ${col} statt ${widths.length} Spalten`);
+      xml += '</w:tr>';
+    }
+    // Word verlangt nach einer Tabelle einen Absatz, bevor die nächste Tabelle oder das Dokumentende kommt
+    return xml + '</w:tbl>' + para({ text: '', size: 4, after: 0 }, false);
+  }
+  function image(o, ctx){
+    const id = ctx.media.length + 1, name = `bild${id}.${o.ext === 'png' ? 'png' : 'jpeg'}`, rid = 'rIdImg' + id;
+    ctx.media.push({ name, rid, data: o.data });
+    const emu = mm => Math.round(mm * 36000), cx = emu(o.widthMm), cy = emu(o.heightMm);
+    return `<w:p>${pPr({ align: o.align || 'center', after: o.after == null ? 60 : o.after, keepNext: o.keepNext })}<w:r><w:drawing>`
+      + `<wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${id}" name="Bild ${id}" descr="${x(o.alt || '')}"/>`
+      + `<wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr>`
+      + `<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">`
+      + `<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${id}" name="${name}"/><pic:cNvPicPr/></pic:nvPicPr>`
+      + `<pic:blipFill><a:blip r:embed="${rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>`
+      + `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic>`
+      + `</a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
+  }
+  function body(blocks, ctx){
+    let xml = '';
+    for (const b of blocks){
+      if (b.t === 'p') xml += para(b, false);
+      else if (b.t === 'table') xml += table(b, ctx);
+      else if (b.t === 'image') xml += image(b, ctx);
+      else if (b.t === 'pagebreak') xml += '<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:br w:type="page"/></w:r></w:p>';
+      else throw new Error('Unbekannter Baustein: ' + b.t);
+    }
+    return xml;
+  }
+  const NS = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" '
+    + 'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+    + 'xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"';
+  const HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\r\n';
+
+  function parts(o){
+    const ctx = { media: [] };
+    const created = (o.created || new Date().toISOString()).replace(/\.\d{3}Z$/, 'Z');
+    const sect = `<w:sectPr><w:pgSz w:w="${PAGE.w}" w:h="${PAGE.h}"/><w:pgMar w:top="${PAGE.top}" w:right="${PAGE.right}" w:bottom="${PAGE.bottom}" w:left="${PAGE.left}" w:header="709" w:footer="709" w:gutter="0"/><w:cols w:space="708"/></w:sectPr>`;
+    const doc = HEAD + `<w:document ${NS}><w:body>${body(o.blocks || [], ctx)}${sect}</w:body></w:document>`;
+    const files = [];
+    const add = (name, s) => files.push({ name, data: typeof s === 'string' ? enc.encode(s) : s });
+    add('[Content_Types].xml', HEAD + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+      + '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>'
+      + '<Default Extension="png" ContentType="image/png"/><Default Extension="jpeg" ContentType="image/jpeg"/>'
+      + '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
+      + '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>'
+      + '<Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/>'
+      + '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>'
+      + '<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>');
+    add('_rels/.rels', HEAD + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+      + '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'
+      + '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>'
+      + '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>');
+    add('docProps/core.xml', HEAD + '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
+      + `<dc:title>${x(o.title || '')}</dc:title><dc:creator>${x(o.author || '')}</dc:creator><cp:lastModifiedBy>${x(o.author || '')}</cp:lastModifiedBy>`
+      + `<dcterms:created xsi:type="dcterms:W3CDTF">${created}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${created}</dcterms:modified></cp:coreProperties>`);
+    add('docProps/app.xml', HEAD + `<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>${x(o.application || 'Projektzentrale')}</Application></Properties>`);
+    add('word/styles.xml', HEAD + `<w:styles ${NS}><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="${FONT}" w:hAnsi="${FONT}" w:cs="${FONT}" w:eastAsia="${FONT}"/><w:sz w:val="22"/><w:szCs w:val="22"/><w:lang w:val="de-DE" w:eastAsia="de-DE" w:bidi="ar-SA"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults>`
+      + '<w:style w:type="paragraph" w:default="1" w:styleId="Standard"><w:name w:val="Normal"/><w:qFormat/></w:style>'
+      + '<w:style w:type="table" w:default="1" w:styleId="NormaleTabelle"><w:name w:val="Normal Table"/><w:uiPriority w:val="99"/><w:semiHidden/><w:tblPr><w:tblInd w:w="0" w:type="dxa"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="108" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style></w:styles>');
+    add('word/settings.xml', HEAD + `<w:settings ${NS}><w:defaultTabStop w:val="708"/><w:hyphenationZone w:val="425"/><w:characterSpacingControl w:val="doNotCompress"/><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>`);
+    add('word/_rels/document.xml.rels', HEAD + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+      + '<Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
+      + '<Relationship Id="rIdSettings" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>'
+      + ctx.media.map(m => `<Relationship Id="${m.rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${m.name}"/>`).join('')
+      + '</Relationships>');
+    add('word/document.xml', doc);
+    for (const m of ctx.media) add('word/media/' + m.name, m.data);
+    return { files, created };
+  }
+
+  /* --- ZIP (Methode „stored“, UTF-8-Namen) --- */
+  const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++){ let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  function crc32(u8){ let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+  function zip(files, when){
+    const d = new Date(when || Date.now());
+    const time = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+    const date = ((Math.max(1980, d.getFullYear()) - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+    const locals = [], centrals = []; let offset = 0;
+    for (const f of files){
+      const name = enc.encode(f.name), data = f.data, crc = crc32(data);
+      const lh = new DataView(new ArrayBuffer(30));
+      lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true); lh.setUint16(8, 0, true);
+      lh.setUint16(10, time, true); lh.setUint16(12, date, true); lh.setUint32(14, crc, true);
+      lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true); lh.setUint16(26, name.length, true); lh.setUint16(28, 0, true);
+      locals.push(new Uint8Array(lh.buffer), name, data);
+      const ch = new DataView(new ArrayBuffer(46));
+      ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true); ch.setUint16(10, 0, true);
+      ch.setUint16(12, time, true); ch.setUint16(14, date, true); ch.setUint32(16, crc, true); ch.setUint32(20, data.length, true); ch.setUint32(24, data.length, true);
+      ch.setUint16(28, name.length, true); ch.setUint32(42, offset, true);
+      centrals.push(new Uint8Array(ch.buffer), name);
+      offset += 30 + name.length + data.length;
+    }
+    const cdSize = centrals.reduce((a, b) => a + b.length, 0);
+    const end = new DataView(new ArrayBuffer(22));
+    end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
+    end.setUint32(12, cdSize, true); end.setUint32(16, offset, true);
+    const all = [...locals, ...centrals, new Uint8Array(end.buffer)];
+    const out = new Uint8Array(all.reduce((a, b) => a + b.length, 0)); let p = 0;
+    for (const a of all){ out.set(a, p); p += a.length; }
+    return out;
+  }
+  function build(o){ const { files, created } = parts(o); return zip(files, created); }
+  /** Bildgröße für eine Breite in mm (Seitenverhältnis bleibt). */
+  const fit = (pxW, pxH, maxWmm, maxHmm) => { const s = Math.min(maxWmm / pxW, maxHmm / pxH); return { widthMm: pxW * s, heightMm: pxH * s }; };
+  return { build, parts, zip, crc32, PAGE, TEXT_W, fit, esc: x };
+})();
+/* DOCX-ENDE */
+
+/* =====================================================================================================
+   ANLAGE – Inhalte der Anlagen zum Gutachten aus den Daten der Apps (hier: LabelKit-Projektdatei …_Daten.json).
+   Gerichtsfest gedacht: Werte werden unverändert wiedergegeben (keine Umrechnung, keine Zusammenfassung, keine
+   Bewertung), leere Felder bleiben leer, und jede Anlage endet mit einem Quellenvermerk (Datei, Stand, SHA-256).
+   Läuft auch in Node (tests/anlage.cjs).                                                                   */
+/* ANLAGE-START */
+const ANLAGE = (() => {
+  const W = 9070;   // nutzbare Breite in twips (A4, 25 mm Rand links/rechts)
+  const str = v => v == null ? '' : String(v);
+  const t = v => str(v).trim();
+  /** Datum anzeigen wie erfasst; nur ISO (JJJJ-MM-TT) wird in TT.MM.JJJJ umgeschrieben. */
+  const datum = v => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t(v)); return m ? `${m[3]}.${m[2]}.${m[1]}` : t(v); };
+  const zeit = iso => { const d = new Date(iso); if (isNaN(d)) return str(iso);
+    const z = n => String(n).padStart(2, '0'); return `${z(d.getDate())}.${z(d.getMonth() + 1)}.${d.getFullYear()} ${z(d.getHours())}:${z(d.getMinutes())} Uhr`; };
+  const BG_KEYS = ['p1', 'p2', 'p3', 'p4', 'p5'];
+
+  /** Bestandsaufnahme vor dem Erstellen: was ist da, was fehlt, was spricht dagegen. */
+  function pruefen(daten, projektNr){
+    const d = daten && typeof daten === 'object' ? daten : {};
+    const pn98 = Array.isArray(d.pn98Proben) ? d.pn98Proben : [];
+    const brand = Array.isArray(d.brandgeruchProben) ? d.brandgeruchProben : [];
+    const blind = d.bgBlind === undefined ? brand.length > 0 : !!d.bgBlind;   // LabelKit: ohne Angabe ist der Blindmodus aktiv
+    const fehlend = brand.reduce((n, p) => n + BG_KEYS.filter(k => !t(p[k])).length, 0);
+    const nrDaten = t(d.projekt && d.projekt.nr) || t(d.pn98Projekt && d.pn98Projekt.schaden);
+    const hinweise = [];
+    if (projektNr && nrDaten && nrDaten.replace(/\s/g, '') !== String(projektNr).replace(/\s/g, ''))
+      hinweise.push(`Die Projektdatei trägt die Projektnummer „${nrDaten}“, der Ordner ${projektNr}. Bitte prüfen, ob es die richtige Datei ist.`);
+    if (brand.length && blind) hinweise.push('Brandgeruch: Die Bewertungen sind in LabelKit noch verdeckt (Blind-Modus). Erst in LabelKit „Ergebnisse aufdecken“ und speichern.');
+    if (brand.length && !blind && fehlend) hinweise.push(`Brandgeruch: ${fehlend} Bewertung${fehlend === 1 ? ' fehlt' : 'en fehlen'} – ${fehlend === 1 ? 'das Feld bleibt' : 'die Felder bleiben'} in der Anlage leer.`);
+    const ohneNr = pn98.filter(p => !t(p.probennr)).length;
+    if (ohneNr) hinweise.push(`PN 98: ${ohneNr} Protokoll${ohneNr === 1 ? '' : 'e'} ohne Proben-Nr.`);
+    return { pn98: pn98.length, brand: brand.length, blind, fehlend, nrDaten, hinweise,
+      brandMoeglich: brand.length > 0 && !blind, pn98Moeglich: pn98.length > 0, version: t(d.version), gespeichertAm: t(d.gespeichertAm) };
+  }
+
+  // Bausteine
+  const P = (text, o) => Object.assign({ t: 'p', text, size: 11 }, o);
+  const label = text => ({ text, b: true, shade: 'F2F2F2' });
+  const val = (text, span) => ({ text: str(text), span });
+
+  function pn98Blatt(p, proj, i, n, ersteSeite){
+    const q = [2420, 2115, 2420, 2115];   // Bezeichnung etwas breiter als Wert
+    const dual = (l1, v1, l2, v2) => ({ cells: [label(l1), val(v1), label(l2), val(v2)] });
+    const voll = (l, v, minHeight) => ({ cells: [label(l), val(v, 3)], minHeight });
+    const rows = [
+      dual('Schaden:', proj.schaden, 'Schadendatum:', datum(proj.schadendatum)),
+      voll('Ort der Probenahme:', proj.ort),
+      voll('Grund der Probenahme:', proj.grund),
+      voll('Probenehmer:', proj.probenehmer),
+      dual('Proben-Nr.:', p.probennr, 'Probenahmedatum:', datum(proj.pndatum)),
+      dual('Uhrzeit:', p.uhrzeit, 'Untersuchungslabor:', proj.labor),
+      voll('Probenahmestelle:', p.probenahmestelle),
+      voll('Art der Probe:', p.probenart),
+      voll('vermutete Gefahrstoffe / Gefährdungen:', p.gefahrstoffe),
+      dual('Witterung:', p.witterung, 'Witterungseinfluss:', p.witterungseinfluss),
+      { cells: [{ text: 'Beschreibung der Probe', b: true, shade: 'D9D9D9', span: 4 }] },
+      dual('Farbe:', p.farbe, 'Geruch:', p.geruch),
+      voll('Beschaffenheit (Konsistenz, Homogenität, Körnigkeit etc.):', p.beschaffenheit, 680),
+      dual('Probenmenge (kg):', p.menge, 'geschätztes Haufwerksvolumen:', p.haufwerk),
+      dual('Probenahmegerät:', p.geraet, 'Einzelproben (Anzahl):', p.einzelproben),
+      dual('Probenahmegefäß:', p.gefaess, 'Mischproben (Anzahl):', p.mischproben),
+      dual('Art der Lagerung:', p.lagerungArt, 'Dauer der Lagerung (Tage):', p.lagerungDauer),
+      voll('Hinweis an Untersuchungsstelle:', p.hinweis, 520),
+      voll('Sonstige Anmerkungen:', p.sonstige, 520),
+    ];
+    return [
+      P('Probenahmeprotokoll Feststoffe', { b: true, size: 12, align: 'center', after: 40, keepNext: true, pageBreakBefore: !ersteSeite }),
+      P(`in Anlehnung an LAGA PN 98 · Protokoll ${i + 1} von ${n}`, { size: 10, align: 'center', after: 160, keepNext: true }),
+      { t: 'table', widths: q, rows, size: 10 },
+      { t: 'table', widths: [Math.round(W / 2), W - Math.round(W / 2)], size: 10, rows: [{ minHeight: 480, cells: [
+        { text: 'Ort / Datum: ' + [t(proj.ort), datum(proj.pndatum)].filter(Boolean).join(', ') },
+        { text: 'Probenehmer: ' + t(proj.probenehmer) }] }] },
+    ];
+  }
+
+  function brandTabelle(daten){
+    const brand = daten.brandgeruchProben || [];
+    const w = [600, 3020, 1090, 1090, 1090, 1090, 1090];
+    const head = { header: true, cells: [{ text: 'Nr.', b: true, align: 'center', shade: 'F2F2F2' }, { text: 'Probe', b: true, shade: 'F2F2F2' },
+      ...BG_KEYS.map((k, j) => ({ text: 'Person ' + (j + 1), b: true, align: 'center', shade: 'F2F2F2' }))] };
+    const rows = brand.map((p, i) => ({ cells: [
+      { text: String(i + 1), align: 'center' },
+      { text: [t(p.z1), t(p.z2)].filter(Boolean).join('\n') },
+      ...BG_KEYS.map(k => ({ text: str(p[k]), align: 'center', b: true, vAlign: 'center' }))] }));
+    return { t: 'table', widths: w, rows: [head, ...rows], size: 10 };
+  }
+
+  function quellenvermerk(o){
+    const q = o.quelle || {};
+    const zeilen = [
+      `Quellenvermerk: Erstellt am ${zeit(o.erstellt)} mit ${o.anwendung || 'Projektzentrale'} aus der Projektdatei „${q.pfad || q.datei || ''}“`
+        + (q.geaendert ? ` (Stand ${zeit(q.geaendert)}${q.version ? ', LabelKit ' + q.version : ''})` : '') + '.',
+      'Die Angaben sind unverändert aus der Projektdatei übernommen; nicht ausgefüllte Felder bleiben leer.',
+      `SHA-256 der Projektdatei: ${q.sha256 || ''}`,
+    ];
+    return [P(zeilen[0], { size: 8, color: '595959', before: 240, after: 0, keepLines: true }), P(zeilen[1], { size: 8, color: '595959', after: 0 }), P(zeilen[2], { size: 8, color: '595959', mono: true, after: 0 })];
+  }
+
+  /** Anlage „Probenahmeprotokolle PN 98 / Brandgeruch“: Bausteine für DOCX.build. */
+  function pn98Brand(daten, o){
+    const d = daten || {}, chk = pruefen(d, o.projektNr);
+    const mitPn98 = o.pn98 !== false && chk.pn98Moeglich, mitBrand = o.brand !== false && chk.brandMoeglich;
+    if (!mitPn98 && !mitBrand) throw new Error('Keine Inhalte für die Anlage (keine PN 98-Protokolle bzw. Brandgeruch-Bewertungen verdeckt oder leer).');
+    const titel = t(o.titel) || 'Anlage';
+    const teile = [mitPn98 && 'Probenahmeprotokolle nach LAGA PN 98', mitBrand && 'Sensorische Prüfung auf Brandgeruch'].filter(Boolean);
+    const blocks = [
+      P(`${titel}: ${teile.join(' und ')}`, { size: 12, u: true, after: 60, keepNext: true }),
+      P(`Projekt ${t(o.projektNr)}${t(o.ort) ? ' · ' + t(o.ort) : ''}`, { size: 11, after: 240, keepNext: true }),
+    ];
+    if (mitPn98){
+      const proj = d.pn98Projekt || {}, list = d.pn98Proben;
+      list.forEach((p, i) => blocks.push(...pn98Blatt(p, proj, i, list.length, i === 0)));
+    }
+    if (mitBrand){
+      blocks.push(P('Sensorische Prüfung auf Brandgeruch', { size: 12, b: true, after: 40, keepNext: true, pageBreakBefore: mitPn98 }));
+      blocks.push(P(['Projekt ' + t(o.projektNr), d.brandgeruchDatum ? 'Prüfung am ' + datum(d.brandgeruchDatum) : ''].filter(Boolean).join(' · '), { size: 11, after: 160, keepNext: true }));
+      blocks.push(brandTabelle(d));
+      blocks.push(P('Legende: ++ stark · + mittel · (+) schwach · - ohne. Bewertungen je Person unverändert wiedergegeben.', { size: 10, before: 60, after: 0 }));
+    }
+    blocks.push(...quellenvermerk(o));
+    return { blocks, teile, pruefung: chk, mitPn98, mitBrand };
+  }
+
+  /** Dateiname: ERVV-tauglich (Buchstaben, Ziffern, _ und -, ein Punkt, ≤ 90 Zeichen), datiert, nie überschreibend. */
+  function dateiname(projektNr, titel, art, datumIso, vorhanden){
+    const s = v => String(v || '').normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/ß/g, 'ss').replace(/[^A-Za-z0-9_-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    const basis = [s(projektNr) || 'Projekt', s(titel) || 'Anlage', s(art)].filter(Boolean).join('_').slice(0, 64) + '_' + String(datumIso).slice(0, 10);
+    const belegt = new Set([...(vorhanden || [])].map(n => String(n).toLowerCase()));
+    for (let i = 1; i < 1000; i++){ const n = basis + (i > 1 ? '_' + i : '') + '.docx'; if (!belegt.has(n.toLowerCase())) return n; }
+    throw new Error('Zu viele Anlagen mit gleichem Namen');
+  }
+  return { pruefen, pn98Brand, dateiname, datum, zeit };
+})();
+/* ANLAGE-ENDE */
+</script>
+<script>
 (() => {
 'use strict';
 /* =====================================================================================================
@@ -187,9 +509,10 @@ table.folders .miss{color:var(--warn)}
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.3.0';
+const APP_VERSION = '1.4.0';
 const APP_DATE = '2026-10-16';
 const CHANGELOG = [
+  ['1.4.0', '16.10.2026', 'Anlagen zum Gutachten: PN 98-Probenahmeprotokolle und Brandgeruch-Tabelle aus LabelKit als Word-Datei (Arial, ohne Kopf-/Fußzeile) zum Einfügen in den Bericht. Werte unverändert, Quellenvermerk mit SHA-256, Ablage datiert und nie überschreibend in „Mitteilungen“, Anlagen-Protokoll.'],
   ['1.3.0', '16.10.2026', 'Neues Aussehen passend zu LabelKit, FotoKit und PlanKit: blaue Kopfzeile, Schrift IBM Plex, Farben der App-Familie und das Firmensymbol als dezentes Wasserzeichen im Hintergrund.'],
   ['1.2.1', '16.10.2026', 'Sicherheit: strenge Inhaltsrichtlinie (Content Security Policy) – die Seite kann keine Daten an andere Server senden und lädt keinen fremden Code.'],
   ['1.2.0', '16.10.2026', 'Kurzanleitung für alle Projekt-Apps eingebaut: Knopf „? Kurzanleitung“ oder F1, mit Ablaufbild und Druck/PDF.'],
@@ -468,7 +791,7 @@ function updateRow(p){
 async function selectProject(p){
   if (!p) return;
   await flushPJ();
-  S.sel = p; S.pj = null; S.pjDirty = {};
+  S.sel = p; S.pj = null; S.pjDirty = {}; S.anl = null;
   $('list').querySelectorAll('.proj').forEach(el => el.classList.toggle('active', el.dataset.name === p.name));
   if (!p.st){ p.scanning = true; p.st = await scanProject(p); p.scanning = false; updateRow(p); }
   S.pj = await readPJ(p.handle);
@@ -509,6 +832,8 @@ function renderDetail(){
     ${p.st && !p.st.err ? `<table class="folders">${folderRows(p)}</table>
       ${SUBS.some(([k]) => !p.st.subs[k]) ? '<div class="actions" style="margin-top:8px"><button id="mkSubs">Fehlende Unterordner anlegen</button></div>' : ''}`
       : `<div class="m">${p.st && p.st.err ? 'Nicht lesbar: ' + esc(p.st.err) : 'Wird gelesen …'}</div>`}
+    <h3>Anlagen zum Gutachten <small style="text-transform:none;letter-spacing:0">(Word, zum Einfügen in den Bericht)</small></h3>
+    <div id="anl"><div class="m">${p.st && !p.st.err ? 'Wird geprüft …' : ''}</div></div>
     <h3>Projektdaten <small style="text-transform:none;letter-spacing:0">(${esc(PJ_FILE)} im Projektordner – gilt für alle Apps)</small></h3>
     ${nrWarn}
     ${pj.error ? `<div class="warn">„${PJ_FILE}“ ist nicht lesbar (${esc(pj.error)}) und wird nicht überschrieben.</div>` : ''}
@@ -530,6 +855,7 @@ function renderDetail(){
   $('goPlan').onclick = () => openPlanKit(p);
   $('goLabel').onclick = () => openApp(p, LABELKIT_URL, 'labelkit');
   if ($('mkSubs')) $('mkSubs').onclick = () => makeSubs(p);
+  if (p.st && !p.st.err) anlStatus(p);
 }
 
 function schedulePJ(){
@@ -587,6 +913,130 @@ async function openBildumbenenner(p){
   const url = new URL(BILDUMBENENNER_URL, location.href);
   url.searchParams.set('projekt', p.name);
   window.open(url.href, 'bildumbenenner');
+}
+
+/* ---------- Anlagen zum Gutachten (Word) ----------
+   Liest die neueste LabelKit-Projektdatei (…_Daten.json) aus „Laboraufträge“ und erstellt daraus eine Word-Anlage
+   (DOCX/ANLAGE oben). Gespeichert wird in „Mitteilungen“ neben dem Bericht – datiert, nie überschreibend –, und jede
+   erstellte Anlage wird mit Prüfsummen von Quelle und Ergebnis in „_Anlagen-Protokoll.txt“ vermerkt.            */
+const ANL_ORDNER = 'Mitteilungen';
+const ANL_PROTOKOLL = '_Anlagen-Protokoll.txt';
+async function sha256Hex(buf){ const h = await crypto.subtle.digest('SHA-256', buf); return [...new Uint8Array(h)].map(b => b.toString(16).padStart(2, '0')).join(''); }
+const heuteIso = () => { const d = new Date(), z = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`; };
+async function neuesteDaten(p){
+  const la = p.st && p.st.subs.labauf; if (!la || !la.daten.length) return null;
+  let best = null;
+  for (const n of la.daten){ try{ const f = await (await la.handle.getFileHandle(n)).getFile(); if (!best || f.lastModified > best.lastModified) best = f; }catch(e){} }
+  return best;
+}
+async function anlOrdner(p, erstellen){
+  const m = p.st && p.st.subs.mitteil;
+  if (m) return m.handle;
+  for await (const h of p.handle.values()) if (h.kind === 'directory' && norm(h.name) === norm(ANL_ORDNER)) return h;
+  return erstellen ? p.handle.getDirectoryHandle(ANL_ORDNER, { create: true }) : null;
+}
+async function anlVorhandene(p){
+  const dir = await anlOrdner(p, false).catch(() => null), namen = [];
+  if (dir) for await (const h of dir.values()) if (h.kind === 'file') namen.push(h.name);
+  return namen;
+}
+const anlArt = (pn98, brand) => [pn98 && 'PN98', brand && 'Brandgeruch'].filter(Boolean).join('-');
+function anlTitelGespeichert(p){ try{ return localStorage.getItem('pz-anlage-titel:' + p.name) || ''; }catch(e){ return ''; } }
+function anlTitelMerken(p, v){ try{ localStorage.setItem('pz-anlage-titel:' + p.name, v); }catch(e){} }
+
+async function anlStatus(p){
+  if (!$('anl')) return;
+  const token = S.anlToken = (S.anlToken || 0) + 1;   // nur der letzte Aufruf schreibt (renderDetail kann mehrfach kommen)
+  const aktuell = () => token === S.anlToken && S.sel === p && $('anl');
+  const f = await neuesteDaten(p);
+  if (!aktuell()) return;
+  const erstellt = (await anlVorhandene(p)).filter(n => /_PN98|_Brandgeruch/i.test(n) && /\.docx$/i.test(n)).sort();
+  const liste = erstellt.length ? `<div class="m" style="margin-top:4px">Bereits erstellt: ${erstellt.slice(-3).map(esc).join(', ')}${erstellt.length > 3 ? ` (+${erstellt.length - 3})` : ''}</div>` : '';
+  if (!aktuell()) return;
+  let box = $('anl');
+  if (!f){ S.anl = null; box.innerHTML = `<div class="m">Noch keine LabelKit-Projektdatei (…_Daten.json) in „Laboraufträge“. PN 98-Protokolle und Brandgeruch werden in LabelKit erfasst.</div>${liste}`; return; }
+  let daten;
+  try{ daten = JSON.parse(await f.text()); }
+  catch(e){ if (!aktuell()) return; S.anl = null; $('anl').innerHTML = `<div class="warn">„${esc(f.name)}“ ist nicht lesbar: ${esc(e.message)}</div>`; return; }
+  if (!aktuell()) return;
+  box = $('anl');
+  const chk = ANLAGE.pruefen(daten, p.nr);
+  S.anl = { p, f, chk };
+  const geht = chk.pn98Moeglich || chk.brandMoeglich;
+  box.innerHTML = `<table class="folders"><tr><td>PN 98 / Brandgeruch</td><td>${chk.pn98} PN 98-Protokoll${chk.pn98 === 1 ? '' : 'e'} · ${chk.brand} Brandgeruch-Probe${chk.brand === 1 ? '' : 'n'}
+      <div class="m">aus „${esc(f.name)}“, Stand ${esc(new Date(f.lastModified).toLocaleString('de-DE'))}</div>
+      ${chk.hinweise.map(h => `<div class="warn">${esc(h)}</div>`).join('')}${liste}</td></tr></table>
+    <div class="actions" style="margin-top:8px"><button class="primary" id="anlPn98" ${geht ? '' : 'disabled'}>Anlage PN 98 / Brandgeruch erstellen (Word) …</button>
+      <span class="hint">Gespeichert wird in „${ANL_ORDNER}“ neben dem Bericht. In Word an der gewünschten Stelle: <b>Einfügen › Objekt › Text aus Datei</b>.</span></div>`;
+  box.querySelector('#anlPn98').onclick = () => anlDialog(p);
+}
+
+async function anlDialog(p){
+  const a = S.anl; if (!a || a.p !== p) return;
+  const vorhanden = await anlVorhandene(p);
+  const titel0 = anlTitelGespeichert(p) || 'Anlage';
+  showDialog(`<h3>Anlage PN 98 / Brandgeruch erstellen</h3><div class="m">
+    <div class="form" style="grid-template-columns:1fr"><label>Bezeichnung der Anlage (Überschrift und Dateiname)
+      <input type="text" id="aTitel" value="${esc(titel0)}" placeholder="z. B. Anlage 4" maxlength="40"></label></div>
+    <p style="margin:12px 0 6px"><label><input type="checkbox" id="aPn98" ${a.chk.pn98Moeglich ? 'checked' : 'disabled'}> Probenahmeprotokolle nach LAGA PN 98 (${a.chk.pn98})</label><br>
+      <label><input type="checkbox" id="aBrand" ${a.chk.brandMoeglich ? 'checked' : 'disabled'}> Sensorische Prüfung auf Brandgeruch (${a.chk.brand} Proben${a.chk.brand && a.chk.blind ? ', in LabelKit noch verdeckt' : ''})</label></p>
+    ${a.chk.hinweise.map(h => `<div class="warn">${esc(h)}</div>`).join('')}
+    <p style="margin-top:10px">Quelle: <code>${esc(p.st.subs.labauf.name)}/${esc(a.f.name)}</code><br>Ziel: <code>${esc(ANL_ORDNER)}/<span id="aName"></span></code></p>
+    <p>Werte werden unverändert übernommen, leere Felder bleiben leer. Am Ende steht ein Quellenvermerk mit Prüfsumme der Projektdatei.</p></div>
+    <div class="btns"><button id="aNo">Abbrechen</button><button class="primary" id="aYes">Erstellen</button></div>`);
+  const name = () => {
+    const pn = $('aPn98').checked, br = $('aBrand').checked;
+    $('aYes').disabled = !(pn || br);
+    $('aName').textContent = (pn || br) ? ANLAGE.dateiname(p.nr, $('aTitel').value, anlArt(pn, br), heuteIso(), vorhanden) : '–';
+  };
+  ['aTitel', 'aPn98', 'aBrand'].forEach(id => $(id).addEventListener(id === 'aTitel' ? 'input' : 'change', name));
+  name();
+  $('aNo').onclick = closeDialog;
+  $('aYes').onclick = async () => {
+    const o = { titel: $('aTitel').value.trim() || 'Anlage', pn98: $('aPn98').checked, brand: $('aBrand').checked };
+    $('aYes').disabled = true; $('aYes').textContent = 'Wird erstellt …';
+    try{
+      const erg = await anlErstellen(p, o);
+      anlTitelMerken(p, o.titel);
+      closeDialog();
+      banner('ok', `✓ <b>${esc(erg.name)}</b> in „${esc(ANL_ORDNER)}“ gespeichert (${erg.seiten}). In Word: <b>Einfügen › Objekt › Text aus Datei</b>.`);
+      p.st = await scanProject(p); updateRow(p); if (S.sel === p) renderDetail();
+    }catch(e){
+      $('aYes').disabled = false; $('aYes').textContent = 'Erstellen';
+      const m = document.createElement('div'); m.className = 'warn'; m.textContent = 'Nicht erstellt: ' + e.message; $('dialog').querySelector('.m').append(m);
+    }
+  };
+}
+
+/** Anlage erstellen: Quelle frisch lesen und hashen, Word-Datei bauen, nie überschreibend speichern, zurücklesen, protokollieren. */
+async function anlErstellen(p, o){
+  const a = S.anl;
+  if (!window.crypto || !crypto.subtle) throw new Error('Dieser Browser kann keine Prüfsummen berechnen – bitte Chrome oder Edge verwenden.');
+  const quelle = await (await p.st.subs.labauf.handle.getFileHandle(a.f.name)).getFile();   // frisch: falls LabelKit inzwischen gespeichert hat
+  const buf = await quelle.arrayBuffer(), sha = await sha256Hex(buf);
+  const daten = JSON.parse(new TextDecoder().decode(buf));
+  const jetzt = new Date().toISOString();
+  const r = ANLAGE.pn98Brand(daten, { projektNr: p.nr, ort: p.ort, titel: o.titel, pn98: o.pn98, brand: o.brand, erstellt: jetzt,
+    anwendung: 'Projektzentrale ' + APP_VERSION,
+    quelle: { pfad: p.st.subs.labauf.name + '/' + quelle.name, geaendert: new Date(quelle.lastModified).toISOString(), version: daten.version, sha256: sha } });
+  const bytes = DOCX.build({ title: `${o.titel}: ${r.teile.join(' und ')} – Projekt ${p.nr}`, author: 'Projektzentrale ' + APP_VERSION, application: 'Projektzentrale ' + APP_VERSION, created: jetzt, blocks: r.blocks });
+  const dir = await anlOrdner(p, true);
+  const namen = []; for await (const h of dir.values()) namen.push(h.name);
+  const name = ANLAGE.dateiname(p.nr, o.titel, anlArt(r.mitPn98, r.mitBrand), heuteIso(), namen);
+  let gibtEs = false; try{ await dir.getFileHandle(name); gibtEs = true; }catch(e){}
+  if (gibtEs) throw new Error(`„${name}“ existiert bereits – nichts überschrieben.`);
+  const fh = await dir.getFileHandle(name, { create: true });
+  const w = await fh.createWritable(); await w.write(bytes); await w.close();
+  const shaDocx = await sha256Hex(bytes);
+  if (await sha256Hex(await (await fh.getFile()).arrayBuffer()) !== shaDocx) throw new Error(`„${name}“ wurde nicht vollständig geschrieben – bitte erneut erstellen.`);
+  try{
+    const ph = await dir.getFileHandle(ANL_PROTOKOLL, { create: true }), alt = await ph.getFile();
+    const kopf = alt.size ? '' : 'Anlagen-Protokoll (Projektzentrale) – je Zeile: Zeit (UTC) | Anlage | SHA-256 der Anlage | Quelle | SHA-256 der Quelle | Programm\r\n';
+    const zeile = [jetzt, name, shaDocx, p.st.subs.labauf.name + '/' + quelle.name, sha, 'Projektzentrale ' + APP_VERSION].join(' | ') + '\r\n';
+    const pw = await ph.createWritable({ keepExistingData: true }); await pw.write({ type: 'write', position: alt.size, data: kopf + zeile }); await pw.close();
+  }catch(e){ /* Protokoll ist Zusatz – die Anlage selbst trägt den Quellenvermerk */ }
+  const seiten = [r.mitPn98 && `${r.pruefung.pn98} PN 98-Protokoll${r.pruefung.pn98 === 1 ? '' : 'e'}`, r.mitBrand && `Brandgeruch ${r.pruefung.brand} Proben`].filter(Boolean).join(', ');
+  return { name, seiten, sha: shaDocx };
 }
 
 /* ---------- dialogs / banner ---------- */
@@ -678,6 +1128,7 @@ function helpHtml(){
     <li><b>Plan bearbeiten → PlanKit:</b> Grundriss aus „Pläne“ wählen. Unter „Laborbericht importieren …“ die <b>Probenerfassung aus LabelKit</b> übernehmen und die Proben auf den Plan ziehen.</li>
     <li><b>Laborbericht da:</b> XML und PDF in „Laborergebnisse“ ablegen. In PlanKit den Bericht importieren und <b>„Alle Konflikte: Aktualisieren“</b> klicken – die Messwerte hängen dann an den Proben.</li>
     <li><b>Auswerten:</b> PlanKit „Ergebnisse“ → Ergebniskarte exportieren. FotoKit „Ergebnistabelle …“ → Tabelle für Word.</li>
+    <li><b>Anlagen:</b> Hier im Projekt „Anlage PN 98 / Brandgeruch erstellen (Word)“. Die Datei liegt danach in „Mitteilungen“ – in Word an der gewünschten Stelle <b>Einfügen › Objekt › Text aus Datei</b>.</li>
   </ol>
   <h4>Gut zu wissen</h4>
   <ul>

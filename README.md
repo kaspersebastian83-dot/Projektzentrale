@@ -24,6 +24,10 @@ Die App läuft vollständig im Browser auf dem eigenen Rechner. **Ordner, Dateie
 - **„Fotos bearbeiten“** öffnet FotoKit direkt im Ordner `Fotos` des Projekts, mit vorausgefüllten Projektdaten.
 - **„Plan bearbeiten“** öffnet PlanKit direkt im Ordner `Pläne`: automatisches Speichern als `Probenplan <Projekt>.probenplan`, Bilder ebenfalls dorthin, Laborberichte aus `Laborergebnisse`.
 - **„Proben erfassen“** öffnet LabelKit direkt im Ordner `Laboraufträge`: Speichern und Laborübergaben ohne Ordnerdialog, die neueste `…_Daten.json` wird geladen.
+- **Anlagen zum Gutachten (ab 1.4):** „Anlage PN 98 / Brandgeruch erstellen (Word)“ baut aus der neuesten LabelKit-Projektdatei eine `.docx` mit den PN 98-Probenahmeprotokollen (je Protokoll eine Seite) und der Brandgeruch-Tabelle (Rohbewertungen je Person). Gedacht zum Einfügen in den Bericht mit Word „Einfügen › Objekt › Text aus Datei“: Arial, direkte Formatierung, keine Kopf-/Fußzeile, A4 mit den Rändern des Berichts.
+  - Werte unverändert (keine Umrechnung, keine Bewertung), leere Felder bleiben leer; verdeckte Brandgeruch-Bewertungen (Blind-Modus) werden nicht übernommen.
+  - Quellenvermerk am Ende: Projektdatei, Stand, LabelKit-Version, SHA-256.
+  - Ablage in `Mitteilungen` neben dem Bericht, Dateiname ERVV-tauglich und datiert (`26-0142_Anlage-4_PN98-Brandgeruch_2026-10-16.docx`), nie überschreibend; jede Anlage wird mit beiden Prüfsummen in `Mitteilungen/_Anlagen-Protokoll.txt` vermerkt.
 
 ## Vereinbarungen zwischen den Apps
 
@@ -31,7 +35,7 @@ Die App läuft vollständig im Browser auf dem eigenen Rechner. **Ordner, Dateie
 |---|---|
 | Projektordner | `<JJ>.<Nummer> <Schadenort>`, z. B. `26.0123 Köln`. Projektnummer und Schadenort kommen immer aus dem Ordnernamen. |
 | Unterordner | `Fotos`, `Pläne`, `Laboraufträge`, `Laborergebnisse`, `Mitteilungen`, `Emails`, `Rechnung Labore` |
-| Wer schreibt wohin | FotoKit → `Fotos` (Bilder, `_Bildumbenenner.json`, Bilddokumentation-PDF/ZIP) · PlanKit → `Pläne` (`Probenplan <Projekt>.probenplan`, exportierte Bilder) · LabelKit → `Laboraufträge` |
+| Wer schreibt wohin | FotoKit → `Fotos` (Bilder, `_Bildumbenenner.json`, Bilddokumentation-PDF/ZIP) · PlanKit → `Pläne` (`Probenplan <Projekt>.probenplan`, exportierte Bilder) · LabelKit → `Laboraufträge` (und Scans in `Feldprotokolle`) · Projektzentrale → `Mitteilungen` (Anlagen, `_Anlagen-Protokoll.txt`) |
 | `_Projekt.json` | `format: "mosaik-projekt"`, `version: 1`. Jede App liest frisch, ändert nur die eigenen geänderten Felder und behält unbekannte Felder. Nicht löschen oder umbenennen. |
 | Gemeinsamer Browser-Speicher | IndexedDB `mosaik-suite` (v1), Store `kv`, Schlüssel `archiv` = Archivordner. Alle Apps unter `kaspersebastian83-dot.github.io` teilen ihn. |
 | Absprung | `../Bildumbenenner/?projekt=<Ordnername>` (FotoKit) · `../Probenplan/?projekt=<Ordnername>` (PlanKit) · `../labelkit/?projekt=<Ordnername>` (LabelKit) |
@@ -45,8 +49,28 @@ Felder in `_Projekt.json`: `projektnummer`, `schadenort`, `objekt`, `auftraggebe
 2. Pull Request mergen; Release `vX.Y.Z` auf GitHub anlegen.
 3. GitHub Pages veröffentlicht automatisch; geöffnete Apps melden „Update verfügbar“.
 
+## Tests
+
+Ohne Abhängigkeiten, mit Node.js aus dem Repository-Ordner:
+
+```sh
+node tests/docx.cjs     # Word-Schreiber: Paket, XML, Maskierung, Tabellen, Bilder
+node tests/anlage.cjs   # Anlage PN 98 / Brandgeruch: Inhalte, Blind-Modus, Quellenvermerk, Dateinamen
+```
+
+Browsertest des ganzen Ablaufs (Archiv → Projekt → Anlage → Datei, Prüfsummen, Protokoll), mit Playwright:
+
+```sh
+npm install --no-save playwright && npx playwright install chromium webkit
+node tests/anlage-browser.cjs chromium
+node tests/anlage-browser.cjs webkit
+```
+
+GitHub führt alle Tests bei jedem Pull Request aus (`.github/workflows/tests.yml`). Wie die Datei in Word aussieht, bitte zusätzlich einmal praktisch prüfen.
+
 ## Dateien
 
 - `index.html` – die komplette App (eine Datei, keine externen Bibliotheken)
+- `tests/` – automatische Prüfungen (Node, Browser)
 - `sw.js` – Service Worker: offline nutzbar, immer neueste Version wenn online
 - `manifest.webmanifest`, `icon*.{svg,png}` – Installation als App
