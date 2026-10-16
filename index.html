@@ -145,7 +145,7 @@ table.folders .miss{color:var(--warn)}
 const APP_VERSION = '1.1.0';
 const APP_DATE = '2026-10-13';
 const CHANGELOG = [
-  ['1.1.0', '16.10.2026', '„Plan bearbeiten → PlanKit“ öffnet PlanKit direkt im Ordner „Pläne“ des Projekts (automatisches Speichern dort).'],
+  ['1.1.0', '16.10.2026', '„Plan bearbeiten → PlanKit“ und „Proben erfassen → LabelKit“ öffnen die Apps direkt im Projekt (Ordner „Pläne“ bzw. „Laboraufträge“).'],
   ['1.0.0', '13.10.2026', 'Erste Version: Archivordner einmal wählen, alle Projekte mit Status je Unterordner, gemeinsame Projektdaten in _Projekt.json, Fotos direkt im Bildumbenenner öffnen.'],
 ];
 const verNum = v => String(v || '0').split('.').map(x => parseInt(x, 10) || 0);
@@ -202,6 +202,7 @@ const SUBS = [
 const IMG_EXT = /\.(jpe?g|png|webp|gif|bmp|tiff?|heic|heif)$/i;
 const BILDUMBENENNER_URL = '../Bildumbenenner/';
 const PROBENPLAN_URL = '../Probenplan/';
+const LABELKIT_URL = '../labelkit/';
 
 /* ---------- _Projekt.json ----------
    Shared project data, one file in the project folder. Every app keeps fields it does not know and only writes the
@@ -452,7 +453,8 @@ function renderDetail(){
     <div class="actions">
       <button class="primary" id="goFotos">Fotos bearbeiten → FotoKit</button>
       <button class="primary" id="goPlan">Plan bearbeiten → PlanKit</button>
-      <span class="hint">FotoKit öffnet direkt den Ordner „Fotos“, PlanKit den Ordner „Pläne“ dieses Projekts – gespeichert wird jeweils automatisch dort.</span>
+      <button class="primary" id="goLabel">Proben erfassen → LabelKit</button>
+      <span class="hint">Jede App öffnet direkt ihren Ordner dieses Projekts – FotoKit „Fotos“, PlanKit „Pläne“, LabelKit „Laboraufträge“ – und speichert dort.</span>
     </div>
     <h3>Ordner</h3>
     ${p.st && !p.st.err ? `<table class="folders">${folderRows(p)}</table>
@@ -477,6 +479,7 @@ function renderDetail(){
   }
   $('goFotos').onclick = () => openBildumbenenner(p);
   $('goPlan').onclick = () => openPlanKit(p);
+  $('goLabel').onclick = () => openApp(p, LABELKIT_URL, 'labelkit');
   if ($('mkSubs')) $('mkSubs').onclick = () => makeSubs(p);
 }
 
@@ -515,6 +518,13 @@ async function makeSubs(p){
   p.st = await scanProject(p); updateRow(p); renderDetail();
 }
 
+async function openApp(p, base, target){
+  await flushPJ();
+  await SUITE.set('archiv', S.archive).catch(() => {});
+  const url = new URL(base, location.href);
+  url.searchParams.set('projekt', p.name);
+  window.open(url.href, target);
+}
 async function openPlanKit(p){
   await flushPJ();
   await SUITE.set('archiv', S.archive).catch(() => {});
