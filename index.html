@@ -146,7 +146,7 @@ table.folders .miss{color:var(--warn)}
 <header>
   <div class="appbar">
     <div class="brand"><span class="hex">⬡</span> Projektzentrale <small>Projekte &amp; Apps</small></div>
-    <button id="btnInfo" class="hbadge" title="Version, Speicherorte, Änderungen">v1.5.1</button>
+    <button id="btnInfo" class="hbadge" title="Version, Speicherorte, Änderungen">v1.6.0</button>
     <button id="btnHelp" class="hbadge help" title="Kurzanleitung für alle Projekt-Apps (F1)"><b>?</b> Kurzanleitung</button>
     <button id="btnUpd" class="upd" hidden>Update verfügbar – neu laden</button>
     <span class="spacer"></span>
@@ -602,9 +602,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.5.1';
+const APP_VERSION = '1.6.0';
 const APP_DATE = '2026-10-16';
 const CHANGELOG = [
+  ['1.6.0', '16.10.2026', 'Vierter Knopf im Projekt: „Abrechnung → AufwandKit“ – Zeiten, km und Spesen je Kollege, Proben aus LabelKit, Berichtsseiten und Fotos mit den Positionsnummern der Rechnung.'],
   ['1.5.1', '16.10.2026', 'Knöpfe im Projekt in der Reihenfolge der Arbeit: Proben erfassen (LabelKit), Fotos bearbeiten (FotoKit), Plan bearbeiten (PlanKit).'],
   ['1.5.0', '16.10.2026', 'Anlage PN 98: vor Ort ausgefüllte und in LabelKit übertragene Feldbögen (ab LabelKit 4.27) mit Erfassungs- und Prüfvermerk, Änderungen nach Abschluss und Scan des Bogens – Prüfsumme jedes Scans wird beim Erstellen nachgeprüft, JPEG/PNG-Scans verkleinert angehängt. Hinweise bei offener Erfassung, fehlender Prüfung oder fehlendem Scan.'],
   ['1.4.1', '16.10.2026', 'Word-Schreiber für Anlagen gleichgezogen mit PlanKit (Bilder mit Bildunterschrift in Tabellen, gleiche Bilder nur einmal in der Datei). An den bisherigen Anlagen ändert sich nichts.'],
@@ -670,6 +671,7 @@ const IMG_EXT = /\.(jpe?g|png|webp|gif|bmp|tiff?|heic|heif)$/i;
 const BILDUMBENENNER_URL = '../Bildumbenenner/';
 const PROBENPLAN_URL = '../Probenplan/';
 const LABELKIT_URL = '../labelkit/';
+const AUFWANDKIT_URL = '../aufwandkit/';
 
 /* ---------- _Projekt.json ----------
    Shared project data, one file in the project folder. Every app keeps fields it does not know and only writes the
@@ -922,7 +924,8 @@ function renderDetail(){
       <button class="primary" id="goLabel">Proben erfassen → LabelKit</button>
       <button class="primary" id="goFotos">Fotos bearbeiten → FotoKit</button>
       <button class="primary" id="goPlan">Plan bearbeiten → PlanKit</button>
-      <span class="hint">In der Reihenfolge der Arbeit: Proben, Fotos, Plan. Jede App öffnet direkt ihren Ordner dieses Projekts – LabelKit „Laboraufträge“, FotoKit „Fotos“, PlanKit „Pläne“ – und speichert dort.</span>
+      <button id="goAufwand" title="Zeiten, km, Spesen eintragen; Proben, Berichtsseiten und Fotos für die Rechnung zusammenstellen">Abrechnung → AufwandKit</button>
+      <span class="hint">In der Reihenfolge der Arbeit: Proben, Fotos, Plan – und zum Schluss die Abrechnung. Jede App öffnet direkt ihren Ordner dieses Projekts – LabelKit „Laboraufträge“, FotoKit „Fotos“, PlanKit „Pläne“, AufwandKit „Abrechnung“ – und speichert dort.</span>
     </div>
     <h3>Ordner</h3>
     ${p.st && !p.st.err ? `<table class="folders">${folderRows(p)}</table>
@@ -950,6 +953,7 @@ function renderDetail(){
   $('goFotos').onclick = () => openBildumbenenner(p);
   $('goPlan').onclick = () => openPlanKit(p);
   $('goLabel').onclick = () => openApp(p, LABELKIT_URL, 'labelkit');
+  $('goAufwand').onclick = () => openApp(p, AUFWANDKIT_URL, 'aufwandkit');
   if ($('mkSubs')) $('mkSubs').onclick = () => makeSubs(p);
   if (p.st && !p.st.err) anlStatus(p);
 }
@@ -1259,6 +1263,7 @@ function helpHtml(){
     <li><b>Plan bearbeiten → PlanKit:</b> Grundriss aus „Pläne“ wählen. Unter „Laborbericht importieren …“ die <b>Probenerfassung aus LabelKit</b> übernehmen und die Proben auf den Plan ziehen.</li>
     <li><b>Laborbericht da:</b> XML und PDF in „Laborergebnisse“ ablegen. In PlanKit den Bericht importieren und <b>„Alle Konflikte: Aktualisieren“</b> klicken – die Messwerte hängen dann an den Proben.</li>
     <li><b>Auswerten:</b> PlanKit „Ergebnisse“ → Ergebniskarte exportieren. FotoKit „Ergebnistabelle …“ → Tabelle für Word.</li>
+    <li><b>Abrechnung → AufwandKit:</b> Jede Person trägt ihre Ortstermine (Stunden, km, Spesen, Übernachtung) und Auswertungsstunden selbst ein. Proben aus LabelKit, Berichtsseiten und Fotos werden gezählt; „Abrechnung“ zeigt alle Positionen mit Nummern zum Übertragen ins Rechnungsprogramm.</li>
     <li><b>Anlagen:</b> Hier im Projekt „Anlage PN 98 / Brandgeruch erstellen (Word)“. Die Datei liegt danach in „Mitteilungen“ – in Word an der gewünschten Stelle <b>Einfügen › Objekt › Text aus Datei</b>.</li>
   </ol>
   <h4>Gut zu wissen</h4>
@@ -1275,6 +1280,7 @@ function helpHtml(){
   <table>
     <tr><td>Projektzentrale</td><td>Projekte, Projektdaten, Start der Apps</td><td>kaspersebastian83-dot.github.io/Projektzentrale</td></tr>
     <tr><td>LabelKit</td><td>Proben erfassen, Etiketten, Laborübergabe</td><td>kaspersebastian83-dot.github.io/labelkit</td></tr>
+    <tr><td>AufwandKit</td><td>Zeiten, km, Spesen, Proben, Berichtsseiten für die Rechnung</td><td>kaspersebastian83-dot.github.io/aufwandkit</td></tr>
     <tr><td>FotoKit</td><td>Fotos benennen, Bilddokumentation, Ergebnistabelle</td><td>kaspersebastian83-dot.github.io/Bildumbenenner</td></tr>
     <tr><td>PlanKit</td><td>Probenplan, Ergebniskarte</td><td>kaspersebastian83-dot.github.io/Probenplan</td></tr>
   </table>
