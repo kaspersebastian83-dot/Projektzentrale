@@ -146,7 +146,7 @@ table.folders .miss{color:var(--warn)}
 <header>
   <div class="appbar">
     <div class="brand"><span class="hex">⬡</span> Projektzentrale <small>Projekte &amp; Apps</small></div>
-    <button id="btnInfo" class="hbadge" title="Version, Speicherorte, Änderungen">v1.5.0</button>
+    <button id="btnInfo" class="hbadge" title="Version, Speicherorte, Änderungen">v1.5.1</button>
     <button id="btnHelp" class="hbadge help" title="Kurzanleitung für alle Projekt-Apps (F1)"><b>?</b> Kurzanleitung</button>
     <button id="btnUpd" class="upd" hidden>Update verfügbar – neu laden</button>
     <span class="spacer"></span>
@@ -602,9 +602,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.5.1';
 const APP_DATE = '2026-10-16';
 const CHANGELOG = [
+  ['1.5.1', '16.10.2026', 'Knöpfe im Projekt in der Reihenfolge der Arbeit: Proben erfassen (LabelKit), Fotos bearbeiten (FotoKit), Plan bearbeiten (PlanKit).'],
   ['1.5.0', '16.10.2026', 'Anlage PN 98: vor Ort ausgefüllte und in LabelKit übertragene Feldbögen (ab LabelKit 4.27) mit Erfassungs- und Prüfvermerk, Änderungen nach Abschluss und Scan des Bogens – Prüfsumme jedes Scans wird beim Erstellen nachgeprüft, JPEG/PNG-Scans verkleinert angehängt. Hinweise bei offener Erfassung, fehlender Prüfung oder fehlendem Scan.'],
   ['1.4.1', '16.10.2026', 'Word-Schreiber für Anlagen gleichgezogen mit PlanKit (Bilder mit Bildunterschrift in Tabellen, gleiche Bilder nur einmal in der Datei). An den bisherigen Anlagen ändert sich nichts.'],
   ['1.4.0', '16.10.2026', 'Anlagen zum Gutachten: PN 98-Probenahmeprotokolle und Brandgeruch-Tabelle aus LabelKit als Word-Datei (Arial, ohne Kopf-/Fußzeile) zum Einfügen in den Bericht. Werte unverändert, Quellenvermerk mit SHA-256, Ablage datiert und nie überschreibend in „Mitteilungen“, Anlagen-Protokoll.'],
@@ -918,10 +919,10 @@ function renderDetail(){
     <h2><span class="nr">${esc(p.nr)}</span> ${esc(p.ort)}</h2>
     <div class="sub">${esc(S.archive.name)} › ${esc(p.name)}</div>
     <div class="actions">
+      <button class="primary" id="goLabel">Proben erfassen → LabelKit</button>
       <button class="primary" id="goFotos">Fotos bearbeiten → FotoKit</button>
       <button class="primary" id="goPlan">Plan bearbeiten → PlanKit</button>
-      <button class="primary" id="goLabel">Proben erfassen → LabelKit</button>
-      <span class="hint">Jede App öffnet direkt ihren Ordner dieses Projekts – FotoKit „Fotos“, PlanKit „Pläne“, LabelKit „Laboraufträge“ – und speichert dort.</span>
+      <span class="hint">In der Reihenfolge der Arbeit: Proben, Fotos, Plan. Jede App öffnet direkt ihren Ordner dieses Projekts – LabelKit „Laboraufträge“, FotoKit „Fotos“, PlanKit „Pläne“ – und speichert dort.</span>
     </div>
     <h3>Ordner</h3>
     ${p.st && !p.st.err ? `<table class="folders">${folderRows(p)}</table>
