@@ -146,7 +146,7 @@ table.folders .miss{color:var(--warn)}
 <header>
   <div class="appbar">
     <div class="brand"><span class="hex">⬡</span> Projektzentrale <small>Projekte &amp; Apps</small></div>
-    <button id="btnInfo" class="hbadge" title="Version, Speicherorte, Änderungen">v1.4.0</button>
+    <button id="btnInfo" class="hbadge" title="Version, Speicherorte, Änderungen">v1.4.1</button>
     <button id="btnHelp" class="hbadge help" title="Kurzanleitung für alle Projekt-Apps (F1)"><b>?</b> Kurzanleitung</button>
     <button id="btnUpd" class="upd" hidden>Update verfügbar – neu laden</button>
     <span class="spacer"></span>
@@ -181,7 +181,8 @@ table.folders .miss{color:var(--warn)}
      • echter Text und echte Tabellen, keine Bilder von Text.
    Bausteine (blocks):
      {t:'p', text|runs, align, size, b, i, u, before, after, line, keepNext, pageBreakBefore, mono}
-     {t:'table', widths:[twips…], rows:[{header, cells:[{text|runs|paras, span, shade, align, b, size}]}], size}
+     {t:'table', widths:[twips…], rows:[{header, cells:[{image?, text|runs|paras, span, shade, align, b, size}]}], size}
+   Gleiche Fassung als src/docx.ts in PlanKit (Anlage Probenahme) – Änderungen in beiden Apps gleich halten.
      {t:'image', data:Uint8Array, ext:'png'|'jpeg', widthMm, heightMm, alt, align}
      {t:'pagebreak'}
    DOCX.build({title, author, created, blocks}) → Uint8Array (ZIP, unkomprimiert gespeichert; Word liest das).
@@ -241,10 +242,12 @@ const DOCX = (() => {
       let col = 0;
       for (const c of row.cells){
         const span = c.span || 1, w = widths.slice(col, col + span).reduce((a, b) => a + b, 0); col += span;
-        const paras = c.paras || [{ text: c.text, runs: c.runs }];
+        // Zelle mit Bild (z. B. Foto mit Bildunterschrift): Bild-Absatz zuerst, danach die Absätze
+        const paras = c.paras || (c.image && c.text == null && !c.runs ? [] : [{ text: c.text, runs: c.runs }]);
         xml += `<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/>${span > 1 ? `<w:gridSpan w:val="${span}"/>` : ''}`
           + (c.shade ? `<w:shd w:val="clear" w:color="auto" w:fill="${c.shade}"/>` : '')
           + `<w:vAlign w:val="${c.vAlign || 'top'}"/></w:tcPr>`
+          + (c.image ? image(Object.assign({ align: c.align || 'center', after: 40 }, c.image), ctx) : '')
           + paras.map(p => para(Object.assign({ size, align: c.align, b: c.b, i: c.i, after: 0 }, p), true)).join('') + '</w:tc>';
       }
       if (col !== widths.length) throw new Error(`Tabellenzeile hat ${col} statt ${widths.length} Spalten`);
@@ -254,8 +257,10 @@ const DOCX = (() => {
     return xml + '</w:tbl>' + para({ text: '', size: 4, after: 0 }, false);
   }
   function image(o, ctx){
-    const id = ctx.media.length + 1, name = `bild${id}.${o.ext === 'png' ? 'png' : 'jpeg'}`, rid = 'rIdImg' + id;
-    ctx.media.push({ name, rid, data: o.data });
+    // Dasselbe Bild (gleiches Datenobjekt) nur einmal in die Datei; jede Verwendung bekommt eine eigene Zeichnungs-ID
+    let m = ctx.media.find(x => x.data === o.data);
+    if (!m){ const n = ctx.media.length + 1; m = { name: `bild${n}.${o.ext === 'png' ? 'png' : 'jpeg'}`, rid: 'rIdImg' + n, data: o.data }; ctx.media.push(m); }
+    const id = ctx.drawings = (ctx.drawings || 0) + 1, name = m.name, rid = m.rid;
     const emu = mm => Math.round(mm * 36000), cx = emu(o.widthMm), cy = emu(o.heightMm);
     return `<w:p>${pPr({ align: o.align || 'center', after: o.after == null ? 60 : o.after, keepNext: o.keepNext })}<w:r><w:drawing>`
       + `<wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${id}" name="Bild ${id}" descr="${x(o.alt || '')}"/>`
@@ -509,9 +514,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.4.0';
+const APP_VERSION = '1.4.1';
 const APP_DATE = '2026-10-16';
 const CHANGELOG = [
+  ['1.4.1', '16.10.2026', 'Word-Schreiber für Anlagen gleichgezogen mit PlanKit (Bilder mit Bildunterschrift in Tabellen, gleiche Bilder nur einmal in der Datei). An den bisherigen Anlagen ändert sich nichts.'],
   ['1.4.0', '16.10.2026', 'Anlagen zum Gutachten: PN 98-Probenahmeprotokolle und Brandgeruch-Tabelle aus LabelKit als Word-Datei (Arial, ohne Kopf-/Fußzeile) zum Einfügen in den Bericht. Werte unverändert, Quellenvermerk mit SHA-256, Ablage datiert und nie überschreibend in „Mitteilungen“, Anlagen-Protokoll.'],
   ['1.3.0', '16.10.2026', 'Neues Aussehen passend zu LabelKit, FotoKit und PlanKit: blaue Kopfzeile, Schrift IBM Plex, Farben der App-Familie und das Firmensymbol als dezentes Wasserzeichen im Hintergrund.'],
   ['1.2.1', '16.10.2026', 'Sicherheit: strenge Inhaltsrichtlinie (Content Security Policy) – die Seite kann keine Daten an andere Server senden und lädt keinen fremden Code.'],
