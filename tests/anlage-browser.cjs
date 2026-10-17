@@ -34,7 +34,7 @@ const daten = {
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
   await page.goto(url);
   await page.waitForSelector('#btnInfo');
-  assert.equal(await page.locator('#btnInfo').textContent(), 'v1.6.2');
+  assert.equal(await page.locator('#btnInfo').textContent(), 'v1.6.3');
 
   const kann = await page.evaluate(async () => {
     if (!('showDirectoryPicker' in window) || !navigator.storage || !navigator.storage.getDirectory) return false;
@@ -81,6 +81,20 @@ const daten = {
     return JSON.parse(await (await (await proj.getFileHandle('_Projekt.json')).getFile()).text());
   });
   assert.equal(projektJson.objekt, 'EFH, Testweg 1', 'Eingabe in _Projekt.json gespeichert');
+  assert.equal(projektJson.hinweis, 'Gemeinsame Projektdaten (Projektzentrale, FotoKit, PlanKit, LabelKit). Bitte nicht löschen oder umbenennen.', 'einheitlicher Hinweistext');
+  // Speichern unter Sperre je Projekt (FotoKit nimmt dieselbe): solange ein anderer Tab die Sperre hält, wird nichts geschrieben
+  const leseAuftraggeber = () => page.evaluate(async () => {
+    const proj = await (await (await navigator.storage.getDirectory()).getDirectoryHandle('Mosaik Archivordner')).getDirectoryHandle('26.0142 Teststadt');
+    return JSON.parse(await (await (await proj.getFileHandle('_Projekt.json')).getFile()).text()).auftraggeber || '';
+  });
+  await page.evaluate(() => new Promise(frei => { window.__freigeben = null; navigator.locks.request('mosaik:projekt:26.0142 Teststadt', () => new Promise(r => { window.__freigeben = r; frei(); })); }));
+  await page.locator('#pj_auftraggeber').fill('Muster Versicherung');
+  await page.waitForTimeout(1500);
+  assert.equal(await leseAuftraggeber(), '', 'unter fremder Sperre wird nicht geschrieben');
+  assert.equal(await page.locator('#pjSave.ok').count(), 0);
+  await page.evaluate(() => window.__freigeben());
+  await page.locator('#pjSave.ok').waitFor();
+  assert.equal(await leseAuftraggeber(), 'Muster Versicherung', 'nach Freigabe der Sperre gespeichert');
   // Anlage Probenahme: Absprung nach PlanKit mit geöffnetem Anlagen-Export
   await page.evaluate(() => { window.__geoeffnet = []; window.open = u => { window.__geoeffnet.push(u); return null; }; });
   await page.locator('#anlPlan').click();
@@ -124,7 +138,7 @@ const daten = {
   const protokoll = new TextDecoder().decode(Uint8Array.from(out['_Anlagen-Protokoll.txt']));
   assert.match(protokoll, /^Anlagen-Protokoll/);
   const docxSha = await page.evaluate(async b => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array(b))), x => x.toString(16).padStart(2, '0')).join(''), out[docxName]);
-  assert.ok(protokoll.includes(`| ${docxName} | ${docxSha} | Laboraufträge/26.0142_16.10.2026_Daten.json | ${sha} | Projektzentrale 1.6.2`), 'Protokollzeile mit beiden Prüfsummen');
+  assert.ok(protokoll.includes(`| ${docxName} | ${docxSha} | Laboraufträge/26.0142_16.10.2026_Daten.json | ${sha} | Projektzentrale 1.6.3`), 'Protokollzeile mit beiden Prüfsummen');
 
   // Zweites Mal: nichts überschrieben, neuer Name; Bezeichnung gemerkt
   await page.locator('#anlPn98').waitFor();
