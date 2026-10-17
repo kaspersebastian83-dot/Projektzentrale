@@ -696,9 +696,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.8.0';
+const APP_VERSION = '1.8.1';
 const APP_DATE = '2026-10-17';
 const CHANGELOG = [
+  ['1.8.1', '17.10.2026', 'Arbeitszettel einlesen klappt nach der Installation auch offline (die PDF-Bibliothek wird jetzt mit der App vorgehalten, bisher erst nach dem ersten Einlesen). Konnten Projektdaten nicht gespeichert werden (z. B. Datei gesperrt), fragt die Projektzentrale vor dem Wechsel zu einem anderen Projekt nach, statt die Eingaben still zu verwerfen.'],
   ['1.8.0', '17.10.2026', 'Arbeitszettel einlesen: In den Projektdaten „Arbeitszettel einlesen …“ (oder das PDF auf die Karte ziehen) liest den Arbeitszettel des Büro-Systems und schlägt Objekt, Auftraggeber/Versicherung, Schaden-Nr., Auftragsdatum, Schadendatum, Ortstermin, Sachverständigen, Versicherungsnehmer, beteiligten Sachverständigen, Sanierung und Ansprechpartner vor. Jeder Wert wird vor dem Speichern angezeigt; ausgefüllte Felder werden nur auf Wunsch überschrieben, ein Zettel mit anderer Projektnummer wird nur nach Bestätigung übernommen. Ordner werden nicht verändert. Neu: Karte „Verteiler“ – wer bekommt das Gutachten, wann versandt.'],
   ['1.7.1', '17.10.2026', 'Beim Start ist das zuletzt in einer App geöffnete Projekt vorgewählt. Die vier Apps haben jetzt oben eine gemeinsame Leiste (Projekt, Arbeitsschritte mit Haken, „Weiter“ zum nächsten Schritt) und führen dafür die Liste der zuletzt geöffneten Projekte.'],
   ['1.7.0', '17.10.2026', 'Projektansicht neu gestaltet, Schritt für Schritt: Die vier Apps stehen als nummerierte Karten untereinander in der Reihenfolge der Arbeit (LabelKit, FotoKit, PlanKit, zum Schluss BelegKit) – Farbe wie das Symbol der App, Haken bei erledigten Schritten, der nächste Schritt ist gefüllt; jede App bleibt jederzeit anklickbar. Die Anlagen hängen an ihrem Schritt (PN 98 / Brandgeruch an LabelKit, Probenahme an PlanKit) und erscheinen nur, wenn es etwas zu erstellen gibt. Projektdaten oben als aufklappbare Karte mit Kurzfassung (bei neuen Projekten offen), in drei Gruppen. Ordnerstand zugeklappt; fehlende Unterordner werden als Hinweis mit Knopf „Anlegen“ gezeigt.'],
@@ -1007,6 +1008,11 @@ function updateRow(p){
 async function selectProject(p){
   if (!p) return;
   await flushPJ();
+  const offen = S.sel && S.sel !== p ? Object.keys(S.pjDirty) : [];   // Speichern ist gescheitert: Eingaben nicht still verwerfen
+  if (offen.length){
+    const namen = offen.map(k => (PJ_FIELDS.find(f => f[0] === k) || [k, k])[1]);
+    if (!(await confirmDialog('Änderungen nicht gespeichert', `In „${esc(S.sel.name)}“ konnten diese Angaben nicht gespeichert werden: <b>${namen.map(esc).join(', ')}</b>.<br>Beim Wechsel gehen sie verloren.`, 'Trotzdem wechseln'))) return;
+  }
   S.sel = p; S.pj = null; S.pjDirty = {}; S.anl = null;
   $('list').querySelectorAll('.proj').forEach(el => el.classList.toggle('active', el.dataset.name === p.name));
   if (!p.st){ p.scanning = true; p.st = await scanProject(p); p.scanning = false; updateRow(p); }
