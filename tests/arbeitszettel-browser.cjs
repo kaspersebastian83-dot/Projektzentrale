@@ -9,6 +9,7 @@ const playwright = require('playwright');
 const name = process.argv[2] || 'chromium';
 const root = path.join(__dirname, '..');
 const A = '26.0142 Teststadt';
+const errors = [];
 const TYP = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.pdf': 'application/pdf' };
 
 (async () => {
@@ -21,7 +22,6 @@ const TYP = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.s
   const url = `http://127.0.0.1:${server.address().port}/index.html`;
   const browser = await playwright[name].launch();
   const page = await (await browser.newContext({ viewport: { width: 1400, height: 1000 } })).newPage();
-  const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
   await page.goto(url);
@@ -131,4 +131,9 @@ const TYP = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.s
   assert.deepEqual(errors.filter(e => !/kein Arbeitszettel|Invalid PDF|InvalidPDFException/i.test(e)), []);
   await browser.close(); server.close();
   console.log(`OK (${name}): Arbeitszettel einlesen, Rückfrage bei vorhandenen Werten, fremdes Projekt, kein Zettel, Verteiler`);
-})().catch(e => { console.error(e); process.exit(1); });
+})().catch(e => {
+  console.error(e, errors);
+  const text = (String(e && e.stack || e) + '\nSeitenfehler: ' + errors.join(' | ')).slice(0, 1800).replace(/%/g, '%25').replace(/\r/g, '').replace(/\n/g, '%0A');
+  console.log(`::error title=Browsertest Arbeitszettel ${name}::${text}`);
+  process.exit(1);
+});
