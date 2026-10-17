@@ -185,6 +185,30 @@ table.folders .miss{color:var(--warn)}
 .save.err{color:var(--err)}
 .save.ok{color:var(--ok)}
 .warn{color:var(--warn)}
+/* Arbeitszettel einlesen */
+.azrow{display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap;margin-bottom:12px}
+.azrow .m{font-size:12.5px;color:var(--muted)}
+.card.drop{outline:2px dashed var(--accent);outline-offset:2px}
+.dialog.az{width:min(820px,96vw)}
+.dialog .aztab{overflow:auto;border:1px solid var(--line);border-radius:8px;padding:4px 10px}
+.dialog .aztab td{padding:5px 10px 5px 0;border-bottom:1px solid var(--line)}
+.dialog .aztab tr:last-child td{border-bottom:0}
+.dialog .aztab td:first-child{width:20px}
+.dialog .aztab td.v{color:var(--text);white-space:normal}
+.dialog .aztab td.st{font-size:12px;color:var(--muted);white-space:normal;max-width:220px}
+.dialog .aztab td.st.warn{color:var(--warn)}
+.dialog .azwarn{padding:8px 12px;border:1px solid var(--err);border-radius:8px;color:var(--err);font-size:13px;display:flex;flex-direction:column;gap:6px}
+.dialog .azwarn label{color:var(--text)}
+/* Verteiler */
+table.vt{width:100%;border-collapse:collapse;font-size:13px}
+table.vt td{padding:5px 8px 5px 0;border-bottom:1px solid var(--line);vertical-align:middle}
+table.vt tr:last-child td{border-bottom:0}
+table.vt td:first-child{white-space:nowrap;width:170px}
+table.vt td.m{color:var(--muted)}
+table.vt td:last-child{white-space:nowrap;text-align:right}
+table.vt .vtD{font-size:12px;color:var(--muted);white-space:nowrap}
+table.vt button{padding:2px 8px;font-size:12px;margin-left:6px}
+.vtHint{font-size:12.5px;color:var(--muted);margin-bottom:6px}
 
 #dlgBack{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:50}
 #dlgBack.show{display:flex}
@@ -672,9 +696,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.7.1';
+const APP_VERSION = '1.8.0';
 const APP_DATE = '2026-10-17';
 const CHANGELOG = [
+  ['1.8.0', '17.10.2026', 'Arbeitszettel einlesen: In den Projektdaten „Arbeitszettel einlesen …“ (oder das PDF auf die Karte ziehen) liest den Arbeitszettel des Büro-Systems und schlägt Objekt, Auftraggeber/Versicherung, Schaden-Nr., Auftragsdatum, Schadendatum, Ortstermin, Sachverständigen, Versicherungsnehmer, beteiligten Sachverständigen, Sanierung und Ansprechpartner vor. Jeder Wert wird vor dem Speichern angezeigt; ausgefüllte Felder werden nur auf Wunsch überschrieben, ein Zettel mit anderer Projektnummer wird nur nach Bestätigung übernommen. Ordner werden nicht verändert. Neu: Karte „Verteiler“ – wer bekommt das Gutachten, wann versandt.'],
   ['1.7.1', '17.10.2026', 'Beim Start ist das zuletzt in einer App geöffnete Projekt vorgewählt. Die vier Apps haben jetzt oben eine gemeinsame Leiste (Projekt, Arbeitsschritte mit Haken, „Weiter“ zum nächsten Schritt) und führen dafür die Liste der zuletzt geöffneten Projekte.'],
   ['1.7.0', '17.10.2026', 'Projektansicht neu gestaltet, Schritt für Schritt: Die vier Apps stehen als nummerierte Karten untereinander in der Reihenfolge der Arbeit (LabelKit, FotoKit, PlanKit, zum Schluss BelegKit) – Farbe wie das Symbol der App, Haken bei erledigten Schritten, der nächste Schritt ist gefüllt; jede App bleibt jederzeit anklickbar. Die Anlagen hängen an ihrem Schritt (PN 98 / Brandgeruch an LabelKit, Probenahme an PlanKit) und erscheinen nur, wenn es etwas zu erstellen gibt. Projektdaten oben als aufklappbare Karte mit Kurzfassung (bei neuen Projekten offen), in drei Gruppen. Ordnerstand zugeklappt; fehlende Unterordner werden als Hinweis mit Knopf „Anlegen“ gezeigt.'],
   ['1.6.3', '17.10.2026', 'Projektdaten speichern mit Sperre: Projektzentrale und FotoKit überschreiben sich nicht mehr gegenseitig, wenn beide gleichzeitig in „_Projekt.json“ schreiben. Einheitlicher Hinweistext in der Datei.'],
@@ -763,6 +788,11 @@ const PJ_FIELDS = [
   ['schadendatum',      'Schadendatum',                     'date', false, ''],
   ['ortstermin',        'Ortstermin',                       'date', false, ''],
   ['sachverstaendiger', 'Sachverständiger',                 'text', false, 'z. B. Dr. S. Kasper'],
+  ['auftragsdatum',     'Auftragsdatum',                    'date', false, ''],
+  ['versicherungsnehmer', 'Versicherungsnehmer',            'text', true,  ''],
+  ['sachverstaendigerBeteiligt', 'Beteiligter Sachverständiger (laut Arbeitszettel)', 'text', true, ''],
+  ['sanierung',         'Sanierung',                        'text', true,  ''],
+  ['kontakte',          'Ansprechpartner (Regulierer, Anrufer, ASP)', 'area', true, ''],
   ['notizen',           'Notizen',                          'area', true,  ''],
 ];
 async function readPJ(dir){
@@ -1019,7 +1049,8 @@ function stepCard(id, app, nr, name, aufgabe, st, tip, extra, last){
     ${extra || ''}</div>`;
 }
 /* Projektdaten in drei Gruppen; Projektnummer und Schadenort stehen im Kopf (aus dem Ordnernamen). */
-const PJ_GRUPPEN = [['Objekt und Auftrag', ['objekt', 'auftraggeber', 'schadennummer']], ['Schaden und Termine', ['schadenereignis', 'schadendatum', 'ortstermin', 'sachverstaendiger']], ['', ['notizen']]];
+const PJ_GRUPPEN = [['Objekt und Auftrag', ['objekt', 'auftraggeber', 'schadennummer', 'auftragsdatum']], ['Schaden und Termine', ['schadenereignis', 'schadendatum', 'ortstermin', 'sachverstaendiger']],
+  ['Beteiligte', ['versicherungsnehmer', 'sachverstaendigerBeteiligt', 'sanierung', 'kontakte']], ['', ['notizen']]];
 function ordnerKurz(p){
   const s = p.st.subs, da = SUBS.filter(([k]) => s[k]).length, dateien = SUBS.reduce((n, [k]) => n + (s[k] ? s[k].files : 0), 0);
   return `${da} von ${SUBS.length} Unterordnern · ${dateien} Datei${dateien === 1 ? '' : 'en'}`;
@@ -1034,7 +1065,8 @@ function renderDetail(){
   const ae = document.activeElement, fokus = ae && /^pj_/.test(ae.id) && $('detail').contains(ae) ? { id: ae.id, a: ae.selectionStart, b: ae.selectionEnd } : null;
   const ok = p.st && !p.st.err, fehlend = ok ? SUBS.filter(([k]) => !p.st.subs[k]).map(([, n]) => n) : [];
   const summe = ['objekt', 'auftraggeber', 'schadennummer'].map(k => String(d[k] || '').trim()).filter(Boolean).join(' · ');
-  S.pjOpen = S.pjOpen || {}; S.ordOpen = S.ordOpen || {};
+  S.pjOpen = S.pjOpen || {}; S.ordOpen = S.ordOpen || {}; S.vtOpen = S.vtOpen || {};
+  const vst = verteilerStand(d.verteiler);
   const pjAuf = fokus || Object.keys(S.pjDirty).length ? true : p.name in S.pjOpen ? S.pjOpen[p.name] : (!!nrWarn || !!pj.error || !!pj.newer);
   const feld = k => { const [, label, type, wide, ph] = PJ_FIELDS.find(f => f[0] === k);
     return `<label class="${wide ? 'wide' : ''}">${esc(label)}
@@ -1044,15 +1076,21 @@ function renderDetail(){
     <h2><span class="nr">${esc(p.nr)}</span> ${esc(p.ort)}</h2>
     <div class="sub">${esc(S.archive.name)} › ${esc(p.name)}</div>
     <details class="card${summe ? '' : ' leer'}" id="pjBox" ${pjAuf ? 'open' : ''}>
-      <summary><span class="t">Projektdaten</span><span class="sum">${summe ? esc(summe) : 'noch leer – Objekt, Auftraggeber … hier eintragen'}</span>
+      <summary><span class="t">Projektdaten</span><span class="sum">${summe ? esc(summe) : 'noch leer – Arbeitszettel einlesen oder Objekt, Auftraggeber … eintragen'}</span>
         <span class="save" id="pjSave">${pj.exists ? (d.geaendert ? `Gespeichert ${esc(new Date(d.geaendert).toLocaleDateString('de-DE'))}` : '') : ''}</span></summary>
       <div class="body">
         ${nrWarn}
         ${pj.error ? `<div class="warn">„${PJ_FILE}“ ist nicht lesbar (${esc(pj.error)}) und wird nicht überschrieben.</div>` : ''}
         ${pj.newer ? `<div class="warn">„${PJ_FILE}“ stammt von einer neueren Version – bitte Projektzentrale aktualisieren. Nur Ansicht.</div>` : ''}
+        ${ro ? '' : `<div class="azrow"><button id="azBtn" title="Liest Objekt, Versicherung, Schaden-Nr., Termine und Beteiligte aus dem PDF des Büro-Systems – vor dem Speichern wird jeder Wert angezeigt">📄 Arbeitszettel einlesen …</button>
+          <span class="m">${d.arbeitszettel && d.arbeitszettel.datei ? `Zuletzt: ${esc(d.arbeitszettel.datei)}` : 'PDF wählen oder auf diese Karte ziehen'}</span><input type="file" id="azFile" accept="application/pdf,.pdf" hidden></div>`}
         <div class="form">${PJ_GRUPPEN.map(([g, ks]) => (g ? `<div class="grp">${esc(g)}</div>` : '') + ks.map(feld).join('')).join('')}</div>
         <div class="save m" title="${esc(PJ_FILE)} im Projektordner – gilt für alle Apps">${pj.exists ? (d.geaendert ? `Zuletzt gespeichert ${esc(new Date(d.geaendert).toLocaleString('de-DE'))}${d.geaendertMit ? ' mit ' + esc(d.geaendertMit) : ''}` : '') : 'Noch keine Projektdaten – wird beim ersten Eintrag angelegt.'} · gilt für alle Apps</div>
       </div>
+    </details>
+    <details class="card${vst.an ? '' : ' leer'}" id="vtBox" ${S.vtOpen[p.name] ? 'open' : ''}>
+      <summary><span class="t">Verteiler</span><span class="sum">${esc(vst.text)}</span></summary>
+      <div class="body"><div class="m vtHint">Wer bekommt das Gutachten? Empfänger anhaken, nach dem Versand das Datum eintragen.</div>${verteilerHtml(d, ro)}</div>
     </details>
     <div class="steps">
       ${stepCard('goLabel', 'label', 1, 'LabelKit', 'Proben erfassen', stand.label, 'Öffnet den Ordner „Laboraufträge“ dieses Projekts und speichert dort', '<div class="att" id="anl"></div>')}
@@ -1069,6 +1107,21 @@ function renderDetail(){
   </div>`;
   $('pjBox').addEventListener('toggle', () => { S.pjOpen[p.name] = $('pjBox').open; });
   $('ordBox').addEventListener('toggle', () => { S.ordOpen[p.name] = $('ordBox').open; });
+  $('vtBox').addEventListener('toggle', () => { S.vtOpen[p.name] = $('vtBox').open; });
+  if (!ro){
+    $('azBtn').onclick = () => $('azFile').click();
+    $('azFile').onchange = () => { const f = $('azFile').files[0]; $('azFile').value = ''; if (f) arbeitszettelEinlesen(p, f); };
+    const box = $('pjBox');
+    box.addEventListener('dragover', e => { if ([...e.dataTransfer.types].includes('Files')){ e.preventDefault(); box.classList.add('drop'); } });
+    box.addEventListener('dragleave', () => box.classList.remove('drop'));
+    box.addEventListener('drop', e => { e.preventDefault(); box.classList.remove('drop'); const f = e.dataTransfer.files[0]; if (f) arbeitszettelEinlesen(p, f); });
+    for (const tr of $('vtBox').querySelectorAll('tr[data-k]')){
+      const k = tr.dataset.k;
+      tr.querySelector('.vtAn').onchange = e => verteilerSetzen(p, k, { an: e.target.checked });
+      tr.querySelector('.vtAm').onchange = e => verteilerSetzen(p, k, { versandt: e.target.value });
+      const h = tr.querySelector('.vtHeute'); if (h) h.onclick = () => verteilerSetzen(p, k, { versandt: new Date().toLocaleDateString('sv-SE') });
+    }
+  }
   for (const [k] of PJ_FIELDS){
     const el = $('pj_' + k);
     el.value = k in S.pjDirty ? S.pjDirty[k] : (d[k] || '');   // noch nicht gespeicherte Eingaben nicht durch den alten Stand ersetzen
@@ -1107,6 +1160,228 @@ function flushPJ(){
       S.pjDirty = Object.assign({}, patch, S.pjDirty);   // newer edits win
       const el = $('pjSave'); if (el && S.sel === p){ el.className = 'save err'; el.textContent = 'Nicht gespeichert: ' + e.message; }
     }
+  });
+  return S.pjWriting;
+}
+
+/* ---------- Arbeitszettel einlesen ----------
+   Das Büro-System druckt zu jedem Auftrag einen „Arbeitszettel“ als PDF (immer dieselbe Form). Die Projektzentrale liest ihn
+   und schlägt die Projektdaten vor. Nichts wird geraten: Gelesen wird je Kasten unter seiner Überschrift (RISKO,
+   VERSICHERUNGSNEHMER …), leere Kästen bleiben leer, und vor dem Speichern zeigt ein Dialog jeden Wert zum Bestätigen.
+   Ordner werden dabei nie angelegt oder verändert – geschrieben wird nur „_Projekt.json“.
+   Die PDF-Bibliothek (pdf.js, Apache-2.0) liegt in vendor/pdfjs und wird erst beim ersten Einlesen geladen. */
+/* AZ-PARSER-START */
+const AZ_MITARBEITER = { 'sebastian kasper': 'Dr. S. Kasper' };   // Schreibweise in den Gutachten
+function azLeser(items){
+  // items: [{ s: Text, x: links, y: Grundlinie von oben }] einer Seite
+  const it = items.map(i => ({ s: String(i.s).normalize('NFC').replace(/\s+/g, ' ').trim(), x: +i.x, y: +i.y })).filter(i => i.s);
+  // Überschriften genau so, wie sie auf dem Zettel stehen: „Sachverständiger“ und „Sanierung“ gibt es klein geschrieben auch im Verteiler.
+  const kopf = t => it.find(i => i.s === t);
+  const H = {};
+  for (const t of ['RISKO', 'VERSICHERUNGSNEHMER', 'VERSICHERUNG', 'SACHVERSTÄNDIGER', 'SANIERUNG', 'SCHADEN VOM', 'SCHADENNUMMER',
+                   'AUFTRAGSDATUM', 'MITARBEITER', 'ARBEITSAUFTRAG', 'ASP', 'ORTSTERMIN']) H[t] = kopf(t);
+  H.REGULIERER = kopf('Regulierer'); H.VERTEILER = kopf('Verteiler');
+  const fehlt = ['RISKO', 'VERSICHERUNGSNEHMER', 'VERSICHERUNG', 'SACHVERSTÄNDIGER', 'SANIERUNG', 'ARBEITSAUFTRAG'].filter(t => !H[t]);
+  if (fehlt.length || !it.some(i => /^Sachverständigenbüro\b/i.test(i.s)))
+    throw new Error('Das ist kein Arbeitszettel des Büros (es fehlen die Kästen ' + (fehlt.length ? fehlt.join(', ') : 'mit dem Briefkopf') + ').');
+  const c0 = H.RISKO.x, c1 = H.VERSICHERUNGSNEHMER.x, c2 = H.VERSICHERUNG.x, T = 3;
+  const unterAa = H.ORTSTERMIN ? H.ORTSTERMIN.y : Infinity;
+  // Zeilen eines Bereichs: Textstücke mit (fast) gleicher Grundlinie gehören zusammen
+  const zeilen = (x0, x1, y0, y1) => {
+    const sel = it.filter(i => i.x >= x0 - T && i.x < x1 - T && i.y > y0 + 2 && i.y < y1 - 2).sort((a, b) => a.y - b.y || a.x - b.x);
+    const out = [];
+    for (const i of sel){ const z = out[out.length - 1]; if (z && Math.abs(z.y - i.y) < 2.5) z.t.push(i); else out.push({ y: i.y, t: [i] }); }
+    return out.map(z => ({ y: z.y, s: z.t.sort((a, b) => a.x - b.x).map(i => i.s).join(' ') }));
+  };
+  // Kasten mit Name (ggf. umbrochen) und Anschrift: Namenszeilen stehen bis ~44 pt unter der Überschrift
+  const kasten = (x0, x1, kopfY, y1) => {
+    const z = zeilen(x0, x1, kopfY, y1);
+    const name = z.filter(l => l.y < kopfY + 44).map(l => l.s).join(' ');
+    const rest = z.filter(l => l.y >= kopfY + 44).map(l => l.s);
+    return [name, ...rest].filter(Boolean).join(', ');
+  };
+  const r1Ende = Math.min(H.SACHVERSTÄNDIGER.y, H.REGULIERER ? H.REGULIERER.y : Infinity);
+  const r2Ende = H.ARBEITSAUFTRAG.y;
+  const z = {};
+  const titel = it.filter(i => i.y < H.RISKO.y && /^\d{2}\.\d{4}\b/.test(i.s)).sort((a, b) => a.y - b.y)[0];
+  z.titel = titel ? titel.s : '';
+  z.projektnummer = titel ? titel.s.match(/^\d{2}\.\d{4}/)[0] : '';
+  z.risko = kasten(c0, c1, H.RISKO.y, r1Ende);
+  z.versicherungsnehmer = kasten(c1, c2, H.VERSICHERUNGSNEHMER.y, r1Ende);
+  z.versicherung = kasten(c2, Infinity, H.VERSICHERUNG.y, r1Ende);
+  z.sachverstaendiger = kasten(c0, c1, H.SACHVERSTÄNDIGER.y, r2Ende);
+  z.sanierung = kasten(c1, c2, H.SANIERUNG.y, r2Ende);
+  const feld = (k, x1, bis) => H[k] ? zeilen(H[k].x, x1, H[k].y, bis).map(l => l.s).join(' ') : '';
+  z.regulierer = H.REGULIERER ? zeilen(c2, Infinity, H.REGULIERER.y, H['SCHADEN VOM'] ? H['SCHADEN VOM'].y : r2Ende).map(l => l.s).join(' ') : '';
+  const bisAuftrag = H.AUFTRAGSDATUM ? H.AUFTRAGSDATUM.y : r2Ende;
+  z.schadenVom = feld('SCHADEN VOM', H.SCHADENNUMMER ? H.SCHADENNUMMER.x : Infinity, bisAuftrag);
+  z.schadennummer = feld('SCHADENNUMMER', Infinity, bisAuftrag);
+  z.auftragsdatum = feld('AUFTRAGSDATUM', H.MITARBEITER ? H.MITARBEITER.x : Infinity, r2Ende);
+  z.mitarbeiter = feld('MITARBEITER', Infinity, r2Ende);
+  // „Termin: 15.10.2026“ rechts in der Zeile ARBEITSAUFTRAG (Datum kann ein eigenes Textstück sein)
+  const term = it.find(i => /^Termin\b/i.test(i.s) && Math.abs(i.y - H.ARBEITSAUFTRAG.y) < 6);
+  z.termin = term ? it.filter(i => Math.abs(i.y - term.y) < 2.5 && i.x >= term.x).sort((a, b) => a.x - b.x).map(i => i.s).join(' ').replace(/^Termin:?\s*/i, '') : '';
+  // Arbeitsauftrag: links neben dem Verteiler, bis zur Tabelle ORTSTERMIN. „Anrufer“ und „ASP“ sind Unterüberschriften.
+  const rechts = H.VERTEILER ? H.VERTEILER.x : (term ? term.x : Infinity);
+  const aa = zeilen(c0, rechts, H.ARBEITSAUFTRAG.y, unterAa);
+  const kontaktig = s => /\d{5,}|@/.test(s.replace(/[\s\-/]/g, '')) || /^(Hr|Fr|Herr|Frau)\b/i.test(s);
+  z.anrufer = []; z.asp = []; const frei = [];
+  let modus = '';
+  for (const l of aa){
+    const m = l.s.match(/^(Anrufer|ASP)\b:?\s*(.*)$/i);
+    if (m){ modus = m[1].toLowerCase() === 'asp' ? 'asp' : 'anrufer'; if (m[2]) z[modus].push(m[2]); continue; }
+    if (modus && kontaktig(l.s)) z[modus].push(l.s);
+    else frei.push(l.s);
+  }
+  z.arbeitsauftrag = frei.join('\n');
+  return z;
+}
+function azDatum(s){
+  const m = String(s || '').trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  return m ? `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : '';
+}
+function azFelder(z){
+  /* Zettel → Felder in _Projekt.json; Hinweise statt stiller Annahmen */
+  const f = {}, hinweise = [];
+  f.objekt = z.risko;
+  f.auftraggeber = z.versicherung;
+  f.schadennummer = z.schadennummer;
+  f.versicherungsnehmer = z.versicherungsnehmer;
+  f.sachverstaendigerBeteiligt = z.sachverstaendiger;
+  f.sanierung = z.sanierung;
+  for (const [k, roh, name] of [['schadendatum', z.schadenVom, 'Schaden vom'], ['ortstermin', z.termin, 'Termin'], ['auftragsdatum', z.auftragsdatum, 'Auftragsdatum']]){
+    f[k] = azDatum(roh);
+    if (roh && !f[k]) hinweise.push(`„${name}“ ist kein Datum (${roh}) und wird nicht übernommen.`);
+  }
+  const ma = z.mitarbeiter.trim();
+  f.sachverstaendiger = AZ_MITARBEITER[ma.toLowerCase()] || ma;
+  if (ma && f.sachverstaendiger !== ma) hinweise.push(`Mitarbeiter „${ma}“ wird als „${f.sachverstaendiger}“ eingetragen.`);
+  f.kontakte = [z.regulierer && 'Regulierer: ' + z.regulierer, z.anrufer.length && 'Anrufer: ' + z.anrufer.join(', '), z.asp.length && 'ASP: ' + z.asp.join(', ')].filter(Boolean).join('\n');
+  f.arbeitsauftrag = z.arbeitsauftrag;
+  if (f.ortstermin && f.auftragsdatum && f.ortstermin < f.auftragsdatum) hinweise.push(`Der Termin (${z.termin}) liegt vor dem Auftragsdatum (${z.auftragsdatum}) – bitte prüfen.`);
+  if (f.schadendatum && f.auftragsdatum && f.schadendatum > f.auftragsdatum) hinweise.push(`Das Schadendatum (${z.schadenVom}) liegt nach dem Auftragsdatum (${z.auftragsdatum}) – bitte prüfen.`);
+  return { f, hinweise };
+}
+/* AZ-PARSER-END */
+const PDFJS = 'vendor/pdfjs/';
+let pdfjsLaden = null;
+function ladePdfjs(){
+  if (!pdfjsLaden) pdfjsLaden = import(new URL(PDFJS + 'pdf.min.js', location.href).href).then(L => {
+    L.GlobalWorkerOptions.workerSrc = new URL(PDFJS + 'pdf.worker.min.js', location.href).href;
+    return L;
+  }).catch(e => { pdfjsLaden = null; throw new Error(IS_WEB ? 'Die PDF-Bibliothek konnte nicht geladen werden (' + e.message + '). Bitte einmal online öffnen.'
+    : 'Arbeitszettel einlesen geht nur in der Online-Version (Adresse aus dem Lesezeichen), nicht aus einer lokal geöffneten Datei.'); });
+  return pdfjsLaden;
+}
+async function azTextstuecke(buf){
+  const L = await ladePdfjs();
+  const task = L.getDocument({ data: new Uint8Array(buf.slice(0)), isEvalSupported: false });
+  try{
+    const doc = await task.promise, seite = await doc.getPage(1), h = seite.getViewport({ scale: 1 }).height, t = await seite.getTextContent();
+    return t.items.filter(i => i.str && i.str.trim()).map(i => ({ s: i.str, x: i.transform[4], y: h - i.transform[5] }));
+  } finally { task.destroy(); }
+}
+window.MosaikArbeitszettel = { azLeser, azFelder, azTextstuecke };   // für Tests und Fehlersuche (nur lesen, schreibt nichts)
+const AZ_FELDER = [   // Reihenfolge im Dialog
+  ['objekt', 'Objekt (RISKO)'], ['auftraggeber', 'Auftraggeber / Versicherung'], ['schadennummer', 'Schaden-Nr.'], ['auftragsdatum', 'Auftragsdatum'],
+  ['versicherungsnehmer', 'Versicherungsnehmer'], ['sachverstaendigerBeteiligt', 'Beteiligter Sachverständiger'], ['sanierung', 'Sanierung'],
+  ['kontakte', 'Ansprechpartner'], ['schadendatum', 'Schadendatum'], ['ortstermin', 'Ortstermin'], ['sachverstaendiger', 'Sachverständiger'],
+  ['arbeitsauftrag', 'Arbeitsauftrag → Notizen']
+];
+const azZeig = (k, v) => !v ? '' : (PJ_FIELDS.find(f => f[0] === k) || [])[2] === 'date' ? deDatum(v) : v;
+function deDatum(iso){ const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? `${m[3]}.${m[2]}.${m[1]}` : String(iso || ''); }
+async function arbeitszettelEinlesen(p, file){
+  if (!p || S.sel !== p) return;
+  if (S.pj && (S.pj.error || S.pj.newer)){ banner('err', `„${PJ_FILE}“ ist nicht beschreibbar – Arbeitszettel wird nicht übernommen.`); return; }
+  let z, f, hinweise, sha;
+  try{
+    if (!/\.pdf$/i.test(file.name) && file.type !== 'application/pdf') throw new Error('Bitte den Arbeitszettel als PDF wählen.');
+    const buf = await file.arrayBuffer();
+    sha = await sha256Hex(buf);
+    z = azLeser(await azTextstuecke(buf));
+    ({ f, hinweise } = azFelder(z));
+  }catch(e){ banner('err', 'Arbeitszettel nicht gelesen: ' + esc(e.message)); return; }
+  await flushPJ();
+  const d = (S.pj && S.pj.data) || {};
+  const andereNr = z.projektnummer && z.projektnummer !== p.nr;
+  const zeilen = AZ_FELDER.map(([k, label]) => {
+    const neu = f[k] || '', ziel = k === 'arbeitsauftrag' ? 'notizen' : k, alt = String(d[ziel] || '').trim();
+    let st, an;
+    if (!neu){ st = 'leer auf dem Zettel'; an = null; }
+    else if (k === 'arbeitsauftrag'){ if (alt.includes(neu)){ st = 'schon in den Notizen'; an = null; } else { st = alt ? 'wird angehängt' : 'neu'; an = true; } }
+    else if (alt === neu){ st = 'gleich'; an = null; }
+    else if (!alt){ st = 'neu'; an = true; }
+    else { st = 'überschreibt: ' + azZeig(k, alt); an = false; }
+    return `<tr data-k="${k}"><td>${an === null ? '' : `<input type="checkbox" id="az_${k}" ${an && !andereNr ? 'checked' : ''}>`}</td>
+      <td><label for="az_${k}">${esc(label)}</label></td><td class="v">${neu ? esc(azZeig(k, neu)).replace(/\n/g, '<br>') : '<span class="m">–</span>'}</td>
+      <td class="st${an === false ? ' warn' : ''}">${esc(st)}</td></tr>`;
+  }).join('');
+  showDialog(`<h3>Arbeitszettel übernehmen</h3>
+    <div class="m">${esc(file.name)} · Zettel „${esc(z.titel || '?')}“ → Projekt <b>${esc(p.name)}</b></div>
+    ${andereNr ? `<div class="azwarn"><b>Andere Projektnummer:</b> Der Zettel gehört zu ${esc(z.projektnummer)}, dieses Projekt ist ${esc(p.nr)}.
+      <label><input type="checkbox" id="azTrotz"> Trotzdem in ${esc(p.nr)} übernehmen</label></div>` : ''}
+    ${hinweise.map(h => `<div class="warn">${esc(h)}</div>`).join('')}
+    <div class="aztab"><table><tbody>${zeilen}</tbody></table></div>
+    <div class="m">Angehakte Werte werden in „${PJ_FILE}“ gespeichert. Bereits ausgefüllte Felder werden nur überschrieben, wenn du sie anhakst. Ordner werden nicht verändert.</div>
+    <div class="btns"><button id="azAbbr">Abbrechen</button><button class="primary" id="azOk">Übernehmen</button></div>`);
+  $('dialog').classList.add('az');
+  const ok = $('azOk'), sperr = () => { ok.disabled = andereNr && !$('azTrotz').checked; };
+  if (andereNr) $('azTrotz').addEventListener('change', sperr);
+  sperr();
+  $('azAbbr').onclick = closeDialog;
+  ok.onclick = async () => {
+    const patch = {};
+    for (const [k] of AZ_FELDER){
+      const cb = $('az_' + k); if (!cb || !cb.checked) continue;
+      if (k === 'arbeitsauftrag'){ const alt = String(d.notizen || '').trim(); patch.notizen = alt ? alt + '\n\nArbeitsauftrag: ' + f[k] : 'Arbeitsauftrag: ' + f[k]; }
+      else patch[k] = f[k];
+    }
+    patch.arbeitszettel = { datei: file.name, sha256: sha, titel: z.titel, eingelesen: new Date().toISOString() };
+    closeDialog();
+    await S.pjWriting;
+    try{
+      const o = await patchPJ(p.handle, p.name, patch);
+      if (S.sel === p){ S.pj = { data: o, exists: true }; S.pjOpen[p.name] = true; renderDetail(); }
+      if (p.st) p.st.pj = true;
+      const n = Object.keys(patch).length - 1;
+      banner('ok', `Arbeitszettel übernommen: ${n} Feld${n === 1 ? '' : 'er'} in „${esc(PJ_FILE)}“ gespeichert.`);
+      setTimeout(hideBanner, 5000);
+    }catch(e){ banner('err', 'Nicht gespeichert: ' + esc(e.message)); }
+  };
+}
+
+/* ---------- Verteiler: wer bekommt das Gutachten, wann versandt ----------
+   Auf dem Arbeitszettel gibt es den Verteiler (Versicherung, Sachverständiger, Versicherungsnehmer, Sanierung). Hier wird er geführt:
+   Empfänger festlegen, Versanddatum eintragen. Gespeichert als „verteiler“ in _Projekt.json. */
+const VERTEILER = [['versicherung', 'Versicherung', 'auftraggeber'], ['sachverstaendiger', 'Sachverständiger', 'sachverstaendigerBeteiligt'],
+                   ['versicherungsnehmer', 'Versicherungsnehmer', 'versicherungsnehmer'], ['sanierung', 'Sanierung', 'sanierung']];
+function verteilerStand(v){
+  v = v && typeof v === 'object' ? v : {};
+  const an = VERTEILER.filter(([k]) => v[k] && v[k].an), raus = an.filter(([k]) => v[k].versandt);
+  return { an: an.length, raus: raus.length,
+    text: !an.length ? 'noch nicht festgelegt – wer bekommt das Gutachten?' : raus.length === an.length ? `✓ an alle ${an.length} versandt` : `${an.length} Empfänger · ${raus.length} versandt` };
+}
+function verteilerHtml(d, ro){
+  const v = d.verteiler && typeof d.verteiler === 'object' ? d.verteiler : {};
+  return `<table class="vt">${VERTEILER.map(([k, label, feld]) => {
+    const e = v[k] || {}, wer = String(d[feld] || '').split(',')[0].trim();
+    return `<tr data-k="${k}"><td><label><input type="checkbox" class="vtAn" ${e.an ? 'checked' : ''} ${ro ? 'disabled' : ''}> ${esc(label)}</label></td>
+      <td class="m">${wer ? esc(wer) : 'nicht eingetragen'}</td>
+      <td><label class="vtD">versandt am <input type="date" class="vtAm" value="${esc(e.versandt || '')}" ${ro || !e.an ? 'disabled' : ''}></label>
+      ${ro || !e.an || e.versandt ? '' : '<button class="vtHeute" title="Heute als Versanddatum eintragen">heute</button>'}</td></tr>`;
+  }).join('')}</table>`;
+}
+async function verteilerSetzen(p, k, aenderung){
+  await S.pjWriting;
+  S.pjWriting = S.pjWriting.then(async () => {
+    try{
+      const cur = await readPJ(p.handle);
+      const v = Object.assign({}, cur.data.verteiler && typeof cur.data.verteiler === 'object' ? cur.data.verteiler : {});
+      v[k] = Object.assign({}, v[k] || {}, aenderung);
+      if (!v[k].an) v[k] = { an: false };
+      const o = await patchPJ(p.handle, p.name, { verteiler: v });
+      if (S.sel === p){ S.pj = { data: o, exists: true }; renderDetail(); }
+    }catch(e){ banner('err', 'Verteiler nicht gespeichert: ' + esc(e.message)); }
   });
   return S.pjWriting;
 }
@@ -1388,7 +1663,7 @@ function helpHtml(){
   ${helpDiagram()}
   <div class="cap">Durchgezogene Pfeile: Die App speichert dort. Gestrichelt: PlanKit liest die Proben aus LabelKit und die Messwerte vom Labor.</div>
   <ol>
-    <li><b>Projektzentrale:</b> Projekt wählen. Rechts stehen die Arbeitsschritte als Karten untereinander – die gefüllte Karte ist der nächste Schritt, ✓ heißt erledigt. Oben unter <b>„Projektdaten“</b> Objekt, Auftraggeber, Schadendatum … ergänzen; alle Apps übernehmen sie.</li>
+    <li><b>Projektzentrale:</b> Projekt wählen. Rechts stehen die Arbeitsschritte als Karten untereinander – die gefüllte Karte ist der nächste Schritt, ✓ heißt erledigt. Oben unter <b>„Projektdaten“</b> mit <b>„Arbeitszettel einlesen …“</b> das PDF des Büro-Systems übernehmen (jeder Wert wird vor dem Speichern gezeigt) oder Objekt, Auftraggeber, Schadendatum … von Hand ergänzen; alle Apps übernehmen sie. Unter <b>„Verteiler“</b> festhalten, wer das Gutachten bekommt und wann es versandt wurde.</li>
     <li><b>① LabelKit – Proben erfassen:</b> Proben anlegen, Etiketten drucken, Laborübergabe erstellen, <b>Strg+S</b>. Alles landet in „Laboraufträge“.</li>
     <li><b>② FotoKit – Fotos bearbeiten:</b> Fotos benennen und die Bilddokumentation als PDF erstellen (Ordner „Fotos“).</li>
     <li><b>③ PlanKit – Plan bearbeiten:</b> Grundriss aus „Pläne“ wählen. Unter „Laborbericht importieren …“ die <b>Probenerfassung aus LabelKit</b> übernehmen und die Proben auf den Plan ziehen.</li>
