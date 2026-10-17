@@ -602,9 +602,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.6.2';
+const APP_VERSION = '1.6.3';
 const APP_DATE = '2026-10-17';
 const CHANGELOG = [
+  ['1.6.3', '17.10.2026', 'Projektdaten speichern mit Sperre: Projektzentrale und FotoKit überschreiben sich nicht mehr gegenseitig, wenn beide gleichzeitig in „_Projekt.json“ schreiben. Einheitlicher Hinweistext in der Datei.'],
   ['1.6.2', '17.10.2026', 'Die Abrechnungs-App heißt jetzt BelegKit (bisher AufwandKit), Knopf „Abrechnung → BelegKit“. Fehlerbehebungen: Unter „Pläne“ zählen die „(vorher …)“-Sicherungskopien von PlanKit nicht mehr als eigene PlanKit-Dateien („Probenplan · 4 Sicherungskopien“ statt „5 PlanKit-Dateien“). Wird die Projektansicht neu aufgebaut, während man in den Projektdaten tippt, bleiben Eingabe und Cursor erhalten. Wer beim Zurückkehren ins Fenster schnell ein anderes Projekt anklickte, konnte dort Projektdaten und Ordnerstand des vorherigen Projekts sehen – behoben.'],
   ['1.6.1', '16.10.2026', 'Anlagen zum Gutachten stehen im Projekt direkt unter den App-Knöpfen; neu „Anlage Probenahme in PlanKit erstellen …“ öffnet PlanKit gleich im Export der Anlage.'],
   ['1.6.0', '16.10.2026', 'Vierter Knopf im Projekt: „Abrechnung → AufwandKit“ – Zeiten, km und Spesen je Kollege, Proben aus LabelKit, Berichtsseiten und Fotos mit den Positionsnummern der Rechnung.'],
@@ -704,24 +705,29 @@ async function readPJ(dir){
     return { data: {}, exists: true, error: e.message };
   }
 }
-async function patchPJ(dir, name, patch){
-  const cur = await readPJ(dir);
-  if (cur.error) throw new Error(`„${PJ_FILE}“ ist nicht lesbar (${cur.error}) und wird nicht überschrieben.`);
-  if (cur.newer) throw new Error(`„${PJ_FILE}“ stammt von einer neueren Version – bitte Projektzentrale aktualisieren.`);
-  const p = parseProjName(name) || {};
-  const o = Object.assign({}, cur.data, patch, {
-    format: 'mosaik-projekt', version: 1,
-    hinweis: 'Gemeinsame Projektdaten (Projektzentrale, FotoKit, PlanKit). Bitte nicht löschen oder umbenennen.',
-    projektnummer: p.nr || cur.data.projektnummer || '', schadenort: p.ort || cur.data.schadenort || '',
-    geaendert: new Date().toISOString(), geaendertMit: 'Projektzentrale ' + APP_VERSION
+/* Gemeinsame Regeln für _Projekt.json (in Projektzentrale und FotoKit identisch halten): eine Sperre je Projekt, ein Hinweistext. */
+const PJ_HINWEIS = 'Gemeinsame Projektdaten (Projektzentrale, FotoKit, PlanKit, LabelKit). Bitte nicht löschen oder umbenennen.';
+function mitPjSperre(name, fn){ return navigator.locks ? navigator.locks.request('mosaik:projekt:' + name, fn) : fn(); }
+function patchPJ(dir, name, patch){
+  /* Lesen → ändern → Schreiben unter einer Sperre je Projekt: FotoKit (anderer Tab) schreibt dieselbe Datei und nimmt dieselbe Sperre. */
+  return mitPjSperre(name, async () => {
+    const cur = await readPJ(dir);
+    if (cur.error) throw new Error(`„${PJ_FILE}“ ist nicht lesbar (${cur.error}) und wird nicht überschrieben.`);
+    if (cur.newer) throw new Error(`„${PJ_FILE}“ stammt von einer neueren Version – bitte Projektzentrale aktualisieren.`);
+    const p = parseProjName(name) || {};
+    const o = Object.assign({}, cur.data, patch, {
+      format: 'mosaik-projekt', version: 1, hinweis: PJ_HINWEIS,
+      projektnummer: p.nr || cur.data.projektnummer || '', schadenort: p.ort || cur.data.schadenort || '',
+      geaendert: new Date().toISOString(), geaendertMit: 'Projektzentrale ' + APP_VERSION
+    });
+    const order = ['format', 'version', 'hinweis', 'projektnummer', 'schadenort', ...PJ_FIELDS.map(f => f[0]), 'geaendert', 'geaendertMit'];
+    const sorted = {};
+    for (const k of order) if (k in o) sorted[k] = o[k];
+    for (const k of Object.keys(o)) if (!(k in sorted)) sorted[k] = o[k];   // unknown fields from other apps stay
+    const fh = await dir.getFileHandle(PJ_FILE, { create: true });
+    const w = await fh.createWritable(); await w.write(JSON.stringify(sorted, null, 2) + '\n'); await w.close();
+    return sorted;
   });
-  const order = ['format', 'version', 'hinweis', 'projektnummer', 'schadenort', ...PJ_FIELDS.map(f => f[0]), 'geaendert', 'geaendertMit'];
-  const sorted = {};
-  for (const k of order) if (k in o) sorted[k] = o[k];
-  for (const k of Object.keys(o)) if (!(k in sorted)) sorted[k] = o[k];   // unknown fields from other apps stay
-  const fh = await dir.getFileHandle(PJ_FILE, { create: true });
-  const w = await fh.createWritable(); await w.write(JSON.stringify(sorted, null, 2) + '\n'); await w.close();
-  return sorted;
 }
 
 /* ---------- state ---------- */
