@@ -34,7 +34,7 @@ const daten = {
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
   await page.goto(url);
   await page.waitForSelector('#btnInfo');
-  assert.equal(await page.locator('#btnInfo').textContent(), 'v1.6.3');
+  assert.equal(await page.locator('#btnInfo').textContent(), 'v1.7.0');
 
   const kann = await page.evaluate(async () => {
     if (!('showDirectoryPicker' in window) || !navigator.storage || !navigator.storage.getDirectory) return false;
@@ -71,6 +71,12 @@ const daten = {
   assert.match(await page.locator('#detail').textContent(), /3 Dateien · Probenplan · 2 Sicherungskopien von PlanKit/);
   assert.match(await page.locator('.proj.active .chips').textContent(), /Plan ✓/);
   // Projektdaten: Neuzeichnen der Ansicht, bevor die Eingabe gespeichert ist (hier: fehlende Unterordner anlegen), behält die Eingabe
+  // Projektansicht 1.7: Arbeitsschritte als Karten in der Reihenfolge der Arbeit; Projektdaten zugeklappt (leer: einladend hervorgehoben)
+  assert.deepEqual(await page.locator('.steps .step').evaluateAll(b => b.map(x => x.id)), ['goLabel', 'goFotos', 'goPlan', 'goAufwand']);
+  assert.equal(await page.locator('.steps .sw.next .step').getAttribute('id'), 'goFotos', 'Proben und Plan da, Fotos noch nicht in FotoKit bearbeitet → FotoKit ist der nächste Schritt');
+  assert.equal(await page.locator('#pjBox').evaluate(d => d.open), false, 'Projektdaten zugeklappt');
+  assert.ok(await page.locator('#pjBox.leer').count(), 'leere Projektdaten hervorgehoben');
+  await page.locator('#pjBox summary').click();
   await page.locator('#pj_objekt').fill('EFH, Testweg 1');
   await page.locator('#mkSubs').click(); await page.locator('#dYes').click();
   await page.waitForFunction(() => !document.getElementById('mkSubs'));
@@ -138,7 +144,7 @@ const daten = {
   const protokoll = new TextDecoder().decode(Uint8Array.from(out['_Anlagen-Protokoll.txt']));
   assert.match(protokoll, /^Anlagen-Protokoll/);
   const docxSha = await page.evaluate(async b => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array(b))), x => x.toString(16).padStart(2, '0')).join(''), out[docxName]);
-  assert.ok(protokoll.includes(`| ${docxName} | ${docxSha} | Laboraufträge/26.0142_16.10.2026_Daten.json | ${sha} | Projektzentrale 1.6.3`), 'Protokollzeile mit beiden Prüfsummen');
+  assert.ok(protokoll.includes(`| ${docxName} | ${docxSha} | Laboraufträge/26.0142_16.10.2026_Daten.json | ${sha} | Projektzentrale 1.7.0`), 'Protokollzeile mit beiden Prüfsummen');
 
   // Zweites Mal: nichts überschrieben, neuer Name; Bezeichnung gemerkt
   await page.locator('#anlPn98').waitFor();
