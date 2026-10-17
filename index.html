@@ -101,6 +101,76 @@ main{flex:1;display:flex;min-height:0}
 #detail h3{font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:22px 0 8px}
 .actions{display:flex;gap:8px;flex-wrap:wrap}
 .actions .hint{font-size:12px;color:var(--muted);flex-basis:100%}
+/* ---------- Projektansicht (rechts), geführt: Kopf · Projektdaten · Arbeitsschritte · Ordner ----------
+   Eine Spalte, in der Reihenfolge der Arbeit. Farbe = App (wie ihr Symbol), gefüllt = nächster Schritt, Haken = erledigt.
+   Alles Weitere (Projektdaten, Ordnerstand) ist zugeklappt und öffnet sich auf Klick. */
+#detail .pz{max-width:660px}
+#detail .pz .sub{margin-bottom:16px}
+.steps{display:flex;flex-direction:column;gap:12px;margin:18px 0 6px}
+.steps .sw{--ac:var(--accent);position:relative}
+.steps .sw[data-app=label]{--ac:#5469b8}
+.steps .sw[data-app=fotos]{--ac:#2f87a6}
+.steps .sw[data-app=plan]{--ac:#4179b2}
+.steps .sw[data-app=beleg]{--ac:#2f7d6d}
+.steps .step{position:relative;z-index:1;display:grid;grid-template-columns:40px 1fr auto;align-items:center;gap:14px;width:100%;min-height:64px;padding:10px 16px 10px 14px;text-align:left;
+  background:var(--panel);border:1px solid var(--line2);border-left:5px solid var(--ac);border-radius:10px;color:var(--text);font-weight:400;box-shadow:none}
+.steps .step:hover{border-color:var(--ac);border-left-color:var(--ac);color:var(--text);box-shadow:0 2px 10px color-mix(in srgb,var(--ac) 22%,transparent)}
+.steps .step .n{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-size:18px;font-weight:700;color:var(--ac);background:color-mix(in srgb,var(--ac) 13%,var(--panel));border:2px solid var(--ac)}
+.steps .step .name{display:block;font-size:17px;font-weight:700;line-height:1.2}
+.steps .step small{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
+.steps .step .stat{font-size:12px;color:var(--muted);white-space:nowrap;text-align:right}
+/* Verbindungslinie hinter den Karten (läuft auch neben einer angehängten Anlage weiter) */
+.steps .sw:not(:last-child)::after{content:"";position:absolute;left:38px;top:32px;bottom:-12px;width:2px;background:var(--line2)}
+.steps .sw.done:not(:last-child)::after{background:var(--ok)}
+.steps .sw:nth-last-child(2)::after{bottom:0}
+/* erledigt: ruhig, mit Haken */
+.steps .sw.done .step{background:color-mix(in srgb,var(--ok) 5%,var(--panel))}
+.steps .sw.done .step .n{background:var(--ok);border-color:var(--ok);color:#fff}
+.steps .sw.done .step .stat{color:var(--ok);font-weight:600}
+/* nächster Schritt: gefüllt in der Farbe der App */
+.steps .sw.next .step{background:var(--ac);border-color:var(--ac);color:#fff;box-shadow:0 3px 12px color-mix(in srgb,var(--ac) 38%,transparent)}
+.steps .sw.next .step small,.steps .sw.next .step .stat{color:rgba(255,255,255,.86)}
+.steps .sw.next .step .n{background:#fff;color:var(--ac);border-color:#fff}
+.steps .sw.next .step:hover{color:#fff;filter:brightness(1.07)}
+/* Abschluss (BelegKit): abgesetzt und leichter, gestrichelt angebunden */
+.steps .sw.last{margin-top:10px}
+.steps .sw.last .step{min-height:56px;border-style:dashed;border-left-style:solid}
+.steps .sw.last::before{content:"";position:absolute;left:38px;bottom:100%;height:22px;border-left:2px dashed var(--line2)}
+/* Anlage am Schritt: klein, eingerückt, in der Farbe der App */
+.att{position:relative;z-index:1;margin:6px 0 0 54px;padding:8px 12px;border:1px solid var(--line);border-left:3px solid var(--ac);border-radius:8px;background:var(--panel2);font-size:13px}
+.att:empty{display:none}
+.att .row{display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap}
+.att .row b{font-weight:600}
+.att .row .m{color:var(--muted)}
+.att .row button{margin-left:auto}
+.att .klein{font-size:12px;color:var(--muted);margin-top:3px}
+.att .warn{font-size:12.5px;margin-top:4px}
+/* aufklappbare Karten: Projektdaten, Ordner */
+.card{margin-top:14px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+.card > summary{list-style:none;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding:11px 14px;cursor:pointer;border-radius:10px}
+.card > summary::-webkit-details-marker{display:none}
+.card > summary::before{content:"▸";color:var(--muted);transition:transform .12s;display:inline-block;width:10px}
+.card[open] > summary::before{transform:rotate(90deg)}
+.card > summary:hover{background:var(--panel2)}
+.card > summary .t{font-weight:600}
+.card > summary .sum{color:var(--muted);font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card[open] > summary .sum{visibility:hidden}
+.card[open] > summary{border-bottom:1px solid var(--line);border-radius:10px 10px 0 0}
+.card .body{padding:12px 14px 14px}
+.card > summary .save{margin:0;min-height:0;margin-left:auto}
+/* noch keine Projektdaten: Karte lädt zum Ausfüllen ein (gestrichelt, Akzentfarbe) – ohne die Arbeitsschritte zu verdrängen */
+.card.leer{border:1px dashed var(--accent-l);background:color-mix(in srgb,var(--accent) 5%,var(--panel))}
+.card.leer > summary .sum{color:var(--accent)}
+.form .grp{grid-column:1 / -1;font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-top:6px}
+.form .grp:first-child{margin-top:0}
+.warnbar{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;margin-top:14px;padding:9px 12px;border:1px dashed color-mix(in srgb,var(--warn) 55%,var(--line));border-radius:8px;
+  background:color-mix(in srgb,var(--warn) 7%,var(--panel));color:var(--warn);font-size:13px}
+.warnbar button{margin-left:auto}
+@media (prefers-color-scheme:dark){
+  .steps .sw[data-app=label]{--ac:#8b9cdd} .steps .sw[data-app=fotos]{--ac:#5bb6d2} .steps .sw[data-app=plan]{--ac:#6fa3dc} .steps .sw[data-app=beleg]{--ac:#5fbfa9}
+  .steps .sw.next .step,.steps .sw.next .step:hover{color:#0f1720} .steps .sw.next .step small,.steps .sw.next .step .stat{color:rgba(15,23,32,.78)}
+  .steps .sw.next .step .n{background:#0f1720;color:var(--ac);border-color:#0f1720}
+}
 table.folders{width:100%;border-collapse:collapse;font-size:13px}
 table.folders td{padding:5px 8px;border-bottom:1px solid var(--line);vertical-align:top}
 table.folders td:first-child{font-weight:600;white-space:nowrap;width:150px}
@@ -602,9 +672,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.6.3';
+const APP_VERSION = '1.7.0';
 const APP_DATE = '2026-10-17';
 const CHANGELOG = [
+  ['1.7.0', '17.10.2026', 'Projektansicht neu gestaltet, Schritt für Schritt: Die vier Apps stehen als nummerierte Karten untereinander in der Reihenfolge der Arbeit (LabelKit, FotoKit, PlanKit, zum Schluss BelegKit) – Farbe wie das Symbol der App, Haken bei erledigten Schritten, der nächste Schritt ist gefüllt; jede App bleibt jederzeit anklickbar. Die Anlagen hängen an ihrem Schritt (PN 98 / Brandgeruch an LabelKit, Probenahme an PlanKit) und erscheinen nur, wenn es etwas zu erstellen gibt. Projektdaten oben als aufklappbare Karte mit Kurzfassung (bei neuen Projekten offen), in drei Gruppen. Ordnerstand zugeklappt; fehlende Unterordner werden als Hinweis mit Knopf „Anlegen“ gezeigt.'],
   ['1.6.3', '17.10.2026', 'Projektdaten speichern mit Sperre: Projektzentrale und FotoKit überschreiben sich nicht mehr gegenseitig, wenn beide gleichzeitig in „_Projekt.json“ schreiben. Einheitlicher Hinweistext in der Datei.'],
   ['1.6.2', '17.10.2026', 'Die Abrechnungs-App heißt jetzt BelegKit (bisher AufwandKit), Knopf „Abrechnung → BelegKit“. Fehlerbehebungen: Unter „Pläne“ zählen die „(vorher …)“-Sicherungskopien von PlanKit nicht mehr als eigene PlanKit-Dateien („Probenplan · 4 Sicherungskopien“ statt „5 PlanKit-Dateien“). Wird die Projektansicht neu aufgebaut, während man in den Projektdaten tippt, bleiben Eingabe und Cursor erhalten. Wer beim Zurückkehren ins Fenster schnell ein anderes Projekt anklickte, konnte dort Projektdaten und Ordnerstand des vorherigen Projekts sehen – behoben.'],
   ['1.6.1', '16.10.2026', 'Anlagen zum Gutachten stehen im Projekt direkt unter den App-Knöpfen; neu „Anlage Probenahme in PlanKit erstellen …“ öffnet PlanKit gleich im Export der Anlage.'],
@@ -921,44 +992,75 @@ function folderRows(p){
     return `<tr><td>${esc(label)}</td><td>${t}</td></tr>`;
   }).join('') + (p.st.extra.length ? `<tr><td class="m">Weitere</td><td class="m">${p.st.extra.map(esc).join(', ')}</td></tr>` : '');
 }
+/* Stand der Arbeitsschritte aus dem Ordnerstand: erledigt (Haken), nächster Schritt (gefüllt). Nur eine Hilfe zur Orientierung – jede App bleibt jederzeit anklickbar. */
+function arbeitsstand(p){
+  const st = p.st && !p.st.err ? p.st : null, out = { label: {}, fotos: {}, plan: {}, beleg: {} };
+  if (!st) return out;
+  const lab = st.subs.labauf, fo = st.subs.fotos, pl = st.subs.plaene;
+  out.label = lab && lab.daten.length ? { done: true, text: '✓ erfasst' } : { text: lab ? 'noch leer' : 'Ordner fehlt' };
+  out.fotos = fo && fo.bu ? { done: true, text: `✓ ${fo.images} Bild${fo.images === 1 ? '' : 'er'}` } : { text: fo ? (fo.images ? `${fo.images} Bild${fo.images === 1 ? '' : 'er'}` : 'noch leer') : 'Ordner fehlt' };
+  out.plan = pl && pl.probenplan ? { done: true, text: '✓ Probenplan' } : { text: pl ? 'noch kein Plan' : 'Ordner fehlt' };
+  const next = ['label', 'fotos', 'plan'].find(k => !out[k].done);
+  if (next) out[next].next = true; else out.beleg.next = true;
+  return out;
+}
+function stepCard(id, app, nr, name, aufgabe, st, tip, extra, last){
+  st = st || {};
+  return `<div class="sw${st.done ? ' done' : ''}${st.next ? ' next' : ''}${last ? ' last' : ''}" data-app="${app}">
+    <button class="step" id="${id}" title="${esc(tip)}"><span class="n">${st.done ? '✓' : nr}</span><span><span class="name">${esc(name)}</span><small>${esc(aufgabe)}</small></span><span class="stat">${esc(st.done ? st.text.replace(/^✓ /, '') : (st.text || ''))}</span></button>
+    ${extra || ''}</div>`;
+}
+/* Projektdaten in drei Gruppen; Projektnummer und Schadenort stehen im Kopf (aus dem Ordnernamen). */
+const PJ_GRUPPEN = [['Objekt und Auftrag', ['objekt', 'auftraggeber', 'schadennummer']], ['Schaden und Termine', ['schadenereignis', 'schadendatum', 'ortstermin', 'sachverstaendiger']], ['', ['notizen']]];
+function ordnerKurz(p){
+  const s = p.st.subs, da = SUBS.filter(([k]) => s[k]).length, dateien = SUBS.reduce((n, [k]) => n + (s[k] ? s[k].files : 0), 0);
+  return `${da} von ${SUBS.length} Unterordnern · ${dateien} Datei${dateien === 1 ? '' : 'en'}`;
+}
 function renderDetail(){
   const p = S.sel;
   if (!p){ $('detail').innerHTML = '<div class="empty"><p>Links ein Projekt auswählen.</p><p><button class="help-link" data-help>Kurzanleitung öffnen</button></p></div>'; return; }
   const pj = S.pj || { data: {} }, d = pj.data;
   const nrWarn = d.projektnummer && d.projektnummer !== p.nr ? `<div class="warn">Achtung: In „${PJ_FILE}“ steht Projektnummer ${esc(d.projektnummer)}, der Ordner heißt ${esc(p.nr)}. Maßgeblich ist der Ordnername.</div>` : '';
-  const ro = pj.error || pj.newer;
+  const ro = pj.error || pj.newer, stand = arbeitsstand(p);
   // Wird neu gezeichnet, während jemand in den Projektdaten schreibt (Ordner fertig gelesen, Anlage erstellt …), bleibt der Cursor im Feld.
   const ae = document.activeElement, fokus = ae && /^pj_/.test(ae.id) && $('detail').contains(ae) ? { id: ae.id, a: ae.selectionStart, b: ae.selectionEnd } : null;
-  $('detail').innerHTML = `
+  const ok = p.st && !p.st.err, fehlend = ok ? SUBS.filter(([k]) => !p.st.subs[k]).map(([, n]) => n) : [];
+  const summe = ['objekt', 'auftraggeber', 'schadennummer'].map(k => String(d[k] || '').trim()).filter(Boolean).join(' · ');
+  S.pjOpen = S.pjOpen || {}; S.ordOpen = S.ordOpen || {};
+  const pjAuf = fokus || Object.keys(S.pjDirty).length ? true : p.name in S.pjOpen ? S.pjOpen[p.name] : (!!nrWarn || !!pj.error || !!pj.newer);
+  const feld = k => { const [, label, type, wide, ph] = PJ_FIELDS.find(f => f[0] === k);
+    return `<label class="${wide ? 'wide' : ''}">${esc(label)}
+        ${type === 'area' ? `<textarea id="pj_${k}" rows="3" ${ro ? 'readonly' : ''}></textarea>`
+          : `<input type="${type}" id="pj_${k}" placeholder="${esc(ph)}" ${ro ? 'readonly' : ''}>`}</label>`; };
+  $('detail').innerHTML = `<div class="pz">
     <h2><span class="nr">${esc(p.nr)}</span> ${esc(p.ort)}</h2>
     <div class="sub">${esc(S.archive.name)} › ${esc(p.name)}</div>
-    <div class="actions">
-      <button class="primary" id="goLabel">Proben erfassen → LabelKit</button>
-      <button class="primary" id="goFotos">Fotos bearbeiten → FotoKit</button>
-      <button class="primary" id="goPlan">Plan bearbeiten → PlanKit</button>
-      <button id="goAufwand" title="Zeiten, km, Spesen eintragen; Proben, Berichtsseiten und Fotos für die Rechnung zusammenstellen">Abrechnung → BelegKit</button>
-      <span class="hint">In der Reihenfolge der Arbeit: Proben, Fotos, Plan – und zum Schluss die Abrechnung. Jede App öffnet direkt ihren Ordner dieses Projekts – LabelKit „Laboraufträge“, FotoKit „Fotos“, PlanKit „Pläne“, BelegKit „Abrechnung“ – und speichert dort.</span>
+    <details class="card${summe ? '' : ' leer'}" id="pjBox" ${pjAuf ? 'open' : ''}>
+      <summary><span class="t">Projektdaten</span><span class="sum">${summe ? esc(summe) : 'noch leer – Objekt, Auftraggeber … hier eintragen'}</span>
+        <span class="save" id="pjSave">${pj.exists ? (d.geaendert ? `Gespeichert ${esc(new Date(d.geaendert).toLocaleDateString('de-DE'))}` : '') : ''}</span></summary>
+      <div class="body">
+        ${nrWarn}
+        ${pj.error ? `<div class="warn">„${PJ_FILE}“ ist nicht lesbar (${esc(pj.error)}) und wird nicht überschrieben.</div>` : ''}
+        ${pj.newer ? `<div class="warn">„${PJ_FILE}“ stammt von einer neueren Version – bitte Projektzentrale aktualisieren. Nur Ansicht.</div>` : ''}
+        <div class="form">${PJ_GRUPPEN.map(([g, ks]) => (g ? `<div class="grp">${esc(g)}</div>` : '') + ks.map(feld).join('')).join('')}</div>
+        <div class="save m" title="${esc(PJ_FILE)} im Projektordner – gilt für alle Apps">${pj.exists ? (d.geaendert ? `Zuletzt gespeichert ${esc(new Date(d.geaendert).toLocaleString('de-DE'))}${d.geaendertMit ? ' mit ' + esc(d.geaendertMit) : ''}` : '') : 'Noch keine Projektdaten – wird beim ersten Eintrag angelegt.'} · gilt für alle Apps</div>
+      </div>
+    </details>
+    <div class="steps">
+      ${stepCard('goLabel', 'label', 1, 'LabelKit', 'Proben erfassen', stand.label, 'Öffnet den Ordner „Laboraufträge“ dieses Projekts und speichert dort', '<div class="att" id="anl"></div>')}
+      ${stepCard('goFotos', 'fotos', 2, 'FotoKit', 'Fotos bearbeiten', stand.fotos, 'Öffnet den Ordner „Fotos“ dieses Projekts und speichert dort')}
+      ${stepCard('goPlan', 'plan', 3, 'PlanKit', 'Plan bearbeiten', stand.plan, 'Öffnet den Ordner „Pläne“ dieses Projekts und speichert dort',
+        stand.plan.done ? `<div class="att"><div class="row"><b>Anlage Probenahme</b><span class="m">Lagepläne, Probenverzeichnis, Fotos, Laborwerte</span><button id="anlPlan" title="Öffnet PlanKit gleich im Export „Word · Anlage Probenahme“">Erstellen …</button></div></div>` : '')}
+      ${stepCard('goAufwand', 'beleg', 4, 'BelegKit', 'Abrechnung', stand.beleg, 'Zeiten, km, Spesen eintragen; Proben, Berichtsseiten und Fotos für die Rechnung zusammenstellen – speichert im Ordner „Abrechnung“', '', true)}
     </div>
-    <h3>Anlagen zum Gutachten <small style="text-transform:none;letter-spacing:0">(Word, zum Einfügen in den Bericht)</small></h3>
-    <table class="folders"><tr><td>Probenahme</td><td>Lageplan je Geschoss, Probenverzeichnis, je Probe Ausschnitt, Fotos und Laborwerte
-      <div class="actions" style="margin-top:6px"><button class="primary" id="anlPlan">Anlage Probenahme in PlanKit erstellen …</button></div></td></tr></table>
-    <div id="anl" style="margin-top:6px"><div class="m">${p.st && !p.st.err ? 'Wird geprüft …' : ''}</div></div>
-    <h3>Ordner</h3>
-    ${p.st && !p.st.err ? `<table class="folders">${folderRows(p)}</table>
-      ${SUBS.some(([k]) => !p.st.subs[k]) ? '<div class="actions" style="margin-top:8px"><button id="mkSubs">Fehlende Unterordner anlegen</button></div>' : ''}`
-      : `<div class="m">${p.st && p.st.err ? 'Nicht lesbar: ' + esc(p.st.err) : 'Wird gelesen …'}</div>`}
-    <h3>Projektdaten <small style="text-transform:none;letter-spacing:0">(${esc(PJ_FILE)} im Projektordner – gilt für alle Apps)</small></h3>
-    ${nrWarn}
-    ${pj.error ? `<div class="warn">„${PJ_FILE}“ ist nicht lesbar (${esc(pj.error)}) und wird nicht überschrieben.</div>` : ''}
-    ${pj.newer ? `<div class="warn">„${PJ_FILE}“ stammt von einer neueren Version – bitte Projektzentrale aktualisieren. Nur Ansicht.</div>` : ''}
-    <div class="form">
-      <label>Projektnummer <input type="text" value="${esc(p.nr)}" readonly title="aus dem Ordnernamen"></label>
-      <label>Schadenort <input type="text" value="${esc(p.ort)}" readonly title="aus dem Ordnernamen"></label>
-      ${PJ_FIELDS.map(([k, label, type, wide, ph]) => `<label class="${wide ? 'wide' : ''}">${esc(label)}
-        ${type === 'area' ? `<textarea id="pj_${k}" rows="3" ${ro ? 'readonly' : ''}></textarea>`
-          : `<input type="${type}" id="pj_${k}" placeholder="${esc(ph)}" ${ro ? 'readonly' : ''}>`}</label>`).join('')}
-    </div>
-    <div class="save" id="pjSave">${pj.exists ? (d.geaendert ? `Zuletzt gespeichert ${esc(new Date(d.geaendert).toLocaleString('de-DE'))}${d.geaendertMit ? ' mit ' + esc(d.geaendertMit) : ''}` : '') : 'Noch keine Projektdaten – wird beim ersten Eintrag angelegt.'}</div>`;
+    ${fehlend.length ? `<div class="warnbar"><span>Es fehlen Unterordner: <b>${fehlend.map(esc).join(', ')}</b></span><button id="mkSubs">Anlegen</button></div>` : ''}
+    <details class="card" id="ordBox" ${S.ordOpen[p.name] ? 'open' : ''}>
+      <summary><span class="t">Ordner</span><span class="sum">${ok ? esc(ordnerKurz(p)) : p.st && p.st.err ? 'nicht lesbar' : 'wird gelesen …'}</span></summary>
+      <div class="body">${ok ? `<table class="folders">${folderRows(p)}</table>` : `<div class="m">${p.st && p.st.err ? 'Nicht lesbar: ' + esc(p.st.err) : 'Wird gelesen …'}</div>`}</div>
+    </details>
+  </div>`;
+  $('pjBox').addEventListener('toggle', () => { S.pjOpen[p.name] = $('pjBox').open; });
+  $('ordBox').addEventListener('toggle', () => { S.ordOpen[p.name] = $('ordBox').open; });
   for (const [k] of PJ_FIELDS){
     const el = $('pj_' + k);
     el.value = k in S.pjDirty ? S.pjDirty[k] : (d[k] || '');   // noch nicht gespeicherte Eingaben nicht durch den alten Stand ersetzen
@@ -970,7 +1072,7 @@ function renderDetail(){
   $('goPlan').onclick = () => openPlanKit(p);
   $('goLabel').onclick = () => openApp(p, LABELKIT_URL, 'labelkit');
   $('goAufwand').onclick = () => openApp(p, AUFWANDKIT_URL, 'aufwandkit');
-  $('anlPlan').onclick = () => openPlanKit(p, 'anlage');
+  if ($('anlPlan')) $('anlPlan').onclick = () => openPlanKit(p, 'anlage');
   if ($('mkSubs')) $('mkSubs').onclick = () => makeSubs(p);
   if (p.st && !p.st.err) anlStatus(p);
 }
@@ -990,7 +1092,7 @@ function flushPJ(){
       const o = await patchPJ(p.handle, p.name, patch);
       if (S.sel === p){
         S.pj = { data: o, exists: true };
-        const el = $('pjSave'); if (el){ el.className = 'save ok'; el.textContent = `✓ Gespeichert ${new Date().toLocaleTimeString('de-DE')} in ${PJ_FILE}`; }
+        const el = $('pjSave'); if (el){ el.className = 'save ok'; el.textContent = `✓ Gespeichert ${new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`; el.title = `in ${PJ_FILE} im Projektordner`; }
       }
       if (p.st) p.st.pj = true;
     }catch(e){
@@ -1069,10 +1171,11 @@ async function anlStatus(p){
   const f = await neuesteDaten(p);
   if (!aktuell()) return;
   const erstellt = (await anlVorhandene(p)).filter(n => /_PN98|_Brandgeruch/i.test(n) && /\.docx$/i.test(n)).sort();
-  const liste = erstellt.length ? `<div class="m" style="margin-top:4px">Bereits erstellt: ${erstellt.slice(-3).map(esc).join(', ')}${erstellt.length > 3 ? ` (+${erstellt.length - 3})` : ''}</div>` : '';
+  const liste = erstellt.length ? `<div class="klein">Bereits erstellt: ${erstellt.slice(-3).map(esc).join(', ')}${erstellt.length > 3 ? ` (+${erstellt.length - 3})` : ''}</div>` : '';
   if (!aktuell()) return;
   let box = $('anl');
-  if (!f){ S.anl = null; box.innerHTML = `<div class="m">Noch keine LabelKit-Projektdatei (…_Daten.json) in „Laboraufträge“. PN 98-Protokolle und Brandgeruch werden in LabelKit erfasst.</div>${liste}`; return; }
+  // Ohne LabelKit-Daten oder ohne PN 98/Brandgeruch bleibt der Anhang am Schritt leer (unsichtbar) – außer es gibt schon erstellte Anlagen.
+  if (!f){ S.anl = null; box.innerHTML = erstellt.length ? `<div class="row"><b>Anlage PN 98 / Brandgeruch</b></div>${liste}` : ''; return; }
   let daten;
   try{ daten = JSON.parse(await f.text()); }
   catch(e){ if (!aktuell()) return; S.anl = null; $('anl').innerHTML = `<div class="warn">„${esc(f.name)}“ ist nicht lesbar: ${esc(e.message)}</div>`; return; }
@@ -1081,11 +1184,12 @@ async function anlStatus(p){
   const chk = ANLAGE.pruefen(daten, p.nr);
   S.anl = { p, f, chk };
   const geht = chk.pn98Moeglich || chk.brandMoeglich;
-  box.innerHTML = `<table class="folders"><tr><td>PN 98 / Brandgeruch</td><td>${chk.feld ? `${chk.feld} Feldprotokoll${chk.feld === 1 ? '' : 'e'} PN 98 (vor Ort) · ` : ''}${chk.pn98} PN 98-Protokoll${chk.pn98 === 1 ? '' : 'e'} · ${chk.brand} Brandgeruch-Probe${chk.brand === 1 ? '' : 'n'}
-      <div class="m">aus „${esc(f.name)}“, Stand ${esc(new Date(f.lastModified).toLocaleString('de-DE'))}</div>
-      ${chk.hinweise.map(h => `<div class="warn">${esc(h)}</div>`).join('')}${liste}</td></tr></table>
-    <div class="actions" style="margin-top:8px"><button class="primary" id="anlPn98" ${geht ? '' : 'disabled'}>Anlage PN 98 / Brandgeruch erstellen (Word) …</button>
-      <span class="hint">Gespeichert wird in „${ANL_ORDNER}“ neben dem Bericht. In Word an der gewünschten Stelle: <b>Einfügen › Objekt › Text aus Datei</b>.</span></div>`;
+  if (!geht && !erstellt.length && !chk.hinweise.length){ box.innerHTML = ''; return; }
+  const teile = [chk.feld ? `${chk.feld} Feldprotokoll${chk.feld === 1 ? '' : 'e'} PN 98 (vor Ort)` : '', `${chk.pn98} PN 98-Protokoll${chk.pn98 === 1 ? '' : 'e'}`, `${chk.brand} Brandgeruch-Probe${chk.brand === 1 ? '' : 'n'}`].filter(Boolean);
+  box.innerHTML = `<div class="row"><b>Anlage PN 98 / Brandgeruch</b><span class="m">${teile.join(' · ')}</span>
+      <button id="anlPn98" ${geht ? '' : 'disabled'} title="Word-Datei in „${ANL_ORDNER}“ – in Word: Einfügen › Objekt › Text aus Datei">Erstellen …</button></div>
+    <div class="klein">aus „${esc(f.name)}“, Stand ${esc(new Date(f.lastModified).toLocaleString('de-DE'))}</div>
+    ${chk.hinweise.map(h => `<div class="warn">${esc(h)}</div>`).join('')}${liste}`;
   box.querySelector('#anlPn98').onclick = () => anlDialog(p);
 }
 
@@ -1100,6 +1204,7 @@ async function anlDialog(p){
       <label><input type="checkbox" id="aBrand" ${a.chk.brandMoeglich ? 'checked' : 'disabled'}> Sensorische Prüfung auf Brandgeruch (${a.chk.brand} Proben${a.chk.brand && a.chk.blind ? ', in LabelKit noch verdeckt' : ''})</label></p>
     ${a.chk.hinweise.map(h => `<div class="warn">${esc(h)}</div>`).join('')}
     <p style="margin-top:10px">Quelle: <code>${esc(p.st.subs.labauf.name)}/${esc(a.f.name)}</code><br>Ziel: <code>${esc(ANL_ORDNER)}/<span id="aName"></span></code></p>
+    <p>In Word an der gewünschten Stelle: <b>Einfügen › Objekt › Text aus Datei</b>.</p>
     <p>Werte werden unverändert übernommen, leere Felder bleiben leer. Am Ende steht ein Quellenvermerk mit Prüfsumme der Projektdatei.${a.chk.feld ? ' Scans der Feldbögen (JPEG/PNG) werden gegen ihre Prüfsumme geprüft und verkleinert angehängt; PDF-Scans werden mit Prüfsumme genannt.' : ''}</p></div>
     <div class="btns"><button id="aNo">Abbrechen</button><button class="primary" id="aYes">Erstellen</button></div>`);
   const name = () => {
@@ -1275,15 +1380,15 @@ function helpHtml(){
   ${helpDiagram()}
   <div class="cap">Durchgezogene Pfeile: Die App speichert dort. Gestrichelt: PlanKit liest die Proben aus LabelKit und die Messwerte vom Labor.</div>
   <ol>
-    <li><b>Projektzentrale:</b> Projekt wählen, Projektdaten ergänzen (Objekt, Auftraggeber, Schadendatum …). Alle Apps übernehmen sie.</li>
-    <li><b>Proben erfassen → LabelKit:</b> Proben anlegen, Etiketten drucken, Laborübergabe erstellen, <b>Strg+S</b>. Alles landet in „Laboraufträge“.</li>
-    <li><b>Fotos bearbeiten → FotoKit:</b> Fotos benennen und die Bilddokumentation als PDF erstellen (Ordner „Fotos“).</li>
-    <li><b>Plan bearbeiten → PlanKit:</b> Grundriss aus „Pläne“ wählen. Unter „Laborbericht importieren …“ die <b>Probenerfassung aus LabelKit</b> übernehmen und die Proben auf den Plan ziehen.</li>
+    <li><b>Projektzentrale:</b> Projekt wählen. Rechts stehen die Arbeitsschritte als Karten untereinander – die gefüllte Karte ist der nächste Schritt, ✓ heißt erledigt. Oben unter <b>„Projektdaten“</b> Objekt, Auftraggeber, Schadendatum … ergänzen; alle Apps übernehmen sie.</li>
+    <li><b>① LabelKit – Proben erfassen:</b> Proben anlegen, Etiketten drucken, Laborübergabe erstellen, <b>Strg+S</b>. Alles landet in „Laboraufträge“.</li>
+    <li><b>② FotoKit – Fotos bearbeiten:</b> Fotos benennen und die Bilddokumentation als PDF erstellen (Ordner „Fotos“).</li>
+    <li><b>③ PlanKit – Plan bearbeiten:</b> Grundriss aus „Pläne“ wählen. Unter „Laborbericht importieren …“ die <b>Probenerfassung aus LabelKit</b> übernehmen und die Proben auf den Plan ziehen.</li>
     <li><b>Laborbericht da:</b> XML und PDF in „Laborergebnisse“ ablegen. In PlanKit den Bericht importieren und <b>„Alle Konflikte: Aktualisieren“</b> klicken – die Messwerte hängen dann an den Proben.</li>
     <li><b>Auswerten:</b> PlanKit „Ergebnisse“ → Ergebniskarte exportieren. FotoKit „Ergebnistabelle …“ → Tabelle für Word.</li>
-    <li><b>Abrechnung → BelegKit:</b> Jede Person trägt ihre Ortstermine (Stunden, km, Spesen, Übernachtung) und Auswertungsstunden selbst ein. Proben aus LabelKit, Berichtsseiten und Fotos werden gezählt; „Abrechnung“ zeigt alle Positionen mit Nummern zum Übertragen ins Rechnungsprogramm.</li>
-    <li><b>Anlage Probenahme:</b> Hier im Projekt „Anlage Probenahme in PlanKit erstellen …“ – PlanKit öffnet den Export mit „Word · Anlage Probenahme“ (Lagepläne, Probenverzeichnis, Ausschnitte, Fotos, Laborwerte).</li>
-    <li><b>Anlagen PN 98 / Brandgeruch:</b> Hier im Projekt „Anlage PN 98 / Brandgeruch erstellen (Word)“. Die Datei liegt danach in „Mitteilungen“ – in Word an der gewünschten Stelle <b>Einfügen › Objekt › Text aus Datei</b>.</li>
+    <li><b>④ BelegKit – Abrechnung:</b> Jede Person trägt ihre Ortstermine (Stunden, km, Spesen, Übernachtung) und Auswertungsstunden selbst ein. Proben aus LabelKit, Berichtsseiten und Fotos werden gezählt; „Abrechnung“ zeigt alle Positionen mit Nummern zum Übertragen ins Rechnungsprogramm.</li>
+    <li><b>Anlage Probenahme:</b> An der Karte PlanKit „Anlage Probenahme · Erstellen …“ (sobald ein Plan da ist) – PlanKit öffnet den Export mit „Word · Anlage Probenahme“ (Lagepläne, Probenverzeichnis, Ausschnitte, Fotos, Laborwerte).</li>
+    <li><b>Anlagen PN 98 / Brandgeruch:</b> An der Karte LabelKit „Anlage PN 98 / Brandgeruch · Erstellen …“ (sobald LabelKit PN 98-Protokolle oder Brandgeruch-Proben enthält). Die Datei liegt danach in „Mitteilungen“ – in Word an der gewünschten Stelle <b>Einfügen › Objekt › Text aus Datei</b>.</li>
   </ol>
   <h4>Gut zu wissen</h4>
   <ul>
