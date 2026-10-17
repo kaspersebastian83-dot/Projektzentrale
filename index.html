@@ -605,7 +605,7 @@ const ANLAGE = (() => {
 const APP_VERSION = '1.6.2';
 const APP_DATE = '2026-10-17';
 const CHANGELOG = [
-  ['1.6.2', '17.10.2026', 'Fehlerbehebungen: Unter „Pläne“ zählen die „(vorher …)“-Sicherungskopien von PlanKit nicht mehr als eigene PlanKit-Dateien („Probenplan · 4 Sicherungskopien“ statt „5 PlanKit-Dateien“). Wird die Projektansicht neu aufgebaut, während man in den Projektdaten tippt, bleiben Eingabe und Cursor erhalten. Wer beim Zurückkehren ins Fenster schnell ein anderes Projekt anklickte, konnte dort Projektdaten und Ordnerstand des vorherigen Projekts sehen – behoben.'],
+  ['1.6.2', '17.10.2026', 'Die Abrechnungs-App heißt jetzt BelegKit (bisher AufwandKit), Knopf „Abrechnung → BelegKit“. Fehlerbehebungen: Unter „Pläne“ zählen die „(vorher …)“-Sicherungskopien von PlanKit nicht mehr als eigene PlanKit-Dateien („Probenplan · 4 Sicherungskopien“ statt „5 PlanKit-Dateien“). Wird die Projektansicht neu aufgebaut, während man in den Projektdaten tippt, bleiben Eingabe und Cursor erhalten. Wer beim Zurückkehren ins Fenster schnell ein anderes Projekt anklickte, konnte dort Projektdaten und Ordnerstand des vorherigen Projekts sehen – behoben.'],
   ['1.6.1', '16.10.2026', 'Anlagen zum Gutachten stehen im Projekt direkt unter den App-Knöpfen; neu „Anlage Probenahme in PlanKit erstellen …“ öffnet PlanKit gleich im Export der Anlage.'],
   ['1.6.0', '16.10.2026', 'Vierter Knopf im Projekt: „Abrechnung → AufwandKit“ – Zeiten, km und Spesen je Kollege, Proben aus LabelKit, Berichtsseiten und Fotos mit den Positionsnummern der Rechnung.'],
   ['1.5.1', '16.10.2026', 'Knöpfe im Projekt in der Reihenfolge der Arbeit: Proben erfassen (LabelKit), Fotos bearbeiten (FotoKit), Plan bearbeiten (PlanKit).'],
@@ -930,8 +930,8 @@ function renderDetail(){
       <button class="primary" id="goLabel">Proben erfassen → LabelKit</button>
       <button class="primary" id="goFotos">Fotos bearbeiten → FotoKit</button>
       <button class="primary" id="goPlan">Plan bearbeiten → PlanKit</button>
-      <button id="goAufwand" title="Zeiten, km, Spesen eintragen; Proben, Berichtsseiten und Fotos für die Rechnung zusammenstellen">Abrechnung → AufwandKit</button>
-      <span class="hint">In der Reihenfolge der Arbeit: Proben, Fotos, Plan – und zum Schluss die Abrechnung. Jede App öffnet direkt ihren Ordner dieses Projekts – LabelKit „Laboraufträge“, FotoKit „Fotos“, PlanKit „Pläne“, AufwandKit „Abrechnung“ – und speichert dort.</span>
+      <button id="goAufwand" title="Zeiten, km, Spesen eintragen; Proben, Berichtsseiten und Fotos für die Rechnung zusammenstellen">Abrechnung → BelegKit</button>
+      <span class="hint">In der Reihenfolge der Arbeit: Proben, Fotos, Plan – und zum Schluss die Abrechnung. Jede App öffnet direkt ihren Ordner dieses Projekts – LabelKit „Laboraufträge“, FotoKit „Fotos“, PlanKit „Pläne“, BelegKit „Abrechnung“ – und speichert dort.</span>
     </div>
     <h3>Anlagen zum Gutachten <small style="text-transform:none;letter-spacing:0">(Word, zum Einfügen in den Bericht)</small></h3>
     <table class="folders"><tr><td>Probenahme</td><td>Lageplan je Geschoss, Probenverzeichnis, je Probe Ausschnitt, Fotos und Laborwerte
@@ -1275,7 +1275,7 @@ function helpHtml(){
     <li><b>Plan bearbeiten → PlanKit:</b> Grundriss aus „Pläne“ wählen. Unter „Laborbericht importieren …“ die <b>Probenerfassung aus LabelKit</b> übernehmen und die Proben auf den Plan ziehen.</li>
     <li><b>Laborbericht da:</b> XML und PDF in „Laborergebnisse“ ablegen. In PlanKit den Bericht importieren und <b>„Alle Konflikte: Aktualisieren“</b> klicken – die Messwerte hängen dann an den Proben.</li>
     <li><b>Auswerten:</b> PlanKit „Ergebnisse“ → Ergebniskarte exportieren. FotoKit „Ergebnistabelle …“ → Tabelle für Word.</li>
-    <li><b>Abrechnung → AufwandKit:</b> Jede Person trägt ihre Ortstermine (Stunden, km, Spesen, Übernachtung) und Auswertungsstunden selbst ein. Proben aus LabelKit, Berichtsseiten und Fotos werden gezählt; „Abrechnung“ zeigt alle Positionen mit Nummern zum Übertragen ins Rechnungsprogramm.</li>
+    <li><b>Abrechnung → BelegKit:</b> Jede Person trägt ihre Ortstermine (Stunden, km, Spesen, Übernachtung) und Auswertungsstunden selbst ein. Proben aus LabelKit, Berichtsseiten und Fotos werden gezählt; „Abrechnung“ zeigt alle Positionen mit Nummern zum Übertragen ins Rechnungsprogramm.</li>
     <li><b>Anlage Probenahme:</b> Hier im Projekt „Anlage Probenahme in PlanKit erstellen …“ – PlanKit öffnet den Export mit „Word · Anlage Probenahme“ (Lagepläne, Probenverzeichnis, Ausschnitte, Fotos, Laborwerte).</li>
     <li><b>Anlagen PN 98 / Brandgeruch:</b> Hier im Projekt „Anlage PN 98 / Brandgeruch erstellen (Word)“. Die Datei liegt danach in „Mitteilungen“ – in Word an der gewünschten Stelle <b>Einfügen › Objekt › Text aus Datei</b>.</li>
   </ol>
@@ -1293,7 +1293,7 @@ function helpHtml(){
   <table>
     <tr><td>Projektzentrale</td><td>Projekte, Projektdaten, Start der Apps</td><td>kaspersebastian83-dot.github.io/Projektzentrale</td></tr>
     <tr><td>LabelKit</td><td>Proben erfassen, Etiketten, Laborübergabe</td><td>kaspersebastian83-dot.github.io/labelkit</td></tr>
-    <tr><td>AufwandKit</td><td>Zeiten, km, Spesen, Proben, Berichtsseiten für die Rechnung</td><td>kaspersebastian83-dot.github.io/aufwandkit</td></tr>
+    <tr><td>BelegKit</td><td>Zeiten, km, Spesen, Proben, Berichtsseiten für die Rechnung</td><td>kaspersebastian83-dot.github.io/aufwandkit</td></tr>
     <tr><td>FotoKit</td><td>Fotos benennen, Bilddokumentation, Ergebnistabelle</td><td>kaspersebastian83-dot.github.io/Bildumbenenner</td></tr>
     <tr><td>PlanKit</td><td>Probenplan, Ergebniskarte</td><td>kaspersebastian83-dot.github.io/Probenplan</td></tr>
   </table>
