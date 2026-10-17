@@ -672,9 +672,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.7.0';
+const APP_VERSION = '1.7.1';
 const APP_DATE = '2026-10-17';
 const CHANGELOG = [
+  ['1.7.1', '17.10.2026', 'Beim Start ist das zuletzt in einer App geöffnete Projekt vorgewählt. Die vier Apps haben jetzt oben eine gemeinsame Leiste (Projekt, Arbeitsschritte mit Haken, „Weiter“ zum nächsten Schritt) und führen dafür die Liste der zuletzt geöffneten Projekte.'],
   ['1.7.0', '17.10.2026', 'Projektansicht neu gestaltet, Schritt für Schritt: Die vier Apps stehen als nummerierte Karten untereinander in der Reihenfolge der Arbeit (LabelKit, FotoKit, PlanKit, zum Schluss BelegKit) – Farbe wie das Symbol der App, Haken bei erledigten Schritten, der nächste Schritt ist gefüllt; jede App bleibt jederzeit anklickbar. Die Anlagen hängen an ihrem Schritt (PN 98 / Brandgeruch an LabelKit, Probenahme an PlanKit) und erscheinen nur, wenn es etwas zu erstellen gibt. Projektdaten oben als aufklappbare Karte mit Kurzfassung (bei neuen Projekten offen), in drei Gruppen. Ordnerstand zugeklappt; fehlende Unterordner werden als Hinweis mit Knopf „Anlegen“ gezeigt.'],
   ['1.6.3', '17.10.2026', 'Projektdaten speichern mit Sperre: Projektzentrale und FotoKit überschreiben sich nicht mehr gegenseitig, wenn beide gleichzeitig in „_Projekt.json“ schreiben. Einheitlicher Hinweistext in der Datei.'],
   ['1.6.2', '17.10.2026', 'Die Abrechnungs-App heißt jetzt BelegKit (bisher AufwandKit), Knopf „Abrechnung → BelegKit“. Fehlerbehebungen: Unter „Pläne“ zählen die „(vorher …)“-Sicherungskopien von PlanKit nicht mehr als eigene PlanKit-Dateien („Probenplan · 4 Sicherungskopien“ statt „5 PlanKit-Dateien“). Wird die Projektansicht neu aufgebaut, während man in den Projektdaten tippt, bleiben Eingabe und Cursor erhalten. Wer beim Zurückkehren ins Fenster schnell ein anderes Projekt anklickte, konnte dort Projektdaten und Ordnerstand des vorherigen Projekts sehen – behoben.'],
@@ -701,7 +702,8 @@ const deDate = iso => { const m = (iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/)
    „mosaik-suite“ holds the handle of the archive folder, so FotoKit and PlanKit can open a project
    without asking for the folder again. Contract (keep identical in every app):
      DB „mosaik-suite“, version 1, object store „kv“
-     key „archiv“ → FileSystemDirectoryHandle of „Mosaik Archivordner“                                       */
+     key „archiv“ → FileSystemDirectoryHandle of „Mosaik Archivordner“
+     key „zuletzt“ → Array der zuletzt geöffneten Projektnamen (neuester zuerst, höchstens 6; führt die Mosaik-Leiste der Apps) */
 const SUITE = {
   db: null,
   open(){
@@ -874,6 +876,12 @@ async function listProjects(){
   hideBanner();
   renderYears(); renderList();
   if (S.sel){ const again = projects.find(p => p.name === S.sel.name); if (again) selectProject(again); }
+  else{
+    /* Beim Start das zuletzt in einer App geöffnete Projekt vorwählen (Liste „zuletzt“ in „mosaik-suite“, von den Apps geführt) */
+    let z = null; try{ z = await SUITE.get('zuletzt'); }catch(e){}
+    const last = Array.isArray(z) && projects.find(p => p.name.normalize('NFC') === String(z[0] || '').normalize('NFC'));
+    if (last && token === S.scanToken && !S.sel){ await selectProject(last); const el = [...$('list').querySelectorAll('.proj')].find(e => e.dataset.name === last.name); if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' }); }
+  }
   scanAll(token);
 }
 async function scanProject(p){
