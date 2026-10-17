@@ -23,6 +23,7 @@ jobs:
           node-version: 24
       - run: node tests/docx.cjs
       - run: node tests/anlage.cjs
+      - run: node tests/arbeitszettel.cjs
 
   browser-tests:
     name: Browser tests (${{ matrix.browser }})
@@ -46,3 +47,5 @@ jobs:
         run: node tests/anlage-browser.cjs ${{ matrix.browser }}
       - name: Pre-select last opened project in the real browser
         run: node tests/zuletzt-browser.cjs ${{ matrix.browser }}
+      - name: Read an Arbeitszettel PDF in the real browser
+        run: node tests/arbeitszettel-browser.cjs ${{ matrix.browser }}

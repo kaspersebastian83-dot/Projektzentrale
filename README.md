@@ -21,7 +21,13 @@ Die App läuft vollständig im Browser auf dem eigenen Rechner. **Ordner, Dateie
 - **Projektansicht (ab 1.7), Schritt für Schritt:** Rechts stehen die Apps als nummerierte Karten in der Reihenfolge der Arbeit – ① LabelKit, ② FotoKit, ③ PlanKit, zum Schluss ④ BelegKit (abgesetzt). Farbe wie das App-Symbol; ✓ = erledigt (laut Ordnerstand), gefüllte Karte = nächster Schritt; jede App bleibt jederzeit anklickbar. Die Anlagen hängen an ihrem Schritt und erscheinen nur, wenn es etwas zu erstellen gibt. Projektdaten und Ordnerstand sind aufklappbare Karten (leere Projektdaten gestrichelt hervorgehoben); fehlende Unterordner erscheinen als Hinweis mit „Anlegen“.
 - Zeigt je Projekt, was schon da ist: Fotos, Bilddokumentation, Probenplan, Probenerfassung (LabelKit `…_Daten.json`), Laborergebnisse.
 - Legt fehlende Standard-Unterordner auf Wunsch an.
-- **Projektdaten** (Objekt, Auftraggeber, Schaden-Nr., Schadenereignis, Schadendatum, Ortstermin, Sachverständiger, Notizen) in `_Projekt.json` im Projektordner – gemeinsam für alle Apps und Kollegen.
+- **Projektdaten** (Objekt, Auftraggeber, Schaden-Nr., Auftragsdatum, Schadenereignis, Schadendatum, Ortstermin, Sachverständiger, Versicherungsnehmer, beteiligter Sachverständiger, Sanierung, Ansprechpartner, Notizen) in `_Projekt.json` im Projektordner – gemeinsam für alle Apps und Kollegen.
+- **Arbeitszettel einlesen (ab 1.8):** „📄 Arbeitszettel einlesen …“ in den Projektdaten (oder das PDF auf die Karte ziehen) liest den Arbeitszettel des Büro-Systems. Gelesen wird je Kasten unter seiner Überschrift: RISKO → Objekt, VERSICHERUNG → Auftraggeber / Versicherung, VERSICHERUNGSNEHMER, SACHVERSTÄNDIGER → beteiligter Sachverständiger, SANIERUNG, Schadennummer, Schaden vom, Auftragsdatum, Termin → Ortstermin, Mitarbeiter → Sachverständiger („Sebastian Kasper“ → „Dr. S. Kasper“), Regulierer/Anrufer/ASP → Ansprechpartner, freier Text im Arbeitsauftrag → Notizen.
+  - Vor dem Speichern zeigt ein Dialog jeden Wert. Leere Felder werden angehakt, ausgefüllte nur überschrieben, wenn man sie anhakt; gleiche Werte bleiben unberührt.
+  - Steht auf dem Zettel eine andere Projektnummer als im Ordnernamen, ist nichts angehakt und „Übernehmen“ erst nach ausdrücklicher Bestätigung möglich. Hinweise bei unplausiblen Daten (Termin vor Auftragsdatum, Schaden nach Auftrag); kein Datum → Feld bleibt leer.
+  - Ordner werden nicht angelegt oder verändert; geschrieben wird nur `_Projekt.json` (mit Dateiname und SHA-256 des Zettels unter `arbeitszettel`). Das PDF wird nur im Browser gelesen.
+  - PDF-Bibliothek: pdf.js (Mozilla, Apache-2.0, Legacy-Build) in `vendor/pdfjs/`, wird erst beim ersten Einlesen geladen. Funktioniert in der Online-Version (nicht aus einer lokal geöffneten Datei).
+- **Verteiler (ab 1.8):** Karte unter den Projektdaten – Versicherung, Sachverständiger, Versicherungsnehmer, Sanierung: anhaken, wer das Gutachten bekommt, und nach dem Versand das Datum eintragen („heute“). Gespeichert als `verteiler` in `_Projekt.json`.
 - **„Fotos bearbeiten“** öffnet FotoKit direkt im Ordner `Fotos` des Projekts, mit vorausgefüllten Projektdaten.
 - **„Plan bearbeiten“** öffnet PlanKit direkt im Ordner `Pläne`: automatisches Speichern als `Probenplan <Projekt>.probenplan`, Bilder ebenfalls dorthin, Laborberichte aus `Laborergebnisse`.
 - **„Abrechnung → BelegKit“ (ab 1.6, bis 1.6.1 „AufwandKit“)** öffnet BelegKit im Projekt: Zeiten, km, Spesen je Kollege, Proben aus LabelKit, Berichtsseiten und Fotos mit den Positionsnummern der Rechnung.
@@ -44,7 +50,7 @@ Die App läuft vollständig im Browser auf dem eigenen Rechner. **Ordner, Dateie
 | Absprung | `../Bildumbenenner/?projekt=<Ordnername>` (FotoKit) · `../Probenplan/?projekt=<Ordnername>` (PlanKit) · `../labelkit/?projekt=<Ordnername>` (LabelKit) · `../aufwandkit/?projekt=<Ordnername>` (BelegKit) |
 | Offline-Speicher | Jede App verwaltet nur Caches mit eigenem Präfix (`projektzentrale:`, `bildumbenenner:`, `probenplan:`). |
 
-Felder in `_Projekt.json`: `projektnummer`, `schadenort`, `objekt`, `auftraggeber`, `schadennummer`, `schadenereignis`, `schadendatum`, `ortstermin` (Datum `JJJJ-MM-TT`), `sachverstaendiger`, `notizen`, `geaendert`, `geaendertMit`.
+Felder in `_Projekt.json`: `projektnummer`, `schadenort`, `objekt`, `auftraggeber`, `schadennummer`, `schadenereignis`, `schadendatum`, `ortstermin`, `auftragsdatum` (Daten `JJJJ-MM-TT`), `sachverstaendiger`, `versicherungsnehmer`, `sachverstaendigerBeteiligt`, `sanierung`, `kontakte`, `notizen`, `verteiler` (`{ versicherung|sachverstaendiger|versicherungsnehmer|sanierung: { an: true, versandt: "JJJJ-MM-TT" } }`), `arbeitszettel` (`{ datei, sha256, titel, eingelesen }`), `geaendert`, `geaendertMit`.
 
 ## Neue Version veröffentlichen
 
@@ -59,6 +65,7 @@ Ohne Abhängigkeiten, mit Node.js aus dem Repository-Ordner:
 ```sh
 node tests/docx.cjs     # Word-Schreiber: Paket, XML, Maskierung, Tabellen, Bilder
 node tests/anlage.cjs   # Anlage PN 98 / Brandgeruch: Inhalte, Blind-Modus, Quellenvermerk, Dateinamen
+node tests/arbeitszettel.cjs   # Arbeitszettel lesen: volle und knappe Zettel, Reihenfolge, kein Zettel, Datum
 ```
 
 Browsertest des ganzen Ablaufs (Archiv → Projekt → Anlage → Datei, Prüfsummen, Protokoll), mit Playwright:
@@ -67,13 +74,17 @@ Browsertest des ganzen Ablaufs (Archiv → Projekt → Anlage → Datei, Prüfsu
 npm install --no-save playwright && npx playwright install chromium webkit
 node tests/anlage-browser.cjs chromium
 node tests/anlage-browser.cjs webkit
+node tests/arbeitszettel-browser.cjs chromium   # PDF lesen, Dialog, Speichern, Verteiler
 ```
+
+Die Test-Arbeitszettel in `tests/fixtures/` sind frei erfunden (gleiche Form wie das Original, keine echten Daten).
 
 GitHub führt alle Tests bei jedem Pull Request aus (`.github/workflows/tests.yml`). Wie die Datei in Word aussieht, bitte zusätzlich einmal praktisch prüfen.
 
 ## Dateien
 
-- `index.html` – die komplette App (eine Datei, keine externen Bibliotheken)
+- `index.html` – die komplette App
+- `vendor/pdfjs/` – pdf.js (Apache-2.0, siehe `LICENSE` dort), nur zum Lesen der Arbeitszettel; wird bei Bedarf geladen
 - `tests/` – automatische Prüfungen (Node, Browser)
 - `sw.js` – Service Worker: offline nutzbar, immer neueste Version wenn online
 - `manifest.webmanifest`, `icon*.{svg,png}` – Installation als App

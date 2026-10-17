@@ -1,0 +1,267 @@
+[
+{
+"s": "Sachverständigenbüro Dr. Heinz Schiffers & Partner",
+"x": 60,
+"y": 75.5
+},
+{
+"s": "26.0142 Hauptstr. Teststadt Dr. Ka.",
+"x": 59.6,
+"y": 123.2
+},
+{
+"s": "RISKO",
+"x": 62.6,
+"y": 142.4
+},
+{
+"s": "VERSICHERUNGSNEHMER",
+"x": 233.6,
+"y": 142.4
+},
+{
+"s": "VERSICHERUNG",
+"x": 404.6,
+"y": 142.4
+},
+{
+"s": "Beispiel Wohnbau GmbH",
+"x": 62.6,
+"y": 169.1
+},
+{
+"s": "Hauptstraße 12",
+"x": 62.6,
+"y": 193.1
+},
+{
+"s": "99999 Teststadt",
+"x": 62.6,
+"y": 205.7
+},
+{
+"s": "Eigentümergemeinschaft Hauptstraße",
+"x": 233.6,
+"y": 169.1
+},
+{
+"s": "12 und 14",
+"x": 233.6,
+"y": 180.4
+},
+{
+"s": "Verwalterweg 3",
+"x": 233.6,
+"y": 193.1
+},
+{
+"s": "99998 Musterhausen",
+"x": 233.6,
+"y": 205.7
+},
+{
+"s": "Muster Versicherung AG",
+"x": 404.6,
+"y": 169.1
+},
+{
+"s": "Versicherungsplatz 1",
+"x": 404.6,
+"y": 193.1
+},
+{
+"s": "99997 Beispielstadt",
+"x": 404.6,
+"y": 205.7
+},
+{
+"s": "SACHVERSTÄNDIGER",
+"x": 62.6,
+"y": 238.4
+},
+{
+"s": "SANIERUNG",
+"x": 233.6,
+"y": 238.4
+},
+{
+"s": "Gutachterbüro Probe GmbH",
+"x": 62.6,
+"y": 265.1
+},
+{
+"s": "Prüfweg 5",
+"x": 62.6,
+"y": 289.1
+},
+{
+"s": "99996 Probstadt",
+"x": 62.6,
+"y": 301.7
+},
+{
+"s": "0999-12345 od. 12346",
+"x": 62.6,
+"y": 314.3
+},
+{
+"s": "Trockenbau Test GmbH",
+"x": 233.6,
+"y": 268.1
+},
+{
+"s": "Industriestraße 8",
+"x": 233.6,
+"y": 292.1
+},
+{
+"s": "99995 Werkstadt",
+"x": 233.6,
+"y": 304.7
+},
+{
+"s": "0999-55555-10",
+"x": 233.6,
+"y": 317.3
+},
+{
+"s": "Regulierer",
+"x": 404.6,
+"y": 236.5
+},
+{
+"s": "Herr Regel 09991234567",
+"x": 406.9,
+"y": 245.3
+},
+{
+"s": "SCHADEN VOM",
+"x": 404.6,
+"y": 260.5
+},
+{
+"s": "SCHADENNUMMER",
+"x": 479.6,
+"y": 260.5
+},
+{
+"s": "07.10.2026",
+"x": 404.6,
+"y": 269.3
+},
+{
+"s": "XY2026-0001234",
+"x": 479.6,
+"y": 269.3
+},
+{
+"s": "AUFTRAGSDATUM",
+"x": 404.6,
+"y": 284.5
+},
+{
+"s": "MITARBEITER",
+"x": 479.6,
+"y": 284.5
+},
+{
+"s": "12.10.2026",
+"x": 404.6,
+"y": 293.3
+},
+{
+"s": "Sebastian Kasper",
+"x": 479.6,
+"y": 293.3
+},
+{
+"s": "ARBEITSAUFTRAG",
+"x": 62.6,
+"y": 334.4
+},
+{
+"s": "Termin: 15.10.2026",
+"x": 477,
+"y": 334.4
+},
+{
+"s": "Verteiler",
+"x": 478.9,
+"y": 347.5
+},
+{
+"s": "Versicherung",
+"x": 478.9,
+"y": 359.3
+},
+{
+"s": "Sachverständiger",
+"x": 478.9,
+"y": 371.3
+},
+{
+"s": "Versicherungsnehmer",
+"x": 478.9,
+"y": 383.3
+},
+{
+"s": "Sanierung",
+"x": 478.9,
+"y": 395.3
+},
+{
+"s": "Bitte Rußproben im EG nehmen.",
+"x": 62.6,
+"y": 346
+},
+{
+"s": "Anrufer",
+"x": 62.6,
+"y": 366.5
+},
+{
+"s": "Frau Ruf 09997654321",
+"x": 62.6,
+"y": 375.3
+},
+{
+"s": "ASP",
+"x": 62.6,
+"y": 387.5
+},
+{
+"s": "Hr. Ansprech 0999111222",
+"x": 62.6,
+"y": 396.3
+},
+{
+"s": "ansprech@example.org",
+"x": 62.6,
+"y": 408.3
+},
+{
+"s": "ORTSTERMIN",
+"x": 62.6,
+"y": 533.5
+},
+{
+"s": "Std",
+"x": 235,
+"y": 533.5
+},
+{
+"s": "km",
+"x": 262.7,
+"y": 533.5
+},
+{
+"s": "KOMMENTAR",
+"x": 287.6,
+"y": 533.5
+},
+{
+"s": "Musterstr. 1 (Testdaten, frei erfunden)",
+"x": 66,
+"y": 787.2
+}
+]
