@@ -1277,8 +1277,11 @@ async function azTextstuecke(buf){
   const L = await ladePdfjs();
   const task = L.getDocument({ data: new Uint8Array(buf.slice(0)), isEvalSupported: false });
   try{
-    const doc = await task.promise, seite = await doc.getPage(1), h = seite.getViewport({ scale: 1 }).height, t = await seite.getTextContent();
-    return t.items.filter(i => i.str && i.str.trim()).map(i => ({ s: i.str, x: i.transform[4], y: h - i.transform[5] }));
+    const doc = await task.promise, seite = await doc.getPage(1), h = seite.getViewport({ scale: 1 }).height;
+    // Textstücke über den Stream lesen (getTextContent braucht „for await“ über ReadableStream, das nicht jeder Browser kann)
+    const leser = seite.streamTextContent().getReader(), items = [];
+    for (;;){ const { value, done } = await leser.read(); if (done) break; items.push(...value.items); }
+    return items.filter(i => i.str && i.str.trim()).map(i => ({ s: i.str, x: i.transform[4], y: h - i.transform[5] }));
   } finally { task.destroy(); }
 }
 window.MosaikArbeitszettel = { azLeser, azFelder, azTextstuecke };   // für Tests und Fehlersuche (nur lesen, schreibt nichts)
