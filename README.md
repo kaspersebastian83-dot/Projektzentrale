@@ -6,7 +6,7 @@ Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektda
 
 ## Die App-Suite „Spektron“
 
-Die Büro-Apps heißen zusammen **Spektron** (Arbeitsname war „Mosaik“; interne Kennungen wie `mosaik-suite`, `mosaik-projekt` und der Ordner `Mosaik Archivordner` bleiben unverändert). Alle laufen in Chrome oder Edge am Büro-Terminal (RDP, eigenes Windows-Profil je Person) und laden nichts hoch.
+Die Büro-Apps heißen zusammen **Spektron** – sichtbar oben neben „Projektzentrale“, in der Kurzanleitung und links in der Leiste der Projekt-Apps (Arbeitsname war „Mosaik“; interne Kennungen wie `mosaik-suite`, `mosaik-projekt` und der Ordner `Mosaik Archivordner` bleiben unverändert). Alle laufen in Chrome oder Edge am Büro-Terminal (RDP, eigenes Windows-Profil je Person) und laden nichts hoch.
 
 | App | Wofür | Adresse | Doku |
 |---|---|---|---|

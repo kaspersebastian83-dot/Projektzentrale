@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
-<title>Projektzentrale</title>
+<title>Projektzentrale · Spektron</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <meta name="theme-color" content="#4179b2">
@@ -250,7 +250,7 @@ table.vt button{padding:2px 8px;font-size:12px;margin-left:6px}
 
 <header>
   <div class="appbar">
-    <div class="brand"><span class="hex">⬡</span> Projektzentrale <small>Projekte &amp; Apps</small></div>
+    <div class="brand"><span class="hex">⬡</span> Projektzentrale <small>Spektron · Projekte &amp; Apps</small></div>
     <button id="btnInfo" class="hbadge" title="Version, Speicherorte, Änderungen">v1.6.1</button>
     <button id="btnHelp" class="hbadge help" title="Kurzanleitung für alle Projekt-Apps (F1)"><b>?</b> Kurzanleitung</button>
     <button id="btnUpd" class="upd" hidden>Update verfügbar – neu laden</button>
@@ -710,7 +710,7 @@ const ANLAGE = (() => {
 const APP_VERSION = '1.9.2';
 const APP_DATE = '2026-10-18';
 const CHANGELOG = [
-  ['1.9.2', '18.10.2026', 'Kurzanleitung: SpesenKit beschrieben, wie es heute arbeitet – alles über die Monatsübersicht, eigener SpesenKit-Ordner je Person statt Archivordner. Sonst unverändert.'],
+  ['1.9.2', '18.10.2026', 'Die Büro-Apps heißen zusammen „Spektron“: Name oben neben „Projektzentrale“, im Fenstertitel und in der Kurzanleitung („Kurzanleitung – Spektron-Apps“, mit Satz zur Suite). Kurzanleitung: SpesenKit beschrieben, wie es heute arbeitet – alles über die Monatsübersicht, eigener SpesenKit-Ordner je Person statt Archivordner. Sonst unverändert.'],
   ['1.9.1', '18.10.2026', 'Die App für die monatliche Spesenabrechnung heißt jetzt SpesenKit (bisher Reisekosten Pro). Knopf, Kurzanleitung und Adressliste angepasst; die Webadresse bleibt unverändert.'],
   ['1.9.0', '18.10.2026', 'Neu unten im rechten Fenster: „Weitere Apps“ mit Reisekosten Pro (monatliche Spesenabrechnung für Kollegen). Öffnet in einem eigenen Fenster, ohne Projektbezug – darum auch ohne gewähltes Projekt sichtbar und nicht Teil der nummerierten Arbeitsschritte.'],
   ['1.8.1', '17.10.2026', 'Arbeitszettel einlesen klappt nach der Installation auch offline (die PDF-Bibliothek wird jetzt mit der App vorgehalten, bisher erst nach dem ersten Einlesen). Konnten Projektdaten nicht gespeichert werden (z. B. Datei gesperrt), fragt die Projektzentrale vor dem Wechsel zu einem anderen Projekt nach, statt die Eingaben still zu verwerfen.'],
@@ -1681,7 +1681,8 @@ function helpDiagram(){
   </svg>`;
 }
 function helpHtml(){
-  return `<p><b>Alle Arbeit startet hier in der Projektzentrale:</b> Sie öffnet FotoKit, PlanKit und LabelKit direkt im richtigen Projektordner, gespeichert wird dort automatisch.</p>
+  return `<p><b>Spektron</b> heißen unsere Büro-Apps zusammen: Projektzentrale, LabelKit, FotoKit, PlanKit, BelegKit und SpesenKit.</p>
+  <p><b>Alle Arbeit startet hier in der Projektzentrale:</b> Sie öffnet LabelKit, FotoKit, PlanKit und BelegKit direkt im richtigen Projektordner, gespeichert wird dort automatisch.</p>
   <h4>Einmalig einrichten</h4>
   <ol>
     <li>Auf dem Terminalserver <b>Google Chrome oder Microsoft Edge</b> öffnen (Firefox kann keine Ordner beschreiben).</li>
@@ -1727,18 +1728,18 @@ function helpHtml(){
   <p>Alle Projektdaten bleiben auf dem Server im Archivordner, die Spesen im SpesenKit-Ordner der Person. Die Apps laden nichts hoch.</p>`;
 }
 function openHelp(){
-  showDialog(`<h3>Kurzanleitung – Projekt-Apps</h3><div class="help-body">${helpHtml()}</div>
+  showDialog(`<h3>Kurzanleitung – Spektron-Apps</h3><div class="help-body">${helpHtml()}</div>
     <div class="btns"><button id="hPrint">Drucken / PDF</button><button class="primary" id="hClose">Schließen</button></div>`);
   $('dialog').classList.add('help');
   $('hClose').onclick = closeDialog;
   $('hPrint').onclick = () => {
     const w = window.open('', '_blank'); if (!w) return;
     const css = getComputedStyle(document.documentElement), v = n => css.getPropertyValue(n).trim();
-    w.document.write(`<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Kurzanleitung – Projekt-Apps</title><style>
+    w.document.write(`<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Kurzanleitung – Spektron-Apps</title><style>
       :root{--text:#1d2a33;--muted:#5f6f7d;--accent:${v('--accent') || '#3f7cc0'};--panel2:#f1f5f9;--mono:Consolas,monospace}
       body{font:11pt/1.45 "Segoe UI",Arial,sans-serif;color:#1d2a33;margin:14mm 16mm}h1{font-size:17pt;margin:0 0 6px}h4{font-size:12pt;margin:12px 0 4px}
       ol,ul{padding-left:20px;margin:3px 0}li,p{margin:2px 0}svg{width:100%;height:auto}.cap{font-size:9pt;color:#5f6f7d}table{border-collapse:collapse}td{padding:2px 10px 2px 0;font-size:10pt}td:first-child{font-weight:600}code{font-family:Consolas,monospace}
-      @page{size:A4;margin:0}</style></head><body><h1>Kurzanleitung – Projekt-Apps</h1>${helpHtml()}<script>window.onload=()=>window.print()<\/script></body></html>`);
+      @page{size:A4;margin:0}</style></head><body><h1>Kurzanleitung – Spektron-Apps</h1>${helpHtml()}<script>window.onload=()=>window.print()<\/script></body></html>`);
     w.document.close();
   };
 }
