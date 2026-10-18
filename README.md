@@ -19,6 +19,7 @@ Die App läuft vollständig im Browser auf dem eigenen Rechner. **Ordner, Dateie
 
 - Listet alle Projektordner (`26.0123 Köln`), neueste zuerst, mit Suche und Jahresfilter.
 - **Projektansicht (ab 1.7), Schritt für Schritt:** Rechts stehen die Apps als nummerierte Karten in der Reihenfolge der Arbeit – ① LabelKit, ② FotoKit, ③ PlanKit, zum Schluss ④ BelegKit (abgesetzt). Farbe wie das App-Symbol; ✓ = erledigt (laut Ordnerstand), gefüllte Karte = nächster Schritt; jede App bleibt jederzeit anklickbar. Die Anlagen hängen an ihrem Schritt und erscheinen nur, wenn es etwas zu erstellen gibt. Projektdaten und Ordnerstand sind aufklappbare Karten (leere Projektdaten gestrichelt hervorgehoben); fehlende Unterordner erscheinen als Hinweis mit „Anlegen“.
+- **Weitere Apps (ab 1.9):** Ganz unten im rechten Fenster (auch ohne gewähltes Projekt) öffnet „Reisekosten Pro“ die monatliche Spesenabrechnung der Kollegen in einem eigenen Fenster. Kein Projektbezug, darum kein nummerierter Arbeitsschritt und kein `?projekt=` im Link (`../reisekosten-pro/`).
 - Zeigt je Projekt, was schon da ist: Fotos, Bilddokumentation, Probenplan, Probenerfassung (LabelKit `…_Daten.json`), Laborergebnisse.
 - Legt fehlende Standard-Unterordner auf Wunsch an.
 - **Projektdaten** (Objekt, Auftraggeber, Schaden-Nr., Auftragsdatum, Schadenereignis, Schadendatum, Ortstermin, Sachverständiger, Versicherungsnehmer, beteiligter Sachverständiger, Sanierung, Ansprechpartner, Notizen) in `_Projekt.json` im Projektordner – gemeinsam für alle Apps und Kollegen.
