@@ -171,6 +171,17 @@ main{flex:1;display:flex;min-height:0}
   .steps .sw.next .step,.steps .sw.next .step:hover{color:#0f1720} .steps .sw.next .step small,.steps .sw.next .step .stat{color:rgba(15,23,32,.78)}
   .steps .sw.next .step .n{background:#0f1720;color:var(--ac);border-color:#0f1720}
 }
+/* Weitere Apps: nicht Teil des Projektablaufs (kein Projektbezug, keine Nummer) – ruhige Zeile ganz unten */
+.more{margin:22px 0 4px;padding-top:14px;border-top:1px solid var(--line)}
+.more h3{margin:0 0 8px !important}
+.more a.app{--ac:#174f3a;display:flex;align-items:center;gap:12px;padding:10px 14px;text-decoration:none;color:var(--text);background:var(--panel);border:1px solid var(--line2);border-left:5px solid var(--ac);border-radius:10px}
+.more a.app:hover{border-color:var(--ac);box-shadow:0 2px 10px color-mix(in srgb,var(--ac) 22%,transparent)}
+.more a.app .ic{font-size:20px;line-height:1}
+.more a.app .name{display:block;font-size:15px;font-weight:700;line-height:1.2}
+.more a.app small{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
+.more a.app .go{margin-left:auto;color:var(--ac);font-size:18px}
+.empty .more{text-align:left;max-width:560px;margin:40px auto 0}
+@media (prefers-color-scheme:dark){ .more a.app{--ac:#5fbfa9} }
 table.folders{width:100%;border-collapse:collapse;font-size:13px}
 table.folders td{padding:5px 8px;border-bottom:1px solid var(--line);vertical-align:top}
 table.folders td:first-child{font-weight:600;white-space:nowrap;width:150px}
@@ -696,9 +707,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.8.1';
-const APP_DATE = '2026-10-17';
+const APP_VERSION = '1.9.0';
+const APP_DATE = '2026-10-18';
 const CHANGELOG = [
+  ['1.9.0', '18.10.2026', 'Neu unten im rechten Fenster: „Weitere Apps“ mit Reisekosten Pro (monatliche Spesenabrechnung für Kollegen). Öffnet in einem eigenen Fenster, ohne Projektbezug – darum auch ohne gewähltes Projekt sichtbar und nicht Teil der nummerierten Arbeitsschritte.'],
   ['1.8.1', '17.10.2026', 'Arbeitszettel einlesen klappt nach der Installation auch offline (die PDF-Bibliothek wird jetzt mit der App vorgehalten, bisher erst nach dem ersten Einlesen). Konnten Projektdaten nicht gespeichert werden (z. B. Datei gesperrt), fragt die Projektzentrale vor dem Wechsel zu einem anderen Projekt nach, statt die Eingaben still zu verwerfen.'],
   ['1.8.0', '17.10.2026', 'Arbeitszettel einlesen: In den Projektdaten „Arbeitszettel einlesen …“ (oder das PDF auf die Karte ziehen) liest den Arbeitszettel des Büro-Systems und schlägt Objekt, Auftraggeber/Versicherung, Schaden-Nr., Auftragsdatum, Schadendatum, Ortstermin, Sachverständigen, Versicherungsnehmer, beteiligten Sachverständigen, Sanierung und Ansprechpartner vor. Jeder Wert wird vor dem Speichern angezeigt; ausgefüllte Felder werden nur auf Wunsch überschrieben, ein Zettel mit anderer Projektnummer wird nur nach Bestätigung übernommen. Ordner werden nicht verändert. Neu: Karte „Verteiler“ – wer bekommt das Gutachten, wann versandt.'],
   ['1.7.1', '17.10.2026', 'Beim Start ist das zuletzt in einer App geöffnete Projekt vorgewählt. Die vier Apps haben jetzt oben eine gemeinsame Leiste (Projekt, Arbeitsschritte mit Haken, „Weiter“ zum nächsten Schritt) und führen dafür die Liste der zuletzt geöffneten Projekte.'],
@@ -774,6 +786,7 @@ const BILDUMBENENNER_URL = '../Bildumbenenner/';
 const PROBENPLAN_URL = '../Probenplan/';
 const LABELKIT_URL = '../labelkit/';
 const AUFWANDKIT_URL = '../aufwandkit/';
+const REISEKOSTEN_URL = '../reisekosten-pro/';   // Reisekosten Pro: Spesenabrechnung je Kollege und Monat – ohne Projektbezug, darum kein Schritt und kein ?projekt=
 
 /* ---------- _Projekt.json ----------
    Shared project data, one file in the project folder. Every app keeps fields it does not know and only writes the
@@ -1061,9 +1074,15 @@ function ordnerKurz(p){
   const s = p.st.subs, da = SUBS.filter(([k]) => s[k]).length, dateien = SUBS.reduce((n, [k]) => n + (s[k] ? s[k].files : 0), 0);
   return `${da} von ${SUBS.length} Unterordnern · ${dateien} Datei${dateien === 1 ? '' : 'en'}`;
 }
+/** Weitere Apps unten im rechten Fenster, auch ohne gewähltes Projekt: Die Monatsabrechnung der Reisekosten gehört zu keinem Projekt. */
+function weitereApps(){
+  return `<div class="more"><h3>Weitere Apps</h3>
+    <a class="app" id="goReise" href="${REISEKOSTEN_URL}" target="reisekosten" rel="noopener" title="Öffnet Reisekosten Pro in einem eigenen Fenster – Reisekosten- und Spesenabrechnung je Monat, unabhängig vom Projekt">
+      <span class="ic" aria-hidden="true">🧾</span><span><span class="name">Reisekosten Pro</span><small>Spesenabrechnung für den Monat</small></span><span class="go" aria-hidden="true">↗</span></a></div>`;
+}
 function renderDetail(){
   const p = S.sel;
-  if (!p){ $('detail').innerHTML = '<div class="empty"><p>Links ein Projekt auswählen.</p><p><button class="help-link" data-help>Kurzanleitung öffnen</button></p></div>'; return; }
+  if (!p){ $('detail').innerHTML = '<div class="empty"><p>Links ein Projekt auswählen.</p><p><button class="help-link" data-help>Kurzanleitung öffnen</button></p>' + weitereApps() + '</div>'; return; }
   const pj = S.pj || { data: {} }, d = pj.data;
   const nrWarn = d.projektnummer && d.projektnummer !== p.nr ? `<div class="warn">Achtung: In „${PJ_FILE}“ steht Projektnummer ${esc(d.projektnummer)}, der Ordner heißt ${esc(p.nr)}. Maßgeblich ist der Ordnername.</div>` : '';
   const ro = pj.error || pj.newer, stand = arbeitsstand(p);
@@ -1110,6 +1129,7 @@ function renderDetail(){
       <summary><span class="t">Ordner</span><span class="sum">${ok ? esc(ordnerKurz(p)) : p.st && p.st.err ? 'nicht lesbar' : 'wird gelesen …'}</span></summary>
       <div class="body">${ok ? `<table class="folders">${folderRows(p)}</table>` : `<div class="m">${p.st && p.st.err ? 'Nicht lesbar: ' + esc(p.st.err) : 'Wird gelesen …'}</div>`}</div>
     </details>
+    ${weitereApps()}
   </div>`;
   $('pjBox').addEventListener('toggle', () => { S.pjOpen[p.name] = $('pjBox').open; });
   $('ordBox').addEventListener('toggle', () => { S.ordOpen[p.name] = $('ordBox').open; });
@@ -1689,6 +1709,7 @@ function helpHtml(){
     <li><b>Ersetzen:</b> Lädt man in PlanKit einen neuen Grundriss, bleibt die alte Datei als „(vorher …)“-Kopie in „Pläne“.</li>
     <li><b>Mehrere Geschosse:</b> In PlanKit unten „＋ Plan“ (EG, 1. OG …). Probennummern laufen über alle Geschosse weiter. Eine mehrseitige PDF mit „Alle Seiten als einzelne Pläne“ übernehmen.</li>
     <li><b>Ergebniskarte:</b> In PlanKit „Ergebnisse“ (Taste K) färbt die Proben nach der Bewertungsskala – dieselbe wie in der FotoKit-Ergebnistabelle. Beim Export „Darstellung: Ergebniskarte“ wählen.</li>
+    <li><b>Reisekosten Pro:</b> Die monatliche Spesenabrechnung der Kollegen. Der Knopf steht ganz unten im rechten Fenster unter „Weitere Apps“ (auch ohne gewähltes Projekt) und öffnet die App in einem eigenen Fenster.</li>
     <li><b>Hilfe:</b> In jeder App erklärt der <b>?</b>-Knopf (oder F1) die Bedienung.</li>
     <li><b>Problem melden:</b> In FotoKit „Problem melden“, sonst Screenshot und kurze Beschreibung an <b>sebastian.kasper@dr-schiffers.de</b>.</li>
   </ul>
@@ -1699,6 +1720,7 @@ function helpHtml(){
     <tr><td>BelegKit</td><td>Zeiten, km, Spesen, Proben, Berichtsseiten für die Rechnung</td><td>kaspersebastian83-dot.github.io/aufwandkit</td></tr>
     <tr><td>FotoKit</td><td>Fotos benennen, Bilddokumentation, Ergebnistabelle</td><td>kaspersebastian83-dot.github.io/Bildumbenenner</td></tr>
     <tr><td>PlanKit</td><td>Probenplan, Ergebniskarte</td><td>kaspersebastian83-dot.github.io/Probenplan</td></tr>
+    <tr><td>Reisekosten Pro</td><td>Spesenabrechnung für den Monat (ohne Projektbezug)</td><td>kaspersebastian83-dot.github.io/reisekosten-pro</td></tr>
   </table>
   <p>Alle Daten bleiben auf dem Server im Archivordner. Die Apps laden nichts hoch.</p>`;
 }
@@ -1736,6 +1758,7 @@ window.addEventListener('focus', () => { const p = S.sel; if (p && !Object.keys(
   S.pj = pj; scanProject(p).then(st => { p.st = st; updateRow(p); if (S.sel === p) renderDetail(); });
 }); });
 
+renderDetail();   // leere Ansicht mit „Weitere Apps“ schon vor der Archivwahl
 restoreArchive();
 })();
 </script>
