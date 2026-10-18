@@ -707,9 +707,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.9.0';
+const APP_VERSION = '1.9.1';
 const APP_DATE = '2026-10-18';
 const CHANGELOG = [
+  ['1.9.1', '18.10.2026', 'Die App für die monatliche Spesenabrechnung heißt jetzt SpesenKit (bisher Reisekosten Pro). Knopf, Kurzanleitung und Adressliste angepasst; die Webadresse bleibt unverändert.'],
   ['1.9.0', '18.10.2026', 'Neu unten im rechten Fenster: „Weitere Apps“ mit Reisekosten Pro (monatliche Spesenabrechnung für Kollegen). Öffnet in einem eigenen Fenster, ohne Projektbezug – darum auch ohne gewähltes Projekt sichtbar und nicht Teil der nummerierten Arbeitsschritte.'],
   ['1.8.1', '17.10.2026', 'Arbeitszettel einlesen klappt nach der Installation auch offline (die PDF-Bibliothek wird jetzt mit der App vorgehalten, bisher erst nach dem ersten Einlesen). Konnten Projektdaten nicht gespeichert werden (z. B. Datei gesperrt), fragt die Projektzentrale vor dem Wechsel zu einem anderen Projekt nach, statt die Eingaben still zu verwerfen.'],
   ['1.8.0', '17.10.2026', 'Arbeitszettel einlesen: In den Projektdaten „Arbeitszettel einlesen …“ (oder das PDF auf die Karte ziehen) liest den Arbeitszettel des Büro-Systems und schlägt Objekt, Auftraggeber/Versicherung, Schaden-Nr., Auftragsdatum, Schadendatum, Ortstermin, Sachverständigen, Versicherungsnehmer, beteiligten Sachverständigen, Sanierung und Ansprechpartner vor. Jeder Wert wird vor dem Speichern angezeigt; ausgefüllte Felder werden nur auf Wunsch überschrieben, ein Zettel mit anderer Projektnummer wird nur nach Bestätigung übernommen. Ordner werden nicht verändert. Neu: Karte „Verteiler“ – wer bekommt das Gutachten, wann versandt.'],
@@ -786,7 +787,7 @@ const BILDUMBENENNER_URL = '../Bildumbenenner/';
 const PROBENPLAN_URL = '../Probenplan/';
 const LABELKIT_URL = '../labelkit/';
 const AUFWANDKIT_URL = '../aufwandkit/';
-const REISEKOSTEN_URL = '../reisekosten-pro/';   // Reisekosten Pro: Spesenabrechnung je Kollege und Monat – ohne Projektbezug, darum kein Schritt und kein ?projekt=
+const REISEKOSTEN_URL = '../reisekosten-pro/';   // SpesenKit: Spesenabrechnung je Kollege und Monat – ohne Projektbezug, darum kein Schritt und kein ?projekt=
 
 /* ---------- _Projekt.json ----------
    Shared project data, one file in the project folder. Every app keeps fields it does not know and only writes the
@@ -1077,8 +1078,8 @@ function ordnerKurz(p){
 /** Weitere Apps unten im rechten Fenster, auch ohne gewähltes Projekt: Die Monatsabrechnung der Reisekosten gehört zu keinem Projekt. */
 function weitereApps(){
   return `<div class="more"><h3>Weitere Apps</h3>
-    <a class="app" id="goReise" href="${REISEKOSTEN_URL}" target="reisekosten" rel="noopener" title="Öffnet Reisekosten Pro in einem eigenen Fenster – Reisekosten- und Spesenabrechnung je Monat, unabhängig vom Projekt">
-      <span class="ic" aria-hidden="true">🧾</span><span><span class="name">Reisekosten Pro</span><small>Spesenabrechnung für den Monat</small></span><span class="go" aria-hidden="true">↗</span></a></div>`;
+    <a class="app" id="goReise" href="${REISEKOSTEN_URL}" target="reisekosten" rel="noopener" title="Öffnet SpesenKit in einem eigenen Fenster – Reisekosten- und Spesenabrechnung je Monat, unabhängig vom Projekt">
+      <span class="ic" aria-hidden="true">🧾</span><span><span class="name">SpesenKit</span><small>Spesenabrechnung für den Monat</small></span><span class="go" aria-hidden="true">↗</span></a></div>`;
 }
 function renderDetail(){
   const p = S.sel;
@@ -1709,7 +1710,7 @@ function helpHtml(){
     <li><b>Ersetzen:</b> Lädt man in PlanKit einen neuen Grundriss, bleibt die alte Datei als „(vorher …)“-Kopie in „Pläne“.</li>
     <li><b>Mehrere Geschosse:</b> In PlanKit unten „＋ Plan“ (EG, 1. OG …). Probennummern laufen über alle Geschosse weiter. Eine mehrseitige PDF mit „Alle Seiten als einzelne Pläne“ übernehmen.</li>
     <li><b>Ergebniskarte:</b> In PlanKit „Ergebnisse“ (Taste K) färbt die Proben nach der Bewertungsskala – dieselbe wie in der FotoKit-Ergebnistabelle. Beim Export „Darstellung: Ergebniskarte“ wählen.</li>
-    <li><b>Reisekosten Pro:</b> Die monatliche Spesenabrechnung der Kollegen. Der Knopf steht ganz unten im rechten Fenster unter „Weitere Apps“ (auch ohne gewähltes Projekt) und öffnet die App in einem eigenen Fenster.</li>
+    <li><b>SpesenKit:</b> Die monatliche Spesenabrechnung der Kollegen. Der Knopf steht ganz unten im rechten Fenster unter „Weitere Apps“ (auch ohne gewähltes Projekt) und öffnet die App in einem eigenen Fenster.</li>
     <li><b>Hilfe:</b> In jeder App erklärt der <b>?</b>-Knopf (oder F1) die Bedienung.</li>
     <li><b>Problem melden:</b> In FotoKit „Problem melden“, sonst Screenshot und kurze Beschreibung an <b>sebastian.kasper@dr-schiffers.de</b>.</li>
   </ul>
@@ -1720,7 +1721,7 @@ function helpHtml(){
     <tr><td>BelegKit</td><td>Zeiten, km, Spesen, Proben, Berichtsseiten für die Rechnung</td><td>kaspersebastian83-dot.github.io/aufwandkit</td></tr>
     <tr><td>FotoKit</td><td>Fotos benennen, Bilddokumentation, Ergebnistabelle</td><td>kaspersebastian83-dot.github.io/Bildumbenenner</td></tr>
     <tr><td>PlanKit</td><td>Probenplan, Ergebniskarte</td><td>kaspersebastian83-dot.github.io/Probenplan</td></tr>
-    <tr><td>Reisekosten Pro</td><td>Spesenabrechnung für den Monat (ohne Projektbezug)</td><td>kaspersebastian83-dot.github.io/reisekosten-pro</td></tr>
+    <tr><td>SpesenKit</td><td>Spesenabrechnung für den Monat (ohne Projektbezug)</td><td>kaspersebastian83-dot.github.io/reisekosten-pro</td></tr>
   </table>
   <p>Alle Daten bleiben auf dem Server im Archivordner. Die Apps laden nichts hoch.</p>`;
 }

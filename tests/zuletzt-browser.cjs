@@ -54,7 +54,7 @@ const A = '26.0142 Teststadt', B = '26.0150 Köln';
   await page.locator('#btnStart, #btnArchive').first().click();
   await page.locator('.proj.active').waitFor({ timeout: 8000 });
   assert.equal(await page.locator('.proj.active').getAttribute('data-name'), A);
-  // Reisekosten Pro: unten im rechten Fenster, ohne Projektbezug (?projekt= wäre falsch – die Monatsabrechnung gehört zu keinem Projekt)
+  // SpesenKit: unten im rechten Fenster, ohne Projektbezug (?projekt= wäre falsch – die Monatsabrechnung gehört zu keinem Projekt)
   { const l = page.locator('#detail .pz > .more:last-child a#goReise');
     await l.waitFor();
     assert.equal(await l.getAttribute('href'), '../reisekosten-pro/'); assert.equal(await l.getAttribute('target'), 'reisekosten');
@@ -70,7 +70,7 @@ const A = '26.0142 Teststadt', B = '26.0150 Köln';
   await page.locator('.proj').first().waitFor({ timeout: 8000 });
   await page.waitForTimeout(400);
   assert.equal(await page.locator('.proj.active').count(), 0);
-  assert.equal(await page.locator('#detail .empty a#goReise').count(), 1, 'Reisekosten Pro auch ohne gewähltes Projekt erreichbar');
+  assert.equal(await page.locator('#detail .empty a#goReise').count(), 1, 'SpesenKit auch ohne gewähltes Projekt erreichbar');
 
   // „zuletzt“ nennt ein Projekt, das es nicht mehr gibt: nichts vorgewählt, kein Fehler
   await seed(['99.0001 Weg', A]);
