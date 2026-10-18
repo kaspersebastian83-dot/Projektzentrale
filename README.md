@@ -1,8 +1,23 @@
 # Projektzentrale
 
-Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in FotoKit (früher Bildumbenenner) und PlanKit (früher Probenplan).
+Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung.
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.9.2** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Die App-Suite „Spektron“
+
+Die Büro-Apps heißen zusammen **Spektron** (Arbeitsname war „Mosaik“; interne Kennungen wie `mosaik-suite`, `mosaik-projekt` und der Ordner `Mosaik Archivordner` bleiben unverändert). Alle laufen in Chrome oder Edge am Büro-Terminal (RDP, eigenes Windows-Profil je Person) und laden nichts hoch.
+
+| App | Wofür | Adresse | Doku |
+|---|---|---|---|
+| Projektzentrale | Projekte, Projektdaten, Start der Apps, Anlagen PN 98 / Brandgeruch | `…/Projektzentrale/` | dieses README |
+| ① LabelKit | Proben erfassen, Etiketten, Laborübergabe, PN 98, Feldbögen | `…/labelkit/` | [README](https://github.com/kaspersebastian83-dot/labelkit#readme) |
+| ② FotoKit | Fotos beschreiben und umbenennen, Bilddokumentation, Ergebnistabelle | `…/Bildumbenenner/` | [README](https://github.com/kaspersebastian83-dot/Bildumbenenner#readme) |
+| ③ PlanKit | Probenplan, Ergebniskarte, maßstäbliches PDF, Anlage Probenahme | `…/Probenplan/` | [README](https://github.com/kaspersebastian83-dot/Probenplan#readme) |
+| ④ BelegKit | Zeiten, km, Spesen, Proben, Berichtsseiten für die Rechnung | `…/aufwandkit/` | [README](https://github.com/kaspersebastian83-dot/aufwandkit#readme) |
+| SpesenKit | Monatliche Spesenabrechnung je Person (ohne Projektbezug) | `…/reisekosten-pro/` | [README](https://github.com/kaspersebastian83-dot/reisekosten-pro#readme) |
+
+`…` steht für `https://kaspersebastian83-dot.github.io`.
 
 ## Datenschutz in einem Satz
 
@@ -19,7 +34,8 @@ Die App läuft vollständig im Browser auf dem eigenen Rechner. **Ordner, Dateie
 
 - Listet alle Projektordner (`26.0123 Köln`), neueste zuerst, mit Suche und Jahresfilter.
 - **Projektansicht (ab 1.7), Schritt für Schritt:** Rechts stehen die Apps als nummerierte Karten in der Reihenfolge der Arbeit – ① LabelKit, ② FotoKit, ③ PlanKit, zum Schluss ④ BelegKit (abgesetzt). Farbe wie das App-Symbol; ✓ = erledigt (laut Ordnerstand), gefüllte Karte = nächster Schritt; jede App bleibt jederzeit anklickbar. Die Anlagen hängen an ihrem Schritt und erscheinen nur, wenn es etwas zu erstellen gibt. Projektdaten und Ordnerstand sind aufklappbare Karten (leere Projektdaten gestrichelt hervorgehoben); fehlende Unterordner erscheinen als Hinweis mit „Anlegen“.
-- **Weitere Apps (ab 1.9):** Ganz unten im rechten Fenster (auch ohne gewähltes Projekt) öffnet „SpesenKit“ die monatliche Spesenabrechnung der Kollegen in einem eigenen Fenster. Kein Projektbezug, darum kein nummerierter Arbeitsschritt und kein `?projekt=` im Link (`../reisekosten-pro/` – die Webadresse trägt noch den früheren Namen „Reisekosten Pro“).
+- **Weitere Apps (ab 1.9):** Ganz unten im rechten Fenster (auch ohne gewähltes Projekt) öffnet „SpesenKit“ die monatliche Spesenabrechnung der Kollegen in einem eigenen Fenster. Kein Projektbezug, darum kein nummerierter Arbeitsschritt und kein `?projekt=` im Link (`../reisekosten-pro/` – die Webadresse trägt noch den früheren Namen „Reisekosten Pro“). SpesenKit speichert nicht im Archivordner, sondern in einem eigenen Ordner je Person (siehe unten).
+- **Leiste in den Projekt-Apps (ab 1.7.1):** LabelKit, FotoKit, PlanKit und BelegKit zeigen oben dieselbe schmale Leiste – Projekt mit Wechsel zu den zuletzt geöffneten, die vier Arbeitsschritte mit Haken und „Weiter: …“ zum nächsten offenen Schritt. Die Projektzentrale führt dafür die Liste `zuletzt` im gemeinsamen Browser-Speicher; beim Start ist das zuletzt in einer App geöffnete Projekt vorgewählt.
 - Zeigt je Projekt, was schon da ist: Fotos, Bilddokumentation, Probenplan, Probenerfassung (LabelKit `…_Daten.json`), Laborergebnisse.
 - Legt fehlende Standard-Unterordner auf Wunsch an.
 - **Projektdaten** (Objekt, Auftraggeber, Schaden-Nr., Auftragsdatum, Schadenereignis, Schadendatum, Ortstermin, Sachverständiger, Versicherungsnehmer, beteiligter Sachverständiger, Sanierung, Ansprechpartner, Notizen) in `_Projekt.json` im Projektordner – gemeinsam für alle Apps und Kollegen.
@@ -45,11 +61,11 @@ Die App läuft vollständig im Browser auf dem eigenen Rechner. **Ordner, Dateie
 |---|---|
 | Projektordner | `<JJ>.<Nummer> <Schadenort>`, z. B. `26.0123 Köln`. Projektnummer und Schadenort kommen immer aus dem Ordnernamen. |
 | Unterordner | `Fotos`, `Pläne`, `Laboraufträge`, `Laborergebnisse`, `Mitteilungen`, `Emails`, `Rechnung Labore` |
-| Wer schreibt wohin | FotoKit → `Fotos` (Bilder, `_Bildumbenenner.json`, Bilddokumentation-PDF/ZIP) · PlanKit → `Pläne` (`Probenplan <Projekt>.probenplan`, exportierte Bilder) · LabelKit → `Laboraufträge` (und Scans in `Feldprotokolle`) · Projektzentrale → `Mitteilungen` (Anlagen, `_Anlagen-Protokoll.txt`) · BelegKit → `Abrechnung` (`Aufwand_<Kürzel>.json` je Person, `_Abrechnung.json`, Stände) und `_AufwandKit-Einstellungen.json` im Archivordner |
+| Wer schreibt wohin | FotoKit → `Fotos` (Bilder, `_Bildumbenenner.json`, Bilddokumentation-PDF/ZIP) · PlanKit → `Pläne` (`Probenplan <Projekt>.probenplan`, exportierte Bilder) und `Mitteilungen` (Anlage Probenahme) · LabelKit → `Laboraufträge` (und Scans in `Feldprotokolle`) · Projektzentrale → `_Projekt.json` und `Mitteilungen` (Anlagen, `_Anlagen-Protokoll.txt`) · BelegKit → `Abrechnung` (`Aufwand_<Kürzel>.json` je Person, `_Abrechnung.json`, Stände) und `_AufwandKit-Einstellungen.json` im Archivordner · SpesenKit → nicht ins Archiv, sondern in den eigenen Ordner `SpesenKit` je Person (`Daten/spesenkit.json`, `Spesen/<Jahr>/<Monat>/` mit PDF/ZIP der abgeschlossenen Abrechnungen, `Sicherungen/`) |
 | `_Projekt.json` | `format: "mosaik-projekt"`, `version: 1`. Jede App liest frisch, ändert nur die eigenen geänderten Felder und behält unbekannte Felder. Nicht löschen oder umbenennen. |
-| Gemeinsamer Browser-Speicher | IndexedDB `mosaik-suite` (v1), Store `kv`, Schlüssel `archiv` = Archivordner. Alle Apps unter `kaspersebastian83-dot.github.io` teilen ihn. |
-| Absprung | `../Bildumbenenner/?projekt=<Ordnername>` (FotoKit) · `../Probenplan/?projekt=<Ordnername>` (PlanKit) · `../labelkit/?projekt=<Ordnername>` (LabelKit) · `../aufwandkit/?projekt=<Ordnername>` (BelegKit) |
-| Offline-Speicher | Jede App verwaltet nur Caches mit eigenem Präfix (`projektzentrale:`, `bildumbenenner:`, `probenplan:`). |
+| Gemeinsamer Browser-Speicher | IndexedDB `mosaik-suite` (v1), Store `kv`: `archiv` = Archivordner, `zuletzt` = zuletzt geöffnete Projekte (führt die Leiste), `spesenkit-ordner` = SpesenKit-Ordner der Person. Alle Apps unter `kaspersebastian83-dot.github.io` teilen ihn; da jede Person ein eigenes Windows-Profil hat, ist er persönlich. |
+| Absprung | `../labelkit/?projekt=<Ordnername>` (LabelKit) · `../Bildumbenenner/?projekt=<Ordnername>` (FotoKit) · `../Probenplan/?projekt=<Ordnername>` (PlanKit, mit `&aktion=anlage` direkt zur Anlage) · `../aufwandkit/?projekt=<Ordnername>` (BelegKit) · `../reisekosten-pro/` (SpesenKit, ohne Projekt) |
+| Offline-Speicher | Jede App verwaltet nur Caches mit eigenem Präfix (`projektzentrale:`, `bildumbenenner:`, `probenplan:`, `aufwandkit:`, `reisekosten-pro:`; LabelKit hat keinen Service Worker). |
 
 Felder in `_Projekt.json`: `projektnummer`, `schadenort`, `objekt`, `auftraggeber`, `schadennummer`, `schadenereignis`, `schadendatum`, `ortstermin`, `auftragsdatum` (Daten `JJJJ-MM-TT`), `sachverstaendiger`, `versicherungsnehmer`, `sachverstaendigerBeteiligt`, `sanierung`, `kontakte`, `notizen`, `verteiler` (`{ versicherung|sachverstaendiger|versicherungsnehmer|sanierung: { an: true, versandt: "JJJJ-MM-TT" } }`), `arbeitszettel` (`{ datei, sha256, titel, eingelesen }`), `geaendert`, `geaendertMit`.
 
@@ -67,6 +83,7 @@ Ohne Abhängigkeiten, mit Node.js aus dem Repository-Ordner:
 node tests/docx.cjs     # Word-Schreiber: Paket, XML, Maskierung, Tabellen, Bilder
 node tests/anlage.cjs   # Anlage PN 98 / Brandgeruch: Inhalte, Blind-Modus, Quellenvermerk, Dateinamen
 node tests/arbeitszettel.cjs   # Arbeitszettel lesen: volle und knappe Zettel, Reihenfolge, kein Zettel, Datum
+node tests/sw.cjs       # Service Worker: alle Offline-Dateien vorhanden, pdf.js dabei
 ```
 
 Browsertest des ganzen Ablaufs (Archiv → Projekt → Anlage → Datei, Prüfsummen, Protokoll), mit Playwright:
@@ -76,6 +93,8 @@ npm install --no-save playwright && npx playwright install chromium webkit
 node tests/anlage-browser.cjs chromium
 node tests/anlage-browser.cjs webkit
 node tests/arbeitszettel-browser.cjs chromium   # PDF lesen, Dialog, Speichern, Verteiler
+node tests/zuletzt-browser.cjs chromium         # zuletzt geöffnete Projekte, Vorwahl beim Start
+node tests/wechsel-browser.cjs chromium         # Projektwechsel nach gescheitertem Speichern: nichts geht still verloren
 ```
 
 Die Test-Arbeitszettel in `tests/fixtures/` sind frei erfunden (gleiche Form wie das Original, keine echten Daten).
