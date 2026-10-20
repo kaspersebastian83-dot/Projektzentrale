@@ -113,7 +113,33 @@ const daten = {
   await page.evaluate(() => { window.__geoeffnet = []; window.open = u => { window.__geoeffnet.push(u); return null; }; });
   await page.locator('#anlPlan').click();
   await page.waitForFunction(() => window.__geoeffnet.length === 1);
-  assert.match(await page.evaluate(() => window.__geoeffnet[0]), /\/Probenplan\/\?projekt=26\.0142\+Teststadt&aktion=anlage$/);
+  const anlageLink = new URL(await page.evaluate(() => window.__geoeffnet[0]));
+  assert.equal(anlageLink.search, '');
+  assert.equal(new URLSearchParams(anlageLink.hash.slice(1)).get('projekt'), '26.0142 Teststadt');
+  assert.equal(new URLSearchParams(anlageLink.hash.slice(1)).get('aktion'), 'anlage');
+  // Alle vier echten Absprungknöpfe: Ziele bleiben erhalten, Projekt nur im Fragment.
+  for (const [id, app, target] of [['goLabel','labelkit','labelkit'],['goFotos','Bildumbenenner','bildumbenenner'],['goPlan','Probenplan','plankit'],['goAufwand','aufwandkit','aufwandkit']]){
+    await page.evaluate(() => { window.__sprung = null; window.open = (url, target) => { window.__sprung = {url, target}; return null; }; });
+    await page.locator('#' + id).click();
+    await page.waitForFunction(() => window.__sprung !== null);
+    const sprung = await page.evaluate(() => window.__sprung), link = new URL(sprung.url);
+    assert.equal(sprung.target, target); assert.ok(link.pathname.endsWith('/' + app + '/'));
+    assert.equal(link.search, ''); assert.equal(new URLSearchParams(link.hash.slice(1)).get('projekt'), '26.0142 Teststadt');
+  }
+  const special = '26.0142 Köln & Süd + 50% #Hof';
+  const sonderLinks = await page.evaluate(async name => {
+    const out = []; window.open = (url, target) => { out.push({url, target}); return null; };
+    await openApp({name}, '../labelkit/?ansicht=liste&projekt=alt#fotos', 'labelkit');
+    await openBildumbenenner({name}); await openPlanKit({name}, 'anlage');
+    return out;
+  }, special);
+  for (const {url} of sonderLinks){
+    const link = new URL(url); assert.equal(link.searchParams.has('projekt'), false);
+    assert.equal(new URLSearchParams(link.hash.slice(1)).get('projekt'), special);
+  }
+  assert.equal(new URL(sonderLinks[0].url).searchParams.get('ansicht'), 'liste');
+  assert.ok(new URL(sonderLinks[0].url).hash.startsWith('#fotos&'));
+  assert.equal(new URLSearchParams(new URL(sonderLinks[2].url).hash.slice(1)).get('aktion'), 'anlage');
   const status = await page.locator('#anl').textContent();
   assert.match(status, /1 PN 98-Protokoll · 1 Brandgeruch-Probe/);
   assert.match(status, /26\.0142_16\.10\.2026_Daten\.json/, 'neueste Projektdatei');

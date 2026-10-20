@@ -1427,27 +1427,30 @@ async function makeSubs(p){
   p.st = await scanProject(p); updateRow(p); renderDetail();
 }
 
+// Projektkontext gehört ins Fragment und wird dadurch nicht an den Webserver gesendet.
+function projektLink(base, name, aktion){
+  const url = new URL(base, location.href);
+  const teile = url.hash.slice(1).split('&').filter(t => t && !new URLSearchParams(t).has('projekt') && (!aktion || !new URLSearchParams(t).has('aktion')));
+  url.searchParams.delete('projekt');
+  teile.push('projekt=' + encodeURIComponent(name));
+  if (aktion){ url.searchParams.delete('aktion'); teile.push('aktion=' + encodeURIComponent(aktion)); }
+  url.hash = teile.join('&');
+  return url.href;
+}
 async function openApp(p, base, target){
   await flushPJ();
   await SUITE.set('archiv', S.archive).catch(() => {});
-  const url = new URL(base, location.href);
-  url.searchParams.set('projekt', p.name);
-  window.open(url.href, target);
+  window.open(projektLink(base, p.name), target);
 }
 async function openPlanKit(p, aktion){
   await flushPJ();
   await SUITE.set('archiv', S.archive).catch(() => {});
-  const url = new URL(PROBENPLAN_URL, location.href);
-  url.searchParams.set('projekt', p.name);
-  if (aktion) url.searchParams.set('aktion', aktion);   // PlanKit öffnet dann den Export mit „Word · Anlage Probenahme“
-  window.open(url.href, 'plankit');
+  window.open(projektLink(PROBENPLAN_URL, p.name, aktion), 'plankit');
 }
 async function openBildumbenenner(p){
   await flushPJ();
   await SUITE.set('archiv', S.archive).catch(() => {});
-  const url = new URL(BILDUMBENENNER_URL, location.href);
-  url.searchParams.set('projekt', p.name);
-  window.open(url.href, 'bildumbenenner');
+  window.open(projektLink(BILDUMBENENNER_URL, p.name), 'bildumbenenner');
 }
 
 /* ---------- Anlagen zum Gutachten (Word) ----------
