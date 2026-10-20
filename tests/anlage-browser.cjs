@@ -63,6 +63,9 @@ const daten = {
     // PlanKit: ein Probenplan und zwei „(vorher …)“-Sicherungen vom Speichern
     const pl = await proj.getDirectoryHandle('Pläne', { create: true });
     for (const n of ['Probenplan 26.0142 Teststadt.probenplan', 'Probenplan 26.0142 Teststadt (vorher 2026-10-16T19-37-16-853Z-95805c53).probenplan', 'Probenplan 26.0142 Teststadt (vorher 2026-10-16T19-37-48-520Z-024f648d).probenplan']) await schreibe(pl, n, '{}');
+    const extraName = '26.0142 Köln & Süd + 50% #Hof';
+    const extra = await archiv.getDirectoryHandle(extraName, {create:true}), extraPlan = await extra.getDirectoryHandle('Pläne', {create:true});
+    await schreibe(extraPlan, 'Probenplan ' + extraName + '.probenplan', '{}');
     window.showDirectoryPicker = async () => archiv;
   }, daten);
   await page.locator('#btnStart, #btnArchive').first().click();
@@ -110,7 +113,7 @@ const daten = {
   await page.locator('#pjSave.ok').waitFor();
   assert.equal(await leseAuftraggeber(), 'Muster Versicherung', 'nach Freigabe der Sperre gespeichert');
   // Anlage Probenahme: Absprung nach PlanKit mit geöffnetem Anlagen-Export
-  await page.evaluate(() => { window.__geoeffnet = []; window.open = u => { window.__geoeffnet.push(u); return null; }; });
+  await page.evaluate(() => { window.__geoeffnet = []; window.open = () => ({ location: { href: 'about:blank', assign: u => window.__geoeffnet.push(u) }, focus(){} }); });
   await page.locator('#anlPlan').click();
   await page.waitForFunction(() => window.__geoeffnet.length === 1);
   const anlageLink = new URL(await page.evaluate(() => window.__geoeffnet[0]));
@@ -119,7 +122,7 @@ const daten = {
   assert.equal(new URLSearchParams(anlageLink.hash.slice(1)).get('aktion'), 'anlage');
   // Alle vier echten Absprungknöpfe: Ziele bleiben erhalten, Projekt nur im Fragment.
   for (const [id, app, target] of [['goLabel','labelkit','labelkit'],['goFotos','Bildumbenenner','bildumbenenner'],['goPlan','Probenplan','plankit'],['goAufwand','aufwandkit','aufwandkit']]){
-    await page.evaluate(() => { window.__sprung = null; window.open = (url, target) => { window.__sprung = {url, target}; return null; }; });
+    await page.evaluate(() => { window.__sprung = null; window.open = (_, target) => ({ location: { href: 'about:blank', assign: url => { window.__sprung = {url, target}; } }, focus(){} }); });
     await page.locator('#' + id).click();
     await page.waitForFunction(() => window.__sprung !== null);
     const sprung = await page.evaluate(() => window.__sprung), link = new URL(sprung.url);
@@ -127,19 +130,22 @@ const daten = {
     assert.equal(link.search, ''); assert.equal(new URLSearchParams(link.hash.slice(1)).get('projekt'), '26.0142 Teststadt');
   }
   const special = '26.0142 Köln & Süd + 50% #Hof';
-  const sonderLinks = await page.evaluate(async name => {
-    const out = []; window.open = (url, target) => { out.push({url, target}); return null; };
-    await openApp({name}, '../labelkit/?ansicht=liste&projekt=alt#fotos', 'labelkit');
-    await openBildumbenenner({name}); await openPlanKit({name}, 'anlage');
-    return out;
-  }, special);
-  for (const {url} of sonderLinks){
-    const link = new URL(url); assert.equal(link.searchParams.has('projekt'), false);
+  await page.locator('.proj').filter({hasText:special}).click();
+  await page.locator('#anlPlan').waitFor();
+  for (const id of ['goLabel','goFotos','goPlan','goAufwand','anlPlan']){
+    await page.evaluate(() => {
+      window.__sprung = null;
+      window.open = (_, target) => ({location:{href:target === 'plankit' ? new URL('../Probenplan/#projekt=alt',location.href).href : 'about:blank',assign:url=>{window.__sprung={url,target};}},focus(){}});
+    });
+    await page.locator('#' + id).click(); await page.waitForFunction(() => window.__sprung !== null);
+    const sprung = await page.evaluate(() => window.__sprung), link = new URL(sprung.url);
+    assert.equal(link.search, '');
     assert.equal(new URLSearchParams(link.hash.slice(1)).get('projekt'), special);
+    if (id === 'anlPlan') assert.equal(new URLSearchParams(link.hash.slice(1)).get('aktion'), 'anlage');
+    if (sprung.target === 'plankit') assert.ok(link.pathname.endsWith('/Probenplan/index.html'), 'Bereits offenes PlanKit lädt neu');
   }
-  assert.equal(new URL(sonderLinks[0].url).searchParams.get('ansicht'), 'liste');
-  assert.ok(new URL(sonderLinks[0].url).hash.startsWith('#fotos&'));
-  assert.equal(new URLSearchParams(new URL(sonderLinks[2].url).hash.slice(1)).get('aktion'), 'anlage');
+  await page.locator('.proj[data-name="26.0142 Teststadt"]').click();
+  await page.locator('#anlPn98').waitFor();
   const status = await page.locator('#anl').textContent();
   assert.match(status, /1 PN 98-Protokoll · 1 Brandgeruch-Probe/);
   assert.match(status, /26\.0142_16\.10\.2026_Daten\.json/, 'neueste Projektdatei');

@@ -1427,6 +1427,22 @@ async function makeSubs(p){
   p.st = await scanProject(p); updateRow(p); renderDetail();
 }
 
+function projektNavigation(href, target){
+    const ziel = new URL(href, location.href);
+    const fenster = target ? window.open('', target) : window;
+    if (!fenster) return;
+    let bisher; try{ bisher = new URL(fenster.location.href); }catch(e){}
+    // Gleicher Einstieg mit anderem Fragment wäre sonst nur ein Wechsel innerhalb des Dokuments.
+    if (bisher && ziel.origin === bisher.origin && ziel.pathname === bisher.pathname && ziel.search === bisher.search){
+      if (ziel.protocol === 'file:'){
+        ziel.search = ziel.search.endsWith('&') ? ziel.search.slice(0, -1) : ziel.search + '&';
+      } else {
+        ziel.pathname = ziel.pathname.endsWith('/index.html') ? ziel.pathname.slice(0, -10) : ziel.pathname + (ziel.pathname.endsWith('/') ? 'index.html' : '/index.html');
+      }
+    }
+    fenster.location.assign(ziel.href);
+    if (target) fenster.focus();
+  }
 // Projektkontext gehört ins Fragment und wird dadurch nicht an den Webserver gesendet.
 function projektLink(base, name, aktion){
   const url = new URL(base, location.href);
@@ -1440,17 +1456,17 @@ function projektLink(base, name, aktion){
 async function openApp(p, base, target){
   await flushPJ();
   await SUITE.set('archiv', S.archive).catch(() => {});
-  window.open(projektLink(base, p.name), target);
+  projektNavigation(projektLink(base, p.name), target);
 }
 async function openPlanKit(p, aktion){
   await flushPJ();
   await SUITE.set('archiv', S.archive).catch(() => {});
-  window.open(projektLink(PROBENPLAN_URL, p.name, aktion), 'plankit');
+  projektNavigation(projektLink(PROBENPLAN_URL, p.name, aktion), 'plankit');
 }
 async function openBildumbenenner(p){
   await flushPJ();
   await SUITE.set('archiv', S.archive).catch(() => {});
-  window.open(projektLink(BILDUMBENENNER_URL, p.name), 'bildumbenenner');
+  projektNavigation(projektLink(BILDUMBENENNER_URL, p.name), 'bildumbenenner');
 }
 
 /* ---------- Anlagen zum Gutachten (Word) ----------
