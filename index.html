@@ -251,7 +251,7 @@ table.vt button{padding:2px 8px;font-size:12px;margin-left:6px}
 <header>
   <div class="appbar">
     <div class="brand"><span class="hex">⬡</span> Projektzentrale <small>Spektron · Projekte &amp; Apps</small></div>
-    <button id="btnInfo" class="hbadge" title="Version, Speicherorte, Änderungen">v1.6.1</button>
+    <button id="btnInfo" class="hbadge" title="Version, Speicherorte, Änderungen">v1.9.4</button>
     <button id="btnHelp" class="hbadge help" title="Kurzanleitung für alle Projekt-Apps (F1)"><b>?</b> Kurzanleitung</button>
     <button id="btnUpd" class="upd" hidden>Update verfügbar – neu laden</button>
     <span class="spacer"></span>
@@ -707,9 +707,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.9.3';
-const APP_DATE = '2026-10-18';
+const APP_VERSION = '1.9.4';
+const APP_DATE = '2026-10-20';
 const CHANGELOG = [
+  ['1.9.4', '20.10.2026', 'Projektzentrale und Spektron-Leiste übergeben Projekte jetzt über #projekt im Fragment. Sonderzeichen bleiben erhalten; alte ?projekt-Links funktionieren weiterhin und werden nach dem Laden bereinigt. Projektwechsel laden auch bereits geöffnete App-Fenster neu; eine Warnung vor ungesicherten Eingaben kann den Wechsel abbrechen. PlanKits Anlagenaktion wird ebenfalls im Fragment übergeben.'],
   ['1.9.3', '18.10.2026', 'Die Büro-Apps heißen zusammen „Spektron“: Name oben neben „Projektzentrale“, im Fenstertitel und in der Kurzanleitung („Kurzanleitung – Spektron-Apps“, mit Satz zur Suite). Sonst unverändert.'],
   ['1.9.2', '18.10.2026', 'Kurzanleitung: SpesenKit beschrieben, wie es heute arbeitet – alles über die Monatsübersicht, eigener SpesenKit-Ordner je Person statt Archivordner. Sonst unverändert.'],
   ['1.9.1', '18.10.2026', 'Die App für die monatliche Spesenabrechnung heißt jetzt SpesenKit (bisher Reisekosten Pro). Knopf, Kurzanleitung und Adressliste angepasst; die Webadresse bleibt unverändert.'],
