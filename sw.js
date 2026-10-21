@@ -8,9 +8,10 @@
    This worker therefore only ever touches caches with its own prefix and only answers requests inside its own scope. */
 const SCOPE = self.registration.scope;
 const PREFIX = 'projektzentrale:' + SCOPE + ':';
-const CACHE = PREFIX + 'v2';
+const CACHE = PREFIX + 'v3';
 const LEGACY = [];
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png',
+  './buero/', './buero/index.html', './buero/data.js', './buero/central.js', './buero/ui.css', './buero/office.css', './buero/office.js',
   './vendor/pdfjs/pdf.min.js', './vendor/pdfjs/pdf.worker.min.js']   // pdf.js für „Arbeitszettel einlesen“ – auch offline
   .map(f => new URL(f, SCOPE).href);
 const INDEX = new URL('index.html', SCOPE).href;
@@ -32,8 +33,9 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET' || !req.url.startsWith(SCOPE)) return;
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
+    const pageIndex = req.url.startsWith(new URL('buero/', SCOPE).href) ? new URL('buero/index.html', SCOPE).href : INDEX;
     const fromNet = fetch(req, { cache: 'no-store' }).then(res => {
-      if (res.ok && res.type === 'basic') cache.put(req.mode === 'navigate' ? INDEX : req, res.clone());
+      if (res.ok && res.type === 'basic') cache.put(req.mode === 'navigate' ? pageIndex : req, res.clone());
       return res;
     });
     const timeout = new Promise(res => setTimeout(() => res(null), 4000));
@@ -41,7 +43,7 @@ self.addEventListener('fetch', e => {
       const res = await Promise.race([fromNet, timeout]);
       if (res) return res;
     }catch(err){ /* offline – fall through to cache */ }
-    const cached = await cache.match(req, { ignoreSearch: true }) || (req.mode === 'navigate' && await cache.match(INDEX));
+    const cached = await cache.match(req, { ignoreSearch: true }) || (req.mode === 'navigate' && await cache.match(pageIndex));
     return cached || fromNet;   // nothing cached yet: keep waiting for the network
   })());
 });
