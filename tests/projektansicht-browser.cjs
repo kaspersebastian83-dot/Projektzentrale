@@ -97,7 +97,7 @@ if(!before){
  await page.locator(`.proj[data-name="${B}"]`).click();await page.locator('[data-overview]').filter({hasText:'Noch nicht übergeben'}).waitFor();await page.locator('#vtBox > summary').click();
  assert.ok(await page.locator('#vtBox .vtAn').first().isEnabled());await page.locator('#vtBox .vtAn').first().check();await page.waitForFunction(()=>document.querySelector('#vtBox .vtAn')?.checked);
  assert.ok(!await fs.stat(path.join(tmp,B,'_Buero')).catch(()=>null));
- await page.locator('[data-handover] > summary').click();if(!await page.locator('[data-form]').evaluate(e=>e.open))await page.locator('[data-form] > summary').click();await page.locator('[data-path] > summary').click();
+ await page.locator('[data-handover] > summary').click();await page.waitForFunction(()=>document.querySelector('[data-form]')?.open);await page.locator('[data-path] > summary').click();
  await page.locator('[data-word]').fill('Mitteilungen/Gutachten B.docx');await page.locator('[data-entry="0:0"]').fill('Bestätigter Empfänger B');await page.locator('[data-who]').fill('SK');
  await page.evaluate(()=>testIO.failWrite=true);await page.locator('[data-submit]').click();await page.locator('[data-message]').filter({hasText:'Nicht bestätigt gespeichert'}).waitFor();
  const pending=await page.evaluate(()=>JSON.parse(sessionStorage.getItem('buero-draft:26.9999 Kontrollort')).pending);

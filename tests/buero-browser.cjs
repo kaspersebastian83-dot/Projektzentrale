@@ -42,7 +42,7 @@ const central=await(await context()).newPage(),office=await(await context()).new
 async function openSection(name){const el=office.locator('#detail details').filter({has:office.locator('summary',{hasText:name})});if(!await el.evaluate(e=>e.open))await el.locator('summary').click();}
 for(const p of [central,office])p.on('pageerror',e=>errors.push(e.message));
 await central.goto(base+'/index.html');await central.locator('#btnStart').click();await central.locator(`.proj[data-name="${A}"]`).click();await central.locator('#bueroPanel [data-submit]').waitFor({state:'attached'});
-await central.locator('[data-handover] > summary').click();if(!await central.locator('[data-form]').evaluate(e=>e.open))await central.locator('#bueroPanel [data-form] > summary').click();await central.locator('[data-path] > summary').click();
+await central.locator('[data-handover] > summary').click();await central.waitForFunction(()=>document.querySelector('[data-form]')?.open);await central.locator('[data-path] > summary').click();
 await central.locator('#bueroPanel [data-word]').fill('Mitteilungen/Gutachten A.docx');await central.locator('#bueroPanel [data-pick]').click();
 try{await central.waitForFunction(()=>document.querySelector('#bueroPanel [data-word]')?.value==='Mitteilungen/Gutachten B.docx',null,{timeout:8000});}catch(e){console.log(await central.locator('#bueroPanel').innerText());throw e;}
 assert.equal(await central.locator('#bueroPanel [data-word]').inputValue(),'Mitteilungen/Gutachten B.docx','conscious file selection, no latest heuristic');
