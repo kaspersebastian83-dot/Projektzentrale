@@ -16,7 +16,7 @@ Tatsächlich lokal ausgeführt und bestanden (Node 24.19.0, System-Chromium):
 
 | Bestehende Prüfung | Ergebnis der Nachbesserung |
 |---|---|
-| `tests/projektansicht-browser.cjs` | Drei Einstiegssituationen einschließlich erledigtem und zurückgenommenem Verlauf; tatsächliche Word-Zuordnung ohne Neuanlageformular; zwei offene Aufträge auch in unabhängiger Sitzung; Lesefehler; Erhalt von Änderungsformular, Empfängereingaben, Cursor und lokalem Entwurf bei fremden Aufträgen; kein zweiter Auftrag. |
+| `tests/projektansicht-browser.cjs` | Drei Einstiegssituationen einschließlich erledigtem und zurückgenommenem Verlauf; tatsächliche Word-Zuordnung ohne Neuanlageformular; zwei offene Aufträge auch in unabhängiger Sitzung; kontrolliert noch laufendes Einlesen und Lesefehler; Erhalt von Änderungsformular, Empfängereingaben, Cursor und lokalem Entwurf bei fremden Aufträgen; kein zweiter Auftrag. |
 | Derselbe UI-/Retry-Test | Nach Schreibfehler unveränderten Versuch eingelesen, währenddessen identische Datei in der temporären Testablage lesbar gemacht, erneut aktualisiert und über den echten Knopf am Projektkopf bestätigt. Details dabei zugeklappt; identische Kennung/Inhalt, kein zusätzlicher Auftrag. Bestehende Fenster-/150%-Zoomprüfungen ebenfalls bestanden. |
 | `tests/buero-browser.cjs` | Bestehender vollständiger Büroablauf einschließlich Retry nach Aktualisieren, abweichender Datei, zwei unabhängiger veralteter Änderungsformulare, Empfängererhalt, Teil-/Vollversand, Rückfragen und Konflikten bestanden. Nur der Einstieg des Tests berücksichtigt die nun direkt geöffneten Auftragsdetails. |
 | `tests/buero.cjs`, `tests/sw.cjs` | Bestanden. |

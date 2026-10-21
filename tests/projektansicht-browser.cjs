@@ -31,7 +31,7 @@ async function context(existing){
   const io=async arg=>{const r=await window.__sharedIO(arg);if(r?.notfound)throw new DOMException('Missing','NotFoundError');return r;};
   class Handle{constructor(rel,kind){this.rel=rel;this.kind=kind;this.name=rel.split('/').at(-1)||'Testarchiv';}async queryPermission(){return window.testIO.hideGrant?'denied':'granted';}async requestPermission(){return this.queryPermission();}async isSameEntry(h){return h.rel===this.rel;}}
   class FileHandle extends Handle{constructor(rel){super(rel,'file');}async getFile(){const r=await io({op:'read',rel:this.rel,fail:window.testIO.failRead&&this.name.startsWith('rueckmeldung-')?'read':null});return {name:this.name,size:r.size,lastModified:1,text:async()=>r.text,arrayBuffer:async()=>new TextEncoder().encode(r.text).buffer};}async createWritable(){if(window.testIO.failWrite)throw Error('SYNTHETIC write');let text;const rel=this.rel;return{write:async value=>{text=value;},abort:async()=>{},close:async()=>{await io({op:'write',rel,text});if(window.testIO.failAfterClose){window.testIO.failRead=true;window.testIO.failAfterClose=false;}}};}}
-  class DirectoryHandle extends Handle{constructor(rel){super(rel,'directory');}child(n){return(this.rel?this.rel+'/':'')+n;}async getDirectoryHandle(n,opts={}){const rel=this.child(n);await io({op:'dir',rel,create:opts.create});return new DirectoryHandle(rel);}async getFileHandle(n,opts={}){const rel=this.child(n);await io({op:'file',rel,create:opts.create});return new FileHandle(rel);}async *values(){for(const h of await io({op:'list',rel:this.rel,fail:window.testIO.failList&&this.name==='_Buero'?'list':null}))yield h.kind==='directory'?new DirectoryHandle(this.child(h.name)):new FileHandle(this.child(h.name));}async resolve(h){const prefix=this.rel?this.rel+'/':'';return h.rel.startsWith(prefix)?h.rel.slice(prefix.length).split('/'):null;}}
+  class DirectoryHandle extends Handle{constructor(rel){super(rel,'directory');}child(n){return(this.rel?this.rel+'/':'')+n;}async getDirectoryHandle(n,opts={}){const rel=this.child(n);await io({op:'dir',rel,create:opts.create});return new DirectoryHandle(rel);}async getFileHandle(n,opts={}){const rel=this.child(n);await io({op:'file',rel,create:opts.create});return new FileHandle(rel);}async *values(){if(window.testIO.pauseList&&this.name==='_Buero')await new Promise(resolve=>(window.testIO.resumeLists??=[]).push(resolve));for(const h of await io({op:'list',rel:this.rel,fail:window.testIO.failList&&this.name==='_Buero'?'list':null}))yield h.kind==='directory'?new DirectoryHandle(this.child(h.name)):new FileHandle(this.child(h.name));}async resolve(h){const prefix=this.rel?this.rel+'/':'';return h.rel.startsWith(prefix)?h.rel.slice(prefix.length).split('/'):null;}}
   window.SharedDirectoryHandle=DirectoryHandle;
   window.showDirectoryPicker=async()=>new DirectoryHandle('');
   window.showOpenFilePicker=async()=>[new FileHandle(window.testPick||'24.0012 Fiktivstadt/Mitteilungen/Gutachten B.docx')];
@@ -59,7 +59,7 @@ if(!before){
 }
 if(!before){
  assert.equal(await page.locator('[data-handover-label]').innerText(),'Übergabe ansehen');
- await page.locator('[data-handover] > summary').click();
+ await page.locator('[data-handover] > summary').click();await page.locator(`[data-revise="${id}"]`).waitFor();
  assert.ok(await page.locator(`[data-record="${id}"]`).evaluate(e=>e.open));
  assert.ok(!await page.locator('[data-form]').isVisible());
  assert.match(await page.locator(`[data-record="${id}"]`).innerText(),/Mitteilungen\/Gutachten B.docx/);
@@ -108,7 +108,11 @@ if(!before){
  assert.ok(await page.locator('#vtBox .vtAn').first().isEnabled());await page.locator('#vtBox .vtAn').first().check();await page.waitForFunction(()=>document.querySelector('#vtBox .vtAn')?.checked);
  assert.ok(!await fs.stat(path.join(tmp,B,'_Buero')).catch(()=>null));
  assert.equal(await page.locator('[data-handover-label]').innerText(),'Übergabe vorbereiten');
- await fs.mkdir(path.join(tmp,B,'_Buero'));await page.evaluate(()=>testIO.failList=true);await page.locator('[data-refresh]').click();await page.locator('#bueroAttention').filter({hasText:'unvollständig/veraltet'}).waitFor();
+ await fs.mkdir(path.join(tmp,B,'_Buero'));
+ await page.evaluate(()=>testIO.pauseList=true);await page.locator('[data-refresh]').click();await page.waitForFunction(()=>testIO.resumeLists?.length>0);
+ assert.equal(await page.locator('[data-handover-label]').innerText(),'Übergaben werden geprüft …');assert.ok(await page.locator('[data-form]').evaluate(e=>e.hidden),'running read offers no creation form');
+ await page.evaluate(()=>{testIO.pauseList=false;for(const resume of testIO.resumeLists)resume();});await page.locator('[data-handover-label]').filter({hasText:'Übergabe vorbereiten'}).waitFor();
+ await page.evaluate(()=>testIO.failList=true);await page.locator('[data-refresh]').click();await page.locator('#bueroAttention').filter({hasText:'unvollständig/veraltet'}).waitFor();
  await page.locator('[data-handover] > summary').click();assert.ok(!await page.locator('[data-form]').isVisible(),'failed read offers no empty creation form');
  await page.evaluate(()=>testIO.failList=false);await page.locator('[data-refresh]').click();await page.locator('[data-overview]').filter({hasText:'Noch nicht übergeben'}).waitFor();
  await page.locator('[data-handover] > summary').click();await page.locator('[data-handover] > summary').click();await page.waitForFunction(()=>document.querySelector('[data-form]')?.open);await page.locator('[data-path] > summary').click();
@@ -142,9 +146,9 @@ if(!before){
  for(const fid of foreign)assert.equal(await page.locator(`[data-record="${fid}"]`).count(),1);
  await page.locator('[data-handover] > summary').click();await page.locator('[data-refresh]').click();await page.locator('[data-handover] > summary').click();
  assert.equal(await page.locator('[data-note]').inputValue(),'Noch nicht übergebener lokaler Entwurf');
- for(const fid of foreign)assert.ok(await page.locator(`[data-record="${fid}"]`).evaluate(e=>e.open));
+ for(const fid of foreign){await page.locator(`[data-revise="${fid}"]`).waitFor();assert.ok(await page.locator(`[data-record="${fid}"]`).evaluate(e=>e.open));}
  const independent=await(await context()).newPage();independent.on('pageerror',e=>errors.push(e.message));await independent.goto(base+'/index.html');await independent.locator('#btnStart').click();await independent.locator(`.proj[data-name="${B}"]`).click();await independent.locator('[data-handover-label]').filter({hasText:'Offene Übergaben ansehen'}).waitFor();await independent.locator('[data-handover] > summary').click();
- assert.ok(!await independent.locator('[data-form]').isVisible());for(const fid of foreign)assert.ok(await independent.locator(`[data-record="${fid}"]`).evaluate(e=>e.open));await independent.close();
+ assert.ok(!await independent.locator('[data-form]').isVisible());for(const fid of foreign){await independent.locator(`[data-revise="${fid}"]`).waitFor();assert.ok(await independent.locator(`[data-record="${fid}"]`).evaluate(e=>e.open));}await independent.close();
 
  await page.locator('[data-submit]').click();await page.locator('[data-message]').filter({hasText:'bereits eine offene Übergabe'}).waitFor();assert.equal((await fs.readdir(path.join(tmp,B,'_Buero'))).length,4);
 
