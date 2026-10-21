@@ -22,7 +22,9 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 24
-      - name: Prepare pinned unchanged main applications
+      - name: Verify current checkout and pinned dependency provenance
+        run: node --test tests/integration/provenance.test.mjs
+      - name: Prepare pinned dependency applications
         run: node tests/integration/prepare.mjs
       - name: Existing Playwright browser runtime
         run: |

@@ -2,14 +2,13 @@ import {createServer} from 'node:http';
 import {readFile, stat, mkdir, writeFile} from 'node:fs/promises';
 import {resolve, dirname, sep, extname} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {execFileSync} from 'node:child_process';
 import {createRequire} from 'node:module';
 import {createHash} from 'node:crypto';
+import {sourceRevision} from './provenance.mjs';
 
 export const here = dirname(fileURLToPath(import.meta.url));
 export const central = resolve(here, '../..');
 export const manifest = JSON.parse(await readFile(resolve(here, 'stand.json'), 'utf8'));
-export const git = (root, ...args) => execFileSync('git', ['-c', `safe.directory=${root.replaceAll('\\', '/')}`, '-C', root, ...args], {encoding:'utf8'}).trim();
 export const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 
 export async function start() {
@@ -17,11 +16,10 @@ export async function start() {
   const roots = Object.fromEntries(Object.keys(manifest).map(name => [name, name === 'Projektzentrale' ? central : resolve(parent, name)]));
   const revisions = {};
   for (const [repo, root] of Object.entries(roots)) {
-    // Only tests/docs/workflows may differ from the recorded application snapshot.
-    git(root, 'diff', '--exit-code', manifest[repo], '--', '.', ':!tests', ':!.github', ':!README.md', ':!.gitignore');
+    const revision = sourceRevision(repo, root, manifest[repo]);
     const versionSource = await readFile(resolve(root, ['Probenplan','reisekosten-pro'].includes(repo) ? 'package.json' : 'index.html'), 'utf8');
     const version = versionSource.match(/APP_VERSION\s*=\s*['"]([^'"]+)/)?.[1] || JSON.parse(versionSource).version;
-    revisions[repo] = {applicationSha:manifest[repo], checkoutSha:git(root,'rev-parse','HEAD'), version};
+    revisions[repo] = {...revision, version};
   }
   const served = {...roots, Probenplan:resolve(roots.Probenplan, 'dist'), 'reisekosten-pro':resolve(roots['reisekosten-pro'], 'dist')};
   for (const root of Object.values(served)) await stat(resolve(root, 'index.html'));

@@ -1,6 +1,6 @@
 # Spektron Integrationstest 1.0
 
-Ein eigenständiger Node-/Playwright-Test im Repository Projektzentrale. Keine Änderungen an den produktiven Apps oder Datenformaten. Die sechs Anwendungen werden unverändert unter **einem Loopback-Ursprung** und ihren bestehenden Pfaden bereitgestellt. Kein Zugriff auf GitHub Pages oder echte Projektordner während des Browserlaufs.
+Ein eigenständiger Node-/Playwright-Test im Repository Projektzentrale. Keine Änderungen an den produktiven Apps oder Datenformaten durch den Testaufbau. Der tatsächlich geprüfte Projektzentrale-Checkout und die fünf festgeschriebenen weiteren Anwendungen werden unter **einem Loopback-Ursprung** und ihren bestehenden Pfaden bereitgestellt. Kein Zugriff auf GitHub Pages oder echte Projektordner während des Browserlaufs.
 
 ## Ausführen
 
@@ -11,9 +11,11 @@ node tests/integration/prepare.mjs
 PLAYWRIGHT_MODULE=/absoluter/pfad/zu/playwright node tests/integration/run.mjs
 ```
 
-`prepare.mjs` lädt die in `stand.json` festgelegten main-Snapshots und baut PlanKit/SpesenKit mit ihren vorhandenen Lockfiles. Es führt keine Deployments aus. Mit `--refresh-main` wird bewusst ein neuer main-Stand aufgenommen; die Änderungen an `stand.json` gehören ins Review. Der Browserlauf selbst braucht keinen externen Dienst.
+`prepare.mjs` lädt die in `stand.json` festgelegten main-Snapshots der fünf weiteren Anwendungen und baut PlanKit/SpesenKit mit ihren vorhandenen Lockfiles. Die Projektzentrale wird direkt aus dem aktuellen Checkout bereitgestellt, damit auch Produktänderungen eines PRs integriert geprüft werden. In GitHub Actions kann dies der von GitHub erzeugte Probe-Merge-Commit sein. Es führt keine Deployments aus. Mit `--refresh-main` werden bewusst neue Referenzstände aufgenommen; die Änderungen an `stand.json` gehören ins Review. Der Browserlauf selbst braucht keinen externen Dienst.
 
-Alternativ `SPEKTRON_SOURCES` auf einen Ordner setzen, der die fünf anderen Repository-Kopien direkt enthält. PlanKit und SpesenKit benötigen dort zuvor ihren unveränderten Produktionsbuild in `dist/`. Optional `BROWSER_EXECUTABLE` setzen, z. B. auf ein installiertes Microsoft Edge. Der Runner verweigert abweichende getrackte Produktdateien gegenüber dem Manifest. Getesteter Produkt-SHA und Checkout-SHA des Testpakets werden getrennt protokolliert.
+Alternativ `SPEKTRON_SOURCES` auf einen Ordner setzen, der die fünf anderen Repository-Kopien direkt enthält. PlanKit und SpesenKit benötigen dort zuvor ihren unveränderten Produktionsbuild in `dist/`. Optional `BROWSER_EXECUTABLE` setzen, z. B. auf ein installiertes Microsoft Edge. Der Runner verweigert bei der Projektzentrale uncommittete Änderungen getrackter Produktdateien gegenüber `HEAD`; bei den fünf weiteren Anwendungen verweigert er Abweichungen vom Manifest. `applicationSha` bezeichnet den tatsächlich geprüften Produktstand, `checkoutSha` den Repository-Checkout und `referenceSha` den Referenzstand aus `stand.json`. Bei der Projektzentrale ist `referenceSha` nur die historische Referenz; `applicationSha` entspricht dem aktuellen Checkout. Tests, Workflows, README und `.gitignore` bleiben von der Produktdateiprüfung ausgenommen.
+
+`node --test tests/integration/provenance.test.mjs` prüft mit temporären synthetischen Git-Repositories, dass ein committeter Produkt-PR der Projektzentrale akzeptiert und korrekt protokolliert wird, uncommittete Produktänderungen dagegen abgewiesen werden und die fünf weiteren Anwendungen weiterhin an ihre Referenzstände gebunden sind. Dieser Regressionstest läuft auch im CI-Workflow vor der Vorbereitung.
 
 ## Tatsächlich geprüft
 
