@@ -19,13 +19,13 @@ function mount(container,p,readData,flush){
 }
 function rememberFocus(c){
   const el=document.activeElement,scroll=document.getElementById('detail')?.scrollTop;
-  if(!c.container.contains(el))return {scroll};
+  if(!c.container.contains(el)&&!document.getElementById('bueroAttention')?.contains(el))return {scroll};
   const summary=el.tagName==='SUMMARY',target=summary?el.parentElement:el;
   const attr=target.getAttributeNames().find(n=>n.startsWith('data-'));
   return {scroll,attr,value:attr?target.getAttribute(attr):'',summary,start:el.selectionStart,end:el.selectionEnd};
 }
 function restoreFocus(c,f){
-  if(f.attr){let el=Array.from(c.container.querySelectorAll('['+f.attr+']')).find(el=>el.getAttribute(f.attr)===f.value);if(f.summary)el=el?.querySelector(':scope > summary');if(el&&!el.getClientRects().length)el=c.container.querySelector('[data-handover-label]');if(el){el.focus({preventScroll:true});try{el.setSelectionRange(f.start,f.end);}catch{}}}
+  if(f.attr){let el=[...c.container.querySelectorAll('['+f.attr+']'),...document.getElementById('bueroAttention')?.querySelectorAll('['+f.attr+']')||[]].find(el=>el.getAttribute(f.attr)===f.value);if(f.summary)el=el?.querySelector(':scope > summary');if(!el||!el.getClientRects().length)el=c.container.querySelector('[data-handover-label]');if(el){el.focus({preventScroll:true});try{el.setSelectionRange(f.start,f.end);}catch{}}}
   if(f.scroll!=null)document.getElementById('detail').scrollTop=f.scroll;
 }
 function openForm(c){c.d.handOpen=true;c.d.open=true;keep(c.p.name,c.d);c.container.querySelector('[data-handover]').open=true;c.container.querySelector('[data-form]').open=true;}
@@ -81,7 +81,8 @@ function renderRecords(c){
   overview.textContent=!c.loaded?'Übergaben werden geprüft …':currentRecord?`${currentRecord.status}${currentRecord.actor?' · '+currentRecord.actor:''} · ${currentRecord.proof?'Gegengelesen':'Gegenlesen offen'} · ${currentRecord.pdf?'PDF zugeordnet':'PDF noch offen'} · Versand ${currentRecord.content.recipients.filter(x=>currentRecord.sent[x.id]).length} von ${currentRecord.content.recipients.length}`:c.errors.length?'Kein verlässlich vollständiger Stand verfügbar':latest?.withdrawn?'Letzte Übergabe zurückgenommen':latest?'Letzte Übergabe erledigt':'Noch nicht übergeben';
   const alerts=`${c.d.messageError?'<p class="b-message b-error">'+esc(c.d.message)+' <button data-head-show>Eingaben ansehen</button></p>':''}${c.d.pending?'<p class="b-message b-error">Speicherung noch ungeklärt. <button data-head-retry>Speicherung erneut prüfen / versuchen</button></p>':''}${c.errors.length?'<p class="b-message b-error">Übersicht möglicherweise unvollständig/veraltet: '+c.errors.map(esc).join(' · ')+' <button data-alert-refresh>Aktualisieren</button></p>':''}
     ${c.records.filter(r=>r.question||r.conflict||r===latestChanged&&r.withdrawn).map(r=>`<div class="b-message b-error">${r.question?`<b>Rückfrage:</b> ${esc(r.question)} <button data-answer="${r.order.id}">Rückfrage beantworten …</button>`:''}${r.conflict?'<p>Parallele Rückmeldungen: in der <a href="buero/" target="spektron-buero" rel="noopener">Büroübersicht prüfen</a>.</p>':''}${r.withdrawn?'<p>Aktuelle Übergabe zurückgenommen. <button data-show-record="'+r.order.id+'">Rücknahme ansehen</button></p>':''}</div>`).join('')}`;
-  const alertBox=document.getElementById('bueroAttention')||c.container.querySelector('[data-alerts]');if(alertBox.innerHTML!==alerts)alertBox.innerHTML=alerts;
+  const alertBox=document.getElementById('bueroAttention')||c.container.querySelector('[data-alerts]');
+  if(c.alertKey!==alerts||c.alertBox!==alertBox){const focus=rememberFocus(c);alertBox.innerHTML=alerts;c.alertKey=alerts;c.alertBox=alertBox;restoreFocus(c,focus);}
   const html=active.map(recordHtml).join('')+(history.length?`<details data-history ${c.d.historyOpen?'open':''}><summary>Frühere Übergaben</summary>${history.map(recordHtml).join('')}</details>`:'');
   if(c.recordKey!==html){
     const focus=rememberFocus(c);el.innerHTML=html;c.recordKey=html;

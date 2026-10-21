@@ -102,7 +102,8 @@ if(!before){
  await page.evaluate(()=>testIO.failWrite=true);await page.locator('[data-submit]').click();await page.locator('[data-message]').filter({hasText:'Nicht bestätigt gespeichert'}).waitFor();
  const pending=await page.evaluate(()=>JSON.parse(sessionStorage.getItem('buero-draft:26.9999 Kontrollort')).pending);
  await page.locator('[data-handover] > summary').click();assert.ok(!await page.locator('[data-submit]').isVisible());assert.ok(await page.locator('#bueroAttention [data-head-retry]').isVisible());
- await page.evaluate(()=>{testIO.failWrite=false;window.dispatchEvent(new Event('focus'));});await page.locator('#bueroAttention').filter({hasText:'unvollständig/veraltet'}).waitFor();
+ await page.locator('#bueroAttention [data-head-retry]').focus();await page.evaluate(()=>{testIO.failWrite=false;window.dispatchEvent(new Event('focus'));});await page.locator('#bueroAttention').filter({hasText:'unvollständig/veraltet'}).waitFor();
+ assert.ok(await page.locator('#bueroAttention [data-head-retry]').evaluate(e=>document.activeElement===e),'refresh retains keyboard focus on the direct retry action');
  assert.ok(await page.locator('#bueroAttention [data-head-retry]').isEnabled());await page.locator('#bueroAttention [data-head-retry]').click();await page.locator('[data-message]').filter({hasText:'Gespeichert und rückgelesen'}).waitFor();
  const orders=await fs.readdir(path.join(tmp,B,'_Buero'));assert.deepEqual(orders,[pending.data.id]);assert.deepEqual(JSON.parse(await fs.readFile(path.join(tmp,B,'_Buero',pending.data.id,'auftrag.json'),'utf8')),pending.data);
 }

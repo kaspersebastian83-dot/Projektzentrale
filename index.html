@@ -1084,8 +1084,8 @@ function renderDetail(){
     return `<label class="${wide ? 'wide' : ''}">${esc(label)}
         ${type === 'area' ? `<textarea id="pj_${k}" rows="3" ${ro ? 'readonly' : ''}></textarea>`
           : `<input type="${type}" id="pj_${k}" placeholder="${esc(ph)}" ${ro ? 'readonly' : ''}>`}</label>`; };
-  const same=S.renderedName===p.name&&S.renderedArchive===S.archive,scroll=$('detail').scrollTop,oldPanel=same?$('bueroPanel'):null;
-  const officeFocus=oldPanel?.contains(document.activeElement)?{el:document.activeElement,start:document.activeElement.selectionStart,end:document.activeElement.selectionEnd}:null;
+  const same=S.renderedName===p.name&&S.renderedArchive===S.archive,scroll=$('detail').scrollTop,oldPanel=same?$('bueroPanel'):null,oldAlerts=same?$('bueroAttention'):null;
+  const officeFocus=(oldPanel?.contains(document.activeElement)||oldAlerts?.contains(document.activeElement))?{el:document.activeElement,start:document.activeElement.selectionStart,end:document.activeElement.selectionEnd}:null;
   S.renderedName=p.name;S.renderedArchive=S.archive;
   $('detail').innerHTML = `<div class="pz">
     <h2><span class="nr">${esc(p.nr)}</span> ${esc(p.ort)}</h2>
@@ -1125,6 +1125,7 @@ function renderDetail(){
     ${weitereApps()}
   </div>`;
   if(oldPanel)$('bueroPanel').replaceWith(oldPanel);
+  if(oldAlerts)$('bueroAttention').replaceWith(oldAlerts);
   if(officeFocus){officeFocus.el.focus({preventScroll:true});try{officeFocus.el.setSelectionRange(officeFocus.start,officeFocus.end);}catch{}}
   if($('azQuick'))$('azQuick').onclick=()=>$('azFile').click();
   $('pjBox').addEventListener('toggle', () => { S.pjOpen[p.name] = $('pjBox').open; });
