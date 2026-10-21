@@ -2,7 +2,13 @@
 
 Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung.
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.10.0** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.11.0** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Neu in 1.11.0 · 21.10.2026
+
+Die Projektansicht zeigt zuerst Projektkopf und vier jederzeit verfügbare Aufgaben. Die Büroübergabe ist kompakt; Empfänger, Datei, Änderungen und frühere Aufträge stehen in aufklappbaren Details. Rückfragen, Fehler und ungeklärte Speicherversuche bleiben am Projektkopf sichtbar. Ordner und frühere Versandangaben sind nachgeordnet. Dateifunde bedeuten keine fachliche Fertigstellung. Die Projektliste lässt sich auch per Tab und Enter/Leertaste bedienen. Datenformate, Dateierzeugung, Fragmentlinks und Büro-Sicherheitsregeln bleiben erhalten.
+
+[UI-Abnahme und Vorher-/Nachher-Bilder](docs/projektansicht/README.md).
 
 ## Neu in 1.10.0 · 21.10.2026
 
@@ -41,8 +47,8 @@ Die App läuft vollständig im Browser auf dem eigenen Rechner. **Ordner, Dateie
 - **„? Kurzanleitung“** (oder F1): wie Projektzentrale, LabelKit, FotoKit und PlanKit zusammenarbeiten – Einrichtung, Ablauf je Projekt mit Bild, Hinweise, Adressen; druckbar als PDF.
 
 - Listet alle Projektordner (`26.0123 Köln`), neueste zuerst, mit Suche und Jahresfilter.
-- **Projektansicht (ab 1.7), Schritt für Schritt:** Rechts stehen die Apps als nummerierte Karten in der Reihenfolge der Arbeit – ① LabelKit, ② FotoKit, ③ PlanKit, zum Schluss ④ BelegKit (abgesetzt). Farbe wie das App-Symbol; ✓ = erledigt (laut Ordnerstand), gefüllte Karte = nächster Schritt; jede App bleibt jederzeit anklickbar. Die Anlagen hängen an ihrem Schritt und erscheinen nur, wenn es etwas zu erstellen gibt. Projektdaten und Ordnerstand sind aufklappbare Karten (leere Projektdaten gestrichelt hervorgehoben); fehlende Unterordner erscheinen als Hinweis mit „Anlegen“.
-- **Weitere Apps (ab 1.9):** Ganz unten im rechten Fenster (auch ohne gewähltes Projekt) öffnet „SpesenKit“ die monatliche Spesenabrechnung der Kollegen in einem eigenen Fenster. Kein Projektbezug, darum kein nummerierter Arbeitsschritt und kein `?projekt=` im Link (`../reisekosten-pro/` – die Webadresse trägt noch den früheren Namen „Reisekosten Pro“). SpesenKit speichert nicht im Archivordner, sondern in einem eigenen Ordner je Person (siehe unten).
+- **Projektansicht (ab 1.11):** Projektnummer, Ort, Objekt und Auftraggeber stehen über vier jederzeit verfügbaren Aufgaben: „Proben & Laborauftrag“, „Fotos & Dokumentation“, „Probenplan bearbeiten“ und „Zeiten & Abrechnung“. Dezente App-Farben bleiben; Dateibestand bedeutet keine fachliche Fertigstellung. Anlagen sind weiterhin an ihrer Aufgabe erreichbar. Büroübergabe, Ordner und frühere Versandangaben folgen als aufklappbare Bereiche. Rückfragen, Konflikte, Speicherfehler und offene Versuche bleiben am Projektkopf sichtbar.
+- **Weitere Apps (ab 1.9):** Ganz unten im rechten Fenster (auch ohne gewähltes Projekt) öffnet „Büroübersicht“ die separate Büroarbeit; „SpesenKit“ öffnet die monatliche Spesenabrechnung der Kollegen in einem eigenen Fenster. Kein Projektbezug, darum kein nummerierter Arbeitsschritt und kein `?projekt=` im Link (`../reisekosten-pro/` – die Webadresse trägt noch den früheren Namen „Reisekosten Pro“). SpesenKit speichert nicht im Archivordner, sondern in einem eigenen Ordner je Person (siehe unten).
 - **Leiste in den Projekt-Apps (ab 1.7.1):** LabelKit, FotoKit, PlanKit und BelegKit zeigen oben dieselbe schmale Leiste – Projekt mit Wechsel zu den zuletzt geöffneten, die vier Arbeitsschritte mit Haken und „Weiter: …“ zum nächsten offenen Schritt. Die Projektzentrale führt dafür die Liste `zuletzt` im gemeinsamen Browser-Speicher; beim Start ist das zuletzt in einer App geöffnete Projekt vorgewählt.
 - Zeigt je Projekt, was schon da ist: Fotos, Bilddokumentation, Probenplan, Probenerfassung (LabelKit `…_Daten.json`), Laborergebnisse.
 - Legt fehlende Standard-Unterordner auf Wunsch an.
@@ -52,7 +58,7 @@ Die App läuft vollständig im Browser auf dem eigenen Rechner. **Ordner, Dateie
   - Steht auf dem Zettel eine andere Projektnummer als im Ordnernamen, ist nichts angehakt und „Übernehmen“ erst nach ausdrücklicher Bestätigung möglich. Hinweise bei unplausiblen Daten (Termin vor Auftragsdatum, Schaden nach Auftrag); kein Datum → Feld bleibt leer.
   - Ordner werden nicht angelegt oder verändert; geschrieben wird nur `_Projekt.json` (mit Dateiname und SHA-256 des Zettels unter `arbeitszettel`). Das PDF wird nur im Browser gelesen.
   - PDF-Bibliothek: pdf.js (Mozilla, Apache-2.0, Legacy-Build) in `vendor/pdfjs/`, wird erst beim ersten Einlesen geladen. Funktioniert in der Online-Version (nicht aus einer lokal geöffneten Datei).
-- **Verteiler (ab 1.8):** Historische Karte unter den Projektdaten – Auftraggeber, Sachverständiger, Versicherungsnehmer, Sanierung: anhaken, wer das Gutachten bekommt, und nach dem Versand das Datum eintragen („heute“). Gespeichert als `verteiler` in `_Projekt.json`. Bei digitalen Büroaufträgen nur noch Ansicht; deren Versand wird ausschließlich in der Büroübersicht geführt.
+- **Frühere Versandangaben (ab 1.8 als „Verteiler“):** Nachgeordnete historische Karte – Auftraggeber, Sachverständiger, Versicherungsnehmer, Sanierung: anhaken, wer das Gutachten bekommt, und nach dem Versand das Datum eintragen („heute“). Gespeichert als `verteiler` in `_Projekt.json`. Bei digitalen Büroaufträgen nur noch Ansicht; deren Versand wird ausschließlich in der Büroübersicht geführt.
 - **„Fotos bearbeiten“** öffnet FotoKit direkt im Ordner `Fotos` des Projekts, mit vorausgefüllten Projektdaten.
 - **„Plan bearbeiten“** öffnet PlanKit direkt im Ordner `Pläne`: automatisches Speichern als `Probenplan <Projekt>.probenplan`, Bilder ebenfalls dorthin, Laborberichte aus `Laborergebnisse`.
 - **„Abrechnung → BelegKit“ (ab 1.6, bis 1.6.1 „AufwandKit“)** öffnet BelegKit im Projekt: Zeiten, km, Spesen je Kollege, Proben aus LabelKit, Berichtsseiten und Fotos mit den Positionsnummern der Rechnung.
@@ -101,6 +107,7 @@ Browsertest des ganzen Ablaufs (Archiv → Projekt → Anlage → Datei, Prüfsu
 npm install --no-save playwright && npx playwright install chromium webkit
 node tests/anlage-browser.cjs chromium
 node tests/anlage-browser.cjs webkit
+node tests/projektansicht-browser.cjs           # kompakte Ansicht, Tastatur, Hinweise, Fenstergrößen, nativer Zoom
 node tests/arbeitszettel-browser.cjs chromium   # PDF lesen, Dialog, Speichern, Verteiler
 node tests/zuletzt-browser.cjs chromium         # zuletzt geöffnete Projekte, Vorwahl beim Start
 node tests/wechsel-browser.cjs chromium         # Projektwechsel nach gescheitertem Speichern: nichts geht still verloren
