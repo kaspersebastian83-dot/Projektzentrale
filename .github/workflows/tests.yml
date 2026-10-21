@@ -54,5 +54,8 @@ jobs:
       - name: Office handover and independent shared sessions
         if: matrix.browser == 'chromium'
         run: node tests/buero-browser.cjs
+      - name: Compact project view and native browser zoom
+        if: matrix.browser == 'chromium'
+        run: node tests/projektansicht-browser.cjs
       - name: Project switch after a failed save
         run: node tests/wechsel-browser.cjs ${{ matrix.browser }}

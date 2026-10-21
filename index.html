@@ -73,8 +73,8 @@ button.hbadge:hover{background:rgba(255,255,255,.26);color:#fff;border-color:rgb
 #banner.err{background:color-mix(in srgb,var(--err) 12%,var(--panel))}
 
 main{flex:1;display:flex;min-height:0}
-#listWrap{flex:1 1 52%;overflow:auto;padding:10px 12px 40px}
-#detail{flex:1 1 48%;border-left:1px solid var(--line);background:color-mix(in srgb,var(--panel) 62%,transparent);overflow:auto;padding:16px 20px 40px;min-width:0}
+#listWrap{flex:0 0 33%;overflow:auto;padding:10px 12px 40px}
+#detail{flex:1 1 67%;border-left:1px solid var(--line);background:color-mix(in srgb,var(--panel) 62%,transparent);overflow:auto;padding:16px 20px 40px;min-width:0}
 
 .empty{max-width:560px;margin:60px auto;text-align:center;color:var(--muted)}
 .empty h2{color:var(--text);font-size:18px;margin:0 0 8px}
@@ -82,13 +82,14 @@ main{flex:1;display:flex;min-height:0}
 .empty code{font-family:var(--mono);background:var(--panel2);border:1px solid var(--line);padding:1px 6px;border-radius:4px;color:var(--text)}
 
 .count{font-size:12.5px;color:var(--muted);margin:2px 4px 8px}
-.proj{display:grid;grid-template-columns:86px 1fr auto;gap:10px;align-items:center;background:color-mix(in srgb,var(--panel) 88%,transparent);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);padding:8px 10px;margin-bottom:6px;cursor:pointer}
+.proj{width:100%;text-align:left;display:grid;grid-template-columns:86px 1fr;gap:10px;align-items:center;background:color-mix(in srgb,var(--panel) 88%,transparent);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);padding:8px 10px;margin-bottom:6px;cursor:pointer}
 .proj:hover{border-color:var(--accent-l)}
 .proj.active{background:var(--focus);border-color:var(--accent)}
 .proj .nr{font:600 13px var(--mono)}
 .proj .ort{min-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .proj .ort small{color:var(--muted);margin-left:6px}
-.chips{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.chips:empty{display:none}
+.chips{grid-column:1 / -1;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
 .chip{font-size:11.5px;padding:1px 7px;border-radius:10px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
 .chip.yes{border-color:color-mix(in srgb,var(--ok) 55%,var(--line));color:var(--ok)}
 .chip.miss{border-style:dashed}
@@ -101,43 +102,23 @@ main{flex:1;display:flex;min-height:0}
 #detail h3{font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:22px 0 8px}
 .actions{display:flex;gap:8px;flex-wrap:wrap}
 .actions .hint{font-size:12px;color:var(--muted);flex-basis:100%}
-/* ---------- Projektansicht (rechts), geführt: Kopf · Projektdaten · Arbeitsschritte · Ordner ----------
-   Eine Spalte, in der Reihenfolge der Arbeit. Farbe = App (wie ihr Symbol), gefüllt = nächster Schritt, Haken = erledigt.
-   Alles Weitere (Projektdaten, Ordnerstand) ist zugeklappt und öffnet sich auf Klick. */
-#detail .pz{max-width:660px}
+/* Projektkopf und jederzeit verfügbare Aufgaben zuerst; Büro- und Ordnerdetails aufklappbar. */
+#detail .pz{max-width:1040px}
 #detail .pz .sub{margin-bottom:16px}
-.steps{display:flex;flex-direction:column;gap:12px;margin:18px 0 6px}
+.steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:18px 0 6px}
 .steps .sw{--ac:var(--accent);position:relative}
 .steps .sw[data-app=label]{--ac:#5469b8}
 .steps .sw[data-app=fotos]{--ac:#2f87a6}
 .steps .sw[data-app=plan]{--ac:#4179b2}
 .steps .sw[data-app=beleg]{--ac:#2f7d6d}
-.steps .step{position:relative;z-index:1;display:grid;grid-template-columns:40px 1fr auto;align-items:center;gap:14px;width:100%;min-height:64px;padding:10px 16px 10px 14px;text-align:left;
+.steps .step{position:relative;z-index:1;display:grid;grid-template-columns:1fr;align-items:center;gap:14px;width:100%;min-height:64px;padding:10px 16px 10px 14px;text-align:left;
   background:var(--panel);border:1px solid var(--line2);border-left:5px solid var(--ac);border-radius:10px;color:var(--text);font-weight:400;box-shadow:none}
 .steps .step:hover{border-color:var(--ac);border-left-color:var(--ac);color:var(--text);box-shadow:0 2px 10px color-mix(in srgb,var(--ac) 22%,transparent)}
-.steps .step .n{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-size:18px;font-weight:700;color:var(--ac);background:color-mix(in srgb,var(--ac) 13%,var(--panel));border:2px solid var(--ac)}
 .steps .step .name{display:block;font-size:17px;font-weight:700;line-height:1.2}
 .steps .step small{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
-.steps .step .stat{font-size:12px;color:var(--muted);white-space:nowrap;text-align:right}
-/* Verbindungslinie hinter den Karten (läuft auch neben einer angehängten Anlage weiter) */
-.steps .sw:not(:last-child)::after{content:"";position:absolute;left:38px;top:32px;bottom:-12px;width:2px;background:var(--line2)}
-.steps .sw.done:not(:last-child)::after{background:var(--ok)}
-.steps .sw:nth-last-child(2)::after{bottom:0}
-/* erledigt: ruhig, mit Haken */
-.steps .sw.done .step{background:color-mix(in srgb,var(--ok) 5%,var(--panel))}
-.steps .sw.done .step .n{background:var(--ok);border-color:var(--ok);color:#fff}
-.steps .sw.done .step .stat{color:var(--ok);font-weight:600}
-/* nächster Schritt: gefüllt in der Farbe der App */
-.steps .sw.next .step{background:var(--ac);border-color:var(--ac);color:#fff;box-shadow:0 3px 12px color-mix(in srgb,var(--ac) 38%,transparent)}
-.steps .sw.next .step small,.steps .sw.next .step .stat{color:rgba(255,255,255,.86)}
-.steps .sw.next .step .n{background:#fff;color:var(--ac);border-color:#fff}
-.steps .sw.next .step:hover{color:#fff;filter:brightness(1.07)}
-/* Abschluss (BelegKit): abgesetzt und leichter, gestrichelt angebunden */
-.steps .sw.last{margin-top:10px}
-.steps .sw.last .step{min-height:56px;border-style:dashed;border-left-style:solid}
-.steps .sw.last::before{content:"";position:absolute;left:38px;bottom:100%;height:22px;border-left:2px dashed var(--line2)}
+.steps .step .stat{font-size:13px;color:var(--muted);white-space:normal;text-align:left}
 /* Anlage am Schritt: klein, eingerückt, in der Farbe der App */
-.att{position:relative;z-index:1;margin:6px 0 0 54px;padding:8px 12px;border:1px solid var(--line);border-left:3px solid var(--ac);border-radius:8px;background:var(--panel2);font-size:13px}
+.att{position:relative;z-index:1;margin:6px 0 0;padding:8px 12px;border:1px solid var(--line);border-left:3px solid var(--ac);border-radius:8px;background:var(--panel2);font-size:13px}
 .att:empty{display:none}
 .att .row{display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap}
 .att .row b{font-weight:600}
@@ -168,8 +149,6 @@ main{flex:1;display:flex;min-height:0}
 .warnbar button{margin-left:auto}
 @media (prefers-color-scheme:dark){
   .steps .sw[data-app=label]{--ac:#8b9cdd} .steps .sw[data-app=fotos]{--ac:#5bb6d2} .steps .sw[data-app=plan]{--ac:#6fa3dc} .steps .sw[data-app=beleg]{--ac:#5fbfa9}
-  .steps .sw.next .step,.steps .sw.next .step:hover{color:#0f1720} .steps .sw.next .step small,.steps .sw.next .step .stat{color:rgba(15,23,32,.78)}
-  .steps .sw.next .step .n{background:#0f1720;color:var(--ac);border-color:#0f1720}
 }
 /* Weitere Apps: nicht Teil des Projektablaufs (kein Projektbezug, keine Nummer) – ruhige Zeile ganz unten */
 .more{margin:22px 0 4px;padding-top:14px;border-top:1px solid var(--line)}
@@ -242,7 +221,23 @@ table.vt button{padding:2px 8px;font-size:12px;margin-left:6px}
 .dialog table td:first-child{color:var(--muted);white-space:nowrap}
 .dialog .m{font-size:13px;color:var(--muted);overflow:auto}
 #support{display:none;background:color-mix(in srgb,var(--err) 12%,var(--panel));padding:10px 16px;border-bottom:1px solid var(--line)}
-@media (max-width:860px){ main{flex-direction:column} #detail{border-left:0;border-top:1px solid var(--line)} .form{grid-template-columns:1fr} }
+@media (max-width:860px){ main{flex-direction:column} #listWrap{flex:0 0 auto;max-height:22vh} #detail{border-left:0;border-top:1px solid var(--line)} .form{grid-template-columns:1fr} }
+
+.project-summary{margin:6px 0 10px;color:var(--muted);overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+#pjAttention:empty{display:none} #pjAttention{margin:10px 0;padding:10px;border-left:3px solid var(--warn);background:var(--panel2)}
+.more a.app{border-left:1px solid var(--line2);padding:8px 12px;margin:5px 0}.more a.app .name{font-size:15px;font-weight:500}
+@media(max-width:1100px){.steps{grid-template-columns:1fr}}
+@media(max-width:680px){table.vt tr{display:block;border-bottom:1px solid var(--line)}table.vt td{display:block;width:auto!important;text-align:left!important;white-space:normal!important}table.vt .vtD{white-space:normal}}
+/* Only the project handover panel; the separate office workplace keeps its styling. */
+#bueroPanel.buero{font:inherit}#bueroPanel h3{margin:0 0 8px;text-transform:none;letter-spacing:0;color:var(--text);font-size:16px}
+#bueroPanel [data-overview]{color:var(--muted)}#bueroPanel [data-handover]>summary{color:var(--accent)}
+#bueroPanel [data-handover]{margin-bottom:0}#bueroPanel [data-form]{border-top:1px solid var(--line);padding-top:10px}
+#bueroPanel [data-group-fields][hidden]{display:none}#bueroPanel [data-record]{border-bottom:1px solid var(--line);padding:7px 0}
+#bueroPanel .b-address,#bueroPanel .b-message{overflow-wrap:anywhere}#bueroPanel [data-record]>summary{font-weight:500}
+#bueroPanel .b-error{border-color:var(--err);color:var(--err)}#bueroPanel summary{padding:4px 0}
+
+#bueroAttention.buero{font:inherit}
+
 </style>
 <link rel="stylesheet" href="buero/ui.css">
 <script src="buero/data.js"></script>
@@ -710,9 +705,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.10.0';
+const APP_VERSION = '1.11.0';
 const APP_DATE = '2026-10-21';
 const CHANGELOG = [
+  ['1.11.0', '21.10.2026', 'Projektansicht vereinfacht: Projektkopf und vier jederzeit verfügbare Aufgaben zuerst. Büroübergabe mit kompaktem Stand und aufklappbaren Details; Rückfragen, Fehler und offene Speicherversuche bleiben sichtbar. Frühere Versandangaben und Ordner nachgeordnet, Projektwahl auch per Tastatur. Dateibestand wird nicht als fachliche Fertigstellung angezeigt.'],
   ['1.10.0', '21.10.2026', 'Digitale Übergabe ans Büro mit bestätigter Word-Datei und vollständigen Empfängern. Eigene Büroübersicht unter buero/ für Gegenlesen, PDF-Zuordnung, Rückfragen und Versanddokumentation. Die Papiermappe bleibt; keine weitere Freigabe nach Korrektur. Gemeinsame, ergänzend gespeicherte Rückmeldungen im Projektordner.'],
   ['1.9.4', '20.10.2026', 'Projektzentrale und Spektron-Leiste übergeben Projekte jetzt über #projekt im Fragment. Sonderzeichen bleiben erhalten; alte ?projekt-Links funktionieren weiterhin und werden nach dem Laden bereinigt. Projektwechsel laden auch bereits geöffnete App-Fenster neu; eine Warnung vor ungesicherten Eingaben kann den Wechsel abbrechen. PlanKits Anlagenaktion wird ebenfalls im Fragment übergeben.'],
   ['1.9.3', '18.10.2026', 'Die Büro-Apps heißen zusammen „Spektron“: Name oben neben „Projektzentrale“, im Fenstertitel und in der Kurzanleitung („Kurzanleitung – Spektron-Apps“, mit Satz zur Suite). Sonst unverändert.'],
@@ -986,27 +982,15 @@ function renderYears(){
   $('years').querySelectorAll('button').forEach(b => b.onclick = () => { S.year = b.dataset.y; renderYears(); renderList(); });
 }
 function chipsHtml(p){
-  if (!p.st) return '<span class="chip wait">…</span>';
-  if (p.st.err) return `<span class="chip" title="${esc(p.st.err)}">nicht lesbar</span>`;
-  const s = p.st.subs, out = [];
-  const c = (cls, txt, title) => out.push(`<span class="chip ${cls}" title="${esc(title)}">${txt}</span>`);
-  const fo = s.fotos;
-  if (!fo) c('miss', 'Fotos –', 'Unterordner „Fotos“ fehlt');
-  else c(fo.images ? 'yes' : '', `Fotos ${fo.images}`, `${fo.images} Bilder in „Fotos“`);
-  if (fo && fo.pdfDoc.length) c('yes', 'Bilddoku ✓', fo.pdfDoc.join(', '));
-  const pl = s.plaene;
-  if (pl && (pl.probenplan || pl.files)) c(pl.probenplan ? 'yes' : '', pl.probenplan ? 'Plan ✓' : `Pläne ${pl.files}`, pl.probenplan ? `${pl.probenplan} PlanKit-Datei(en)` : `${pl.files} Datei(en) in „Pläne“`);
-  const la = s.labauf;
-  if (la && la.daten.length) c('yes', 'Proben ✓', la.daten.join(', '));
-  const le = s.laberg;
-  if (le && le.files) c('yes', `Ergebnisse ${le.files}`, `${le.files} Datei(en) in „Laborergebnisse“`);
-  return out.join('');
+  if (!p.st) return '<span class="chip wait">Bestand wird geprüft</span>';
+  if (p.st.err) return `<span class="chip" title="${esc(p.st.err)}">Bestand nicht lesbar</span>`;
+  return '';
 }
 function rowHtml(p){
-  return `<div class="proj${S.sel === p ? ' active' : ''}" data-name="${esc(p.name)}">
+  return `<button type="button" class="proj${S.sel === p ? ' active' : ''}" data-name="${esc(p.name)}" aria-pressed="${S.sel === p}">
     <span class="nr">${esc(p.nr)}</span>
     <span class="ort">${esc(p.ort || '–')}</span>
-    <span class="chips">${chipsHtml(p)}</span></div>`;
+    <span class="chips">${chipsHtml(p)}</span></button>`;
 }
 function renderList(){
   if (!S.archive) return;
@@ -1035,7 +1019,7 @@ async function selectProject(p){
     if (!(await confirmDialog('Änderungen nicht gespeichert', `In „${esc(S.sel.name)}“ konnten diese Angaben nicht gespeichert werden: <b>${namen.map(esc).join(', ')}</b>.<br>Beim Wechsel gehen sie verloren.`, 'Trotzdem wechseln'))) return;
   }
   S.sel = p; S.pj = null; S.pjDirty = {}; S.anl = null;
-  $('list').querySelectorAll('.proj').forEach(el => el.classList.toggle('active', el.dataset.name === p.name));
+  $('list').querySelectorAll('.proj').forEach(el => { el.classList.toggle('active', el.dataset.name === p.name); el.setAttribute('aria-pressed', String(el.dataset.name === p.name)); });
   if (!p.st){ p.scanning = true; p.st = await scanProject(p); p.scanning = false; updateRow(p); }
   S.pj = await readPJ(p.handle);
   if (S.sel !== p) return;
@@ -1048,7 +1032,7 @@ function folderRows(p){
     if (!i) return `<tr><td>${esc(label)}</td><td class="miss">fehlt</td></tr>`;
     let t = `${i.files} Datei${i.files === 1 ? '' : 'en'}`;
     if (key === 'fotos'){
-      t = `${i.images} Bild${i.images === 1 ? '' : 'er'}` + (i.bu ? ' · bearbeitet in FotoKit' : '') +
+      t = `${i.images} Bild${i.images === 1 ? '' : 'er'}` + (i.bu ? ' · Fotobearbeitung begonnen' : '') +
           (i.pdfDoc.length ? ` · <span class="ok">Bilddokumentation: ${i.pdfDoc.map(esc).join(', ')}</span>` : '');
     }
     if (key === 'plaene' && i.probenplan) t += ` · <span class="ok">${i.probenplan === 1 ? 'Probenplan' : i.probenplan + ' PlanKit-Dateien'}</span>`;
@@ -1057,23 +1041,17 @@ function folderRows(p){
     return `<tr><td>${esc(label)}</td><td>${t}</td></tr>`;
   }).join('') + (p.st.extra.length ? `<tr><td class="m">Weitere</td><td class="m">${p.st.extra.map(esc).join(', ')}</td></tr>` : '');
 }
-/* Stand der Arbeitsschritte aus dem Ordnerstand: erledigt (Haken), nächster Schritt (gefüllt). Nur eine Hilfe zur Orientierung – jede App bleibt jederzeit anklickbar. */
+/* Dateibestand ist eine Orientierung, keine fachliche Fertigstellung oder Pflichtabfolge. */
 function arbeitsstand(p){
-  const st = p.st && !p.st.err ? p.st : null, out = { label: {}, fotos: {}, plan: {}, beleg: {} };
-  if (!st) return out;
-  const lab = st.subs.labauf, fo = st.subs.fotos, pl = st.subs.plaene;
-  out.label = lab && lab.daten.length ? { done: true, text: '✓ erfasst' } : { text: lab ? 'noch leer' : 'Ordner fehlt' };
-  out.fotos = fo && fo.bu ? { done: true, text: `✓ ${fo.images} Bild${fo.images === 1 ? '' : 'er'}` } : { text: fo ? (fo.images ? `${fo.images} Bild${fo.images === 1 ? '' : 'er'}` : 'noch leer') : 'Ordner fehlt' };
-  out.plan = pl && pl.probenplan ? { done: true, text: '✓ Probenplan' } : { text: pl ? 'noch kein Plan' : 'Ordner fehlt' };
-  const next = ['label', 'fotos', 'plan'].find(k => !out[k].done);
-  if (next) out[next].next = true; else out.beleg.next = true;
-  return out;
+  const st=p.st&&!p.st.err?p.st:null;
+  if(!st){const text=p.st?.err?'Bestand nicht lesbar':'Bestand wird geprüft';return {label:{text},fotos:{text},plan:{text},beleg:{text:'Jederzeit verfügbar'}};}
+  const lab=st.subs.labauf,fo=st.subs.fotos,pl=st.subs.plaene;
+  return {label:{text:lab?.daten.length?'Probendaten vorhanden':lab?'Keine Probendaten gefunden':'Ordner fehlt'},
+    fotos:{text:fo?.pdfDoc.length?'Bilddokumentation vorhanden':fo?.bu?'Fotobearbeitung begonnen':fo?.images?`${fo.images} Bilder vorhanden`:fo?'Keine Bilder gefunden':'Ordner fehlt'},
+    plan:{present:!!pl?.probenplan,text:pl?.probenplan?'Probenplan vorhanden':pl?'Kein Probenplan gefunden':'Ordner fehlt'},beleg:{text:'Jederzeit verfügbar'}};
 }
-function stepCard(id, app, nr, name, aufgabe, st, tip, extra, last){
-  st = st || {};
-  return `<div class="sw${st.done ? ' done' : ''}${st.next ? ' next' : ''}${last ? ' last' : ''}" data-app="${app}">
-    <button class="step" id="${id}" title="${esc(tip)}"><span class="n">${st.done ? '✓' : nr}</span><span><span class="name">${esc(name)}</span><small>${esc(aufgabe)}</small></span><span class="stat">${esc(st.done ? st.text.replace(/^✓ /, '') : (st.text || ''))}</span></button>
-    ${extra || ''}</div>`;
+function stepCard(id,app,aufgabe,name,st,tip,extra=''){
+  return `<div class="sw" data-app="${app}"><button class="step" id="${id}" title="${esc(tip)}"><span><span class="name">${esc(aufgabe)}</span><small>${esc(name)}</small></span><span class="stat">${esc(st.text)}</span></button>${extra}</div>`;
 }
 /* Projektdaten in drei Gruppen; Projektnummer und Schadenort stehen im Kopf (aus dem Ordnernamen). */
 const PJ_GRUPPEN = [['Objekt und Auftrag', ['objekt', 'auftraggeber', 'schadennummer', 'auftragsdatum']], ['Schaden und Termine', ['schadenereignis', 'schadendatum', 'ortstermin', 'sachverstaendiger']],
@@ -1106,11 +1084,16 @@ function renderDetail(){
     return `<label class="${wide ? 'wide' : ''}">${esc(label)}
         ${type === 'area' ? `<textarea id="pj_${k}" rows="3" ${ro ? 'readonly' : ''}></textarea>`
           : `<input type="${type}" id="pj_${k}" placeholder="${esc(ph)}" ${ro ? 'readonly' : ''}>`}</label>`; };
+  const same=S.renderedName===p.name&&S.renderedArchive===S.archive,scroll=$('detail').scrollTop,oldPanel=same?$('bueroPanel'):null,oldAlerts=same?$('bueroAttention'):null;
+  const officeFocus=(oldPanel?.contains(document.activeElement)||oldAlerts?.contains(document.activeElement))?{el:document.activeElement,start:document.activeElement.selectionStart,end:document.activeElement.selectionEnd}:null;
+  S.renderedName=p.name;S.renderedArchive=S.archive;
   $('detail').innerHTML = `<div class="pz">
     <h2><span class="nr">${esc(p.nr)}</span> ${esc(p.ort)}</h2>
-    <div class="sub">${esc(S.archive.name)} › ${esc(p.name)}</div>
+    <p class="project-summary">${esc([d.objekt,d.auftraggeber].filter(Boolean).join(' · ')||'Objekt und Auftraggeber noch nicht eingetragen')}</p>
+    <div id="pjAttention" role="status"></div><div id="bueroAttention" class="buero" role="status"></div>
+    ${!summe&&!ro?'<div class="azrow"><button id="azQuick">Arbeitszettel einlesen …</button></div>':''}
     <details class="card${summe ? '' : ' leer'}" id="pjBox" ${pjAuf ? 'open' : ''}>
-      <summary><span class="t">Projektdaten</span><span class="sum">${summe ? esc(summe) : 'noch leer – Arbeitszettel einlesen oder Objekt, Auftraggeber … eintragen'}</span>
+      <summary><span class="t">Projektdaten</span><span class="sum">${ro?'Ansehen':summe?'Bearbeiten · Arbeitszettel einlesen':'Ergänzen oder Arbeitszettel einlesen'}</span>
         <span class="save" id="pjSave">${pj.exists ? (d.geaendert ? `Gespeichert ${esc(new Date(d.geaendert).toLocaleDateString('de-DE'))}` : '') : ''}</span></summary>
       <div class="body">
         ${nrWarn}
@@ -1122,25 +1105,29 @@ function renderDetail(){
         <div class="save m" title="${esc(PJ_FILE)} im Projektordner – gilt für alle Apps">${pj.exists ? (d.geaendert ? `Zuletzt gespeichert ${esc(new Date(d.geaendert).toLocaleString('de-DE'))}${d.geaendertMit ? ' mit ' + esc(d.geaendertMit) : ''}` : '') : 'Noch keine Projektdaten – wird beim ersten Eintrag angelegt.'} · gilt für alle Apps</div>
       </div>
     </details>
-    <details class="card${vst.an ? '' : ' leer'}" id="vtBox" ${S.vtOpen[p.name] ? 'open' : ''}>
-      <summary><span class="t">Verteiler</span><span class="sum">${esc(vst.text)}</span></summary>
-      <div class="body"><div class="m vtHint">Wer bekommt das Gutachten? Empfänger anhaken, nach dem Versand das Datum eintragen.</div>${verteilerHtml(d, ro)}</div>
-    </details>
-    <section id="bueroPanel"></section>
     <div class="steps">
-      ${stepCard('goLabel', 'label', 1, 'LabelKit', 'Proben erfassen', stand.label, 'Öffnet den Ordner „Laboraufträge“ dieses Projekts und speichert dort', '<div class="att" id="anl"></div>')}
-      ${stepCard('goFotos', 'fotos', 2, 'FotoKit', 'Fotos bearbeiten', stand.fotos, 'Öffnet den Ordner „Fotos“ dieses Projekts und speichert dort')}
-      ${stepCard('goPlan', 'plan', 3, 'PlanKit', 'Plan bearbeiten', stand.plan, 'Öffnet den Ordner „Pläne“ dieses Projekts und speichert dort',
-        stand.plan.done ? `<div class="att"><div class="row"><b>Anlage Probenahme</b><span class="m">Lagepläne, Probenverzeichnis, Fotos, Laborwerte</span><button id="anlPlan" title="Öffnet PlanKit gleich im Export „Word · Anlage Probenahme“">Erstellen …</button></div></div>` : '')}
-      ${stepCard('goAufwand', 'beleg', 4, 'BelegKit', 'Abrechnung', stand.beleg, 'Zeiten, km, Spesen eintragen; Proben, Berichtsseiten und Fotos für die Rechnung zusammenstellen – speichert im Ordner „Abrechnung“', '', true)}
+      ${stepCard('goLabel', 'label', 'Proben & Laborauftrag', 'LabelKit', stand.label, 'Öffnet den Ordner „Laboraufträge“ dieses Projekts und speichert dort', '<div class="att" id="anl"></div>')}
+      ${stepCard('goFotos', 'fotos', 'Fotos & Dokumentation', 'FotoKit · auch Ergebnistabellen', stand.fotos, 'Öffnet den Ordner „Fotos“ dieses Projekts und speichert dort')}
+      ${stepCard('goPlan', 'plan', 'Probenplan bearbeiten', 'PlanKit', stand.plan, 'Öffnet den Ordner „Pläne“ dieses Projekts und speichert dort',
+        stand.plan.present ? `<div class="att"><div class="row"><b>Anlage Probenahme</b><span class="m">Lagepläne, Probenverzeichnis, Fotos, Laborwerte</span><button id="anlPlan" title="Öffnet PlanKit gleich im Export „Word · Anlage Probenahme“">Erstellen …</button></div></div>` : '')}
+      ${stepCard('goAufwand', 'beleg', 'Zeiten & Abrechnung', 'BelegKit', stand.beleg, 'Zeiten, km, Spesen eintragen; Proben, Berichtsseiten und Fotos für die Rechnung zusammenstellen – speichert im Ordner „Abrechnung“', '')}
     </div>
+    <section id="bueroPanel"></section>
     ${fehlend.length ? `<div class="warnbar"><span>Es fehlen Unterordner: <b>${fehlend.map(esc).join(', ')}</b></span><button id="mkSubs">Anlegen</button></div>` : ''}
     <details class="card" id="ordBox" ${S.ordOpen[p.name] ? 'open' : ''}>
       <summary><span class="t">Ordner</span><span class="sum">${ok ? esc(ordnerKurz(p)) : p.st && p.st.err ? 'nicht lesbar' : 'wird gelesen …'}</span></summary>
       <div class="body">${ok ? `<table class="folders">${folderRows(p)}</table>` : `<div class="m">${p.st && p.st.err ? 'Nicht lesbar: ' + esc(p.st.err) : 'Wird gelesen …'}</div>`}</div>
     </details>
+    <details class="card${vst.an ? '' : ' leer'}" id="vtBox" ${S.vtOpen[p.name] ? 'open' : ''}>
+      <summary><span class="t">Frühere Versandangaben</span><span class="sum">${esc(vst.text)}</span></summary>
+      <div class="body"><div class="m vtHint">Wer bekommt das Gutachten? Empfänger anhaken, nach dem Versand das Datum eintragen.</div>${verteilerHtml(d, ro)}</div>
+    </details>
     ${weitereApps()}
   </div>`;
+  if(oldPanel)$('bueroPanel').replaceWith(oldPanel);
+  if(oldAlerts)$('bueroAttention').replaceWith(oldAlerts);
+  if(officeFocus){officeFocus.el.focus({preventScroll:true});try{officeFocus.el.setSelectionRange(officeFocus.start,officeFocus.end);}catch{}}
+  if($('azQuick'))$('azQuick').onclick=()=>$('azFile').click();
   $('pjBox').addEventListener('toggle', () => { S.pjOpen[p.name] = $('pjBox').open; });
   $('ordBox').addEventListener('toggle', () => { S.ordOpen[p.name] = $('ordBox').open; });
   $('vtBox').addEventListener('toggle', () => { S.vtOpen[p.name] = $('vtBox').open; });
@@ -1163,7 +1150,7 @@ function renderDetail(){
     el.value = k in S.pjDirty ? S.pjDirty[k] : (d[k] || '');   // noch nicht gespeicherte Eingaben nicht durch den alten Stand ersetzen
     if (!ro) el.addEventListener('input', () => { S.pjDirty[k] = el.value; schedulePJ(); });
   }
-  if (fokus && $(fokus.id)){ const el = $(fokus.id); el.focus(); try{ if (fokus.a != null) el.setSelectionRange(fokus.a, fokus.b); }catch(e){} }
+  if (fokus && $(fokus.id)){ const el = $(fokus.id); el.focus({preventScroll:true}); try{ if (fokus.a != null) el.setSelectionRange(fokus.a, fokus.b); }catch(e){} }
   if (Object.keys(S.pjDirty).length){ $('pjSave').className = 'save'; $('pjSave').textContent = 'Änderungen werden gespeichert …'; }
   $('goFotos').onclick = () => openBildumbenenner(p);
   $('goPlan').onclick = () => openPlanKit(p);
@@ -1172,10 +1159,20 @@ function renderDetail(){
   if ($('anlPlan')) $('anlPlan').onclick = () => openPlanKit(p, 'anlage');
   if ($('mkSubs')) $('mkSubs').onclick = () => makeSubs(p);
   BueroCentral.mount($('bueroPanel'), p, () => ({...(S.pj?.data || {}), __bueroReadonly: !!(S.pj?.error || S.pj?.newer)}), async () => { await flushPJ(); if (Object.keys(S.pjDirty).length) throw Error('Projektdaten sind noch nicht gespeichert.'); });
+  showPJAttention();
+  if(same)$('detail').scrollTop=scroll;
   if (p.st && !p.st.err) anlStatus(p);
 }
 
+function showPJAttention(){
+  const el=$('pjAttention');if(!el||!S.sel)return;
+  const pj=S.pj||{},status=S.pjStatus?.name===S.sel.name?S.pjStatus:null;
+  const text=pj.error?'Projektdaten nicht lesbar: '+pj.error:pj.newer?'Projektdaten stammen von einer neueren Version. Nur Ansicht.':status?.kind==='err'?status.text:Object.keys(S.pjDirty).length?'Projektdaten werden gespeichert …':'';
+  el.innerHTML=text?`${esc(text)} <button id="showPJ">Projektdaten ansehen</button>`:'';
+  if($('showPJ'))$('showPJ').onclick=()=>{$('pjBox').open=true;$('pjBox').querySelector('summary').focus();};
+}
 function schedulePJ(){
+  S.pjStatus={name:S.sel.name,kind:'pending'};showPJAttention();
   $('pjSave').className = 'save'; $('pjSave').textContent = 'Änderungen werden gespeichert …';
   clearTimeout(S.pjTimer); S.pjTimer = setTimeout(flushPJ, 600);
 }
@@ -1189,12 +1186,13 @@ function flushPJ(){
     try{
       const o = await patchPJ(p.handle, p.name, patch);
       if (S.sel === p){
-        S.pj = { data: o, exists: true };
+        S.pj = { data: o, exists: true };S.pjStatus={name:p.name,kind:'ok'};showPJAttention();
         const el = $('pjSave'); if (el){ el.className = 'save ok'; el.textContent = `✓ Gespeichert ${new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`; el.title = `in ${PJ_FILE} im Projektordner`; }
       }
       if (p.st) p.st.pj = true;
     }catch(e){
       S.pjDirty = Object.assign({}, patch, S.pjDirty);   // newer edits win
+      S.pjStatus={name:p.name,kind:'err',text:'Projektdaten nicht gespeichert: '+e.message};showPJAttention();
       const el = $('pjSave'); if (el && S.sel === p){ el.className = 'save err'; el.textContent = 'Nicht gespeichert: ' + e.message; }
     }
   });
@@ -1723,7 +1721,7 @@ function helpHtml(){
   ${helpDiagram()}
   <div class="cap">Durchgezogene Pfeile: Die App speichert dort. Gestrichelt: PlanKit liest die Proben aus LabelKit und die Messwerte vom Labor.</div>
   <ol>
-    <li><b>Projektzentrale:</b> Projekt wählen. Rechts stehen die Arbeitsschritte als Karten untereinander – die gefüllte Karte ist der nächste Schritt, ✓ heißt erledigt. Oben unter <b>„Projektdaten“</b> mit <b>„Arbeitszettel einlesen …“</b> das PDF des Büro-Systems übernehmen (jeder Wert wird vor dem Speichern gezeigt) oder Objekt, Auftraggeber, Schadendatum … von Hand ergänzen; alle Apps übernehmen sie. Unter <b>„Übergabe ans Büro“</b> Word-Datei und Empfänger bestätigen und den Auftrag bewusst übergeben. Die Papiermappe bleibt Bestandteil des Ablaufs. Das Büro dokumentiert Gegenlesen, PDF und Versand in der separat aufrufbaren <b>Büroübersicht</b> unter „Weitere Apps“. Nach Gegenlesen ist keine weitere Freigabe erforderlich. „Verteiler“ bleibt für historische Versandangaben erhalten.</li>
+    <li><b>Projektzentrale:</b> Projekt wählen. Rechts stehen vier jederzeit verfügbare Aufgaben. Die Hinweise zeigen nur den erkannten Dateibestand, keine fachliche Fertigstellung oder Pflichtreihenfolge. Oben unter <b>„Projektdaten“</b> mit <b>„Arbeitszettel einlesen …“</b> das PDF des Büro-Systems übernehmen (jeder Wert wird vor dem Speichern gezeigt) oder Objekt, Auftraggeber, Schadendatum … von Hand ergänzen; alle Apps übernehmen sie. Unter <b>„Übergabe ans Büro“</b> Word-Datei und Empfänger bestätigen und den Auftrag bewusst übergeben. Die Papiermappe bleibt Bestandteil des Ablaufs. Das Büro dokumentiert Gegenlesen, PDF und Versand in der separat aufrufbaren <b>Büroübersicht</b> unter „Weitere Apps“. Nach Gegenlesen ist keine weitere Freigabe erforderlich. „Frühere Versandangaben“ bleibt für historische Versandangaben erhalten.</li>
     <li><b>① LabelKit – Proben erfassen:</b> Proben anlegen, Etiketten drucken, Laborübergabe erstellen, <b>Strg+S</b>. Alles landet in „Laboraufträge“.</li>
     <li><b>② FotoKit – Fotos bearbeiten:</b> Fotos benennen und die Bilddokumentation als PDF erstellen (Ordner „Fotos“).</li>
     <li><b>③ PlanKit – Plan bearbeiten:</b> Grundriss aus „Pläne“ wählen. Unter „Laborbericht importieren …“ die <b>Probenerfassung aus LabelKit</b> übernehmen und die Proben auf den Plan ziehen.</li>
