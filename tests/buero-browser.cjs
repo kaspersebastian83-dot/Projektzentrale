@@ -56,8 +56,25 @@ await central.setViewportSize({width:1440,height:2400});await central.locator('#
 // Write failure keeps inputs and stable attempt. Retry creates exactly one order.
 await central.evaluate(()=>testIO.failWrite=true);await central.locator('[data-submit]').click();await central.locator('[data-message]').filter({hasText:'Nicht bestätigt gespeichert'}).waitFor();
 assert.equal(await central.locator('[data-note]').inputValue(),'Papiermappe am Büroplatz. Bitte Anlagen prüfen.');
-await central.evaluate(()=>testIO.failWrite=false);await central.locator('[data-submit]').click();await central.locator('[data-message]').filter({hasText:'Gespeichert und rückgelesen'}).waitFor();
-const dirs=await fs.readdir(path.join(project,'_Buero'));assert.equal(dirs.length,1);const id=dirs[0];
+const pendingAttempt=await central.evaluate(()=>JSON.parse(sessionStorage.getItem('buero-draft:24.0012 Fiktivstadt')).pending);
+const pendingFile=path.join(project,'_Buero',pendingAttempt.data.id,'auftrag.json');
+assert.equal(await fs.readFile(pendingFile,'utf8'),'','first failed write leaves an empty order file');
+await central.evaluate(()=>testIO.failWrite=false);
+await central.locator('[data-refresh]').click();
+await central.locator('[data-records]').filter({hasText:'Unvollständige Übergabedatei'}).waitFor();
+assert.ok(await central.locator('[data-submit]').isEnabled(),'known pending attempt stays retryable after refresh');
+assert.deepEqual(await central.evaluate(()=>JSON.parse(sessionStorage.getItem('buero-draft:24.0012 Fiktivstadt')).pending),pendingAttempt);
+assert.equal(await central.locator('[data-note]').inputValue(),'Papiermappe am Büroplatz. Bitte Anlagen prüfen.');
+const foreignOrder=JSON.stringify({...pendingAttempt.data,content:{...pendingAttempt.data.content,note:'Abweichender vorhandener Inhalt'}});
+await fs.writeFile(pendingFile,foreignOrder);await central.locator('[data-refresh]').click();
+await central.locator('[data-submit]').click();await central.locator('[data-message]').filter({hasText:'Dateikollision'}).waitFor();
+assert.equal(await fs.readFile(pendingFile,'utf8'),foreignOrder,'retry must not overwrite a different existing payload');
+assert.deepEqual(await central.evaluate(()=>JSON.parse(sessionStorage.getItem('buero-draft:24.0012 Fiktivstadt')).pending),pendingAttempt);
+// Restore only the injected test fault, then retry the exact initial attempt through the UI.
+await fs.writeFile(pendingFile,'');await central.locator('[data-refresh]').click();
+await central.locator('[data-records]').filter({hasText:'Unvollständige Übergabedatei'}).waitFor();
+await central.locator('[data-submit]').click();await central.locator('[data-message]').filter({hasText:'Gespeichert und rückgelesen'}).waitFor();
+const dirs=await fs.readdir(path.join(project,'_Buero'));assert.equal(dirs.length,1);const id=dirs[0];assert.equal(id,pendingAttempt.data.id);assert.deepEqual(JSON.parse(await fs.readFile(pendingFile,'utf8')),pendingAttempt.data);
 assert.equal(await fs.readFile(path.join(project,'_Projekt.json'),'utf8'),pjText,'handover never rewrites PJ');
 assert.ok(await central.locator('#vtBox .vtAn').first().isDisabled(),'single shipping source');
 await office.goto(base+'/buero/');await office.locator('#archive').click();await office.locator('tr[data-order]').click();
@@ -97,7 +114,45 @@ await office.evaluate(()=>testIO.failList=false);await office.locator('#refresh'
 // Uncertain event close/readback: same ID is retried, no extra event appears.
 await office.evaluate(()=>testIO.failAfterClose=true);await office.locator('[data-action=claim]').click();await office.locator('#retry').waitFor();const eventCount=(await fs.readdir(path.join(project,'_Buero',id))).length;
 await office.evaluate(()=>testIO.failRead=false);await office.locator('#retry').click();await office.locator('#retry').waitFor({state:'hidden'});assert.equal((await fs.readdir(path.join(project,'_Buero',id))).length,eventCount);
+// Two independent edit forms: a later note edit must not silently remove a recipient added by B.
+const revisionId=await central.evaluate(async id=>{
+ const p=await new SharedDirectoryHandle('').getDirectoryHandle('24.0012 Fiktivstadt');
+ const original=await BueroData.load(p,id);const order=BueroData.order({...original.content,note:'Ausgangsstand zur Änderungsprüfung'});
+ await BueroData.create(p,order);return order.id;
+},id);
+const reviewer=await(await context()).newPage();reviewer.on('pageerror',e=>errors.push(e.message));
+await reviewer.goto(base+'/index.html');await reviewer.locator('#btnStart').click();await reviewer.locator(`.proj[data-name="${A}"]`).click();
+await central.locator('[data-refresh]').click();
+await central.locator(`[data-revise="${revisionId}"]`).click();
+await central.locator('[data-note]').fill('Nur Hinweis von A geändert – bitte erhalten.');
+await reviewer.locator(`[data-revise="${revisionId}"]`).click();
+await reviewer.locator('[data-add="1"]').click();await reviewer.locator('[data-entry="1:2"]').fill('Neue Empfängerin von B, Beispielweg 9');
+await reviewer.locator('[data-submit]').click();await reviewer.locator('[data-message]').filter({hasText:'Gespeichert und rückgelesen'}).waitFor();
+const revisionPath=path.join(project,'_Buero',revisionId);
+assert.equal((await fs.readdir(revisionPath)).length,2);
+await central.locator('[data-submit]').click();
+await central.locator('[data-message]').filter({hasText:'inzwischen geändert'}).waitFor();
+assert.equal(await central.locator('[data-note]').inputValue(),'Nur Hinweis von A geändert – bitte erhalten.');
+assert.equal((await fs.readdir(revisionPath)).length,2,'stale form must not append a revision');
+const afterB=await central.evaluate(async id=>BueroData.load(await new SharedDirectoryHandle('').getDirectoryHandle('24.0012 Fiktivstadt'),id),revisionId);
+assert.ok(afterB.content.recipients.some(r=>r.details==='Neue Empfängerin von B, Beispielweg 9'));
+// Updating alone does not silently accept a different baseline or discard A's inputs.
+await central.locator('[data-refresh]').click();
+assert.equal(await central.locator('[data-note]').inputValue(),'Nur Hinweis von A geändert – bitte erhalten.');
+await central.locator('[data-message]').evaluate(el=>el.dataset.attempt='previous');
+await central.locator('[data-submit]').click();
+await central.waitForFunction(()=>document.querySelector('[data-message]')?.dataset.attempt!=='previous');
+await central.locator('[data-message]').filter({hasText:'inzwischen geändert'}).waitFor();
+assert.equal((await fs.readdir(revisionPath)).length,2);
+// Explicitly reopen the newer record, review it and reapply A's retained note.
+await central.locator(`[data-revise="${revisionId}"]`).click();
+await central.locator('[data-previous]').filter({hasText:'Nur Hinweis von A geändert – bitte erhalten.'}).waitFor();
+assert.equal(await central.locator('[data-entry="1:2"]').inputValue(),'Neue Empfängerin von B, Beispielweg 9');
+await central.locator('[data-note]').fill('Nur Hinweis von A geändert – bitte erhalten.');await central.locator('[data-submit]').click();
+await central.locator('[data-message]').filter({hasText:'Gespeichert und rückgelesen'}).waitFor();
+const afterReview=await central.evaluate(async id=>BueroData.load(await new SharedDirectoryHandle('').getDirectoryHandle('24.0012 Fiktivstadt'),id),revisionId);
+assert.equal(afterReview.content.note,'Nur Hinweis von A geändert – bitte erhalten.');assert.deepEqual(afterReview.content.recipients,afterB.content.recipients);assert.equal(afterReview.events.length,2);assert.equal(afterReview.conflict,false);
 assert.equal(await fs.readFile(path.join(tmp,B,'Kontrolle.txt'),'utf8'),'untouched');assert.equal(await fs.readFile(path.join(project,'_Projekt.json'),'utf8'),pjText);assert.deepEqual(errors,[]);
-console.log('OK Büro Chromium: Übergabe, vollständige Empfänger, Retry nach Fehler, PDF, Teil-/Vollversand, Rückfrage, zwei unabhängige Kontexte und Konflikterkennung. Synthetische Screenshots: tests/buero-results/');
+console.log('OK Büro Chromium: UI-Retry nach Aktualisieren und abgewiesene Dateikollision; veraltetes Formular mit zwei unabhängigen Bearbeitungsständen und bewusster Neuprüfung; Übergabe, vollständige Empfänger, Retry nach Fehler, PDF, Teil-/Vollversand, Rückfrage, zwei unabhängige Kontexte und Konflikterkennung. Synthetische Screenshots: tests/buero-results/');
 }finally{for(const c of contexts)await c.close();await browser.close();server.closeAllConnections();await new Promise(r=>server.close(r));await fs.rm(tmp,{recursive:true,force:true});}
 })().catch(e=>{console.error(e);process.exitCode=1;});

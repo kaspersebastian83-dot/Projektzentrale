@@ -6,6 +6,11 @@ const drafts=new Map();let current=null,busy=false;
 function saved(name){try{return JSON.parse(sessionStorage.getItem('buero-draft:'+name));}catch{return null;}}
 function keep(name,d){drafts.set(name,d);try{sessionStorage.setItem('buero-draft:'+name,JSON.stringify(d));}catch{}}
 function time(t){return new Date(t).toLocaleString('de-DE');}
+// A known immutable attempt may be retried despite an incomplete overview. Its own
+// read/compare/write checks still reject unreadable or different existing files.
+function submitDisabled(c){return busy||!c.loaded||(!c.d.pending&&!!c.errors.length);}
+function revisionStamp(r){return JSON.stringify({heads:r.heads,content:r.content});}
+function draftText(d){return ['Word-Datei: '+d.word,'Person / Kürzel: '+d.who,'Hinweis: '+d.note,...d.rows.map(r=>r.label+' ('+(r.selected?'ausgewählt':'abgewählt')+'):\n'+r.entries.join('\n'))].join('\n');}
 function mount(container,p,readData,flush){
   const d=drafts.get(p.name)||saved(p.name)||{who:'',word:'',note:'',rows:D.recipients(readData()),pending:null,revision:null,message:''};keep(p.name,d);
   current={container,p,readData,flush,d,records:[],errors:[],loaded:false};
@@ -19,6 +24,7 @@ function render(){
     <div data-records></div>
     <details data-form ${d.open?'open':''}><summary>${d.revision?'Offene Übergabe ändern':'Neue Übergabe vorbereiten'}</summary>
       <p>${esc(p.nr)} · ${esc(p.ort)}</p>
+      ${d.revisionPrevious?`<details data-previous open><summary>Bisheriger Entwurf zum Nachlesen und Kopieren</summary><div class="b-address">${esc(d.revisionPrevious)}</div></details>`:''}
       <label>Konkrete Word-Datei · relativer Pfad<input data-word value="${esc(d.word)}" placeholder="Mitteilungen/Gutachten.docx" ${d.pending?'readonly':''}></label>
       <button data-pick ${d.pending?'disabled':''}>Word-Datei im Projektordner auswählen …</button>
       <p class="b-hint">Alternativ relativen Pfad eintragen. Die Datei wird vor der Übergabe geprüft; es wird keine Fassung automatisch ausgewählt.</p>
@@ -26,7 +32,7 @@ function render(){
       ${d.rows.map((r,i)=>`<div class="b-recipient"><label><input type="checkbox" data-group="${i}" ${r.selected?'checked':''} ${d.pending?'disabled':''}>${esc(r.label)}</label>${r.entries.map((v,j)=>`<label>Empfängerangaben ${j+1}<textarea data-entry="${i}:${j}" ${d.pending?'readonly':''}>${esc(v)}</textarea></label>`).join('')}<button data-add="${i}" ${d.pending?'disabled':''}>Weiterer Empfänger</button></div>`).join('')}
       <label>Optionaler Hinweis fürs Büro<textarea data-note ${d.pending?'readonly':''}>${esc(d.note)}</textarea></label>
       <label>Übergebende Person / Kürzel<input data-who value="${esc(d.who)}" ${d.pending?'readonly':''}></label>
-      <button class="primary" data-submit ${busy||!c.loaded||c.errors.length?'disabled':''}>${d.pending?'Speicherung erneut prüfen / versuchen':d.revision?'Geänderte Übergabe speichern':'Zur Büroprüfung übergeben'}</button>
+      <button class="primary" data-submit ${submitDisabled(c)?'disabled':''}>${d.pending?'Speicherung erneut prüfen / versuchen':d.revision?'Geänderte Übergabe speichern':'Zur Büroprüfung übergeben'}</button>
       ${d.pending?'<p class="b-hint">Ein Speicherergebnis ist noch offen. Dieser Versuch behält dieselbe Kennung und denselben Inhalt, bis das Rücklesen bestätigt ist.</p>':''}
     </details><div data-message role="status" class="b-message" ${d.message?'':'hidden'}>${esc(d.message)}</div>`;
   const q=s=>container.querySelector(s);
@@ -50,11 +56,18 @@ function renderRecords(c){
       ${r.question?'<p><b>Rückfrage:</b> '+esc(r.question)+'</p><button data-answer="'+r.order.id+'">Rückfrage beantworten …</button>':''}
       ${r.status!=='Erledigt'&&!r.withdrawn?`<p><button data-revise="${r.order.id}" ${c.d.pending?'disabled':''}>Übergabe ändern</button> <button data-withdraw="${r.order.id}" ${c.d.pending?'disabled':''}>Übergabe zurücknehmen …</button></p>`:''}
       <small>Auftrag ${esc(r.order.id)}</small></div>`).join('')}`;
-  el.querySelectorAll('[data-revise]').forEach(b=>b.onclick=()=>{
-    const r=c.records.find(r=>r.order.id===b.dataset.revise);const d=c.d;
-    if(r.conflict){message(c,'Zuerst parallele Rückmeldungen in der Büroübersicht prüfen.',true);return;}
-    d.prepared=true;d.revision=r.order.id;d.word=r.content.word;d.who=r.content.who;d.note=r.content.note;d.open=true;
-    d.rows=D.groups.map(([group,label])=>({group,label,selected:r.content.recipients.some(x=>x.group===group),entries:r.content.recipients.filter(x=>x.group===group).map(x=>x.details)}));keep(c.p.name,d);render();
+  el.querySelectorAll('[data-revise]').forEach(b=>b.onclick=async()=>{
+    if(busy||c.d.pending)return;
+    try{
+      const r=await D.load(c.p.handle,b.dataset.revise);const d=c.d;
+      if(current!==c)return;
+      if(r.conflict||r.status==='Erledigt'||r.withdrawn)throw Error('Stand geändert. Bitte aktualisieren und den Auftrag prüfen.');
+      if(d.revision===r.order.id)d.revisionPrevious=draftText(d);else d.revisionPrevious=null;
+      d.prepared=true;d.revision=r.order.id;d.revisionBase=revisionStamp(r);d.word=r.content.word;d.who=r.content.who;d.note=r.content.note;d.open=true;
+      d.rows=D.groups.map(([group,label])=>({group,label,selected:r.content.recipients.some(x=>x.group===group),entries:r.content.recipients.filter(x=>x.group===group).map(x=>x.details)}));
+      if(d.revisionPrevious)d.message='Neueren Stand ins Formular geladen. Den bisherigen Entwurf kannst du nachlesen und gewünschte Eingaben bewusst erneut übernehmen.';
+      keep(c.p.name,d);render();
+    }catch(e){message(c,e.message,true);}
   });
   for(const kind of ['answer','withdraw'])el.querySelectorAll('[data-'+kind+']').forEach(b=>b.onclick=async()=>{
     if(busy)return;const r=c.records.find(r=>r.order.id===b.dataset[kind]);
@@ -73,7 +86,9 @@ async function submit(c){
       await D.checkFile(c.p.handle,d.word,/\.docx?$/i);
       const content=D.snapshot({name:c.p.name,nr:c.p.nr,ort:c.p.ort},d.word,d.who,d.note,d.rows);
       if(d.revision){
-        const r=await D.load(c.p.handle,d.revision);if(r.status==='Erledigt'||r.withdrawn||r.conflict)throw Error('Stand geändert. Bitte aktualisieren; erledigte Aufträge bleiben erhalten.');
+        const r=await D.load(c.p.handle,d.revision);
+        if(d.revisionBase!==revisionStamp(r))throw Error('Der Auftrag wurde inzwischen geändert. Deine Eingaben bleiben erhalten. Bitte aktualisieren und „Übergabe ändern“ erneut wählen, um den neueren Stand bewusst zu prüfen. Der bisherige Entwurf bleibt dabei zum Nachlesen erhalten.');
+        if(r.status==='Erledigt'||r.withdrawn||r.conflict)throw Error('Stand geändert. Bitte aktualisieren; erledigte Aufträge bleiben erhalten.');
         content.recipients=content.recipients.map(x=>({...x,id:r.content.recipients.find(y=>y.group===x.group&&y.details===x.details)?.id||x.id}));
         if(Object.keys(r.sent).some(id=>!content.recipients.some(x=>x.id===id)))throw Error('Bereits versandte Empfänger bitte erhalten. Für geänderte Empfänger einen neuen Ergänzungsauftrag anlegen.');
         d.pending={kind:'event',data:D.event(r,'revise',{content},d.who)};
@@ -87,7 +102,7 @@ async function submit(c){
     sessionStorage.setItem('buero-draft:'+c.p.name,JSON.stringify(d));
     const pending=d.pending;
     if(pending.kind==='order')await D.create(c.p.handle,pending.data);else await D.append(c.p.handle,pending.data);
-    d.pending=null;d.revision=null;d.open=false;keep(c.p.name,d);
+    d.pending=null;d.revision=null;d.revisionBase=null;d.revisionPrevious=null;d.open=false;keep(c.p.name,d);
     message(c,'✓ Gespeichert und rückgelesen. Die Papiermappe gehört weiterhin zur Übergabe.');await refresh();
   }catch(e){message(c,'Nicht bestätigt gespeichert: '+e.message,true);}
   finally{busy=false;if(current===c)render();}
@@ -98,7 +113,7 @@ async function refresh(){
   catch(e){c.errors=[e.message];c.loaded=true;}
   if(current!==c)return;renderRecords(c);
   const t=c.container.querySelector('[data-updated]');if(t)t.textContent=c.updated?'Zuletzt aktualisiert '+time(c.updated):'Noch nicht aktualisiert';
-  const b=c.container.querySelector('[data-submit]');if(b)b.disabled=busy||!c.loaded||!!c.errors.length;
+  const b=c.container.querySelector('[data-submit]');if(b)b.disabled=submitDisabled(c);
   const legacy=document.getElementById('vtBox');
   if(legacy){const digital=c.records.length||c.errors.length||c.d.pending||busy;legacy.querySelectorAll('tr[data-k]').forEach(tr=>{const entry=c.readData().verteiler?.[tr.dataset.k]||{};tr.querySelectorAll('input,button').forEach(el=>el.disabled=!!digital||!!c.readData().__bueroReadonly||(!el.classList.contains('vtAn')&&!entry.an));});const hint=legacy.querySelector('.vtHint');if(hint&&digital)hint.textContent='Historischer Verteiler (erhalten). Der Versand digitaler Aufträge wird ausschließlich in der Büroübersicht geführt.';}
 }
