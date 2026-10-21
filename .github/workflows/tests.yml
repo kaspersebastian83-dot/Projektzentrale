@@ -25,6 +25,7 @@ jobs:
       - run: node tests/anlage.cjs
       - run: node tests/arbeitszettel.cjs
       - run: node tests/sw.cjs
+      - run: node tests/buero.cjs
 
   browser-tests:
     name: Browser tests (${{ matrix.browser }})
@@ -50,5 +51,8 @@ jobs:
         run: node tests/zuletzt-browser.cjs ${{ matrix.browser }}
       - name: Read an Arbeitszettel PDF in the real browser
         run: node tests/arbeitszettel-browser.cjs ${{ matrix.browser }}
+      - name: Office handover and independent shared sessions
+        if: matrix.browser == 'chromium'
+        run: node tests/buero-browser.cjs
       - name: Project switch after a failed save
         run: node tests/wechsel-browser.cjs ${{ matrix.browser }}

@@ -2,7 +2,11 @@
 
 Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung.
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.9.4** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.10.0** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Neu in 1.10.0 · 21.10.2026
+
+[Spektron · Büroübersicht](buero/README.md) ist direkt unter `buero/` erreichbar. Die Projektzentrale übergibt nach bewusstem Klick eine konkrete Word-Datei und vollständige Empfänger. Das Büro dokumentiert Gegenlesen, bewusst gewählte Versand-PDF, Rückfragen und Versand je Empfänger. Papiermappe bleibt; nach Korrektur keine weitere Sachverständigenfreigabe. Gemeinsame Ablage: `<Projekt>/_Buero/<Auftrags-UUID>/auftrag.json` und einzelne `rueckmeldung-<UUID>.json`. Datenformat, Konflikte, Fehlerbehandlung und manueller Netzlaufwerktest: [Büro-Dokumentation](buero/README.md).
 
 ## Neu in 1.9.4 · 20.10.2026
 
@@ -48,7 +52,7 @@ Die App läuft vollständig im Browser auf dem eigenen Rechner. **Ordner, Dateie
   - Steht auf dem Zettel eine andere Projektnummer als im Ordnernamen, ist nichts angehakt und „Übernehmen“ erst nach ausdrücklicher Bestätigung möglich. Hinweise bei unplausiblen Daten (Termin vor Auftragsdatum, Schaden nach Auftrag); kein Datum → Feld bleibt leer.
   - Ordner werden nicht angelegt oder verändert; geschrieben wird nur `_Projekt.json` (mit Dateiname und SHA-256 des Zettels unter `arbeitszettel`). Das PDF wird nur im Browser gelesen.
   - PDF-Bibliothek: pdf.js (Mozilla, Apache-2.0, Legacy-Build) in `vendor/pdfjs/`, wird erst beim ersten Einlesen geladen. Funktioniert in der Online-Version (nicht aus einer lokal geöffneten Datei).
-- **Verteiler (ab 1.8):** Karte unter den Projektdaten – Versicherung, Sachverständiger, Versicherungsnehmer, Sanierung: anhaken, wer das Gutachten bekommt, und nach dem Versand das Datum eintragen („heute“). Gespeichert als `verteiler` in `_Projekt.json`.
+- **Verteiler (ab 1.8):** Historische Karte unter den Projektdaten – Auftraggeber, Sachverständiger, Versicherungsnehmer, Sanierung: anhaken, wer das Gutachten bekommt, und nach dem Versand das Datum eintragen („heute“). Gespeichert als `verteiler` in `_Projekt.json`. Bei digitalen Büroaufträgen nur noch Ansicht; deren Versand wird ausschließlich in der Büroübersicht geführt.
 - **„Fotos bearbeiten“** öffnet FotoKit direkt im Ordner `Fotos` des Projekts, mit vorausgefüllten Projektdaten.
 - **„Plan bearbeiten“** öffnet PlanKit direkt im Ordner `Pläne`: automatisches Speichern als `Probenplan <Projekt>.probenplan`, Bilder ebenfalls dorthin, Laborberichte aus `Laborergebnisse`.
 - **„Abrechnung → BelegKit“ (ab 1.6, bis 1.6.1 „AufwandKit“)** öffnet BelegKit im Projekt: Zeiten, km, Spesen je Kollege, Proben aus LabelKit, Berichtsseiten und Fotos mit den Positionsnummern der Rechnung.
@@ -87,6 +91,7 @@ Ohne Abhängigkeiten, mit Node.js aus dem Repository-Ordner:
 node tests/docx.cjs     # Word-Schreiber: Paket, XML, Maskierung, Tabellen, Bilder
 node tests/anlage.cjs   # Anlage PN 98 / Brandgeruch: Inhalte, Blind-Modus, Quellenvermerk, Dateinamen
 node tests/arbeitszettel.cjs   # Arbeitszettel lesen: volle und knappe Zettel, Reihenfolge, kein Zettel, Datum
+node tests/buero.cjs    # Übergabe, Empfängerstand, Retry, Fehler, parallele Rückmeldungen
 node tests/sw.cjs       # Service Worker: alle Offline-Dateien vorhanden, pdf.js dabei
 ```
 

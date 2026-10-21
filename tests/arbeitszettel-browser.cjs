@@ -10,7 +10,7 @@ const name = process.argv[2] || 'chromium';
 const root = path.join(__dirname, '..');
 const A = '26.0142 Teststadt';
 const errors = [];
-const TYP = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.pdf': 'application/pdf' };
+const TYP = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.pdf': 'application/pdf' };
 
 (async () => {
   const server = http.createServer((req, res) => {
