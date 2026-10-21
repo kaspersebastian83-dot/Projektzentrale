@@ -108,6 +108,11 @@ try {
     const z=(i,k)=>beleg.locator(`#zRows tr[data-i="${i}"] [data-f="${k}"]`);
     await z(0,'datum').fill(F.date);await z(0,'stunden').fill('1');await z(0,'km').fill('10');
     await beleg.locator('#zNeuB').click();await z(1,'stunden').fill('0,5');await z(1,'datum').fill(F.date);
+    await until(async()=>{
+      const d=await files(inspector,F.project),name='Abrechnung/Aufwand_'+F.employee+'.json';
+      if(!d[name])return false;const entries=json(d,name).eintraege;
+      return entries.length===2&&entries[0].stunden==='1'&&entries[0].km==='10'&&entries[1].stunden==='0,5';
+    },'confirmed time entries before billing');
     await beleg.locator('[data-tab=einst]').click();
     // Select existing positions by their immutable user-visible invoice numbers, not app calculation functions.
     for(const [nr,price] of [['1.007','100'],['1.004','0,50'],['2.001','10'],['2.008','20'],['3.001','80']]){
@@ -117,7 +122,9 @@ try {
     for(const [k,v] of Object.entries({nr:'2.099',text:'TEST Asbestanalyse',einheit:'Stk.',preis:'30'}))await labRow.locator(`[data-p=${k}]`).fill(v);
     await beleg.locator('[data-satz=seite]').fill('1');await beleg.locator('[data-satz=foto]').fill('0,50');await beleg.locator('[data-satz=pauschale]').fill('0');await beleg.locator('#eSpeichern').click();
     await beleg.locator('[data-tab=proben]').click();const select=beleg.locator('select[data-kat="asbest-material"]');await select.selectOption({label:'2.099 TEST Asbestanalyse'});
+    await beleg.locator('#status').filter({hasText:/Zuordnung gespeichert/}).waitFor();
     await beleg.locator('[data-tab=bericht]').click();const reportRow=beleg.locator('#bRows tr').filter({hasText:'TEST Bericht'});await reportRow.locator('input[data-ab]').check();await reportRow.getByRole('button',{name:'PDF: 2 Seiten übernehmen'}).click();
+    await until(async()=>{const d=await files(inspector,F.project);if(!d['Abrechnung/_Abrechnung.json'])return false;const b=json(d,'Abrechnung/_Abrechnung.json').berichte['TEST Bericht'];return b?.abrechnen&&b.seiten==='2';},'confirmed report selection');
     await beleg.locator('[data-tab=abrechnung]').click();await beleg.locator('#aPreise').check();await beleg.locator('#aStand').click();
     await until(async()=>Object.keys(await files(inspector,F.project)).some(n=>/^Abrechnung\/.*_Aufwand_.*\.json$/.test(n)),'billing snapshot');
     const disk=await files(inspector,F.project),name=Object.keys(disk).find(n=>/^Abrechnung\/.*_Aufwand_.*\.json$/.test(n)),billing=json(disk,name);
