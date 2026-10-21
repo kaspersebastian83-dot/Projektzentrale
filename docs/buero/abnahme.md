@@ -6,6 +6,31 @@ Umgesetzt: bewusste Übergabe mit konkretem Word-Pfad und bestätigtem Empfänge
 
 Aufträge: `<Projekt>/_Buero/<UUID>/auftrag.json`. Einzelne Rückmeldungen: daneben `rueckmeldung-<UUID>.json`. [Format, Bedienung und Grenzen](../../buero/README.md).
 
+## Gezielte Nachbesserung von PR #27
+
+Ausgangspunkt ist der geprüfte Stand `e8938f89f16382fc8a45b32a52f2d6329d874394`; Korrekturen in `4d825b7` und `5d4f3bb` auf demselben Branch. Gemeinsames Dateiformat, Büroablauf, Runner und Playwright bleiben unverändert.
+
+- **Erstübergabe nach Fehler und Aktualisieren:** Der bekannte offene Versuch bleibt über den tatsächlichen UI-Knopf wiederholbar. Die Übersicht warnt weiterhin vor der unvollständigen Datei. Die bestehende Prüfung der konkreten Zieldatei gilt unverändert: abweichende Inhalte werden nicht überschrieben. UUID und Nutzdaten bleiben gleich, es entsteht genau ein Auftrag. Der neue UI-Test reproduzierte vor der Korrektur den deaktivierten Knopf.
+- **Veraltetes Änderungsformular:** Beim Öffnen wird der Ausgangsstand aus Inhalt und letzten Ereigniskennungen festgehalten. Speichern aus einem inzwischen veralteten Formular wird vor dem Anlegen einer Rückmeldung abgewiesen; Eingaben bleiben stehen. Aktualisieren allein übernimmt keinen neuen Ausgangsstand. Erst das bewusste erneute Öffnen lädt die aktuelle Fassung samt neuem Empfänger. Der bisherige Entwurf bleibt dabei zum Nachlesen und Kopieren erhalten; gewünschte Eingaben werden bewusst erneut übernommen.
+- **WebKit:** Der Fehler in Job `119379765110` von Lauf `39645472892` wurde anhand des Logs als falscher CSS-Inhaltstyp bestätigt. Anlage-, Arbeitszettel- und Wechsel-Testserver liefern CSS als `text/css` und JavaScript mit JavaScript-Inhaltstyp aus. Keine Filterung von Fehlermeldungen und kein deaktivierter Test.
+
+Tatsächlich erneut lokal ausgeführt:
+
+| Prüfung | Ergebnis |
+|---|---|
+| `BROWSER_EXECUTABLE=/usr/bin/chromium node tests/buero-browser.cjs` | bestanden: leere Erstauftragsdatei → Schreibfehler → Aktualisieren → tatsächlicher Wiederholen-Knopf; gleicher Inhalt/UUID und genau ein Auftrag. Ein zusätzlich eingespielter abweichender Dateiinhalt bleibt beim Retry unverändert. |
+| Derselbe Büro-Browsertest, Änderungsregression | bestanden: zwei unabhängige Browserkontexte A/B; B ergänzt Empfänger, A ändert Hinweis. A wird zurückgewiesen, Eingaben und B-Empfänger bleiben erhalten. Auch nach Aktualisieren weiterhin zurückgewiesen; nach bewusster Neuprüfung werden Hinweis und vollständiger Empfängerstand gespeichert. |
+| `node tests/buero.cjs` | bestanden |
+| `node tests/sw.cjs` | bestanden |
+| `tests/anlage-browser.cjs chromium` | bestanden |
+| `tests/arbeitszettel-browser.cjs chromium` | bestanden |
+| `tests/wechsel-browser.cjs chromium` | bestanden |
+| JS-Syntaxprüfungen und `git diff --check` | bestanden |
+
+CI für den Korrekturstand `5d4f3bbc7bb2b2a1b224b1ce471909ebd1318f31` vollständig erfolgreich: [Automated tests #33](https://github.com/kaspersebastian83-dot/Projektzentrale/actions/runs/39647705176) mit Node-, Chromium- und WebKit-Job sowie [Spektron integration #10](https://github.com/kaspersebastian83-dot/Projektzentrale/actions/runs/39647705191). Der ursprünglich fehlerhafte WebKit-Anlagentest läuft jetzt erfolgreich ohne Fehlerfilter. Die vorhandene CI-Konfiguration wurde für diese Nachbesserung nicht geändert.
+
+Die vorhandenen zwei Screenshots bleiben erhalten: Ihre gezeigten normalen Ansichten haben sich nicht geändert. Nur bei veralteten Änderungsformularen erscheint der zusätzliche Entwurf zum Nachlesen. Die nachfolgenden Ergebnisse dokumentieren die ursprüngliche V1-Abnahme; für diese Nachbesserung gelten die obigen gezielten Wiederholungen.
+
 ## Tatsächlich ausgeführt
 
 Node `v24.19.0`, System-Chromium `154.0.8037.57`, bestehendes Playwright. Vorhandene Chromium-Tests liefen über einen temporären Launcher mit `executablePath=/usr/bin/chromium`; keine Änderung ihrer Produktfunktionen.
