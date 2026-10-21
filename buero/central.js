@@ -9,10 +9,15 @@ function time(t){return new Date(t).toLocaleString('de-DE');}
 // A known immutable attempt may be retried despite an incomplete overview. Its own
 // read/compare/write checks still reject unreadable or different existing files.
 function submitDisabled(c){return busy||!c.loaded||(!c.d.pending&&!!c.errors.length);}
+function openOrders(c){return c.records.filter(r=>r.status!=='Erledigt'&&!r.withdrawn);}
+// Only the entry presentation depends on a fully read overview.
+function canPrepare(c){return c.loaded&&!c.reading&&!c.errors.length&&!openOrders(c).length;}
 function revisionStamp(r){return JSON.stringify({heads:r.heads,content:r.content});}
 function draftText(d){return ['Word-Datei: '+d.word,'Person / Kürzel: '+d.who,'Hinweis: '+d.note,...d.rows.map(r=>r.label+' ('+(r.selected?'ausgewählt':'abgewählt')+'):\n'+r.entries.join('\n'))].join('\n');}
 function mount(container,p,readData,flush){
-  const d=drafts.get(p.name)||saved(p.name)||{who:'',word:'',note:'',rows:D.recipients(readData()),pending:null,revision:null,message:''};keep(p.name,d);
+  const d=drafts.get(p.name)||saved(p.name)||{who:'',word:'',note:'',rows:D.recipients(readData()),pending:null,revision:null,message:''};
+  // Older local drafts have no explicit marker; successfully submitted values are not a new draft.
+  if(d.creationDraft==null)d.creationDraft=!d.revision&&!d.pending&&!!(d.open||d.prepared&&!d.message?.startsWith('✓ Gespeichert'));keep(p.name,d);
   if(current?.container===container&&current.p.name===p.name){Object.assign(current,{p,readData,flush});refresh();return;}
   current={container,p,readData,flush,d,records:[],errors:[],loaded:false};
   document.getElementById('vtBox')?.querySelectorAll('input,button').forEach(el=>el.disabled=true);render();refresh();
@@ -28,7 +33,7 @@ function restoreFocus(c,f){
   if(f.attr){let el=[...c.container.querySelectorAll('['+f.attr+']'),...document.getElementById('bueroAttention')?.querySelectorAll('['+f.attr+']')||[]].find(el=>el.getAttribute(f.attr)===f.value);if(f.summary)el=el?.querySelector(':scope > summary');if(!el||!el.getClientRects().length)el=c.container.querySelector('[data-handover-label]');if(el){el.focus({preventScroll:true});try{el.setSelectionRange(f.start,f.end);}catch{}}}
   if(f.scroll!=null)document.getElementById('detail').scrollTop=f.scroll;
 }
-function openForm(c){c.d.handOpen=true;c.d.open=true;keep(c.p.name,c.d);c.container.querySelector('[data-handover]').open=true;c.container.querySelector('[data-form]').open=true;}
+function openForm(c){if(!c.d.pending&&!c.d.revision&&!c.d.creationDraft&&!canPrepare(c))return;if(!c.d.pending&&!c.d.revision)c.d.creationDraft=true;c.d.handOpen=true;c.d.open=true;keep(c.p.name,c.d);c.container.querySelector('[data-handover]').open=true;c.container.querySelector('[data-form]').open=true;}
 function render(){
   const c=current;if(!c||!c.container.isConnected)return;const {container,p,d}=c;
   const focus=rememberFocus(c);container.className='buero b-card';
@@ -38,7 +43,7 @@ function render(){
     <div class="b-row"><button data-refresh>Aktualisieren</button><span class="b-hint" data-updated>${c.updated?'Zuletzt aktualisiert '+time(c.updated):'Noch nicht aktualisiert'}</span></div>
     <details data-handover ${d.handOpen?'open':''}><summary data-handover-label>Details ansehen / Übergabe vorbereiten</summary>
     <div data-records></div>
-    <details data-form ${d.open?'open':''}><summary>${d.revision?'Offene Übergabe ändern':'Übergabe vorbereiten'}</summary>
+    <details data-form hidden ${d.open?'open':''}><summary data-form-label>${d.revision?'Offene Übergabe ändern':'Übergabe vorbereiten'}</summary><p data-draft-hint class="b-hint" hidden>Dieser Entwurf wurde noch nicht übergeben. Es gibt inzwischen eine offene Übergabe. Bitte diese prüfen; der Entwurf bleibt erhalten.</p>
       ${d.revisionPrevious?`<details data-previous open><summary>Bisheriger Entwurf zum Nachlesen und Kopieren</summary><div class="b-address">${esc(d.revisionPrevious)}</div></details>`:''}
       <button data-pick class="primary" ${d.pending?'disabled':''}>Word-Datei auswählen</button>
       <p data-chosen class="b-path">${d.word?esc(d.word):'Noch keine Word-Datei ausgewählt'}</p>
@@ -51,11 +56,11 @@ function render(){
       <button class="primary" data-submit ${submitDisabled(c)?'disabled':''}>${d.pending?'Speicherung erneut prüfen / versuchen':d.revision?'Geänderte Übergabe speichern':'Zur Büroprüfung übergeben'}</button>
     </details><details><summary>Hilfe zur Übergabe</summary><p>Originaldatei bewusst im Projektordner auswählen; keine automatische Fassungsauswahl. Empfänger mit vollständigen Angaben bestätigen. Kommas bleiben erhalten; weitere Personen einzeln ergänzen. Die Papiermappe bleibt Bestandteil des Büroablaufs.</p></details></details>`;
   const q=s=>container.querySelector(s);
-  q('[data-handover]').ontoggle=e=>{d.handOpen=e.target.open;if(d.handOpen&&c.loaded&&!c.records.length&&!d.open){d.open=true;q('[data-form]').open=true;}keep(p.name,d);};
+  q('[data-handover]').ontoggle=e=>{d.handOpen=e.target.open;if(d.handOpen){if(d.pending||d.revision||d.creationDraft||canPrepare(c))openForm(c);for(const r of openOrders(c))q('[data-record="'+r.order.id+'"]').open=true;}keep(p.name,d);};
   q('[data-path]').ontoggle=e=>{d.pathOpen=e.target.open;keep(p.name,d);};
   if(q('[data-retry]'))q('[data-retry]').onclick=()=>submit(c);
   if(q('[data-show-form]'))q('[data-show-form]').onclick=()=>openForm(c);
-  q('[data-form]').ontoggle=e=>{d.open=e.target.open; if(d.open&&!d.prepared&&!d.pending&&!d.revision){d.rows=D.recipients(c.readData());d.prepared=true;keep(p.name,d);render();return;}keep(p.name,d);};
+  q('[data-form]').ontoggle=e=>{d.open=e.target.open;if(d.open&&!d.pending&&!d.revision)d.creationDraft=true; if(d.open&&!d.prepared&&!d.pending&&!d.revision){d.rows=D.recipients(c.readData());d.prepared=true;keep(p.name,d);render();return;}keep(p.name,d);};
   for(const [sel,key] of [['[data-word]','word'],['[data-who]','who'],['[data-note]','note']])q(sel).oninput=e=>{d[key]=e.target.value;if(key==='word')q('[data-chosen]').textContent=d.word||'Noch keine Word-Datei ausgewählt';keep(p.name,d);};
   container.querySelectorAll('[data-group]').forEach(el=>el.onchange=()=>{d.rows[+el.dataset.group].selected=el.checked;q('[data-group-fields="'+el.dataset.group+'"]').hidden=!el.checked;keep(p.name,d);});
   container.querySelectorAll('[data-entry]').forEach(el=>el.oninput=()=>{const[i,j]=el.dataset.entry.split(':');d.rows[i].entries[j]=el.value;keep(p.name,d);});
@@ -75,10 +80,14 @@ function renderRecords(c){
   if(!c.container.isConnected)return;
   const el=c.container.querySelector('[data-records]');if(!el)return;
   const ordered=[...c.records].sort((a,b)=>a.order.created.localeCompare(b.order.created)),active=ordered.filter(r=>r.status!=='Erledigt'&&!r.withdrawn),history=ordered.filter(r=>r.status==='Erledigt'||r.withdrawn);
-  c.container.querySelector('[data-handover-label]').textContent=c.records.length?'Details ansehen':'Übergabe vorbereiten';
-  const currentRecord=active.at(-1),latest=ordered.at(-1),latestChanged=[...ordered].sort((a,b)=>(a.events.at(-1)?.at||a.order.created).localeCompare(b.events.at(-1)?.at||b.order.created)).at(-1);
+  const d=c.d,form=c.container.querySelector('[data-form]');
+  form.hidden=!(d.pending||d.revision||d.creationDraft||canPrepare(c));
+  c.container.querySelector('[data-handover-label]').textContent=d.pending?'Speicherversuch ansehen':d.revision?'Übergabe ändern':active.length?(active.length===1?'Übergabe ansehen':'Offene Übergaben ansehen'):!c.loaded||c.reading?'Übergaben werden geprüft …':c.errors.length?'Übergabestand prüfen':history.length?'Neue Übergabe vorbereiten':'Übergabe vorbereiten';
+  c.container.querySelector('[data-form-label]').textContent=d.pending?'Ungeklärter Speicherversuch':d.revision?'Offene Übergabe ändern':active.length?'Noch nicht übergebener Entwurf':history.length?'Neue Übergabe vorbereiten':'Übergabe vorbereiten';
+  c.container.querySelector('[data-draft-hint]').hidden=!(active.length&&d.creationDraft&&!d.revision&&!d.pending);
+  const latest=ordered.at(-1),latestChanged=[...ordered].sort((a,b)=>(a.events.at(-1)?.at||a.order.created).localeCompare(b.events.at(-1)?.at||b.order.created)).at(-1);
   const overview=c.container.querySelector('[data-overview]');
-  overview.textContent=!c.loaded?'Übergaben werden geprüft …':currentRecord?`${currentRecord.status}${currentRecord.actor?' · '+currentRecord.actor:''} · ${currentRecord.proof?'Gegengelesen':'Gegenlesen offen'} · ${currentRecord.pdf?'PDF zugeordnet':'PDF noch offen'} · Versand ${currentRecord.content.recipients.filter(x=>currentRecord.sent[x.id]).length} von ${currentRecord.content.recipients.length}`:c.errors.length?'Kein verlässlich vollständiger Stand verfügbar':latest?.withdrawn?'Letzte Übergabe zurückgenommen':latest?'Letzte Übergabe erledigt':'Noch nicht übergeben';
+  overview.textContent=!c.loaded?'Übergaben werden geprüft …':active.length?active.map(r=>`${r.status}${r.actor?' · '+r.actor:''} · ${r.content.word} · ${r.proof?'Gegengelesen':'Gegenlesen offen'} · ${r.pdf?'PDF zugeordnet':'PDF noch offen'} · Versand ${r.content.recipients.filter(x=>r.sent[x.id]).length} von ${r.content.recipients.length}`).join(' | ')+(d.creationDraft&&!d.pending&&!d.revision?' · Noch nicht übergebener Entwurf vorhanden':''):c.errors.length?'Kein verlässlich vollständiger Stand verfügbar':latest?.withdrawn?'Letzte Übergabe zurückgenommen':latest?'Letzte Übergabe erledigt':'Noch nicht übergeben';
   const alerts=`${c.d.messageError?'<p class="b-message b-error">'+esc(c.d.message)+' <button data-head-show>Eingaben ansehen</button></p>':''}${c.d.pending?'<p class="b-message b-error">Speicherung noch ungeklärt. <button data-head-retry>Speicherung erneut prüfen / versuchen</button></p>':''}${c.errors.length?'<p class="b-message b-error">Übersicht möglicherweise unvollständig/veraltet: '+c.errors.map(esc).join(' · ')+' <button data-alert-refresh>Aktualisieren</button></p>':''}
     ${c.records.filter(r=>r.question||r.conflict||r===latestChanged&&r.withdrawn).map(r=>`<div class="b-message b-error">${r.question?`<b>Rückfrage:</b> ${esc(r.question)} <button data-answer="${r.order.id}">Rückfrage beantworten …</button>`:''}${r.conflict?'<p>Parallele Rückmeldungen: in der <a href="buero/" target="spektron-buero" rel="noopener">Büroübersicht prüfen</a>.</p>':''}${r.withdrawn?'<p>Aktuelle Übergabe zurückgenommen. <button data-show-record="'+r.order.id+'">Rücknahme ansehen</button></p>':''}</div>`).join('')}`;
   const alertBox=document.getElementById('bueroAttention')||c.container.querySelector('[data-alerts]');
@@ -140,16 +149,16 @@ async function submit(c){
     sessionStorage.setItem('buero-draft:'+c.p.name,JSON.stringify(d));
     const pending=d.pending;
     if(pending.kind==='order')await D.create(c.p.handle,pending.data);else await D.append(c.p.handle,pending.data);
-    d.pending=null;d.revision=null;d.revisionBase=null;d.revisionPrevious=null;d.open=false;keep(c.p.name,d);
+    d.pending=null;d.revision=null;d.revisionBase=null;d.revisionPrevious=null;if(pending.kind==='order'||pending.data.type==='revise')d.creationDraft=false;d.open=false;keep(c.p.name,d);
     message(c,'✓ Gespeichert und rückgelesen. Die Papiermappe gehört weiterhin zur Übergabe.');await refresh();
   }catch(e){message(c,'Nicht bestätigt gespeichert: '+e.message,true);}
   finally{busy=false;if(current===c)render();}
 }
 async function refresh(){
-  const c=current;if(!c)return;
+  const c=current;if(!c)return;c.reading=(c.reading||0)+1;renderRecords(c);
   try{const r=await D.scanProject(c.p.handle);c.records=r.records;c.errors=r.errors;c.loaded=true;if(!r.errors.length)c.updated=new Date().toISOString();}
   catch(e){c.errors=[e.message];c.loaded=true;}
-  if(current!==c)return;renderRecords(c);
+  c.reading--;if(current!==c)return;renderRecords(c);
   const t=c.container.querySelector('[data-updated]');if(t)t.textContent=c.updated?'Zuletzt aktualisiert '+time(c.updated):'Noch nicht aktualisiert';
   c.container.querySelectorAll('[data-submit],[data-retry]').forEach(b=>b.disabled=submitDisabled(c));
   const legacy=document.getElementById('vtBox');

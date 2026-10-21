@@ -31,7 +31,7 @@ async function context(existing){
   const io=async arg=>{const r=await window.__sharedIO(arg);if(r?.notfound)throw new DOMException('Missing','NotFoundError');return r;};
   class Handle{constructor(rel,kind){this.rel=rel;this.kind=kind;this.name=rel.split('/').at(-1)||'Testarchiv';}async queryPermission(){return window.testIO.hideGrant?'denied':'granted';}async requestPermission(){return this.queryPermission();}async isSameEntry(h){return h.rel===this.rel;}}
   class FileHandle extends Handle{constructor(rel){super(rel,'file');}async getFile(){const r=await io({op:'read',rel:this.rel,fail:window.testIO.failRead&&this.name.startsWith('rueckmeldung-')?'read':null});return {name:this.name,size:r.size,lastModified:1,text:async()=>r.text,arrayBuffer:async()=>new TextEncoder().encode(r.text).buffer};}async createWritable(){if(window.testIO.failWrite)throw Error('SYNTHETIC write');let text;const rel=this.rel;return{write:async value=>{text=value;},abort:async()=>{},close:async()=>{await io({op:'write',rel,text});if(window.testIO.failAfterClose){window.testIO.failRead=true;window.testIO.failAfterClose=false;}}};}}
-  class DirectoryHandle extends Handle{constructor(rel){super(rel,'directory');}child(n){return(this.rel?this.rel+'/':'')+n;}async getDirectoryHandle(n,opts={}){const rel=this.child(n);await io({op:'dir',rel,create:opts.create});return new DirectoryHandle(rel);}async getFileHandle(n,opts={}){const rel=this.child(n);await io({op:'file',rel,create:opts.create});return new FileHandle(rel);}async *values(){for(const h of await io({op:'list',rel:this.rel,fail:window.testIO.failList?'list':null}))yield h.kind==='directory'?new DirectoryHandle(this.child(h.name)):new FileHandle(this.child(h.name));}async resolve(h){const prefix=this.rel?this.rel+'/':'';return h.rel.startsWith(prefix)?h.rel.slice(prefix.length).split('/'):null;}}
+  class DirectoryHandle extends Handle{constructor(rel){super(rel,'directory');}child(n){return(this.rel?this.rel+'/':'')+n;}async getDirectoryHandle(n,opts={}){const rel=this.child(n);await io({op:'dir',rel,create:opts.create});return new DirectoryHandle(rel);}async getFileHandle(n,opts={}){const rel=this.child(n);await io({op:'file',rel,create:opts.create});return new FileHandle(rel);}async *values(){for(const h of await io({op:'list',rel:this.rel,fail:window.testIO.failList&&this.name==='_Buero'?'list':null}))yield h.kind==='directory'?new DirectoryHandle(this.child(h.name)):new FileHandle(this.child(h.name));}async resolve(h){const prefix=this.rel?this.rel+'/':'';return h.rel.startsWith(prefix)?h.rel.slice(prefix.length).split('/'):null;}}
   window.SharedDirectoryHandle=DirectoryHandle;
   window.showDirectoryPicker=async()=>new DirectoryHandle('');
   window.showOpenFilePicker=async()=>[new FileHandle(window.testPick||'24.0012 Fiktivstadt/Mitteilungen/Gutachten B.docx')];
@@ -57,10 +57,20 @@ if(!before){
   const [pop]=await Promise.all([page.waitForEvent('popup'),page.locator('#'+button).click()]);await pop.waitForURL(base+'/'+app+'/**');const u=new URL(pop.url());assert.equal(u.search,'');assert.equal(new URLSearchParams(u.hash.slice(1)).get('projekt'),A);await pop.close();
  }
 }
-if(!before)await page.locator('[data-handover] > summary').click();
+if(!before){
+ assert.equal(await page.locator('[data-handover-label]').innerText(),'Übergabe ansehen');
+ await page.locator('[data-handover] > summary').click();
+ assert.ok(await page.locator(`[data-record="${id}"]`).evaluate(e=>e.open));
+ assert.ok(!await page.locator('[data-form]').isVisible());
+ assert.match(await page.locator(`[data-record="${id}"]`).innerText(),/Mitteilungen\/Gutachten B.docx/);
+ await page.locator('#bueroPanel').evaluate(e=>e.scrollIntoView({block:'start'}));
+ await page.screenshot({path:path.join(out,'offene-uebergabe-details.png')});
+ await page.locator(`[data-revise="${id}"]`).click();
+ await page.waitForFunction(()=>document.querySelector('[data-form-label]')?.textContent==='Offene Übergabe ändern');
+}
 if(!await page.locator('[data-form]').evaluate(e=>e.open))await page.locator('[data-form] > summary').click();
 if(!before){
- await page.locator('[data-group="2"]').check();await page.locator('[data-entry="2:0"]').fill('Entwurf Versicherungsnehmer, Beispielweg 8');await page.locator('[data-group="2"]').uncheck();assert.equal(await page.locator('[data-entry="2:0"]').inputValue(),'Entwurf Versicherungsnehmer, Beispielweg 8');assert.ok(!await page.locator('[data-entry="2:0"]').isVisible());
+ await page.locator('[data-group="2"]').check();await page.locator('[data-add="2"]').click();await page.locator('[data-entry="2:0"]').fill('Entwurf Versicherungsnehmer, Beispielweg 8');await page.locator('[data-group="2"]').uncheck();assert.equal(await page.locator('[data-entry="2:0"]').inputValue(),'Entwurf Versicherungsnehmer, Beispielweg 8');assert.ok(!await page.locator('[data-entry="2:0"]').isVisible());
  await page.locator('[data-note]').fill('Unfertiger Hinweis bleibt erhalten.');await page.locator('[data-note]').evaluate(e=>{e.focus();e.setSelectionRange(4,9);});
  expectedPj=JSON.stringify({...pj,objekt:'Extern aktualisiertes fiktives Objekt'});await fs.writeFile(path.join(tmp,A,'_Projekt.json'),expectedPj);
  await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await page.locator('.project-summary').filter({hasText:'Extern aktualisiertes'}).waitFor();await page.waitForFunction(()=>document.activeElement?.matches('[data-note]'));
@@ -97,15 +107,47 @@ if(!before){
  await page.locator(`.proj[data-name="${B}"]`).click();await page.locator('[data-overview]').filter({hasText:'Noch nicht übergeben'}).waitFor();await page.locator('#vtBox > summary').click();
  assert.ok(await page.locator('#vtBox .vtAn').first().isEnabled());await page.locator('#vtBox .vtAn').first().check();await page.waitForFunction(()=>document.querySelector('#vtBox .vtAn')?.checked);
  assert.ok(!await fs.stat(path.join(tmp,B,'_Buero')).catch(()=>null));
- await page.locator('[data-handover] > summary').click();await page.waitForFunction(()=>document.querySelector('[data-form]')?.open);await page.locator('[data-path] > summary').click();
+ assert.equal(await page.locator('[data-handover-label]').innerText(),'Übergabe vorbereiten');
+ await fs.mkdir(path.join(tmp,B,'_Buero'));await page.evaluate(()=>testIO.failList=true);await page.locator('[data-refresh]').click();await page.locator('#bueroAttention').filter({hasText:'unvollständig/veraltet'}).waitFor();
+ await page.locator('[data-handover] > summary').click();assert.ok(!await page.locator('[data-form]').isVisible(),'failed read offers no empty creation form');
+ await page.evaluate(()=>testIO.failList=false);await page.locator('[data-refresh]').click();await page.locator('[data-overview]').filter({hasText:'Noch nicht übergeben'}).waitFor();
+ await page.locator('[data-handover] > summary').click();await page.locator('[data-handover] > summary').click();await page.waitForFunction(()=>document.querySelector('[data-form]')?.open);await page.locator('[data-path] > summary').click();
  await page.locator('[data-word]').fill('Mitteilungen/Gutachten B.docx');await page.locator('[data-entry="0:0"]').fill('Bestätigter Empfänger B');await page.locator('[data-who]').fill('SK');
  await page.evaluate(()=>testIO.failWrite=true);await page.locator('[data-submit]').click();await page.locator('[data-message]').filter({hasText:'Nicht bestätigt gespeichert'}).waitFor();
  const pending=await page.evaluate(()=>JSON.parse(sessionStorage.getItem('buero-draft:26.9999 Kontrollort')).pending);
  await page.locator('[data-handover] > summary').click();assert.ok(!await page.locator('[data-submit]').isVisible());assert.ok(await page.locator('#bueroAttention [data-head-retry]').isVisible());
  await page.locator('#bueroAttention [data-head-retry]').focus();await page.evaluate(()=>{testIO.failWrite=false;window.dispatchEvent(new Event('focus'));});await page.locator('#bueroAttention').filter({hasText:'unvollständig/veraltet'}).waitFor();
  assert.ok(await page.locator('#bueroAttention [data-head-retry]').evaluate(e=>document.activeElement===e),'refresh retains keyboard focus on the direct retry action');
- assert.ok(await page.locator('#bueroAttention [data-head-retry]').isEnabled());await page.locator('#bueroAttention [data-head-retry]').click();await page.locator('[data-message]').filter({hasText:'Gespeichert und rückgelesen'}).waitFor();
+ assert.ok(await page.locator('#bueroAttention [data-head-retry]').isEnabled());
+ // The uncertain write is now readable, but only the explicit retry may confirm it.
+ await fs.writeFile(path.join(tmp,B,'_Buero',pending.data.id,'auftrag.json'),JSON.stringify(pending.data));
+ await page.locator('[data-refresh]').click();await page.waitForFunction(()=>document.querySelector('[data-overview]')?.textContent.includes('Mitteilungen/Gutachten B.docx'));
+ assert.deepEqual(await page.evaluate(()=>JSON.parse(sessionStorage.getItem('buero-draft:26.9999 Kontrollort')).pending),pending);
+ assert.ok(!await page.locator('[data-submit]').isVisible());assert.ok(await page.locator('#bueroAttention [data-head-retry]').isVisible());
+ await page.locator('#bueroAttention [data-head-retry]').click();await page.locator('[data-message]').filter({hasText:'Gespeichert und rückgelesen'}).waitFor();
  const orders=await fs.readdir(path.join(tmp,B,'_Buero'));assert.deepEqual(orders,[pending.data.id]);assert.deepEqual(JSON.parse(await fs.readFile(path.join(tmp,B,'_Buero',pending.data.id,'auftrag.json'),'utf8')),pending.data);
+ // Closed orders stay in history; opening a new draft never reuses them.
+ const completed=await page.evaluate(async content=>{const p=new SharedDirectoryHandle('26.9999 Kontrollort'),o=BueroData.order(content);await BueroData.create(p,o);for(const [type,payload] of [['proof',{}],['pdf',{path:'Mitteilungen/Fiktives Gutachten.pdf'}],['send',{ids:content.recipients.map(r=>r.id),date:'2026-10-21'}]]){const r=await BueroData.load(p,o.id);await BueroData.append(p,BueroData.event(r,type,payload,'AB'));}return o.id;},pending.data.content);
+ await page.evaluate(async id=>{const p=new SharedDirectoryHandle('26.9999 Kontrollort'),r=await BueroData.load(p,id);await BueroData.append(p,BueroData.event(r,'withdraw',{text:'Fiktiver Rückzug'},'SK'));},pending.data.id);
+ await page.locator('[data-refresh]').click();await page.locator('[data-handover-label]').filter({hasText:'Neue Übergabe vorbereiten'}).waitFor();
+ await page.locator('[data-handover] > summary').click();await page.waitForFunction(()=>document.querySelector('[data-form]')?.open);
+ assert.equal(await page.locator('[data-form-label]').innerText(),'Neue Übergabe vorbereiten');assert.equal(await page.locator('[data-history] [data-record]').count(),2);assert.match(await page.locator(`[data-record="${completed}"] > summary`).textContent(),/Erledigt/);
+ assert.deepEqual((await fs.readdir(path.join(tmp,B,'_Buero'))).sort(),[pending.data.id,completed].sort());
+ await page.locator('[data-note]').fill('Noch nicht übergebener lokaler Entwurf');
+ // Two foreign open orders must both remain explicit, without replacing the local draft.
+ const foreign=await page.evaluate(async content=>{const p=new SharedDirectoryHandle('26.9999 Kontrollort'),ids=[];for(let i=0;i<2;i++){const o=BueroData.order({...content,note:'Fremder offener Auftrag '+i});await BueroData.create(p,o);ids.push(o.id);}return ids;},pending.data.content);
+ await page.locator('[data-refresh]').click();await page.locator('[data-handover-label]').filter({hasText:'Offene Übergaben ansehen'}).waitFor();
+ assert.equal(await page.locator('[data-form-label]').innerText(),'Noch nicht übergebener Entwurf');assert.equal(await page.locator('[data-note]').inputValue(),'Noch nicht übergebener lokaler Entwurf');
+ assert.equal(await page.locator('[data-who]').inputValue(),'SK');assert.equal(await page.locator('[data-entry="0:0"]').inputValue(),'Bestätigter Empfänger B');
+ for(const fid of foreign)assert.equal(await page.locator(`[data-record="${fid}"]`).count(),1);
+ await page.locator('[data-handover] > summary').click();await page.locator('[data-refresh]').click();await page.locator('[data-handover] > summary').click();
+ assert.equal(await page.locator('[data-note]').inputValue(),'Noch nicht übergebener lokaler Entwurf');
+ for(const fid of foreign)assert.ok(await page.locator(`[data-record="${fid}"]`).evaluate(e=>e.open));
+ const independent=await(await context()).newPage();independent.on('pageerror',e=>errors.push(e.message));await independent.goto(base+'/index.html');await independent.locator('#btnStart').click();await independent.locator(`.proj[data-name="${B}"]`).click();await independent.locator('[data-handover-label]').filter({hasText:'Offene Übergaben ansehen'}).waitFor();await independent.locator('[data-handover] > summary').click();
+ assert.ok(!await independent.locator('[data-form]').isVisible());for(const fid of foreign)assert.ok(await independent.locator(`[data-record="${fid}"]`).evaluate(e=>e.open));await independent.close();
+
+ await page.locator('[data-submit]').click();await page.locator('[data-message]').filter({hasText:'bereits eine offene Übergabe'}).waitFor();assert.equal((await fs.readdir(path.join(tmp,B,'_Buero'))).length,4);
+
 }
 if(!before){
  const zc=await pw.chromium.launchPersistentContext(path.join(tmp,'.zoom-profile'),{executablePath:process.env.BROWSER_EXECUTABLE||pw.chromium.executablePath(),headless:true,viewport:null,args:['--no-sandbox','--window-size=1024,768']});
@@ -115,6 +157,6 @@ if(!before){
  await z.evaluate(()=>document.fonts.ready);assert.equal(await z.evaluate(()=>devicePixelRatio),1.5,'native browser zoom, not CSS scaling');assert.ok(await z.evaluate(()=>innerWidth<=700));
  assert.ok(await z.locator('#bueroAttention [data-answer]').isVisible());const alertBounds=await z.locator('#bueroAttention').boundingBox();assert.ok(alertBounds.y+alertBounds.height<=await z.evaluate(()=>innerHeight),'question is inside the visible zoomed viewport: '+JSON.stringify({alertBounds,height:await z.evaluate(()=>innerHeight)}));assert.ok(await z.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await z.locator('#detail').evaluate(e=>e.scrollTop=0);const cdp=await zc.newCDPSession(z);const screen=await cdp.send('Page.captureScreenshot',{format:'png',fromSurface:true});await fs.writeFile(path.join(out,'nachher-browserzoom-150.png'),Buffer.from(screen.data,'base64'));
 }
-assert.deepEqual(errors,[]);console.log('OK Projektansicht: '+(before?'Vorher-Screenshots':'Maus/Tastatur, vier Fragmentlinks, Klappen/Empfänger/Cursor, historische Angaben, sichtbare Rückfrage und Speicherfehler, Desktop/klein/echter 150%-Browserzoom'));
+assert.deepEqual(errors,[]);console.log('OK Projektansicht: '+(before?'Vorher-Screenshots':'Maus/Tastatur, vier Fragmentlinks, Klappen/Empfänger/Cursor, drei Übergabeeinstiege, mehrere offene Aufträge, erhaltener lokaler Entwurf, Retry bei bereits lesbarer Datei und zugeklappten Details, historische Angaben, sichtbare Rückfrage und Speicherfehler, Desktop/klein/echter 150%-Browserzoom'));
 }finally{for(const c of contexts)await c.close();await browser.close();server.closeAllConnections();await new Promise(r=>server.close(r));await fs.rm(tmp,{recursive:true,force:true});}
 })().catch(e=>{console.error(e);process.exitCode=1;});

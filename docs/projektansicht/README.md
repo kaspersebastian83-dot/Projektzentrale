@@ -2,6 +2,29 @@
 
 Basis: `main` `77fd419` vom 21.10.2026, einschließlich PR #27 und der aktualisierten FotoKit-Integrationsreferenz aus PR #28. Vor Beginn waren keine offenen PRs mit überschneidenden Änderungen vorhanden. Eigener Branch `ui/projektzentrale-vereinfachen`; keine Änderungen an anderen Apps.
 
+## Nachbesserung: bestehende und neue Übergabe trennen (21.10.2026)
+
+Auf PR #29, ausgehend von `6db7492`, ausschließlich den zustandsabhängigen Büro-Einstieg nachgebessert:
+
+- Ohne offenen Auftrag öffnet „Übergabe vorbereiten“ nach vollständigem erfolgreichem Einlesen direkt das Formular. Erst der bewusste Übergabeklick erzeugt einen Auftrag.
+- Bei offenen Aufträgen öffnet „Übergabe ansehen“ deren Details mit tatsächlichem Status, Word-Zuordnung, bestätigten Empfängern und Hinweis. Mehrere offene Aufträge werden vollständig angezeigt und beim Einstieg alle aufgeklappt. Ohne eigenen Entwurf erscheint kein Neuanlageformular. „Übergabe ändern“ lädt weiterhin über den bestehenden Ablauf den aktuellen Auftrag.
+- Sind nur erledigte oder zurückgenommene Aufträge vorhanden, bleiben sie im Verlauf. „Neue Übergabe vorbereiten“ öffnet bewusst ein neues Formular, ohne einen früheren Auftrag wiederzuverwenden oder bereits einen neuen anzulegen.
+
+Laufende Änderungen und eigene Entwürfe bleiben erhalten. Erscheinen fremde offene Aufträge, steht am Formular „Noch nicht übergebener Entwurf“; die vorhandene Doppelauftragssperre bleibt wirksam. Ein ungeklärter Versuch behält Kennung und Inhalt und bleibt am Projektkopf wiederholbar, auch wenn seine Datei bereits lesbar ist und die Details geschlossen sind. Ein laufendes oder fehlgeschlagenes Einlesen bietet keine leere Neuanlage an. Gemeinsames Datenformat, Speicherfunktionen, Statusregeln und Büroübersicht wurden nicht geändert.
+
+Tatsächlich lokal ausgeführt und bestanden (Node 24.19.0, System-Chromium):
+
+| Bestehende Prüfung | Ergebnis der Nachbesserung |
+|---|---|
+| `tests/projektansicht-browser.cjs` | Drei Einstiegssituationen einschließlich erledigtem und zurückgenommenem Verlauf; tatsächliche Word-Zuordnung ohne Neuanlageformular; zwei offene Aufträge auch in unabhängiger Sitzung; Lesefehler; Erhalt von Änderungsformular, Empfängereingaben, Cursor und lokalem Entwurf bei fremden Aufträgen; kein zweiter Auftrag. |
+| Derselbe UI-/Retry-Test | Nach Schreibfehler unveränderten Versuch eingelesen, währenddessen identische Datei in der temporären Testablage lesbar gemacht, erneut aktualisiert und über den echten Knopf am Projektkopf bestätigt. Details dabei zugeklappt; identische Kennung/Inhalt, kein zusätzlicher Auftrag. Bestehende Fenster-/150%-Zoomprüfungen ebenfalls bestanden. |
+| `tests/buero-browser.cjs` | Bestehender vollständiger Büroablauf einschließlich Retry nach Aktualisieren, abweichender Datei, zwei unabhängiger veralteter Änderungsformulare, Empfängererhalt, Teil-/Vollversand, Rückfragen und Konflikten bestanden. Nur der Einstieg des Tests berücksichtigt die nun direkt geöffneten Auftragsdetails. |
+| `tests/buero.cjs`, `tests/sw.cjs` | Bestanden. |
+
+Die bestehenden CI-Workflows mit Node, Chromium, WebKit und Spektron-Integration bleiben unverändert aktiv; Ergebnisse des aktuellen Nachbesserungsstands stehen in [PR #29](https://github.com/kaspersebastian83-dot/Projektzentrale/pull/29). Keine neue Testinfrastruktur oder Browsermatrix.
+
+Ein einzelner aktueller Screenshot mit erfundenen Daten: [offener Auftrag mit sichtbarer Word-Zuordnung](offene-uebergabe-details.png). Die folgenden älteren Vorher-/Nachher-Paare dokumentieren die ursprüngliche Vereinfachung; sie wurden für diese Nachbesserung nicht erneuert. Weiterhin keine echte Windows-/RDP-/SMB-Abnahme. Büro liest gegen, erstellt PDF und versendet eigenständig; keine zusätzliche Sachverständigenfreigabe. Kein Merge und kein Deployment.
+
 ## Sichtbare Änderung
 
 Projektkopf und kurze Objekt-/Auftraggeber-Zusammenfassung stehen über vier jederzeit nutzbaren Aufgaben. Der leere Projektkopf bietet „Arbeitszettel einlesen“ direkt an. Aufgabentitel stehen groß, App-Namen darunter. Keine Reihenfolgelinien, Dateifund-Erledigt-Haken oder automatische Hervorhebung eines nächsten Pflichtschritts. Die bestehenden Anlagen bleiben an ihren Aufgaben erreichbar.
