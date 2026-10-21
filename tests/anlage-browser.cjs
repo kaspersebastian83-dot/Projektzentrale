@@ -73,7 +73,7 @@ const daten = {
   await page.locator('#anlPn98').waitFor();
   // Sicherungskopien von PlanKit zählen nicht als eigene Pläne
   assert.match(await page.locator('#detail').textContent(), /3 Dateien · Probenplan · 2 Sicherungskopien von PlanKit/);
-  assert.match(await page.locator('.proj.active .chips').textContent(), /Plan ✓/);
+  assert.match(await page.locator('#goPlan .stat').textContent(), /Probenplan vorhanden/);
   // Projektdaten: Neuzeichnen der Ansicht, bevor die Eingabe gespeichert ist (hier: fehlende Unterordner anlegen), behält die Eingabe
   // Projektansicht 1.7: Arbeitsschritte als Karten in der Reihenfolge der Arbeit; Projektdaten zugeklappt (leer: einladend hervorgehoben)
   assert.deepEqual(await page.locator('.steps .step').evaluateAll(b => b.map(x => x.id)), ['goLabel', 'goFotos', 'goPlan', 'goAufwand']);
@@ -84,7 +84,7 @@ const daten = {
     assert.equal(await l.getAttribute('target'), 'reisekosten');
     assert.match(await l.textContent(), /SpesenKit[\s\S]*Spesenabrechnung für den Monat/);
     assert.equal(await page.locator('.steps #goReise').count(), 0, 'nicht Teil der nummerierten Arbeitsschritte'); }
-  assert.equal(await page.locator('.steps .sw.next .step').getAttribute('id'), 'goFotos', 'Proben und Plan da, Fotos noch nicht in FotoKit bearbeitet → FotoKit ist der nächste Schritt');
+  assert.equal(await page.locator('.steps .sw.next,.steps .sw.done').count(), 0, 'Dateibestand erzeugt keine Erledigt- oder Pflichtschrittanzeige');
   assert.equal(await page.locator('#pjBox').evaluate(d => d.open), false, 'Projektdaten zugeklappt');
   assert.ok(await page.locator('#pjBox.leer').count(), 'leere Projektdaten hervorgehoben');
   await page.locator('#pjBox summary').click();

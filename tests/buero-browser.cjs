@@ -42,7 +42,7 @@ const central=await(await context()).newPage(),office=await(await context()).new
 async function openSection(name){const el=office.locator('#detail details').filter({has:office.locator('summary',{hasText:name})});if(!await el.evaluate(e=>e.open))await el.locator('summary').click();}
 for(const p of [central,office])p.on('pageerror',e=>errors.push(e.message));
 await central.goto(base+'/index.html');await central.locator('#btnStart').click();await central.locator(`.proj[data-name="${A}"]`).click();await central.locator('#bueroPanel [data-submit]').waitFor({state:'attached'});
-await central.locator('#bueroPanel [data-form] summary').click();
+await central.locator('[data-handover] > summary').click();if(!await central.locator('[data-form]').evaluate(e=>e.open))await central.locator('#bueroPanel [data-form] > summary').click();await central.locator('[data-path] > summary').click();
 await central.locator('#bueroPanel [data-word]').fill('Mitteilungen/Gutachten A.docx');await central.locator('#bueroPanel [data-pick]').click();
 try{await central.waitForFunction(()=>document.querySelector('#bueroPanel [data-word]')?.value==='Mitteilungen/Gutachten B.docx',null,{timeout:8000});}catch(e){console.log(await central.locator('#bueroPanel').innerText());throw e;}
 assert.equal(await central.locator('#bueroPanel [data-word]').inputValue(),'Mitteilungen/Gutachten B.docx','conscious file selection, no latest heuristic');
@@ -61,7 +61,7 @@ const pendingFile=path.join(project,'_Buero',pendingAttempt.data.id,'auftrag.jso
 assert.equal(await fs.readFile(pendingFile,'utf8'),'','first failed write leaves an empty order file');
 await central.evaluate(()=>testIO.failWrite=false);
 await central.locator('[data-refresh]').click();
-await central.locator('[data-records]').filter({hasText:'Unvollständige Übergabedatei'}).waitFor();
+await central.locator('#bueroAttention').filter({hasText:'Unvollständige Übergabedatei'}).waitFor();
 assert.ok(await central.locator('[data-submit]').isEnabled(),'known pending attempt stays retryable after refresh');
 assert.deepEqual(await central.evaluate(()=>JSON.parse(sessionStorage.getItem('buero-draft:24.0012 Fiktivstadt')).pending),pendingAttempt);
 assert.equal(await central.locator('[data-note]').inputValue(),'Papiermappe am Büroplatz. Bitte Anlagen prüfen.');
@@ -72,7 +72,7 @@ assert.equal(await fs.readFile(pendingFile,'utf8'),foreignOrder,'retry must not 
 assert.deepEqual(await central.evaluate(()=>JSON.parse(sessionStorage.getItem('buero-draft:24.0012 Fiktivstadt')).pending),pendingAttempt);
 // Restore only the injected test fault, then retry the exact initial attempt through the UI.
 await fs.writeFile(pendingFile,'');await central.locator('[data-refresh]').click();
-await central.locator('[data-records]').filter({hasText:'Unvollständige Übergabedatei'}).waitFor();
+await central.locator('#bueroAttention').filter({hasText:'Unvollständige Übergabedatei'}).waitFor();
 await central.locator('[data-submit]').click();await central.locator('[data-message]').filter({hasText:'Gespeichert und rückgelesen'}).waitFor();
 const dirs=await fs.readdir(path.join(project,'_Buero'));assert.equal(dirs.length,1);const id=dirs[0];assert.equal(id,pendingAttempt.data.id);assert.deepEqual(JSON.parse(await fs.readFile(pendingFile,'utf8')),pendingAttempt.data);
 assert.equal(await fs.readFile(path.join(project,'_Projekt.json'),'utf8'),pjText,'handover never rewrites PJ');
@@ -80,7 +80,7 @@ assert.ok(await central.locator('#vtBox .vtAn').first().isDisabled(),'single shi
 await office.goto(base+'/buero/');await office.locator('#archive').click();await office.locator('tr[data-order]').click();
 assert.match(await office.locator('#detail').innerText(),/Muster AG, Abteilung West, Beispielweg 5, 99999 Fiktivstadt/);
 assert.match(await office.locator('#list').innerText(),/24.0012/,'old years remain visible');
-await office.locator('[data-field=actor]').fill('AB');await office.locator('[data-action=claim]').click();await office.locator('#message').filter({hasText:'Gespeichert'}).waitFor();
+await office.locator('[data-field=actor]').fill('AB');await office.locator('[data-action=claim]').click();await office.waitForFunction(()=>Array.from(document.querySelectorAll('.b-history li')).some(e=>e.textContent.includes('Übernommen')));
 await office.locator('[data-action=proof]').click();await office.waitForFunction(()=>document.querySelector('#detail').textContent.includes('Gegenlesen offen')===false);
 await office.evaluate(()=>window.testPick='24.0012 Fiktivstadt/Mitteilungen/Versand A.pdf');await office.locator('[data-pdf-pick]').click();await office.locator('[data-action=pdf]').click();await office.waitForFunction(()=>Array.from(document.querySelectorAll('.b-history li')).some(e=>e.textContent.includes('PDF erstellt / zugeordnet')));
 await office.waitForFunction(()=>document.querySelector('#detail .b-path')&&document.querySelector('[data-field=pdf]').value.includes('Versand A.pdf'));
@@ -90,7 +90,7 @@ await office.locator('[data-send]').nth(1).uncheck();await office.locator('[data
 await office.waitForFunction(()=>document.querySelectorAll('[data-send]').length===2);assert.match(await office.locator('#detail').innerText(),/In Bearbeitung/);await office.evaluate(()=>window.scrollTo(0,0));await office.screenshot({path:path.join(screenshots,'buero.png')});
 await openSection('Rückfrage an Sachverständigen');
 await office.locator('[data-field=text]').fill('Bitte Ablage der Anlage klären.');await office.locator('[data-action=question]').click();await office.waitForFunction(()=>document.querySelector('#detail').textContent.includes('Rückfrage:'));
-await central.locator('[data-refresh]').click();await central.locator('[data-records]').filter({hasText:'Bitte Ablage der Anlage klären.'}).waitFor();
+await central.locator('[data-refresh]').click();await central.locator('#bueroAttention').filter({hasText:'Bitte Ablage der Anlage klären.'}).waitFor();
 // Close optional question without any approval phase.
 await openSection('Rückfrage an Sachverständigen');
 await office.locator('[data-field=text]').fill('Anlage liegt bei der Papiermappe.');await office.locator('[data-action=answer]').click();
@@ -99,7 +99,7 @@ await office.waitForFunction(()=>!document.querySelector('#detail').textContent.
 await openSection('Versand dokumentieren');
 await office.locator('[data-send]').nth(0).check();await office.locator('[data-send]').nth(1).check();
 await office.locator('[data-action=send]').click();await office.waitForFunction(()=>document.querySelector('#detail .b-tag').textContent==='Erledigt');
-await central.locator('[data-refresh]').click();await central.locator('[data-records]').filter({hasText:'Erledigt'}).waitFor();
+await central.locator('[data-refresh]').click();await central.locator('[data-overview]').filter({hasText:'erledigt'}).waitFor();
 assert.equal(await office.locator('#list tr[data-order]').count(),0);await office.locator('#filter').selectOption('all');
 // Independent contexts concurrently append to the same observed head. No Web Lock shared across contexts.
 await Promise.all([central.evaluate(async id=>{const p=await new SharedDirectoryHandle('').getDirectoryHandle('24.0012 Fiktivstadt');window.parallelEvent=BueroData.event(await BueroData.load(p,id),'claim',{},'AA');},id),office.evaluate(async id=>{const p=await new SharedDirectoryHandle('').getDirectoryHandle('24.0012 Fiktivstadt');window.parallelEvent=BueroData.event(await BueroData.load(p,id),'claim',{},'BB');},id)]);
@@ -123,9 +123,9 @@ const revisionId=await central.evaluate(async id=>{
 const reviewer=await(await context()).newPage();reviewer.on('pageerror',e=>errors.push(e.message));
 await reviewer.goto(base+'/index.html');await reviewer.locator('#btnStart').click();await reviewer.locator(`.proj[data-name="${A}"]`).click();
 await central.locator('[data-refresh]').click();
-await central.locator(`[data-revise="${revisionId}"]`).click();
+await central.locator('[data-handover]').evaluate(e=>e.open=true);await central.locator(`[data-record="${revisionId}"]`).evaluate(e=>e.open=true);await central.locator(`[data-revise="${revisionId}"]`).click();
 await central.locator('[data-note]').fill('Nur Hinweis von A geändert – bitte erhalten.');
-await reviewer.locator(`[data-revise="${revisionId}"]`).click();
+await reviewer.locator('[data-handover] > summary').click();await reviewer.locator(`[data-record="${revisionId}"] > summary`).click();await reviewer.locator(`[data-revise="${revisionId}"]`).click();
 await reviewer.locator('[data-add="1"]').click();await reviewer.locator('[data-entry="1:2"]').fill('Neue Empfängerin von B, Beispielweg 9');
 await reviewer.locator('[data-submit]').click();await reviewer.locator('[data-message]').filter({hasText:'Gespeichert und rückgelesen'}).waitFor();
 const revisionPath=path.join(project,'_Buero',revisionId);
@@ -145,7 +145,7 @@ await central.waitForFunction(()=>document.querySelector('[data-message]')?.data
 await central.locator('[data-message]').filter({hasText:'inzwischen geändert'}).waitFor();
 assert.equal((await fs.readdir(revisionPath)).length,2);
 // Explicitly reopen the newer record, review it and reapply A's retained note.
-await central.locator(`[data-revise="${revisionId}"]`).click();
+await central.locator('[data-handover]').evaluate(e=>e.open=true);await central.locator(`[data-record="${revisionId}"]`).evaluate(e=>e.open=true);await central.locator(`[data-revise="${revisionId}"]`).click();
 await central.locator('[data-previous]').filter({hasText:'Nur Hinweis von A geändert – bitte erhalten.'}).waitFor();
 assert.equal(await central.locator('[data-entry="1:2"]').inputValue(),'Neue Empfängerin von B, Beispielweg 9');
 await central.locator('[data-note]').fill('Nur Hinweis von A geändert – bitte erhalten.');await central.locator('[data-submit]').click();
