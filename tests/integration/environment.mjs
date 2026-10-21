@@ -73,6 +73,11 @@ export async function start() {
         result.status=error?'failed':'passed';result.browserErrors=failures;if(error)result.error=String(error.stack||error);
         try {if(error)for(const [i,p] of context.pages().entries()){await p.screenshot({path:resolve(output,`failure-${i}.png`),fullPage:true}).catch(()=>{});await writeFile(resolve(output,`failure-${i}.txt`),JSON.stringify(await p.evaluate(()=>({url:location.href,ready:document.readyState,context:typeof PROJEKT_URL!=='undefined'?PROJEKT_URL:null,project:typeof PROJEKTORDNER!=='undefined'?PROJEKTORDNER.state:null})).catch(()=>({})),null,2)+'\n'+await p.locator('body').innerText().catch(()=>''));}}
         finally {
+          // Stop every producer before removing the archive; a delayed autosave must not recreate it.
+          for(const p of context.pages())if(p!==inspector){
+            await p.evaluate(()=>{const io=window.__suiteIO;if(io){io.holdMeta=false;io.holdPJ=false;io.failAfterImage=false;io.releaseMeta?.();io.releasePJ?.();}}).catch(()=>{});
+            await p.close({runBeforeUnload:false}).catch(()=>{});
+          }
           try {await inspector.evaluate(async()=>{const r=await navigator.storage.getDirectory();await r.removeEntry('suite-test',{recursive:true});});result.archiveRemoved=true;}
           catch(e){result.archiveRemoved=false;result.cleanupError=String(e);}
           await context.close();await browser.close();server.closeAllConnections();await new Promise(r=>server.close(r));

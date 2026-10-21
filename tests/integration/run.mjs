@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import {writeFile} from 'node:fs/promises';
-import {resolve} from 'node:path';
+import {writeFile,mkdir} from 'node:fs/promises';
+import {resolve,dirname} from 'node:path';
 import {start,files,json,until,popup,sha256} from './environment.mjs';
 import {fixture as F,expected as E,expectedNetCents,planSvg,reportPdf} from './fixtures.mjs';
 
@@ -145,6 +145,12 @@ try {
   await step('SpesenKit: real application startup, no project parameter',async()=>{
     const spesen=await popup(central,'#goReise');await spesen.getByRole('heading',{name:'Monatsübersicht',exact:true}).waitFor();assert.equal(new URL(spesen.url()).search,'');assert.equal(new URL(spesen.url()).hash,'');assert.deepEqual(await files(inspector,F.control),before);
   });
+  // Retain actual synthetic producer outputs for review before the security scenarios change them.
+  const produced=await files(inspector,F.project);
+  for(const [name,bytes] of Object.entries(produced)){
+    const target=resolve(env.output,'produced',name);await mkdir(dirname(target),{recursive:true});await writeFile(target,Buffer.from(bytes));
+  }
+  if(process.argv.includes('--security'))await(await import('./security.mjs')).security({env,central,foto,F});
   assert.deepEqual(env.failures,[]);
   result.producerFiles={labelkit:result.labelkit,fotokit:result.fotokit,plankit:result.plankit};
   await writeFile(resolve(env.output,'manifest.json'),JSON.stringify({fixture:F,expected:E,netCents:expectedNetCents,revisions:result.revisions},null,2));

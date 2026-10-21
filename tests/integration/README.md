@@ -53,4 +53,12 @@ Der CI-Workflow lädt ausschließlich das Ergebnisverzeichnis als Artefakt hoch 
 
 Chromium mit OPFS ist kein Nachweis für NTFS, SMB, Dateisperren, getrennte Windows-Profile, zwei Terminalserver, RDP-Trennung, physische Stromunterbrechung oder Word-Darstellung. Diese Eigenschaften müssen am Windows-/RDP-Testarbeitsplatz abgenommen werden. WebKit wird hier nicht ausgeführt; reduzierte WebKit-Dateiprüfungen werden nicht als voller Erfolg ausgegeben. Die bestehenden appinternen Chromium-/WebKit-Suites bleiben zusätzlich erforderlich.
 
-Die drei Sicherheitsfälle Projektwechsel, parallele gemeinsame Felder und Speicherfehler nach Umbenennung gehören in den getrennten zweiten PR. Keine automatische Produktkorrektur bei einem gefundenen Fehler: Reproduktion sichern, betroffenes Repository und Ursache dokumentieren, separaten Bugfix vorschlagen.
+## Sicherheitsfälle (getrennter zweiter PR)
+
+`node tests/integration/run.mjs --security` führt zuerst den vollständigen Grundablauf aus, anschließend:
+
+- A: Native Metadaten-Schließung in FotoKit anhalten, aus der echten Zentrale im benannten Fenster Projekt B anfordern, beforeunload abbrechen und A-Eingaben/Adresse/Dateien prüfen. Nach Speicherung erfolgreich wechseln und ins ursprüngliche Projekt zurückkehren. B enthält keine A-Eingaben.
+- B: Zentrale ändert Auftraggeber und FotoKit Objekt. Der erste echte Schreiber hält seinen `_Projekt.json`-Schreibabschluss an; der zweite echte Schreiber wartet nachweisbar im gemeinsamen Web Lock. Beide Reihenfolgen müssen beide Änderungen und unveränderte Schaden-/Projektdaten erhalten.
+- C: Nach tatsächlichen Foto-Umbenennungen an der Browser-Dateisystemschnittstelle Metadaten-close scheitern lassen. Fehlermeldung statt Erfolg, erhaltene Eingaben, unveränderte alte JSON, erfolglosen und erfolgreichen Retry sowie erneutes Öffnen prüfen. Gezählt werden native Dateioperationen; Retries dürfen keine weitere Bildoperation auslösen.
+
+Die tatsächlichen Produzentendateien des Grundablaufs liegen im Ergebnisordner unter `produced/`; sie werden vor den anschließenden Änderungen der Sicherheitsfälle gesichert. Keine automatische Produktkorrektur bei einem gefundenen Fehler: Reproduktion sichern, betroffenes Repository und Ursache dokumentieren, separaten Bugfix vorschlagen.
