@@ -47,7 +47,7 @@ function event(record,type,payload,actor){
 function validateContent(c){
   if(!c||!c.project||!['name','nr','ort'].every(k=>typeof c.project[k]==='string')||typeof c.who!=='string'||!c.who.trim()||typeof c.note!=='string'||typeof c.instruction!=='string'||!Array.isArray(c.recipients)||!c.recipients.length)throw Error('Unvollständiger Übergabeinhalt.');
   pathParts(c.word);if(!/\.docx?$/i.test(c.word))throw Error('Ungültige Word-Zuordnung.');
-  const ids=new Set();for(const r of c.recipients){if(!r||typeof r.id!=='string'||!r.id||ids.has(r.id)||!groups.some(g=>g[0]===r.group)||typeof r.label!=='string'||typeof r.details!=='string'||!r.details.trim())throw Error('Ungültiger Empfängerstand.');ids.add(r.id);}
+  const ids=new Set();for(const r of c.recipients){if(!r||typeof r.id!=='string'||!/^[a-zA-Z0-9-]{1,80}$/.test(r.id)||ids.has(r.id)||!groups.some(g=>g[0]===r.group)||typeof r.label!=='string'||typeof r.details!=='string'||!r.details.trim())throw Error('Ungültiger Empfängerstand.');ids.add(r.id);}
 }
 function validate(o,id){
   if(!o||o.format!==FORMAT||o.version!==VERSION||o.id!==id)throw Error('Unbekanntes oder beschädigtes Büroformat.');
