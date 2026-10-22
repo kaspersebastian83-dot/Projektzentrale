@@ -127,7 +127,9 @@ await reviewer.goto(base+'/index.html');await reviewer.locator('#btnStart').clic
 await central.locator('[data-refresh]').click();
 await central.locator('[data-handover]').evaluate(e=>e.open=true);await central.locator(`[data-record="${revisionId}"]`).evaluate(e=>e.open=true);await central.locator(`[data-revise="${revisionId}"]`).click();
 await central.locator('[data-note]').fill('Nur Hinweis von A geändert – bitte erhalten.');
-await reviewer.locator('[data-handover] > summary').click();if(!await reviewer.locator(`[data-record="${revisionId}"]`).evaluate(e=>e.open))await reviewer.locator(`[data-record="${revisionId}"] > summary`).click();await reviewer.locator(`[data-revise="${revisionId}"]`).click();
+// The handover toggle opens active records asynchronously. Clicking their summary before
+// that toggle settles can close the record again; wait for the actual usable UI instead.
+await reviewer.locator('[data-handover] > summary').click();await reviewer.locator(`[data-revise="${revisionId}"]`).waitFor({state:'visible'});await reviewer.locator(`[data-revise="${revisionId}"]`).click();
 await reviewer.locator('[data-add="1"]').click();await reviewer.locator('[data-entry="1:2"]').fill('Neue Empfängerin von B, Beispielweg 9');
 await reviewer.locator('[data-submit]').click();await reviewer.locator('[data-message]').filter({hasText:'Gespeichert und rückgelesen'}).waitFor();
 const revisionPath=path.join(project,'_Buero',revisionId);
