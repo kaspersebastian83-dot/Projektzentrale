@@ -1,0 +1,78 @@
+N1 – Herkunft von Rückmeldungsversuchen, 22.10.2026
+
+Ausgangsstand: F5 PR #30, 1c8fa53bd362f6111e280c6478959f1b696bbb24.
+Diese Nachkorrektur baut auf F5 auf. PR #30 bleibt unverändert.
+
+Ursache
+savePending rekonstruierte nach einem Neustart einen verlorenen Ordnerhandle durch
+eine Archivsuche nach gespeichertem Projektnamen und Auftrags-UUID. Nach Entfernen
+einer falschen A-Kopie war diese Suche widerspruchsfrei, bewies jedoch nicht, dass
+der ursprüngliche Schreibversuch jemals aus dem gefundenen B-Ordner stammte.
+
+Verfahren
+- Vor gemeinsamem Rückmeldungsschreiben: unveränderlichen Auftrag und vollständiges
+  Ereignis zusammen mit originalem Archiv- und Projekt-DirectoryHandle in IndexedDB
+  unter einer zufälligen eigenen Versuchs-ID speichern und rücklesen.
+- Das ausgewählte Archiv muss zum gespeicherten Archivhandle passen. resolve()
+  muss den ursprünglichen Projektordner als genau ein direktes Kind bestätigen.
+- Vor der ersten Rückmeldung einen eindeutigen Herkunftsnachweis unter
+  _Buero/herkunft-<Versuchs-ID>.json schreiben und rücklesen. Er enthält die
+  Versuchs-ID, Projekt-/Auftrags-/Ereigniszuordnung und SHA-256 des lokalen Versuchs.
+  Alte Clients ignorieren diese Datei; Auftrags- und Rückmeldungsformate bleiben gleich.
+- Beim Wiederholen ausschließlich den gespeicherten Handle benutzen. Der bereits
+  vorhandene Herkunftsnachweis, die exakte lokale Nutzlast, der ursprüngliche Auftrag
+  und die F5-Projektprüfungen müssen weiterhin stimmen. Keine Archivsuche als
+  Schreibziel und kein nachträgliches Erzeugen/Reparieren eines Herkunftsnachweises.
+- Nach bestätigtem D.append den lokalen Versuch löschen. Falls diese Bestätigung
+  oder lokale Bereinigung scheitert, bleibt derselbe Versuch/UUID erhalten; der
+  bestehende unveränderliche Writer prüft bereits geschriebene Ereignisse idempotent.
+  Herkunftsnachweise bleiben als kleine Prüfbelege erhalten; keine automatische
+  Bereinigung gemeinsamer Dateien. Keine Sicherung oder Zusammenführung von _Projekt.json.
+
+Bedienung und alte Versuche
+Alte Versuche ohne ausreichend gespeicherte Herkunft werden absichtlich nicht mehr
+automatisch migriert. Die frühere F5-Testannahme einer sicheren Migration allein
+durch Archivscan ist durch den nachgewiesenen N1-Fehler widerlegt und ersetzt.
+Eingaben bleiben in der Ansicht „Ungeklärter Schreibversuch“ sichtbar und kopierbar.
+Nach Abstimmung der Ablage können Mitarbeitende den lokalen Versuch mit Bestätigung
+verwerfen, den richtigen Auftrag neu öffnen, dessen Verlauf prüfen und bewusst neu
+erfassen. Das Verwerfen schreibt oder löscht keine gemeinsamen Projektdaten.
+„Lokal gespeicherte Schreibversuche anzeigen“ bietet nach einem Neustart auch ohne
+sessionStorage die ausdrückliche Auswahl der in IndexedDB erhaltenen Versuche an.
+Eine Auswahl allein schreibt nichts. Lokale Daten oder Ordnerberechtigungen werden
+nicht automatisch neu erstellt. Bei gescheiterter Herkunftsbeleg-Anlage ist nur
+manuelle Klärung/Neuerfassung möglich; eine Rückmeldung wurde dabei nicht geschrieben.
+
+Automatisierte Nachweise
+node tests/buero-n1.cjs: 22 gezielte synthetische Fälle, tatsächliche savePending-Funktion.
+node tests/n1-baseline.cjs: derselbe Schreibschutz-Test muss auf exakt F5 1c8fa53
+mit einer unerwünschten Rückmeldungsdatei in B scheitern. Kein bloßer Textvergleich.
+node tests/buero-f5.cjs und tests/buero.cjs: bestehende F5-/Büroprüfungen erhalten;
+die unsichere automatische Altdatenmigration wird jetzt ausdrücklich abgewiesen.
+tests/buero-browser.cjs chromium|webkit: vollständige Oberfläche/Büroübergabe,
+Empfängerstände, Teilversand, Rückfragen, Korrekturen, Konkurrenz, Retry und N1.
+Synthetische Dateihandles und ihr strukturiertes Klonen sind nur im Testadapter
+tests/office-handle-clone.cjs nachgebildet. Produktion enthält keinen solchen Adapter.
+tests/buero-n1-native.cjs: echte Chromium-OPFS-Handles und natives IndexedDB über
+erneutes Laden, erfolgreicher Retry, Blockade einer gleichnamigen Neuanlage ohne
+ursprünglichen Herkunftsnachweis. Keine native Windows-/SMB-Prüfung.
+.github/workflows/n1-compatibility.yml kombiniert ausschließlich temporär die
+unveränderten F3-Produkt-/Regressionsänderungen aus PR #31 e7b8c4e sowie FotoKit
+F3 5617ff0; prüft beide Browser und Spektron einschließlich Sicherheitsfällen.
+Die vorhandene reguläre Spektron-Integrationsmatrix/Referenzdatei bleibt unverändert.
+
+Grenzen und praktische Abnahme
+IndexedDB und Ordnerhandles sind an Browserprofil und Origin gebunden. Gehen diese
+verloren oder werden Berechtigungen entzogen, darf kein Auftrag anhand des Namens
+automatisch zugeordnet werden. Kopierbare alte Eingaben erfordern manuelle Klärung.
+OPFS und synthetische Tests beweisen weder Windows-/RDP-/SMB-Cacheaktualität noch
+Stromausfallfestigkeit. Browserhandles können pfadbezogen sein. Eine vollständige
+identische Kopie samt Herkunftsbelegen am identischen Pfad ist über die Browser-
+Dateischnittstelle nicht zuverlässig vom ursprünglichen Datenträger zu unterscheiden.
+Der Herkunftsbeleg ist ein Zuordnungsnachweis, keine Benutzer-Authentifizierung.
+Praktisch prüfen: kopierten B-Auftrag aus A öffnen, alten Versuch wiederherstellen,
+Kopie entfernen und Retry; gültigen Retry nach Browserneustart; Profil-/Archivwechsel;
+entzogene Berechtigungen; nicht erreichbares Netzlaufwerk; beschädigter Herkunftsbeleg;
+gewöhnlichen Büroablauf mit Teilversand und Rückfragen. Keine echten Daten verwenden.
+Vor Betrieb alle alten schreibenden Clients schließen/aktualisieren. Diese Korrektur
+erteilt keine Gesamtfreigabe und behebt keine anderen Befunde des unabhängigen Audits.

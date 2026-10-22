@@ -30,8 +30,11 @@ async function run(){
   // Run the actual office retry function, including the restart case with no in-memory handle.
   const source=await fs.readFile(path.join(__dirname,'../buero/office.js'),'utf8'),start=source.indexOf('async function savePending()'),end=source.indexOf('\nasync function retry()',start);
   assert.ok(start>=0&&end>start);
+  const P=require('../buero/pending.js'),{Handle,storage}=require('./buero-n1.cjs'),db=storage(),pendingStore=P.create(db),boundArchive=new Handle(tmp),boundB=new Handle(b.path);
   async function retry(pending,pendingProject){
-   const state={archive,pending,pendingProject},context=vm.createContext({D,state,sessionStorage:{removeItem(){}},message(){}});
+   const state={archive:boundArchive,pending,pendingProject};
+   if(pendingProject)state.archive=new Handle(tmp+'-different');
+   const context=vm.createContext({D,state,pendingStore,BueroPending:P,sessionStorage:{removeItem(){}},message(){}});
    vm.runInContext(source.slice(start,end),context);await context.savePending();return state;
   }
   const pending={project:a.name,order,data:question};
@@ -39,19 +42,24 @@ async function run(){
   // Legacy pending payloads also cannot redirect to B while the conflicting copy exists in A.
   await assert.rejects(retry({project:b.name,data:question}),/Projektzuordnung blockiert/);assert.deepEqual(await tree(tmp),before);
   await fs.rm(path.join(a.path,'_Buero'),{recursive:true});
-  await assert.rejects(retry({project:a.name,order,data:question}),/nicht eindeutig/);
+  await assert.rejects(retry({project:a.name,order,data:question}),/Projektzuordnung blockiert/);
   // Even an archive reconnection may not replace an already bound physical handle.
-  await assert.rejects(retry({project:b.name,order,data:question},{isSameEntry:async()=>false}),/Projektordner.*gewechselt/);
-  await assert.rejects(retry({project:b.name,order:{...order,created:'2000-01-01'},data:question}),/ausgetauscht/);
+  const bound=await pendingStore.prepare(boundArchive,boundB,order,question);
+  await assert.rejects(retry(bound,{isSameEntry:async()=>false}),/Archivordner.*gewechselt/);
+  const orderFile=path.join(dir,'auftrag.json'),original=await fs.readFile(orderFile,'utf8');
+  await fs.writeFile(orderFile,JSON.stringify({...order,created:'2000-01-01'}));await assert.rejects(retry(bound),/ausgetauscht/);await fs.writeFile(orderFile,original);
   // Empty files left by a failed write must remain retryable, but only for this exact attempt.
   await fs.writeFile(path.join(dir,'rueckmeldung-'+question.id+'.json'),'');
   await assert.rejects(D.load(b,order.id),/Unvollständige/);
-  const restored=await retry({project:b.name,order,data:question});assert.equal(restored.pending,null);
+  const finish=pendingStore.finish;pendingStore.finish=async()=>{throw Error('cleanup interrupted');};
+  await assert.rejects(retry(bound),/cleanup interrupted/);pendingStore.finish=finish;
+  const restored=await retry(bound);assert.equal(restored.pending,null);
   assert.equal((await D.load(b,order.id)).question,'Bitte prüfen');
-  const after=await tree(tmp);await retry({project:b.name,order,data:question});assert.deepEqual(await tree(tmp),after,'uncertain successful write is idempotent after restart');
-  // Correct pre-F5 pending records remain recoverable after a complete verified scan.
-  const answer=D.event(await D.load(b,order.id),'answer',{text:'Geklärt'},'QA');await retry({project:b.name,data:answer});assert.equal((await D.load(b,order.id)).question,'');
-  console.log('OK F5: kopierter Büroauftrag B in A ohne Schreibzugriff blockiert; Nummer und Name, historische Änderungen, gebundener Ordner, alter/neuer Neustart-Retry und leere Rückmeldedatei geprüft');
+  const after=await tree(tmp);await assert.rejects(retry({project:b.name,order,data:question}),/Projektzuordnung blockiert/);assert.deepEqual(await tree(tmp),after);
+  // N1 deliberately closes the unsafe pre-F5/F5 name-based migration. Explicit new verified attempt required.
+  const answer=D.event(await D.load(b,order.id),'answer',{text:'Geklärt'},'QA');await assert.rejects(retry({project:b.name,data:answer}),/Projektzuordnung blockiert/);
+  await retry(await pendingStore.prepare(boundArchive,boundB,order,answer));assert.equal((await D.load(b,order.id)).question,'');
+  console.log('OK F5/N1: kopierter Büroauftrag B in A blockiert; Nummer und Name, historische Änderungen, unveränderliche Ordnerbindung, alte Versuche sicher blockiert, gültiger Neustart-Retry und leere eigene Rückmeldedatei geprüft');
  }finally{await fs.rm(tmp,{recursive:true,force:true});}
 }
 module.exports={run};
