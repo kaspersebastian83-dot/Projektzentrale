@@ -52,6 +52,7 @@ jobs:
           node "$GITHUB_WORKSPACE/tests/.n1-foto-f3/tests/project-store.cjs" "$RUNNER_TEMP/n1-f3"
           node tests/sw.cjs
       - name: Browser runtime
+        timeout-minutes: 6
         run: |
           npm install --no-save --no-package-lock --prefix "$RUNNER_TEMP/pw" playwright@1.56.1
           echo "NODE_PATH=$RUNNER_TEMP/pw/node_modules" >> "$GITHUB_ENV"
