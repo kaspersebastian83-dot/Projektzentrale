@@ -125,8 +125,12 @@ await reviewer.goto(base+'/index.html');await reviewer.locator('#btnStart').clic
 await central.locator('[data-refresh]').click();
 async function revise(page,id){
  await page.locator(`[data-record="${id}"]`).waitFor({state:'attached'});
- if(!await page.locator('[data-handover]').evaluate(e=>e.open))await page.locator('[data-handover] > summary').click();
- if(!await page.locator(`[data-record="${id}"]`).evaluate(e=>e.open))await page.locator(`[data-record="${id}"] > summary`).click();
+ if(!await page.locator('[data-handover]').evaluate(e=>e.open)){
+  await page.locator('[data-handover] > summary').click();
+  // Its asynchronous toggle handler opens active records. Wait for that handler
+  // before deciding whether a second summary click is needed.
+  await page.waitForFunction(id=>document.querySelector('[data-record="'+id+'"]')?.open,id);
+ }else if(!await page.locator(`[data-record="${id}"]`).evaluate(e=>e.open))await page.locator(`[data-record="${id}"] > summary`).click();
  await page.locator(`[data-revise="${id}"]`).click();
 }
 await revise(central,revisionId);
