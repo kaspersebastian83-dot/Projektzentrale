@@ -1,0 +1,106 @@
+name: F3 cross-app and F5 compatibility
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: f3-compatibility-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  independent-profiles:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, webkit]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          path: central
+          persist-credentials: false
+      - uses: actions/checkout@v6
+        with:
+          repository: kaspersebastian83-dot/Bildumbenenner
+          ref: 9079e3b932357607c945ac952f627bf801be6bac
+          path: foto
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Identical protocol and independent V8 sessions in both directions
+        run: |
+          cmp central/project-store.js foto/project-store.js
+          node central/tests/project-store.cjs foto
+          node foto/tests/project-store.cjs central
+      - name: Pinned browser runtime
+        run: |
+          npm install --no-save --no-package-lock --prefix "$RUNNER_TEMP/pw" playwright@1.56.1
+          echo "NODE_PATH=$RUNNER_TEMP/pw/node_modules" >> "$GITHUB_ENV"
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps ${{ matrix.browser }}
+      - name: Actual app UIs, independent profiles, both directions, recovery after restart
+        run: |
+          node central/tests/project-store-browser.cjs ${{ matrix.browser }} foto
+          node foto/tests/project-store-browser.cjs ${{ matrix.browser }} central
+
+  f5-and-suite:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          path: central
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Temporary F3 plus exact unchanged F5 PR 30 snapshot
+        working-directory: central
+        run: |
+          git fetch --depth=1 origin 1c8fa53bd362f6111e280c6478959f1b696bbb24
+          git diff 4716c0b57284bdf3a0dcdb657bb99059bbf7da77 1c8fa53bd362f6111e280c6478959f1b696bbb24 -- buero tests/buero.cjs tests/buero-browser.cjs tests/buero-f5.cjs > "$RUNNER_TEMP/f5.patch"
+          git worktree add --detach "$RUNNER_TEMP/f3-f5" HEAD
+          git -C "$RUNNER_TEMP/f3-f5" apply "$RUNNER_TEMP/f5.patch"
+          git -C "$RUNNER_TEMP/f3-f5" add buero tests/buero.cjs tests/buero-browser.cjs tests/buero-f5.cjs
+          git -C "$RUNNER_TEMP/f3-f5" -c user.name='Synthetic compatibility test' -c user.email='test@example.invalid' commit -m 'Temporary F3 plus F5 test snapshot (never pushed)'
+      - name: F5 Node regressions and F3 storage protection
+        working-directory: ${{ runner.temp }}/f3-f5
+        run: |
+          node tests/buero.cjs
+          node tests/buero-f5.cjs
+          node tests/project-store.cjs
+          node --test tests/integration/provenance.test.mjs
+      - name: Prepare suite with reviewed FotoKit F3 commit (temporary manifest only)
+        working-directory: ${{ runner.temp }}/f3-f5
+        run: |
+          node -e "const fs=require('fs'),p='tests/integration/stand.json',m=JSON.parse(fs.readFileSync(p));m.Bildumbenenner='9079e3b932357607c945ac952f627bf801be6bac';fs.writeFileSync(p,JSON.stringify(m,null,2)+'\n');"
+          node tests/integration/prepare.mjs
+      - name: Pinned browser runtime
+        run: |
+          npm install --no-save --no-package-lock --prefix "$RUNNER_TEMP/pw" playwright@1.56.1
+          echo "NODE_PATH=$RUNNER_TEMP/pw/node_modules" >> "$GITHUB_ENV"
+          echo "PLAYWRIGHT_MODULE=$RUNNER_TEMP/pw/node_modules/playwright" >> "$GITHUB_ENV"
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
+      - name: F5 handover and copied-order browser regression plus F3 recovery
+        working-directory: ${{ runner.temp }}/f3-f5
+        run: |
+          node tests/buero-browser.cjs
+          node tests/project-store-browser.cjs chromium tests/.integration-work/Bildumbenenner
+      - name: Full Spektron producer/consumer and security integration with F3 and F5
+        working-directory: ${{ runner.temp }}/f3-f5
+        run: node tests/integration/run.mjs --security
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: f3-f5-suite-results
+          path: |
+            ${{ runner.temp }}/f3-f5/tests/integration/results/
+            ${{ runner.temp }}/f3-f5/tests/integration/stand.json
+            ${{ runner.temp }}/f5.patch
+          if-no-files-found: warn
+          retention-days: 14
