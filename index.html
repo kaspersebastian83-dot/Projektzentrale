@@ -1080,7 +1080,7 @@ function renderDetail(){
   $('detail').innerHTML = `<div class="pz">
     <h2><span class="nr">${esc(p.nr)}</span> ${esc(p.ort)}</h2>
     <p class="project-summary">${esc([d.objekt,d.auftraggeber].filter(Boolean).join(' · ')||'Objekt und Auftraggeber noch nicht eingetragen')}</p>
-    <div id="pjAttention" role="status"></div><div id="pjRecovery"></div><div id="bueroAttention" class="buero" role="status"></div>
+    <div id="pjAttention" role="status"></div><div id="bueroAttention" class="buero" role="status"></div><div id="pjRecovery"></div>
     ${!summe&&!ro?'<div class="azrow"><button id="azQuick">Arbeitszettel einlesen …</button></div>':''}
     <details class="card${summe ? '' : ' leer'}" id="pjBox" ${pjAuf ? 'open' : ''}>
       <summary><span class="t">Projektdaten</span><span class="sum">${ro?'Ansehen':summe?'Bearbeiten · Arbeitszettel einlesen':'Ergänzen oder Arbeitszettel einlesen'}</span>
