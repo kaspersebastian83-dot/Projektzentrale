@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           repository: kaspersebastian83-dot/Bildumbenenner
-          ref: 9079e3b932357607c945ac952f627bf801be6bac
+          ref: 3cbafecec7bc4ee10403f92abba1ce1af7a97faa
           path: foto
           persist-credentials: false
       - uses: actions/setup-node@v6
@@ -78,7 +78,7 @@ jobs:
       - name: Prepare suite with reviewed FotoKit F3 commit (temporary manifest only)
         working-directory: ${{ runner.temp }}/f3-f5
         run: |
-          node -e "const fs=require('fs'),p='tests/integration/stand.json',m=JSON.parse(fs.readFileSync(p));m.Bildumbenenner='9079e3b932357607c945ac952f627bf801be6bac';fs.writeFileSync(p,JSON.stringify(m,null,2)+'\n');"
+          node -e "const fs=require('fs'),p='tests/integration/stand.json',m=JSON.parse(fs.readFileSync(p));m.Bildumbenenner='3cbafecec7bc4ee10403f92abba1ce1af7a97faa';fs.writeFileSync(p,JSON.stringify(m,null,2)+'\n');"
           node tests/integration/prepare.mjs
       - name: Pinned browser runtime
         run: |

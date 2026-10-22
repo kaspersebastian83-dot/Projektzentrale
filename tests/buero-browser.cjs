@@ -123,9 +123,15 @@ const revisionId=await central.evaluate(async id=>{
 const reviewer=await(await context()).newPage();reviewer.on('pageerror',e=>errors.push(e.message));
 await reviewer.goto(base+'/index.html');await reviewer.locator('#btnStart').click();await reviewer.locator(`.proj[data-name="${A}"]`).click();
 await central.locator('[data-refresh]').click();
-await central.locator('[data-handover]').evaluate(e=>e.open=true);await central.locator(`[data-record="${revisionId}"]`).evaluate(e=>e.open=true);await central.locator(`[data-revise="${revisionId}"]`).click();
+async function revise(page,id){
+ await page.locator(`[data-record="${id}"]`).waitFor({state:'attached'});
+ if(!await page.locator('[data-handover]').evaluate(e=>e.open))await page.locator('[data-handover] > summary').click();
+ if(!await page.locator(`[data-record="${id}"]`).evaluate(e=>e.open))await page.locator(`[data-record="${id}"] > summary`).click();
+ await page.locator(`[data-revise="${id}"]`).click();
+}
+await revise(central,revisionId);
 await central.locator('[data-note]').fill('Nur Hinweis von A geändert – bitte erhalten.');
-await reviewer.locator('[data-handover] > summary').click();if(!await reviewer.locator(`[data-record="${revisionId}"]`).evaluate(e=>e.open))await reviewer.locator(`[data-record="${revisionId}"] > summary`).click();await reviewer.locator(`[data-revise="${revisionId}"]`).click();
+await revise(reviewer,revisionId);
 await reviewer.locator('[data-add="1"]').click();await reviewer.locator('[data-entry="1:2"]').fill('Neue Empfängerin von B, Beispielweg 9');
 await reviewer.locator('[data-submit]').click();await reviewer.locator('[data-message]').filter({hasText:'Gespeichert und rückgelesen'}).waitFor();
 const revisionPath=path.join(project,'_Buero',revisionId);
@@ -145,7 +151,7 @@ await central.waitForFunction(()=>document.querySelector('[data-message]')?.data
 await central.locator('[data-message]').filter({hasText:'inzwischen geändert'}).waitFor();
 assert.equal((await fs.readdir(revisionPath)).length,2);
 // Explicitly reopen the newer record, review it and reapply A's retained note.
-await central.locator('[data-handover]').evaluate(e=>e.open=true);await central.locator(`[data-record="${revisionId}"]`).evaluate(e=>e.open=true);await central.locator(`[data-revise="${revisionId}"]`).click();
+await revise(central,revisionId);
 await central.locator('[data-previous]').filter({hasText:'Nur Hinweis von A geändert – bitte erhalten.'}).waitFor();
 assert.equal(await central.locator('[data-entry="1:2"]').inputValue(),'Neue Empfängerin von B, Beispielweg 9');
 await central.locator('[data-note]').fill('Nur Hinweis von A geändert – bitte erhalten.');await central.locator('[data-submit]').click();
