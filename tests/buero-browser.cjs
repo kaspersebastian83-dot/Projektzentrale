@@ -153,6 +153,38 @@ await central.locator('[data-message]').filter({hasText:'Gespeichert und rückge
 const afterReview=await central.evaluate(async id=>BueroData.load(await new SharedDirectoryHandle('').getDirectoryHandle('24.0012 Fiktivstadt'),id),revisionId);
 assert.equal(afterReview.content.note,'Nur Hinweis von A geändert – bitte erhalten.');assert.deepEqual(afterReview.content.recipients,afterB.content.recipients);assert.equal(afterReview.events.length,2);assert.equal(afterReview.conflict,false);
 assert.equal(await fs.readFile(path.join(tmp,B,'Kontrolle.txt'),'utf8'),'untouched');assert.equal(await fs.readFile(path.join(project,'_Projekt.json'),'utf8'),pjText);assert.deepEqual(errors,[]);
+// F5 audit reproduction: the entire valid order directory from B is copied into A.
+const f5A='26.0101 Muster A',f5B='26.0999 Muster B';
+await fs.mkdir(path.join(tmp,f5A));await fs.mkdir(path.join(tmp,f5B));
+const f5=await central.evaluate(async name=>{
+ const p=await new SharedDirectoryHandle('').getDirectoryHandle(name);
+ const content=BueroData.snapshot({name,nr:'26.0999',ort:'Muster B'},'Mitteilungen/Gutachten.docx','QA','Nur Test',BueroData.recipients({auftraggeber:'Muster AG',sachverstaendigerBeteiligt:'Dr. Muster'}));
+ const order=BueroData.order(content);await BueroData.create(p,order);
+ const data=BueroData.event(await BueroData.load(p,order.id),'question',{text:'F5 Rückfrage'},'QA');return{project:name,order,data};
+},f5B);
+await fs.cp(path.join(tmp,f5B,'_Buero'),path.join(tmp,f5A,'_Buero'),{recursive:true});
+async function bytes(dir){const out={};for(const e of await fs.readdir(dir,{withFileTypes:true})){const p=path.join(dir,e.name);out[e.name]=e.isDirectory()?await bytes(p):(await fs.readFile(p)).toString();}return out;}
+const f5Before={a:await bytes(path.join(tmp,f5A)),b:await bytes(path.join(tmp,f5B))};
+const blocked=await(await context()).newPage();blocked.on('pageerror',e=>errors.push(e.message));blocked.on('dialog',d=>d.accept());
+await blocked.goto(base+'/index.html');await blocked.locator('#btnStart').click();await blocked.locator(`.proj[data-name="${f5A}"]`).click();
+await blocked.locator('#bueroAttention').filter({hasText:'Projektzuordnung blockiert'}).waitFor();assert.equal(await blocked.locator('[data-answer]').count(),0);
+await blocked.goto(base+'/buero/');await blocked.locator('#archive').click();await blocked.locator('#warning').filter({hasText:'Projektzuordnung blockiert'}).waitFor();
+// Simulate an already open, stale A record and try its actual question handler.
+await blocked.evaluate(async({pending,name})=>{await act({...BueroData.reduce(pending.order,[]),projectHandle:new SharedDirectoryHandle(name)},{actor:'QA',text:'F5 Rückfrage'},'question');},{pending:f5,name:f5A});
+assert.deepEqual({a:await bytes(path.join(tmp,f5A)),b:await bytes(path.join(tmp,f5B))},f5Before);
+// Pre-F5 stored project names must not redirect a restored attempt to the original B.
+await blocked.evaluate(p=>sessionStorage.setItem('buero-office-pending',JSON.stringify({project:p.project,data:p.data})),f5);await blocked.reload();await blocked.locator('#archive').click();await blocked.locator('#retry').click();
+await blocked.locator('#message').filter({hasText:'Projektzuordnung blockiert'}).waitFor();assert.ok(await blocked.locator('#retry').isVisible());
+assert.deepEqual({a:await bytes(path.join(tmp,f5A)),b:await bytes(path.join(tmp,f5B))},f5Before);
+// Remove only the injected copy. A legitimate interrupted attempt survives reload and stays idempotent.
+await fs.rm(path.join(tmp,f5A,'_Buero'),{recursive:true});
+await blocked.evaluate(p=>sessionStorage.setItem('buero-office-pending',JSON.stringify(p)),f5);await blocked.reload();await blocked.locator('#archive').click();
+await blocked.evaluate(()=>testIO.failWrite=true);await blocked.locator('#retry').click();await blocked.locator('#message').filter({hasText:'SYNTHETIC write'}).waitFor();
+const f5Dir=path.join(tmp,f5B,'_Buero',f5.order.id);assert.equal(await fs.readFile(path.join(f5Dir,'rueckmeldung-'+f5.data.id+'.json'),'utf8'),'');
+await blocked.reload();await blocked.locator('#archive').click();await blocked.locator('#retry').click();await blocked.locator('#retry').waitFor({state:'hidden'});
+assert.equal(JSON.parse(await fs.readFile(path.join(f5Dir,'rueckmeldung-'+f5.data.id+'.json'),'utf8')).payload.text,'F5 Rückfrage');assert.equal((await fs.readdir(f5Dir)).length,2);
+await blocked.evaluate(p=>sessionStorage.setItem('buero-office-pending',JSON.stringify(p)),f5);await blocked.reload();await blocked.locator('#archive').click();await blocked.locator('#retry').click();await blocked.locator('#retry').waitFor({state:'hidden'});assert.equal((await fs.readdir(f5Dir)).length,2);
+assert.deepEqual(errors,[]);console.log('OK F5 Browser: B-Auftrag in A blockiert, keine fehlgeleitete Rückfrage in A/B; alter Pending-Retry blockiert; gültiger Neustart-Retry nach Schreibfehler ohne Duplikat');
 console.log('OK Büro Chromium: UI-Retry nach Aktualisieren und abgewiesene Dateikollision; veraltetes Formular mit zwei unabhängigen Bearbeitungsständen und bewusster Neuprüfung; Übergabe, vollständige Empfänger, Retry nach Fehler, PDF, Teil-/Vollversand, Rückfrage, zwei unabhängige Kontexte und Konflikterkennung. Synthetische Screenshots: tests/buero-results/');
 }finally{for(const c of contexts)await c.close();await browser.close();server.closeAllConnections();await new Promise(r=>server.close(r));await fs.rm(tmp,{recursive:true,force:true});}
 })().catch(e=>{console.error(e);process.exitCode=1;});

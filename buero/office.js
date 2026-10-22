@@ -89,15 +89,23 @@ async function act(r,d,type){
     if(type==='correct'){if(!d.reason.trim())throw Error('Begründung der Korrektur ergänzen.');const[step,recipient]=d.step.split(':');payload={step,recipient:recipient||null,reason:d.reason.trim()};}
     if(type==='resolve')payload={text:'Alle angezeigten parallelen Rückmeldungen geprüft; Stand bewusst bestätigt.'};
     const e=D.event(r,type,payload,d.actor);
-    state.pending={project:r.content.project.name,data:e};sessionStorage.setItem('buero-office-pending',JSON.stringify(state.pending));
+    state.pending={project:r.projectHandle.name,order:r.order,data:e};state.pendingProject=r.projectHandle;sessionStorage.setItem('buero-office-pending',JSON.stringify(state.pending));
     await savePending();
   }catch(e){message('Nicht bestätigt gespeichert: '+e.message,true);}
   finally{state.busy=false;warning();await refresh();}
 }
 async function savePending(){
   if(!state.archive)throw Error('Archivordner verbinden.');const p=state.pending;
-  const project=await state.archive.getDirectoryHandle(p.project);await D.append(project,p.data);
-  state.pending=null;sessionStorage.removeItem('buero-office-pending');message('✓ Gespeichert und rückgelesen.');
+  // A stored name is only a lookup hint. Recover a verified handle from the actual archive.
+  const scan=await D.scan(state.archive,p);
+  if(scan.errors.length)throw Error('Büroaufträge nicht vollständig geprüft: '+scan.errors.join(' · '));
+  const matches=scan.records.filter(r=>r.projectHandle.name===p.project&&r.order.id===p.data.orderId);
+  if(matches.length!==1)throw Error('Projektzuordnung des Speicherversuchs nicht eindeutig. Bitte den ursprünglichen Projektordner und Auftrag prüfen.');
+  const r=matches[0],project=r.projectHandle;
+  if(state.pendingProject&&!await state.pendingProject.isSameEntry(project))throw Error('Der Projektordner des Speicherversuchs wurde gewechselt. Bitte den ursprünglichen Archivordner verbinden.');
+  if(p.order&&JSON.stringify(p.order)!==JSON.stringify(r.order))throw Error('Der Auftrag des Speicherversuchs wurde ausgetauscht. Bitte den ursprünglichen Auftrag prüfen.');
+  await D.append(project,p.data);
+  state.pending=null;state.pendingProject=null;sessionStorage.removeItem('buero-office-pending');message('✓ Gespeichert und rückgelesen.');
 }
 async function retry(){if(state.busy||!state.pending)return;state.busy=true;try{await savePending();}catch(e){message('Nicht bestätigt gespeichert: '+e.message,true);}finally{state.busy=false;warning();await refresh();}}
 window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});setInterval(()=>{if(!document.hidden)refresh();},30000);
