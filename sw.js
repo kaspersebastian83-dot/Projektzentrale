@@ -10,7 +10,7 @@ const SCOPE = self.registration.scope;
 const PREFIX = 'projektzentrale:' + SCOPE + ':';
 const CACHE = PREFIX + 'v4';
 const LEGACY = [];
-const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png',
+const ASSETS = ['./', './index.html', './project-store.js', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png',
   './buero/', './buero/index.html', './buero/data.js', './buero/central.js', './buero/ui.css', './buero/office.css', './buero/office.js',
   './buero/pending.js',
   './vendor/pdfjs/pdf.min.js', './vendor/pdfjs/pdf.worker.min.js']   // pdf.js für „Arbeitszettel einlesen“ – auch offline

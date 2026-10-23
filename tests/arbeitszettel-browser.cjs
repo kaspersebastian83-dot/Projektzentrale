@@ -125,9 +125,16 @@ const TYP = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.c
   assert.deepEqual(pj.verteiler.sanierung, { an: true });
   assert.equal(pj.fremdesFeld, 'bleibt');
 
-  // Ordner unverändert: nur _Projekt.json
+  // Ausschließlich gemeinsame Projektdaten und ihr verifizierter F3-Sicherungsordner.
   const ordnerNachher = await page.evaluate(async a => { const r = await navigator.storage.getDirectory(); const p = await (await r.getDirectoryHandle('Mosaik Archivordner')).getDirectoryHandle(a); const n = []; for await (const [k] of p.entries()) n.push(k); return n.sort(); }, A);
-  assert.deepEqual(ordnerNachher, ordnerVorher);
+  assert.deepEqual(ordnerNachher, [...new Set([...ordnerVorher,'_Projekt_Sicherungen'])].sort());
+  const sicherungen=await page.evaluate(async a=>{
+    const p=await(await(await navigator.storage.getDirectory()).getDirectoryHandle('Mosaik Archivordner')).getDirectoryHandle(a);
+    const d=await p.getDirectoryHandle('_Projekt_Sicherungen'),out=[];
+    for await(const[n,h]of d.entries())out.push({name:n,data:JSON.parse(await(await h.getFile()).text())});return out;
+  },A);
+  assert.ok(sicherungen.some(x=>x.name.startsWith('vorher_')&&x.data.objekt==='Schon eingetragen'));
+  assert.ok(sicherungen.some(x=>x.name.startsWith('kandidat_')&&x.data.arbeitszettel?.datei==='arbeitszettel-voll.pdf'));
   assert.deepEqual(errors.filter(e => !/kein Arbeitszettel|Invalid PDF|InvalidPDFException/i.test(e)), []);
   await browser.close(); server.close();
   console.log(`OK (${name}): Arbeitszettel einlesen, Rückfrage bei vorhandenen Werten, fremdes Projekt, kein Zettel, Verteiler`);
