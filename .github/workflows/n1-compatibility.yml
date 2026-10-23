@@ -35,11 +35,13 @@ jobs:
       - name: Combine exact F3 product and regression changes in a temporary checkout only
         run: |
           git fetch --depth=1 origin e7b8c4e3819a4ce54fe2dc2ac91bb731e040896f
-          git diff 4716c0b57284bdf3a0dcdb657bb99059bbf7da77 e7b8c4e3819a4ce54fe2dc2ac91bb731e040896f -- index.html project-store.js sw.js tests/project-store.cjs tests/project-store-browser.cjs > "$RUNNER_TEMP/n1-f3.patch"
           git worktree add --detach "$RUNNER_TEMP/n1-f3" HEAD
-          git -C "$RUNNER_TEMP/n1-f3" apply --3way "$RUNNER_TEMP/n1-f3.patch"
-          git -C "$RUNNER_TEMP/n1-f3" add index.html project-store.js sw.js tests/project-store.cjs tests/project-store-browser.cjs
-          git -C "$RUNNER_TEMP/n1-f3" -c user.name='Synthetic compatibility test' -c user.email='test@example.invalid' commit -m 'Temporary N1 plus unchanged F3 product and regression snapshot (never pushed)'
+          if ! git merge-base --is-ancestor e7b8c4e3819a4ce54fe2dc2ac91bb731e040896f HEAD; then
+            git diff 4716c0b57284bdf3a0dcdb657bb99059bbf7da77 e7b8c4e3819a4ce54fe2dc2ac91bb731e040896f -- index.html project-store.js sw.js tests/project-store.cjs tests/project-store-browser.cjs > "$RUNNER_TEMP/n1-f3.patch"
+            git -C "$RUNNER_TEMP/n1-f3" apply --3way "$RUNNER_TEMP/n1-f3.patch"
+            git -C "$RUNNER_TEMP/n1-f3" add index.html project-store.js sw.js tests/project-store.cjs tests/project-store-browser.cjs
+            git -C "$RUNNER_TEMP/n1-f3" -c user.name='Synthetic compatibility test' -c user.email='test@example.invalid' commit -m 'Temporary N1 plus unchanged F3 product and regression snapshot (never pushed)'
+          fi
       - name: F5, N1, F3 and immutable protocol compatibility
         working-directory: ${{ runner.temp }}/n1-f3
         run: |

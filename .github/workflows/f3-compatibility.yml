@@ -63,11 +63,13 @@ jobs:
         working-directory: central
         run: |
           git fetch --depth=1 origin 1c8fa53bd362f6111e280c6478959f1b696bbb24
-          git diff 4716c0b57284bdf3a0dcdb657bb99059bbf7da77 1c8fa53bd362f6111e280c6478959f1b696bbb24 -- buero tests/buero.cjs tests/buero-browser.cjs tests/buero-f5.cjs > "$RUNNER_TEMP/f5.patch"
           git worktree add --detach "$RUNNER_TEMP/f3-f5" HEAD
-          git -C "$RUNNER_TEMP/f3-f5" apply "$RUNNER_TEMP/f5.patch"
-          git -C "$RUNNER_TEMP/f3-f5" add buero tests/buero.cjs tests/buero-browser.cjs tests/buero-f5.cjs
-          git -C "$RUNNER_TEMP/f3-f5" -c user.name='Synthetic compatibility test' -c user.email='test@example.invalid' commit -m 'Temporary F3 plus F5 test snapshot (never pushed)'
+          if ! git merge-base --is-ancestor 1c8fa53bd362f6111e280c6478959f1b696bbb24 HEAD; then
+            git diff 4716c0b57284bdf3a0dcdb657bb99059bbf7da77 1c8fa53bd362f6111e280c6478959f1b696bbb24 -- buero tests/buero.cjs tests/buero-browser.cjs tests/buero-f5.cjs > "$RUNNER_TEMP/f5.patch"
+            git -C "$RUNNER_TEMP/f3-f5" apply "$RUNNER_TEMP/f5.patch"
+            git -C "$RUNNER_TEMP/f3-f5" add buero tests/buero.cjs tests/buero-browser.cjs tests/buero-f5.cjs
+            git -C "$RUNNER_TEMP/f3-f5" -c user.name='Synthetic compatibility test' -c user.email='test@example.invalid' commit -m 'Temporary F3 plus F5 test snapshot (never pushed)'
+          fi
       - name: F5 Node regressions and F3 storage protection
         working-directory: ${{ runner.temp }}/f3-f5
         run: |
