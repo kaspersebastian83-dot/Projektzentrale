@@ -112,7 +112,12 @@ export async function security({env,central,foto,F}){
     const attempts=await foto.evaluate(()=>window.__suiteIO.metaAttempts);await foto.locator('#bSaveRetry').click();
     await foto.waitForFunction(n=>window.__suiteIO.metaAttempts>n&&!!document.querySelector('#bSaveRetry')&&!document.body.inert,attempts);
     assert.equal(await foto.evaluate(()=>window.__suiteIO.imageOps.length),operations,'failed retry must not rename again');
-    assert.deepEqual(await files(inspector,F.project),failed);
+    const retried=await files(inspector,F.project);
+    for(const [name,bytes] of Object.entries(failed))assert.deepEqual(retried[name],bytes,'Retry preserves every existing byte: '+name);
+    for(const name of Object.keys(retried).filter(n=>!(n in failed))){
+      assert.match(name,/^Fotos\/_FotoKit_Fassungen\/(ausgang|vorher|kandidat|bestaetigt)_\d{8}T\d{9}Z_[0-9a-f-]{36}\.json$/,'Only N2 snapshots may be added');
+      const version=json(retried,name);assert.equal(version.app,'Bildumbenenner');assert.equal(version.format,1);assert.ok(version.bilder&&typeof version.bilder==='object');
+    }
     await foto.evaluate(()=>window.__suiteIO.failAfterImage=false);await foto.locator('#bSaveRetry').click();await foto.locator('#bUndo').waitFor();
     const after=await files(inspector,F.project);assert.equal(await foto.evaluate(()=>window.__suiteIO.imageOps.length),operations,'successful retry must not rename again');
     for(const [name,bytes] of Object.entries(failed))if(name!=='Fotos/_Bildumbenenner.json')assert.deepEqual(after[name],bytes,name);

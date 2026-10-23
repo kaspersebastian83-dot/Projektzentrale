@@ -44,6 +44,7 @@ async function run(){
  await fs.writeFile(path.join(p.path,'_Projekt.json'),'{"unknown":{"preserve":true}}');
  await add('revise',{content:{...content,note:'Bewusst geänderter Hinweis'}});assert.equal(r.proof,null);assert.equal(r.pdf,null);assert.equal(Object.keys(r.sent).length,3);assert.equal(r.order.content.note,'Papiermappe liegt vor.');
  await add('withdraw',{text:'Falsche Übergabe'});assert.equal(r.withdrawn,true);assert.equal(Object.keys(r.sent).length,3);assert.equal(await fs.readFile(path.join(p.path,'_Projekt.json'),'utf8'),'{"unknown":{"preserve":true}}');
+ await require('./buero-f5.cjs').run();
  console.log('OK Büro-Daten: Ablauf, Empfängerstand, Retry, Fehler, konkurrierende Rückmeldungen und Korrekturen');
  }finally{await fs.rm(tmp,{recursive:true,force:true});}
 }

@@ -1,0 +1,91 @@
+name: N1 with unchanged F3 and suite
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: n1-compatibility-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  f3-and-office:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, webkit]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@v6
+        with:
+          repository: kaspersebastian83-dot/Bildumbenenner
+          ref: 5617ff033cd29c0a3fa43bb4246be598830cbfcd
+          path: tests/.n1-foto-f3
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Combine exact F3 product and regression changes in a temporary checkout only
+        run: |
+          git fetch --depth=1 origin e7b8c4e3819a4ce54fe2dc2ac91bb731e040896f
+          git worktree add --detach "$RUNNER_TEMP/n1-f3" HEAD
+          if ! git merge-base --is-ancestor e7b8c4e3819a4ce54fe2dc2ac91bb731e040896f HEAD; then
+            git diff 4716c0b57284bdf3a0dcdb657bb99059bbf7da77 e7b8c4e3819a4ce54fe2dc2ac91bb731e040896f -- index.html project-store.js sw.js tests/project-store.cjs tests/project-store-browser.cjs > "$RUNNER_TEMP/n1-f3.patch"
+            git -C "$RUNNER_TEMP/n1-f3" apply --3way "$RUNNER_TEMP/n1-f3.patch"
+            git -C "$RUNNER_TEMP/n1-f3" add index.html project-store.js sw.js tests/project-store.cjs tests/project-store-browser.cjs
+            git -C "$RUNNER_TEMP/n1-f3" -c user.name='Synthetic compatibility test' -c user.email='test@example.invalid' commit -m 'Temporary N1 plus unchanged F3 product and regression snapshot (never pushed)'
+          fi
+      - name: F5, N1, F3 and immutable protocol compatibility
+        working-directory: ${{ runner.temp }}/n1-f3
+        run: |
+          node tests/buero.cjs
+          node tests/buero-f5.cjs
+          node tests/buero-n1.cjs
+          node tests/n1-baseline.cjs
+          cmp project-store.js "$GITHUB_WORKSPACE/tests/.n1-foto-f3/project-store.js"
+          node tests/project-store.cjs "$GITHUB_WORKSPACE/tests/.n1-foto-f3"
+          node "$GITHUB_WORKSPACE/tests/.n1-foto-f3/tests/project-store.cjs" "$RUNNER_TEMP/n1-f3"
+          node tests/sw.cjs
+      - name: Browser runtime
+        timeout-minutes: 6
+        run: |
+          npm install --no-save --no-package-lock --prefix "$RUNNER_TEMP/pw" playwright@1.56.1
+          echo "NODE_PATH=$RUNNER_TEMP/pw/node_modules" >> "$GITHUB_ENV"
+          echo "PLAYWRIGHT_MODULE=$RUNNER_TEMP/pw/node_modules/playwright" >> "$GITHUB_ENV"
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps ${{ matrix.browser }}
+      - name: Complete office workflow and F3 app recovery
+        working-directory: ${{ runner.temp }}/n1-f3
+        run: |
+          node tests/buero-browser.cjs ${{ matrix.browser }}
+          node tests/project-store-browser.cjs ${{ matrix.browser }} "$GITHUB_WORKSPACE/tests/.n1-foto-f3"
+          node "$GITHUB_WORKSPACE/tests/.n1-foto-f3/tests/project-store-browser.cjs" ${{ matrix.browser }} "$RUNNER_TEMP/n1-f3"
+      - name: Native handle persistence
+        if: matrix.browser == 'chromium'
+        working-directory: ${{ runner.temp }}/n1-f3
+        run: node tests/buero-n1-native.cjs
+      - name: Full pinned Spektron suite and security with F3
+        if: matrix.browser == 'chromium'
+        working-directory: ${{ runner.temp }}/n1-f3
+        run: |
+          node --test tests/integration/provenance.test.mjs
+          node -e "const fs=require('fs'),p='tests/integration/stand.json',m=JSON.parse(fs.readFileSync(p));m.Bildumbenenner='5617ff033cd29c0a3fa43bb4246be598830cbfcd';fs.writeFileSync(p,JSON.stringify(m,null,2)+'\n');"
+          node tests/integration/prepare.mjs
+          node tests/integration/run.mjs --security
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: n1-f3-${{ matrix.browser }}
+          path: |
+            ${{ runner.temp }}/n1-f3/tests/integration/results/
+            ${{ runner.temp }}/n1-f3/tests/integration/stand.json
+            ${{ runner.temp }}/n1-f3/tests/buero-results/
+            ${{ runner.temp }}/n1-f3.patch
+          if-no-files-found: warn
+          retention-days: 14

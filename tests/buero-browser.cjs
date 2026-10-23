@@ -10,7 +10,8 @@ const pj={format:'mosaik-projekt',version:1,auftraggeber:'Muster AG, Abteilung W
 const pjText=JSON.stringify(pj);await fs.writeFile(path.join(project,'_Projekt.json'),pjText);await fs.writeFile(path.join(tmp,B,'Kontrolle.txt'),'untouched');
 const server=http.createServer(async(req,res)=>{try{const u=new URL(req.url,'http://local'),name=decodeURIComponent(u.pathname).replace(/^\//,'')||'index.html';let f=path.resolve(root,name);if(!f.startsWith(root+path.sep))throw Error();if((await fs.stat(f)).isDirectory())f=path.join(f,'index.html');const ext=path.extname(f);res.setHeader('Content-Type',({'.html':'text/html; charset=utf-8','.js':'application/javascript','.css':'text/css','.svg':'image/svg+xml'})[ext]||'application/octet-stream');res.end(await fs.readFile(f));}catch{res.statusCode=404;res.end();}});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port;
-const browser=await pw.chromium.launch(process.env.BROWSER_EXECUTABLE?{executablePath:process.env.BROWSER_EXECUTABLE,args:['--no-sandbox']}:{}),contexts=[];const errors=[];
+const engine=process.argv[2]||'chromium';
+const browser=await pw[engine].launch(process.env.BROWSER_EXECUTABLE?{executablePath:process.env.BROWSER_EXECUTABLE,args:['--no-sandbox']}:{}),contexts=[];const errors=[];
 try{
 async function context(){
  const c=await browser.newContext({viewport:{width:1440,height:1100},timezoneId:'Europe/Berlin',locale:'de-DE',serviceWorkers:'block'});contexts.push(c);
@@ -30,12 +31,13 @@ async function context(){
   window.testIO={failWrite:false,failList:false,failRead:false,failAfterClose:false,hideGrant:false};
   const io=async arg=>{const r=await window.__sharedIO(arg);if(r?.notfound)throw new DOMException('Missing','NotFoundError');return r;};
   class Handle{constructor(rel,kind){this.rel=rel;this.kind=kind;this.name=rel.split('/').at(-1)||'Testarchiv';}async queryPermission(){return window.testIO.hideGrant?'denied':'granted';}async requestPermission(){return this.queryPermission();}async isSameEntry(h){return h.rel===this.rel;}}
-  class FileHandle extends Handle{constructor(rel){super(rel,'file');}async getFile(){const r=await io({op:'read',rel:this.rel,fail:window.testIO.failRead&&this.name.startsWith('rueckmeldung-')?'read':null});return {name:this.name,size:r.size,lastModified:1,text:async()=>r.text,arrayBuffer:async()=>new TextEncoder().encode(r.text).buffer};}async createWritable(){if(window.testIO.failWrite)throw Error('SYNTHETIC write');let text;const rel=this.rel;return{write:async value=>{text=value;},abort:async()=>{},close:async()=>{await io({op:'write',rel,text});if(window.testIO.failAfterClose){window.testIO.failRead=true;window.testIO.failAfterClose=false;}}};}}
+  class FileHandle extends Handle{constructor(rel){super(rel,'file');}async getFile(){const r=await io({op:'read',rel:this.rel,fail:window.testIO.failRead&&this.name.startsWith('rueckmeldung-')?'read':null});return {name:this.name,size:r.size,lastModified:1,text:async()=>r.text,arrayBuffer:async()=>new TextEncoder().encode(r.text).buffer};}async createWritable(){if(window.testIO.failWrite&&!this.name.startsWith('herkunft-'))throw Error('SYNTHETIC write');let text;const rel=this.rel;return{write:async value=>{text=value;},abort:async()=>{},close:async()=>{await io({op:'write',rel,text});if(window.testIO.failAfterClose&&!rel.split('/' ).at(-1).startsWith('herkunft-')){window.testIO.failRead=true;window.testIO.failAfterClose=false;}}};}}
   class DirectoryHandle extends Handle{constructor(rel){super(rel,'directory');}child(n){return(this.rel?this.rel+'/':'')+n;}async getDirectoryHandle(n,opts={}){const rel=this.child(n);await io({op:'dir',rel,create:opts.create});return new DirectoryHandle(rel);}async getFileHandle(n,opts={}){const rel=this.child(n);await io({op:'file',rel,create:opts.create});return new FileHandle(rel);}async *values(){for(const h of await io({op:'list',rel:this.rel,fail:window.testIO.failList?'list':null}))yield h.kind==='directory'?new DirectoryHandle(this.child(h.name)):new FileHandle(this.child(h.name));}async resolve(h){const prefix=this.rel?this.rel+'/':'';return h.rel.startsWith(prefix)?h.rel.slice(prefix.length).split('/'):null;}}
   window.SharedDirectoryHandle=DirectoryHandle;
   window.showDirectoryPicker=async()=>new DirectoryHandle('');
   window.showOpenFilePicker=async()=>[new FileHandle(window.testPick||'24.0012 Fiktivstadt/Mitteilungen/Gutachten B.docx')];
  });
+ await c.addInitScript(require('./office-handle-clone.cjs'));
  return c;
 }
 const central=await(await context()).newPage(),office=await(await context()).newPage();
@@ -123,9 +125,19 @@ const revisionId=await central.evaluate(async id=>{
 const reviewer=await(await context()).newPage();reviewer.on('pageerror',e=>errors.push(e.message));
 await reviewer.goto(base+'/index.html');await reviewer.locator('#btnStart').click();await reviewer.locator(`.proj[data-name="${A}"]`).click();
 await central.locator('[data-refresh]').click();
-await central.locator('[data-handover]').evaluate(e=>e.open=true);await central.locator(`[data-record="${revisionId}"]`).evaluate(e=>e.open=true);await central.locator(`[data-revise="${revisionId}"]`).click();
+async function revise(page,id){
+ await page.locator(`[data-record="${id}"]`).waitFor({state:'attached'});
+ if(!await page.locator('[data-handover]').evaluate(e=>e.open)){
+  await page.locator('[data-handover] > summary').click();
+  // Its asynchronous toggle handler opens active records. Wait for that handler
+  // before deciding whether a second summary click is needed.
+  await page.waitForFunction(id=>document.querySelector('[data-record="'+id+'"]')?.open,id);
+ }else if(!await page.locator(`[data-record="${id}"]`).evaluate(e=>e.open))await page.locator(`[data-record="${id}"] > summary`).click();
+ await page.locator(`[data-revise="${id}"]`).click();
+}
+await revise(central,revisionId);
 await central.locator('[data-note]').fill('Nur Hinweis von A geändert – bitte erhalten.');
-await reviewer.locator('[data-handover] > summary').click();if(!await reviewer.locator(`[data-record="${revisionId}"]`).evaluate(e=>e.open))await reviewer.locator(`[data-record="${revisionId}"] > summary`).click();await reviewer.locator(`[data-revise="${revisionId}"]`).click();
+await revise(reviewer,revisionId);
 await reviewer.locator('[data-add="1"]').click();await reviewer.locator('[data-entry="1:2"]').fill('Neue Empfängerin von B, Beispielweg 9');
 await reviewer.locator('[data-submit]').click();await reviewer.locator('[data-message]').filter({hasText:'Gespeichert und rückgelesen'}).waitFor();
 const revisionPath=path.join(project,'_Buero',revisionId);
@@ -145,7 +157,7 @@ await central.waitForFunction(()=>document.querySelector('[data-message]')?.data
 await central.locator('[data-message]').filter({hasText:'inzwischen geändert'}).waitFor();
 assert.equal((await fs.readdir(revisionPath)).length,2);
 // Explicitly reopen the newer record, review it and reapply A's retained note.
-await central.locator('[data-handover]').evaluate(e=>e.open=true);await central.locator(`[data-record="${revisionId}"]`).evaluate(e=>e.open=true);await central.locator(`[data-revise="${revisionId}"]`).click();
+await revise(central,revisionId);
 await central.locator('[data-previous]').filter({hasText:'Nur Hinweis von A geändert – bitte erhalten.'}).waitFor();
 assert.equal(await central.locator('[data-entry="1:2"]').inputValue(),'Neue Empfängerin von B, Beispielweg 9');
 await central.locator('[data-note]').fill('Nur Hinweis von A geändert – bitte erhalten.');await central.locator('[data-submit]').click();
@@ -153,6 +165,51 @@ await central.locator('[data-message]').filter({hasText:'Gespeichert und rückge
 const afterReview=await central.evaluate(async id=>BueroData.load(await new SharedDirectoryHandle('').getDirectoryHandle('24.0012 Fiktivstadt'),id),revisionId);
 assert.equal(afterReview.content.note,'Nur Hinweis von A geändert – bitte erhalten.');assert.deepEqual(afterReview.content.recipients,afterB.content.recipients);assert.equal(afterReview.events.length,2);assert.equal(afterReview.conflict,false);
 assert.equal(await fs.readFile(path.join(tmp,B,'Kontrolle.txt'),'utf8'),'untouched');assert.equal(await fs.readFile(path.join(project,'_Projekt.json'),'utf8'),pjText);assert.deepEqual(errors,[]);
-console.log('OK Büro Chromium: UI-Retry nach Aktualisieren und abgewiesene Dateikollision; veraltetes Formular mit zwei unabhängigen Bearbeitungsständen und bewusster Neuprüfung; Übergabe, vollständige Empfänger, Retry nach Fehler, PDF, Teil-/Vollversand, Rückfrage, zwei unabhängige Kontexte und Konflikterkennung. Synthetische Screenshots: tests/buero-results/');
+// F5 audit reproduction: the entire valid order directory from B is copied into A.
+const f5A='26.0101 Muster A',f5B='26.0999 Muster B';
+await fs.mkdir(path.join(tmp,f5A));await fs.mkdir(path.join(tmp,f5B));
+const f5=await central.evaluate(async name=>{
+ const p=await new SharedDirectoryHandle('').getDirectoryHandle(name);
+ const content=BueroData.snapshot({name,nr:'26.0999',ort:'Muster B'},'Mitteilungen/Gutachten.docx','QA','Nur Test',BueroData.recipients({auftraggeber:'Muster AG',sachverstaendigerBeteiligt:'Dr. Muster'}));
+ const order=BueroData.order(content);await BueroData.create(p,order);
+ const data=BueroData.event(await BueroData.load(p,order.id),'question',{text:'F5 Rückfrage'},'QA');return{project:name,order,data};
+},f5B);
+await fs.cp(path.join(tmp,f5B,'_Buero'),path.join(tmp,f5A,'_Buero'),{recursive:true});
+async function bytes(dir){const out={};for(const e of await fs.readdir(dir,{withFileTypes:true})){const p=path.join(dir,e.name);out[e.name]=e.isDirectory()?await bytes(p):(await fs.readFile(p)).toString();}return out;}
+const f5Before={a:await bytes(path.join(tmp,f5A)),b:await bytes(path.join(tmp,f5B))};
+const blocked=await(await context()).newPage();blocked.on('pageerror',e=>errors.push(e.message));blocked.on('dialog',d=>d.accept());
+await blocked.goto(base+'/index.html');await blocked.locator('#btnStart').click();await blocked.locator(`.proj[data-name="${f5A}"]`).click();
+await blocked.locator('#bueroAttention').filter({hasText:'Projektzuordnung blockiert'}).waitFor();assert.equal(await blocked.locator('[data-answer]').count(),0);
+await blocked.goto(base+'/buero/');await blocked.locator('#archive').click();await blocked.locator('#warning').filter({hasText:'Projektzuordnung blockiert'}).waitFor();
+// Simulate an already open, stale A record and try its actual question handler.
+await blocked.evaluate(async({pending,name})=>{await act({...BueroData.reduce(pending.order,[]),projectHandle:new SharedDirectoryHandle(name)},{actor:'QA',text:'F5 Rückfrage'},'question');},{pending:f5,name:f5A});
+assert.deepEqual({a:await bytes(path.join(tmp,f5A)),b:await bytes(path.join(tmp,f5B))},f5Before);
+// Pre-F5 stored project names must not redirect a restored attempt to the original B.
+await blocked.evaluate(p=>sessionStorage.setItem('buero-office-pending',JSON.stringify({project:p.project,data:p.data})),f5);await blocked.reload();await blocked.locator('#archive').click();await blocked.locator('#retry').click();
+await blocked.locator('#message').filter({hasText:'Projektzuordnung blockiert'}).waitFor();assert.ok(await blocked.locator('#retry').isVisible());
+assert.deepEqual({a:await bytes(path.join(tmp,f5A)),b:await bytes(path.join(tmp,f5B))},f5Before);
+// N1: removing the conflicting copy must not release the unproven restored attempt to B.
+await fs.rm(path.join(tmp,f5A,'_Buero'),{recursive:true});
+await blocked.evaluate(p=>sessionStorage.setItem('buero-office-pending',JSON.stringify(p)),f5);await blocked.reload();await blocked.locator('#archive').click();
+await blocked.locator('#retry').click();await blocked.locator('#message').filter({hasText:'Projektzuordnung blockiert'}).waitFor();
+assert.deepEqual(await bytes(path.join(tmp,f5A)),{});assert.deepEqual(await bytes(path.join(tmp,f5B)),f5Before.b);
+assert.match(await blocked.locator('#pending-text').textContent(),/F5 Rückfrage/);
+// Explicit manual clarification discards only the local attempt; it never rebinds it.
+await blocked.locator('#pending > summary').click();await blocked.locator('#pending-discard').click();await blocked.locator('#retry').waitFor({state:'hidden'});
+assert.deepEqual(await bytes(path.join(tmp,f5B)),f5Before.b);
+await blocked.locator('#search').fill('26.0999');await blocked.locator('tr[data-order]').click();await blocked.locator('[data-field=actor]').fill('QA');
+await blocked.evaluate(async()=>{testIO.failWrite=true;const r=state.records.find(r=>r.content.project.nr==='26.0999');await act(r,{actor:'QA',text:'F5 Rückfrage'},'question');});
+await blocked.locator('#message').filter({hasText:'SYNTHETIC write'}).waitFor();
+const f5Pending=await blocked.evaluate(()=>JSON.parse(sessionStorage.getItem('buero-office-pending')));
+const f5Dir=path.join(tmp,f5B,'_Buero',f5.order.id);assert.equal(await fs.readFile(path.join(f5Dir,'rueckmeldung-'+f5Pending.data.id+'.json'),'utf8'),'');
+// Simulate a fresh browser session with no sessionStorage: explicitly choose the persisted native binding.
+await blocked.evaluate(()=>sessionStorage.removeItem('buero-office-pending'));
+await blocked.reload();await blocked.locator('#archive').click();await blocked.locator('#pending-recover').click();await blocked.locator('#pending-choices button').filter({hasText:'26.0999'}).click();
+assert.equal(await fs.readFile(path.join(f5Dir,'rueckmeldung-'+f5Pending.data.id+'.json'),'utf8'),'','restoring does not write');
+await blocked.reload();await blocked.locator('#archive').click();await blocked.locator('#retry').click();await blocked.locator('#retry').waitFor({state:'hidden'});
+assert.equal(JSON.parse(await fs.readFile(path.join(f5Dir,'rueckmeldung-'+f5Pending.data.id+'.json'),'utf8')).payload.text,'F5 Rückfrage');assert.equal((await fs.readdir(f5Dir)).length,2);
+await blocked.evaluate(p=>sessionStorage.setItem('buero-office-pending',JSON.stringify(p)),f5Pending);await blocked.reload();await blocked.locator('#archive').click();await blocked.locator('#retry').click();await blocked.locator('#message').filter({hasText:'Projektzuordnung blockiert'}).waitFor();assert.equal((await fs.readdir(f5Dir)).length,2);
+assert.deepEqual(errors,[]);console.log('OK F5 Browser: B-Auftrag in A blockiert, keine fehlgeleitete Rückfrage in A/B; alter Pending-Retry blockiert; gültiger Neustart-Retry nach Schreibfehler ohne Duplikat');
+console.log('OK Büro '+engine+': UI-Retry nach Aktualisieren und abgewiesene Dateikollision; veraltetes Formular mit zwei unabhängigen Bearbeitungsständen und bewusster Neuprüfung; Übergabe, vollständige Empfänger, Retry nach Fehler, PDF, Teil-/Vollversand, Rückfrage, zwei unabhängige Kontexte und Konflikterkennung; N1 sichere Altdatenblockade nach Entfernen der Kopie, manuelle Klärung, persistente Herkunft nach Neustart ohne sessionStorage. Synthetische Screenshots: tests/buero-results/');
 }finally{for(const c of contexts)await c.close();await browser.close();server.closeAllConnections();await new Promise(r=>server.close(r));await fs.rm(tmp,{recursive:true,force:true});}
 })().catch(e=>{console.error(e);process.exitCode=1;});

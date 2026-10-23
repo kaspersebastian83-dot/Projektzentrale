@@ -87,23 +87,38 @@ function reduce(order,events){
   return {order,events:sorted,heads,...s,conflict,status};
 }
 async function orderDir(project,id,create=false){if(!/^[a-zA-Z0-9-]+$/.test(id))throw Error('Ungültige Auftragskennung.');return(await project.getDirectoryHandle(DIR,{create})).getDirectoryHandle(id,{create});}
-async function create(project,o){validate(o,o.id);validateContent(o.content);return immutable(await orderDir(project,o.id,true),'auftrag.json',o);}
-async function append(project,e){return immutable(await orderDir(project,e.orderId),'rueckmeldung-'+e.id+'.json',e);}
-async function load(project,id){
-  const dir=await orderDir(project,id),o=await json(dir,'auftrag.json');validate(o,id);const events=[];
-  for await(const h of dir.values())if(h.kind==='file'&&/^rueckmeldung-.*\.json$/.test(h.name)){const e=await json(dir,h.name);validate(e,h.name.slice(13,-5));events.push(e);}
+function checkProject(project,content){
+  validateContent(content);
+  const name=String(project.name).normalize('NFC'),nr=/^(\d{2}\.\d{2,6})(?:[\s_-]|$)/.exec(name)?.[1],source=content.project;
+  if(!nr||source.nr!==nr||source.name.normalize('NFC')!==name)throw Error(`Projektzuordnung blockiert: Der Büroauftrag nennt „${source.name}“ (Nr. ${source.nr}), geöffnet ist „${project.name}“ (Nr. ${nr||'nicht erkennbar'}). Bitte Auftrag und Projektordner prüfen. Es wurde keine Rückmeldung gespeichert.`);
+}
+async function create(project,o){validate(o,o.id);checkProject(project,o.content);return immutable(await orderDir(project,o.id,true),'auftrag.json',o);}
+async function append(project,e){
+  // Re-read the actual target before every write, including retries and corrections.
+  const record=await readRecord(project,e.orderId,'rueckmeldung-'+e.id+'.json');
+  if(e.type==='revise')checkProject(project,e.payload.content);
+  reduce(record.order,[...record.events.filter(old=>old.id!==e.id),e]);
+  return immutable(await orderDir(project,e.orderId),'rueckmeldung-'+e.id+'.json',e);
+}
+async function readRecord(project,id,retryName){
+  const dir=await orderDir(project,id),o=await json(dir,'auftrag.json');validate(o,id);checkProject(project,o.content);const events=[];
+  for await(const h of dir.values())if(h.kind==='file'&&/^rueckmeldung-.*\.json$/.test(h.name)){
+    let e;try{e=await json(dir,h.name);}catch(err){if(h.name===retryName&&err.code==='BUERO_EMPTY')continue;throw err;}
+    validate(e,h.name.slice(13,-5));if(e.type==='revise')checkProject(project,e.payload?.content);events.push(e);
+  }
   return reduce(o,events);
 }
-async function scanProject(project){
+async function load(project,id){return readRecord(project,id);}
+async function scanProject(project,retry){
   const records=[],errors=[];let dir;
   try{dir=await project.getDirectoryHandle(DIR);}catch(e){if(missing(e))return {records,errors};return {records,errors:[project.name+': '+e.message]};}
-  try{for await(const h of dir.values())if(h.kind==='directory'){try{records.push(await load(project,h.name));}catch(e){errors.push(project.name+'/'+h.name+': '+e.message);}}}catch(e){errors.push(project.name+': '+e.message);}
+  try{for await(const h of dir.values())if(h.kind==='directory'){try{records.push(await readRecord(project,h.name,retry?.orderId===h.name?'rueckmeldung-'+retry.id+'.json':undefined));}catch(e){errors.push(project.name+'/'+h.name+': '+e.message);}}}catch(e){errors.push(project.name+': '+e.message);}
   return {records,errors};
 }
-async function scan(archive){
+async function scan(archive,pending){
   const records=[],errors=[];
   try{for await(const h of archive.values())if(h.kind==='directory'&&/^\d{2}\.\d{2,6}(?:[\s_-]|$)/.test(h.name)){
-    const r=await scanProject(h);records.push(...r.records.map(x=>({...x,projectHandle:h})));errors.push(...r.errors);
+    const r=await scanProject(h,pending?.project===h.name?pending.data:undefined);records.push(...r.records.map(x=>({...x,projectHandle:h})));errors.push(...r.errors);
   }}catch(e){errors.push(e.message);}
   records.sort((a,b)=>a.order.created.localeCompare(b.order.created)||a.order.id.localeCompare(b.order.id));return {records,errors};
 }

@@ -240,6 +240,7 @@ table.vt button{padding:2px 8px;font-size:12px;margin-left:6px}
 
 </style>
 <link rel="stylesheet" href="buero/ui.css">
+<script src="project-store.js"></script>
 <script src="buero/data.js"></script>
 <script src="buero/central.js"></script>
 </head>
@@ -794,8 +795,8 @@ const REISEKOSTEN_URL = '../reisekosten-pro/';   // SpesenKit: Spesenabrechnung 
 
 /* ---------- _Projekt.json ----------
    Shared project data, one file in the project folder. Every app keeps fields it does not know and only writes the
-   fields that changed (read fresh → patch → write), so two apps or two people editing different fields never
-   overwrite each other. Projektnummer and Schadenort always come from the folder name.                      */
+   fields that changed. project-store.js verifies and retains complete predecessor/candidate snapshots,
+   including the compare/write race between independent profiles. Folder identity stays authoritative. */
 const PJ_FILE = '_Projekt.json';
 const PJ_FIELDS = [
   // key, label, type, wide, placeholder
@@ -815,40 +816,29 @@ const PJ_FIELDS = [
 ];
 async function readPJ(dir){
   try{
-    const f = await (await dir.getFileHandle(PJ_FILE)).getFile();
-    const txt = await f.text();
-    if (!txt.trim()) return { data: {}, exists: true };
-    const o = JSON.parse(txt);
-    if (o && o.format === 'mosaik-projekt' && o.version > 1) return { data: o, exists: true, newer: true };
-    return { data: o && typeof o === 'object' ? o : {}, exists: true };
+    const s = await ProjectStore.read(dir);
+    return {data:s.data, exists:s.exists};
   }catch(e){
-    if (e.name === 'NotFoundError') return { data: {}, exists: false };
     return { data: {}, exists: true, error: e.message };
   }
 }
 /* Gemeinsame Regeln für _Projekt.json (in Projektzentrale und FotoKit identisch halten): eine Sperre je Projekt, ein Hinweistext. */
 const PJ_HINWEIS = 'Gemeinsame Projektdaten (Projektzentrale, FotoKit, PlanKit, LabelKit). Bitte nicht löschen oder umbenennen.';
-function mitPjSperre(name, fn){ return navigator.locks ? navigator.locks.request('mosaik:projekt:' + name, fn) : fn(); }
-function patchPJ(dir, name, patch){
-  /* Lesen → ändern → Schreiben unter einer Sperre je Projekt: FotoKit (anderer Tab) schreibt dieselbe Datei und nimmt dieselbe Sperre. */
-  return mitPjSperre(name, async () => {
-    const cur = await readPJ(dir);
-    if (cur.error) throw new Error(`„${PJ_FILE}“ ist nicht lesbar (${cur.error}) und wird nicht überschrieben.`);
-    if (cur.newer) throw new Error(`„${PJ_FILE}“ stammt von einer neueren Version – bitte Projektzentrale aktualisieren.`);
+function patchPJ(dir, name, patch, expected){
+  return ProjectStore.update(dir, name, data => {
+    const cur = {data};
     const p = parseProjName(name) || {};
-    const o = Object.assign({}, cur.data, patch, {
+    const o = { ...cur.data, ...patch,
       format: 'mosaik-projekt', version: 1, hinweis: PJ_HINWEIS,
       projektnummer: p.nr || cur.data.projektnummer || '', schadenort: p.ort || cur.data.schadenort || '',
       geaendert: new Date().toISOString(), geaendertMit: 'Projektzentrale ' + APP_VERSION
-    });
+    };
     const order = ['format', 'version', 'hinweis', 'projektnummer', 'schadenort', ...PJ_FIELDS.map(f => f[0]), 'geaendert', 'geaendertMit'];
-    const sorted = {};
+    const sorted = Object.create(null);
     for (const k of order) if (k in o) sorted[k] = o[k];
     for (const k of Object.keys(o)) if (!(k in sorted)) sorted[k] = o[k];   // unknown fields from other apps stay
-    const fh = await dir.getFileHandle(PJ_FILE, { create: true });
-    const w = await fh.createWritable(); await w.write(JSON.stringify(sorted, null, 2) + '\n'); await w.close();
     return sorted;
-  });
+  }, {data:expected,keys:Object.keys(patch)});
 }
 
 /* ---------- state ---------- */
@@ -1090,7 +1080,7 @@ function renderDetail(){
   $('detail').innerHTML = `<div class="pz">
     <h2><span class="nr">${esc(p.nr)}</span> ${esc(p.ort)}</h2>
     <p class="project-summary">${esc([d.objekt,d.auftraggeber].filter(Boolean).join(' · ')||'Objekt und Auftraggeber noch nicht eingetragen')}</p>
-    <div id="pjAttention" role="status"></div><div id="bueroAttention" class="buero" role="status"></div>
+    <div id="pjAttention" role="status"></div><div id="bueroAttention" class="buero" role="status"></div><div id="pjRecovery"></div>
     ${!summe&&!ro?'<div class="azrow"><button id="azQuick">Arbeitszettel einlesen …</button></div>':''}
     <details class="card${summe ? '' : ' leer'}" id="pjBox" ${pjAuf ? 'open' : ''}>
       <summary><span class="t">Projektdaten</span><span class="sum">${ro?'Ansehen':summe?'Bearbeiten · Arbeitszettel einlesen':'Ergänzen oder Arbeitszettel einlesen'}</span>
@@ -1160,6 +1150,10 @@ function renderDetail(){
   if ($('mkSubs')) $('mkSubs').onclick = () => makeSubs(p);
   BueroCentral.mount($('bueroPanel'), p, () => ({...(S.pj?.data || {}), __bueroReadonly: !!(S.pj?.error || S.pj?.newer)}), async () => { await flushPJ(); if (Object.keys(S.pjDirty).length) throw Error('Projektdaten sind noch nicht gespeichert.'); });
   showPJAttention();
+  S.pjRecoveryRefresh = ProjectStore.recoveryButton($('pjRecovery'), p.handle, p.name, {
+    before: async () => { await flushPJ(); if(S.sel !== p || Object.keys(S.pjDirty).length) throw Error('Bitte offene Eingaben zuerst speichern oder das Projekt bewusst neu öffnen.'); },
+    after: async () => { if(S.sel === p){ S.pj=await readPJ(p.handle); S.pjStatus=null; renderDetail(); } }
+  });
   if(same)$('detail').scrollTop=scroll;
   if (p.st && !p.st.err) anlStatus(p);
 }
@@ -1184,9 +1178,9 @@ function flushPJ(){
   for (const k of Object.keys(patch)) patch[k] = patch[k].trim();
   S.pjWriting = S.pjWriting.then(async () => {
     try{
-      const o = await patchPJ(p.handle, p.name, patch);
+      const o = await patchPJ(p.handle, p.name, patch, S.pj?.data);
       if (S.sel === p){
-        S.pj = { data: o, exists: true };S.pjStatus={name:p.name,kind:'ok'};showPJAttention();
+        S.pj = { data: o, exists: true };S.pjStatus={name:p.name,kind:'ok'};showPJAttention();S.pjRecoveryRefresh?.();
         const el = $('pjSave'); if (el){ el.className = 'save ok'; el.textContent = `✓ Gespeichert ${new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`; el.title = `in ${PJ_FILE} im Projektordner`; }
       }
       if (p.st) p.st.pj = true;
@@ -1378,7 +1372,7 @@ async function arbeitszettelEinlesen(p, file){
     closeDialog();
     await S.pjWriting;
     try{
-      const o = await patchPJ(p.handle, p.name, patch);
+      const o = await patchPJ(p.handle, p.name, patch, d);
       if (S.sel === p){ S.pj = { data: o, exists: true }; S.pjOpen[p.name] = true; renderDetail(); }
       if (p.st) p.st.pj = true;
       const n = Object.keys(patch).length - 1;
@@ -1417,7 +1411,7 @@ async function verteilerSetzen(p, k, aenderung){
       const v = Object.assign({}, cur.data.verteiler && typeof cur.data.verteiler === 'object' ? cur.data.verteiler : {});
       v[k] = Object.assign({}, v[k] || {}, aenderung);
       // Versandvermerke auch bei bewusster Abwahl erhalten.
-      const o = await patchPJ(p.handle, p.name, { verteiler: v });
+      const o = await patchPJ(p.handle, p.name, { verteiler: v }, cur.data);
       if (S.sel === p){ S.pj = { data: o, exists: true }; renderDetail(); }
     }catch(e){ banner('err', 'Verteiler nicht gespeichert: ' + esc(e.message)); }
   });
@@ -1781,7 +1775,7 @@ $('dlgBack').addEventListener('click', e => { if (e.target === $('dlgBack')) clo
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('dlgBack').classList.contains('show')) closeDialog(); });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushPJ(); });
 window.addEventListener('beforeunload', e => { if (Object.keys(S.pjDirty).length){ flushPJ(); e.preventDefault(); e.returnValue = ''; } });
-window.addEventListener('focus', () => { const p = S.sel; if (p && !Object.keys(S.pjDirty).length) readPJ(p.handle).then(pj => {   // pick up changes from Bildumbenenner / coworkers
+window.addEventListener('focus', () => { S.pjRecoveryRefresh?.(); const p = S.sel; if (p && !Object.keys(S.pjDirty).length) readPJ(p.handle).then(pj => {   // pick up changes from Bildumbenenner / coworkers
   // inzwischen ein anderes Projekt gewählt? Dann gehören Daten und Ordnerstand nicht zu ihm
   if (S.sel !== p || Object.keys(S.pjDirty).length || JSON.stringify(pj.data) === JSON.stringify(S.pj && S.pj.data)) return;
   S.pj = pj; scanProject(p).then(st => { p.st = st; updateRow(p); if (S.sel === p) renderDetail(); });

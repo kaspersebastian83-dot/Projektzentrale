@@ -2,10 +2,24 @@
 const D=BueroData,$=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const time=t=>new Date(t).toLocaleString('de-DE');
 const state={archive:null,records:[],errors:['Archivordner nicht verbunden.'],selected:null,busy:false,refreshing:false,updated:null,drafts:new Map(),pending:null};
-try{state.pending=JSON.parse(sessionStorage.getItem('buero-office-pending'));}catch{}
+try{const raw=sessionStorage.getItem('buero-office-pending');try{state.pending=JSON.parse(raw);}catch{state.pending={unreadable:raw};}}catch{state.pending={unreadable:'Lokaler Sitzungsspeicher nicht zugänglich.'};}
+const pendingStore=BueroPending.create();
 const store={async open(){return new Promise((res,rej)=>{const r=indexedDB.open('mosaik-suite',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});},async get(){const db=await this.open();return new Promise((res,rej)=>{const r=db.transaction('kv').objectStore('kv').get('archiv');r.onsuccess=()=>{db.close();res(r.result);};r.onerror=()=>rej(r.error);});},async set(h){const db=await this.open();return new Promise((res,rej)=>{const t=db.transaction('kv','readwrite');t.objectStore('kv').put(h,'archiv');t.oncomplete=()=>{db.close();res();};t.onerror=()=>rej(t.error);});}};
 function message(text,error=false){$('message').hidden=false;$('message').textContent=text;$('message').classList.toggle('b-error',error);}
-function warning(){const bad=state.errors.length;$('warning').hidden=!bad;$('warning').textContent='Übersicht möglicherweise unvollständig/veraltet: '+state.errors.join(' · ');$('updated').textContent=state.updated?'Zuletzt aktualisiert '+time(state.updated):'Noch nicht aktualisiert';$('retry').hidden=!state.pending;}
+function warning(){const bad=state.errors.length;$('warning').hidden=!bad;$('warning').textContent='Übersicht möglicherweise unvollständig/veraltet: '+state.errors.join(' · ');$('updated').textContent=state.updated?'Zuletzt aktualisiert '+time(state.updated):'Noch nicht aktualisiert';$('retry').hidden=!state.pending;$('pending').hidden=!state.pending;$('pending-text').textContent=state.pending?JSON.stringify(state.pending,null,2):'';}
+// These actions never assign a new directory to an old attempt.
+$('pending-discard').onclick=async()=>{
+  if(state.busy||!state.pending)return;
+  if(!confirm('Eingaben zuerst nachlesen und bei Bedarf kopieren/sichern. Nur diesen lokalen Schreibversuch verwerfen? Bereits gespeicherte Rückmeldungen bleiben erhalten. Danach die Ablage mit dem Büro klären, den richtigen Auftrag neu öffnen und den Verlauf vor einer neuen Rückmeldung prüfen.'))return;
+  state.busy=true;try{await pendingStore.discard(state.pending);sessionStorage.removeItem(BueroPending.KEY);state.pending=null;message('Lokalen Schreibversuch verworfen. Richtigen Projektordner und Auftrag neu öffnen, Verlauf prüfen und Eingaben bewusst neu erfassen.');}catch(e){message('Schreibversuch bleibt erhalten: '+e.message,true);}finally{state.busy=false;warning();await refresh();}
+};
+$('pending-recover').onclick=async()=>{
+  if(state.busy||state.pending)return;
+  try{const attempts=await pendingStore.list(),box=$('pending-choices');box.replaceChildren();
+    for(const p of attempts){const button=document.createElement('button');button.textContent=(p.project||'Unbekanntes Projekt')+' · '+(labels[p.data?.type]||'Schreibversuch')+' · '+time(p.data?.at);button.onclick=()=>{if(state.busy||state.pending)return;try{sessionStorage.setItem(BueroPending.KEY,JSON.stringify(p));state.pending=p;box.replaceChildren();warning();renderDetail();message('Schreibversuch wiederhergestellt. Eingaben prüfen und ursprüngliches Archiv verbinden; das Wiederherstellen schreibt keine Rückmeldung.');}catch(e){message(e.message,true);}};box.append(button);}
+    if(!attempts.length)message('Keine weiteren lokal gespeicherten Schreibversuche gefunden.');
+  }catch(e){message('Lokale Schreibversuche nicht lesbar: '+e.message,true);}
+};
 async function use(h){state.archive=h;$('folder').textContent=h.name;$('grant').hidden=true;await refresh();}
 $('archive').onclick=async()=>{try{const h=await showDirectoryPicker({mode:'readwrite',id:'mosaik-archiv'});if(/^\d{2}\.\d+/.test(h.name))throw Error('Bitte den Archivordner mit allen Projekten wählen.');await store.set(h);state.records=[];state.selected=null;await use(h);}catch(e){if(e.name!=='AbortError')message(e.message,true);}};
 $('grant').onclick=async()=>{try{if(await state.archive.requestPermission({mode:'readwrite'})!=='granted')throw Error('Ordnerzugriff nicht erlaubt.');await use(state.archive);}catch(e){state.errors=[e.message];warning();}};
@@ -89,15 +103,24 @@ async function act(r,d,type){
     if(type==='correct'){if(!d.reason.trim())throw Error('Begründung der Korrektur ergänzen.');const[step,recipient]=d.step.split(':');payload={step,recipient:recipient||null,reason:d.reason.trim()};}
     if(type==='resolve')payload={text:'Alle angezeigten parallelen Rückmeldungen geprüft; Stand bewusst bestätigt.'};
     const e=D.event(r,type,payload,d.actor);
-    state.pending={project:r.content.project.name,data:e};sessionStorage.setItem('buero-office-pending',JSON.stringify(state.pending));
+    state.pending=await pendingStore.prepare(state.archive,r.projectHandle,fresh.order,e);
+    sessionStorage.setItem(BueroPending.KEY,JSON.stringify(state.pending));
     await savePending();
   }catch(e){message('Nicht bestätigt gespeichert: '+e.message,true);}
   finally{state.busy=false;warning();await refresh();}
 }
 async function savePending(){
   if(!state.archive)throw Error('Archivordner verbinden.');const p=state.pending;
-  const project=await state.archive.getDirectoryHandle(p.project);await D.append(project,p.data);
-  state.pending=null;sessionStorage.removeItem('buero-office-pending');message('✓ Gespeichert und rückgelesen.');
+  // Only the persisted original native handle is a write target, including after restart.
+  const project=await pendingStore.source(p,state.archive);
+  const scan=await D.scanProject(project,p.data);
+  if(scan.errors.length)throw Error('Büroaufträge nicht vollständig geprüft: '+scan.errors.join(' · '));
+  const matches=scan.records.filter(r=>r.order.id===p.data.orderId);
+  if(matches.length!==1)throw Error('Projektzuordnung des Speicherversuchs nicht eindeutig. Bitte den ursprünglichen Projektordner und Auftrag prüfen.');
+  const r=matches[0];
+  if(JSON.stringify(p.order)!==JSON.stringify(r.order))throw Error('Der Auftrag des Speicherversuchs wurde ausgetauscht. Bitte den ursprünglichen Auftrag prüfen.');
+  await D.append(project,p.data);
+  await pendingStore.finish(p);sessionStorage.removeItem(BueroPending.KEY);state.pending=null;message('✓ Gespeichert und rückgelesen.');
 }
 async function retry(){if(state.busy||!state.pending)return;state.busy=true;try{await savePending();}catch(e){message('Nicht bestätigt gespeichert: '+e.message,true);}finally{state.busy=false;warning();await refresh();}}
 window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});setInterval(()=>{if(!document.hidden)refresh();},30000);
