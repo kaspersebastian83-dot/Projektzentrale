@@ -88,6 +88,18 @@ main{flex:1;display:flex;min-height:0}
 .proj .nr{font:600 13px var(--mono)}
 .proj .ort{min-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .proj .ort small{color:var(--muted);margin-left:6px}
+.proj .ort .wer{font:600 11.5px var(--mono)}
+.zust{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:-2px 0 8px;font-size:13.5px}
+.zust select{max-width:min(360px,100%)}
+.zust .m{font-size:12.5px}
+#btnMeine.on{background:var(--focus);border-color:var(--accent)}
+.ma-tab{width:100%;border-collapse:collapse}
+.ma-tab th{font-size:12px;color:var(--muted);text-align:left;font-weight:600;padding:4px 6px}
+.ma-tab td{padding:3px 6px}
+.ma-tab td:nth-child(4),.ma-tab th:nth-child(4){text-align:center}
+.ma-tab input[type=text]{width:100%;color:var(--text)}
+.dialog .ma-tab td:first-child{color:var(--text)}
+.dialog .err{color:var(--err);font-size:13px;min-height:1em}
 .chips:empty{display:none}
 .chips{grid-column:1 / -1;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
 .chip{font-size:11.5px;padding:1px 7px;border-radius:10px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
@@ -250,7 +262,7 @@ table.vt button{padding:2px 8px;font-size:12px;margin-left:6px}
 <header>
   <div class="appbar">
     <div class="brand"><span class="hex">⬡</span> Projektzentrale <small>Spektron · Projekte &amp; Apps</small></div>
-    <button id="btnInfo" class="hbadge" title="Version, Speicherorte, Änderungen">v1.9.4</button>
+    <button id="btnInfo" class="hbadge" title="Version, Speicherorte, Änderungen">v1.12.0</button>
     <button id="btnHelp" class="hbadge help" title="Kurzanleitung für alle Projekt-Apps (F1)"><b>?</b> Kurzanleitung</button>
     <button id="btnUpd" class="upd" hidden>Update verfügbar – neu laden</button>
     <span class="spacer"></span>
@@ -259,7 +271,10 @@ table.vt button{padding:2px 8px;font-size:12px;margin-left:6px}
   <div class="bar">
     <button id="btnArchive" class="primary">Archivordner wählen …</button>
     <button id="btnRescan" disabled title="Ordner neu einlesen (z. B. nachdem Kollegen etwas geändert haben)">Neu einlesen</button>
+    <button id="btnMa" disabled title="Mitarbeiterliste: Kürzel am Ende der Projektordner und die zugehörigen Namen">👥 Mitarbeiter</button>
     <span class="spacer"></span>
+    <select id="ich" disabled title="Wer arbeitet an diesem Rechner? Wird je Windows-Profil gemerkt."><option value="">Ich bin …</option></select>
+    <button id="btnMeine" disabled aria-pressed="false" title="Nur Projekte zeigen, für die ich zuständig bin">Meine Projekte</button>
     <div class="years" id="years"></div>
     <input type="search" id="q" placeholder="Suchen: Nummer oder Ort …" disabled>
   </div>
@@ -706,9 +721,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.11.0';
-const APP_DATE = '2026-10-21';
+const APP_VERSION = '1.12.0';
+const APP_DATE = '2026-10-23';
 const CHANGELOG = [
+  ['1.12.0', '23.10.2026', 'Zuständige Person: Das Kürzel am Ende des Projektordners (z. B. „26.0123 Köln Nad“) wird erkannt und gehört nicht mehr zum Schadenort. Neue Mitarbeiterliste im Archivordner („👥 Mitarbeiter“, Datei _Spektron-Mitarbeiter.json). Im Projektkopf zeigt „Zuständig“ die erkannte Person; eine andere Auswahl wird in _Projekt.json gespeichert, der Ordner bleibt unverändert. „Ich bin …“ und „Meine Projekte“ filtern die Liste. Der Schadenort in _Projekt.json wird beim nächsten Speichern ohne Kürzel geschrieben.'],
   ['1.11.0', '21.10.2026', 'Projektansicht vereinfacht: Projektkopf und vier jederzeit verfügbare Aufgaben zuerst. Büroübergabe mit kompaktem Stand und aufklappbaren Details; Rückfragen, Fehler und offene Speicherversuche bleiben sichtbar. Frühere Versandangaben und Ordner nachgeordnet, Projektwahl auch per Tastatur. Dateibestand wird nicht als fachliche Fertigstellung angezeigt.'],
   ['1.10.0', '21.10.2026', 'Digitale Übergabe ans Büro mit bestätigter Word-Datei und vollständigen Empfängern. Eigene Büroübersicht unter buero/ für Gegenlesen, PDF-Zuordnung, Rückfragen und Versanddokumentation. Die Papiermappe bleibt; keine weitere Freigabe nach Korrektur. Gemeinsame, ergänzend gespeicherte Rückmeldungen im Projektordner.'],
   ['1.9.4', '20.10.2026', 'Projektzentrale und Spektron-Leiste übergeben Projekte jetzt über #projekt im Fragment. Sonderzeichen bleiben erhalten; alte ?projekt-Links funktionieren weiterhin und werden nach dem Laden bereinigt. Projektwechsel laden auch bereits geöffnete App-Fenster neu; eine Warnung vor ungesicherten Eingaben kann den Wechsel abbrechen. PlanKits Anlagenaktion wird ebenfalls im Fragment übergeben.'],
@@ -768,13 +784,84 @@ const SUITE = {
 };
 
 /* ---------- folder contract ----------
-   Project folders are named „<YY>.<Nummer> <Schadenort>“, e.g. „26.0123 Köln“. Standard subfolders below. */
+   Project folders are named „<YY>.<Nummer> <Schadenort> <Kürzel>“, e.g. „26.0123 Musterstraße Köln Nad“. Standard subfolders below. */
 const PROJ_RE = /^(\d{2})\.(\d{2,6})(?:[\s_-]+(.*))?$/;
-function parseProjName(name){
+/* SPEKTRON-ORDNERNAME v1 – in allen Apps identisch halten.
+   Liest den Ordnernamen von hinten: Am Ende wird ein Kürzel der Mitarbeiterliste gesucht (bis zu drei Wörter, längster Treffer
+   zuerst; verglichen ohne Groß-/Kleinschreibung, Leerzeichen und Punkte, also „Dr. Ka“ = „Dr.Ka“ = „dr ka“). Alles zwischen
+   Projektnummer und Kürzel ist der Ort, mit oder ohne Straße. Nichts wird geraten: Kein Treffer → Ort = ganzer Rest, Hinweis.
+   Ohne Mitarbeiterliste wird nichts abgetrennt (Verhalten wie vor 1.12). Kennung bleibt immer der volle Ordnername. */
+const maNorm = s => String(s ?? '').normalize('NFC').toLowerCase().replace(/[\s.]+/g, '');
+function leseProjektordner(name, personen){
   const m = PROJ_RE.exec(String(name).normalize('NFC').trim());
   if (!m) return null;
-  return { nr: `${m[1]}.${m[2]}`, yy: m[1], ort: (m[3] || '').trim(), key: (+m[1]) * 1e6 + (+m[2]) };
+  const rest = (m[3] || '').trim();
+  const r = { nr: `${m[1]}.${m[2]}`, yy: m[1], ort: rest, key: (+m[1]) * 1e6 + (+m[2]), kuerzel: '', hinweis: '' };
+  if (!Array.isArray(personen) || !personen.length) return r;
+  const woerter = [...rest.matchAll(/[^\s_]+/g)];
+  for (let n = Math.min(3, woerter.length); n >= 1; n--){
+    const ende = maNorm(woerter.slice(-n).map(w => w[0]).join(''));
+    const p = personen.find(x => x && maNorm(x.ordnerKuerzel) === ende);
+    if (!p) continue;
+    r.kuerzel = String(p.ordnerKuerzel).trim();
+    r.ort = rest.slice(0, woerter[woerter.length - n].index).replace(/[\s_-]+$/, '');
+    if (!r.ort) r.hinweis = 'Im Ordnernamen fehlt der Ort.';
+    return r;
+  }
+  r.hinweis = rest ? 'Kein bekanntes Kürzel am Ende des Ordnernamens.' : 'Im Ordnernamen fehlen Ort und Kürzel.';
+  return r;
 }
+/* SPEKTRON-ORDNERNAME-ENDE */
+function parseProjName(name){ return leseProjektordner(name, S.ma && S.ma.personen); }
+
+/* ---------- Mitarbeiterliste ----------
+   <Archivordner>/_Spektron-Mitarbeiter.json – Namen gehören nicht in den (öffentlichen) Programmcode.
+   { format:'spektron-mitarbeiter', version:1, personen:[{ ordnerKuerzel:'Nad', appKuerzel:'Nad', name:'…', aktiv:true }] }
+   ordnerKuerzel = Kürzel am Ende der Projektordner (Schlüssel), appKuerzel = „Ihr Kürzel“ in LabelKit und BelegKit.
+   Frisch lesen → nur bei unverändertem Stand schreiben → zurücklesen; eine unlesbare Datei wird nie überschrieben. */
+const MA_FILE = '_Spektron-Mitarbeiter.json';
+const MA_KUERZEL_RE = /^[A-Za-zÄÖÜäöüß][A-Za-zÄÖÜäöüß. ]{0,11}$/, APP_KUERZEL_RE = /^[A-Za-zÄÖÜäöü]{1,6}$/;
+const maGueltig = p => !!p && typeof p.ordnerKuerzel === 'string' && !!p.ordnerKuerzel.trim() && typeof p.name === 'string';
+async function maLesen(archive){
+  let fh;
+  try{ fh = await archive.getFileHandle(MA_FILE); }catch(e){ return { fehlt: true, personen: null, roh: null, text: null }; }
+  try{
+    const text = await (await fh.getFile()).text(), o = JSON.parse(text);
+    if (!o || o.format !== 'spektron-mitarbeiter' || !Array.isArray(o.personen)) throw new Error('unbekanntes Format');
+    const personen = o.personen.filter(maGueltig);
+    if (o.version > 1) return { neuer: true, personen, roh: o, text };
+    return { personen, roh: o, text };
+  }catch(e){ return { error: e.message, personen: null, roh: null, text: null }; }
+}
+async function maSpeichern(personen){
+  const frisch = await maLesen(S.archive);
+  if (frisch.error) throw new Error(`„${MA_FILE}“ ist nicht lesbar (${frisch.error}) und wird nicht überschrieben.`);
+  if (frisch.neuer) throw new Error(`„${MA_FILE}“ stammt von einer neueren Version – bitte Projektzentrale aktualisieren.`);
+  if ((frisch.text || null) !== ((S.ma && S.ma.text) || null)) throw new Error('Die Mitarbeiterliste wurde inzwischen an einem anderen Rechner geändert. Bitte „Abbrechen“ und den Dialog neu öffnen.');
+  const alt = frisch.roh || {}, altP = new Map((alt.personen || []).filter(maGueltig).map(p => [maNorm(p.ordnerKuerzel), p]));
+  const o = { ...alt, format: 'spektron-mitarbeiter', version: 1,
+    hinweis: 'Mitarbeiter der Spektron-Apps: Kürzel am Ende der Projektordner. Gepflegt in der Projektzentrale. Bitte nicht löschen oder umbenennen.',
+    personen: personen.map(p => ({ ...(altP.get(maNorm(p.ordnerKuerzel)) || {}), ...p })),   // unbekannte Felder je Person bleiben
+    geaendert: new Date().toISOString(), geaendertMit: 'Projektzentrale ' + APP_VERSION };
+  const text = JSON.stringify(o, null, 2) + '\n';
+  const fh = await S.archive.getFileHandle(MA_FILE, { create: true }), w = await fh.createWritable();
+  await w.write(text); await w.close();
+  if (await (await fh.getFile()).text() !== text) throw new Error('Kontrolle nach dem Speichern fehlgeschlagen – bitte erneut versuchen.');
+  S.ma = { personen: o.personen.filter(maGueltig), roh: o, text };
+}
+const maPerson = k => k ? ((S.ma && S.ma.personen) || []).find(p => maNorm(p.ordnerKuerzel) === maNorm(k)) : null;
+const maName = k => { const p = maPerson(k); return p ? p.name : k; };
+const lsGet = k => { try{ return localStorage.getItem(k) || ''; }catch(e){ return ''; } };
+const lsSet = (k, v) => { try{ if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); }catch(e){} };
+const ICH_KEY = 'spektron-ich', MEINE_KEY = 'spektron-meine';
+/** Zuständig = manuelle Auswahl in _Projekt.json („zustaendig“), sonst Kürzel aus dem Ordnernamen. d = frische Projektdaten, falls vorhanden. */
+function zustaendigVon(p, d){
+  const z = d ? d.zustaendig : p.st && p.st.zust;
+  if (z && typeof z === 'object' && typeof z.kuerzel === 'string') return { kuerzel: z.kuerzel, manuell: true };
+  return { kuerzel: p.kuerzel || '', manuell: false };
+}
+const zustFuer = p => zustaendigVon(p, S.sel === p && S.pj && !S.pj.error ? S.pj.data : undefined);
+const meineAktiv = () => lsGet(MEINE_KEY) === '1' && !!maPerson(lsGet(ICH_KEY));
 const norm = s => String(s).normalize('NFC').toLowerCase();
 const SUBS = [
   // key, folder name, label
@@ -833,6 +920,7 @@ function patchPJ(dir, name, patch, expected){
       projektnummer: p.nr || cur.data.projektnummer || '', schadenort: p.ort || cur.data.schadenort || '',
       geaendert: new Date().toISOString(), geaendertMit: 'Projektzentrale ' + APP_VERSION
     };
+    if ('zustaendig' in patch && patch.zustaendig === null) delete o.zustaendig;   // „wie Ordnername“: manuelle Auswahl entfernen
     const order = ['format', 'version', 'hinweis', 'projektnummer', 'schadenort', ...PJ_FIELDS.map(f => f[0]), 'geaendert', 'geaendertMit'];
     const sorted = Object.create(null);
     for (const k of order) if (k in o) sorted[k] = o[k];
@@ -842,7 +930,7 @@ function patchPJ(dir, name, patch, expected){
 }
 
 /* ---------- state ---------- */
-const S = { archive: null, projects: [], others: [], sel: null, year: '', q: '', scanToken: 0, pj: null, pjDirty: {}, pjTimer: null, pjWriting: Promise.resolve() };
+const S = { archive: null, ma: null, projects: [], others: [], sel: null, year: '', q: '', scanToken: 0, pj: null, pjDirty: {}, pjTimer: null, pjWriting: Promise.resolve() };
 
 /* ---------- archive folder ---------- */
 const supported = 'showDirectoryPicker' in window;
@@ -891,7 +979,75 @@ async function useArchive(dir){
   S.archive = dir; S.sel = null;
   $('archiveName').textContent = '📁 ' + dir.name;
   $('btnRescan').disabled = false; $('q').disabled = false;
+  await maLaden();
   await listProjects();
+  maWarnung();
+}
+function maWarnung(){
+  if (S.ma && S.ma.error) banner('err', `„${esc(MA_FILE)}“ im Archivordner ist nicht lesbar (${esc(S.ma.error)}). Ordnernamen werden ohne Kürzel gelesen; die Datei wird nicht überschrieben.`);
+}
+/* Mitarbeiterliste (neu) lesen und Ordnernamen damit neu deuten */
+async function maLaden(){
+  S.ma = S.archive ? await maLesen(S.archive) : null;
+  maAnwenden();
+}
+function maAnwenden(){
+  for (const p of S.projects) Object.assign(p, parseProjName(p.name) || {});
+  maUi();
+}
+function maUi(){
+  const ich = lsGet(ICH_KEY), pers = (S.ma && S.ma.personen) || [];
+  $('btnMa').disabled = !S.archive;
+  $('ich').innerHTML = '<option value="">Ich bin …</option>' + pers.filter(p => p.aktiv !== false || maNorm(p.ordnerKuerzel) === maNorm(ich))
+    .map(p => `<option value="${esc(p.ordnerKuerzel)}"${maNorm(p.ordnerKuerzel) === maNorm(ich) ? ' selected' : ''}>${esc(p.name)} (${esc(p.ordnerKuerzel)})</option>`).join('');
+  $('ich').disabled = !pers.length;
+  const kann = !!maPerson(ich), an = kann && meineAktiv();
+  $('btnMeine').disabled = !kann; $('btnMeine').classList.toggle('on', an); $('btnMeine').setAttribute('aria-pressed', String(an));
+}
+function maDialog(){
+  if (!S.archive) return;
+  const ro = !!(S.ma && (S.ma.error || S.ma.neuer));
+  let rows = ((S.ma && S.ma.personen) || []).map(p => ({ ordnerKuerzel: p.ordnerKuerzel, name: p.name, appKuerzel: p.appKuerzel || '', aktiv: p.aktiv !== false, neu: false }));
+  if (!rows.length && !ro) rows.push({ ordnerKuerzel: '', name: '', appKuerzel: '', aktiv: true, neu: true });
+  const lesen = () => { $('dialog').querySelectorAll('tr[data-i]').forEach(tr => { const r = rows[+tr.dataset.i];
+    r.ordnerKuerzel = tr.querySelector('.maK').value.trim(); r.name = tr.querySelector('.maN').value.trim(); r.appKuerzel = tr.querySelector('.maA').value.trim(); r.aktiv = tr.querySelector('.maX').checked; }); };
+  const zeichnen = (fehler = '') => {
+    showDialog(`<h3>Mitarbeiter</h3>
+      <div class="m">Kürzel am Ende der Projektordner (z. B. <code>26.0123 Köln Nad</code>) und die Namen dazu. Gespeichert in <code>${esc(MA_FILE)}</code> im Archivordner und für alle Kollegen gültig. Das App-Kürzel ist „Ihr Kürzel“ in LabelKit und BelegKit. Wer nicht mehr im Büro ist, wird auf inaktiv gesetzt – alte Projekte zeigen den Namen weiter.</div>
+      ${S.ma && S.ma.error ? `<div class="warn">„${esc(MA_FILE)}“ ist nicht lesbar (${esc(S.ma.error)}) und wird nicht überschrieben.</div>` : ''}
+      ${S.ma && S.ma.neuer ? `<div class="warn">„${esc(MA_FILE)}“ stammt von einer neueren Version – nur Ansicht. Bitte Projektzentrale aktualisieren.</div>` : ''}
+      <div style="overflow:auto"><table class="ma-tab"><thead><tr><th>Ordnerkürzel</th><th>Name</th><th>App-Kürzel</th><th>Aktiv</th><th></th></tr></thead><tbody>
+      ${rows.map((r, i) => `<tr data-i="${i}"><td><input type="text" class="maK" maxlength="12" value="${esc(r.ordnerKuerzel)}" placeholder="z. B. Nad" aria-label="Ordnerkürzel" ${ro ? 'readonly' : ''}></td>
+        <td><input type="text" class="maN" maxlength="80" value="${esc(r.name)}" placeholder="Vor- und Nachname" aria-label="Name" ${ro ? 'readonly' : ''}></td>
+        <td><input type="text" class="maA" maxlength="6" value="${esc(r.appKuerzel)}" placeholder="z. B. Nad" aria-label="App-Kürzel" ${ro ? 'readonly' : ''}></td>
+        <td><input type="checkbox" class="maX" aria-label="Aktiv" ${r.aktiv ? 'checked' : ''} ${ro ? 'disabled' : ''}></td>
+        <td>${r.neu && !ro ? `<button type="button" class="maDel" data-i="${i}" title="Zeile entfernen" aria-label="Zeile entfernen">✕</button>` : ''}</td></tr>`).join('')}
+      </tbody></table></div>
+      ${ro ? '' : '<div><button type="button" id="maAdd">+ Person</button></div>'}
+      <div class="err" id="maErr" role="alert">${esc(fehler)}</div>
+      <div class="btns"><button id="maNo">${ro ? 'Schließen' : 'Abbrechen'}</button>${ro ? '' : '<button class="primary" id="maOk">Speichern</button>'}</div>`);
+    $('maNo').onclick = closeDialog;
+    if (ro) return;
+    $('maAdd').onclick = () => { lesen(); rows.push({ ordnerKuerzel: '', name: '', appKuerzel: '', aktiv: true, neu: true }); zeichnen(); const k = [...$('dialog').querySelectorAll('.maK')].pop(); if (k) k.focus(); };
+    $('dialog').querySelectorAll('.maDel').forEach(b => b.onclick = () => { lesen(); rows.splice(+b.dataset.i, 1); zeichnen(); });
+    $('maOk').onclick = async () => {
+      lesen();
+      const liste = rows.filter(r => !(r.neu && !r.ordnerKuerzel && !r.name && !r.appKuerzel)), gesehen = new Set();
+      for (const r of liste){
+        if (!r.ordnerKuerzel || !r.name) return zeichnen('Bitte für jede Person Ordnerkürzel und Name eintragen.');
+        if (!MA_KUERZEL_RE.test(r.ordnerKuerzel)) return zeichnen(`„${r.ordnerKuerzel}“: Ordnerkürzel bitte nur aus Buchstaben (auch „Dr. Ka“ ist möglich).`);
+        if (gesehen.has(maNorm(r.ordnerKuerzel))) return zeichnen(`Das Ordnerkürzel „${r.ordnerKuerzel}“ kommt doppelt vor.`);
+        gesehen.add(maNorm(r.ordnerKuerzel));
+        if (r.appKuerzel && !APP_KUERZEL_RE.test(r.appKuerzel)) return zeichnen(`„${r.appKuerzel}“: Das App-Kürzel darf nur 1–6 Buchstaben haben (ohne Punkt und Leerzeichen).`);
+      }
+      $('maOk').disabled = true;
+      try{
+        await maSpeichern(liste.map(r => ({ ordnerKuerzel: r.ordnerKuerzel, appKuerzel: r.appKuerzel, name: r.name, aktiv: r.aktiv })));
+        closeDialog(); maAnwenden(); renderList(); if (S.sel) renderDetail();
+      }catch(e){ zeichnen(e.message); }
+    };
+  };
+  zeichnen();
 }
 
 /* ---------- scanning ---------- */
@@ -926,7 +1082,14 @@ async function scanProject(p){
   const st = { subs: {}, extra: [], pj: false, err: '' };
   try{
     for await (const h of p.handle.values()){
-      if (h.kind === 'file'){ if (h.name === PJ_FILE) st.pj = true; continue; }
+      if (h.kind === 'file'){
+        if (h.name === PJ_FILE){
+          st.pj = true;
+          // Nur für Liste und „Meine Projekte“: manuelle Zuständigkeit; maßgeblich bleibt das frische Lesen beim Öffnen.
+          try{ const o = JSON.parse(await (await h.getFile()).text()); if (o && o.zustaendig && typeof o.zustaendig === 'object') st.zust = o.zustaendig; }catch(e){}
+        }
+        continue;
+      }
       const sub = SUBS.find(s => norm(s[1]) === norm(h.name));
       if (!sub){ st.extra.push(h.name); continue; }
       const info = { handle: h, name: h.name, files: 0, images: 0, pdfDoc: [], probenplan: 0, sicherungen: 0, daten: [], bu: false };
@@ -955,6 +1118,7 @@ async function scanAll(token){
       p.scanning = false;
       if (token !== S.scanToken) return;
       updateRow(p);
+      if (meineAktiv() && p.st.zust){ clearTimeout(S.listTimer); S.listTimer = setTimeout(renderList, 250); }   // manuelle Zuständigkeit kann die Auswahl ändern
       if (S.sel === p) renderDetail();
     }
   };
@@ -963,8 +1127,8 @@ async function scanAll(token){
 
 /* ---------- list ---------- */
 function visibleProjects(){
-  const q = norm(S.q).trim();
-  return S.projects.filter(p => (!S.year || p.yy === S.year) && (!q || norm(p.name).includes(q)));
+  const q = norm(S.q).trim(), ich = meineAktiv() ? maNorm(lsGet(ICH_KEY)) : '';
+  return S.projects.filter(p => (!S.year || p.yy === S.year) && (!q || norm(p.name).includes(q)) && (!ich || maNorm(zustFuer(p).kuerzel) === ich));
 }
 function renderYears(){
   const ys = [...new Set(S.projects.map(p => p.yy))].sort((a, b) => b - a);
@@ -976,16 +1140,20 @@ function chipsHtml(p){
   if (p.st.err) return `<span class="chip" title="${esc(p.st.err)}">Bestand nicht lesbar</span>`;
   return '';
 }
+function ortHtml(p){
+  const k = zustFuer(p).kuerzel;
+  return `${esc(p.ort || '–')}${k ? ` <small class="wer" title="Zuständig: ${esc(maName(k))}">${esc(k)}</small>` : ''}`;
+}
 function rowHtml(p){
   return `<button type="button" class="proj${S.sel === p ? ' active' : ''}" data-name="${esc(p.name)}" aria-pressed="${S.sel === p}">
     <span class="nr">${esc(p.nr)}</span>
-    <span class="ort">${esc(p.ort || '–')}</span>
+    <span class="ort">${ortHtml(p)}</span>
     <span class="chips">${chipsHtml(p)}</span></button>`;
 }
 function renderList(){
   if (!S.archive) return;
   const vis = visibleProjects();
-  let html = `<div class="count">${vis.length} von ${S.projects.length} Projekt${S.projects.length === 1 ? '' : 'en'}</div>`;
+  let html = `<div class="count">${vis.length} von ${S.projects.length} Projekt${S.projects.length === 1 ? '' : 'en'}${meineAktiv() ? ` · nur meine (${esc(maName(lsGet(ICH_KEY)))})` : ''}</div>`;
   html += vis.map(rowHtml).join('');
   if (!S.projects.length) html += `<div class="empty"><p>In „${esc(S.archive.name)}“ wurden keine Projektordner gefunden. Erwartet werden Ordnernamen wie <code>26.0123 Köln</code>.</p></div>`;
   if (S.others.length && !S.q && !S.year){
@@ -996,7 +1164,7 @@ function renderList(){
 }
 function updateRow(p){
   const el = [...$('list').querySelectorAll('.proj')].find(e => e.dataset.name === p.name);
-  if (el) el.querySelector('.chips').innerHTML = chipsHtml(p);
+  if (el){ el.querySelector('.chips').innerHTML = chipsHtml(p); el.querySelector('.ort').innerHTML = ortHtml(p); }
 }
 
 /* ---------- detail ---------- */
@@ -1081,6 +1249,7 @@ function renderDetail(){
     <h2><span class="nr">${esc(p.nr)}</span> ${esc(p.ort)}</h2>
     <p class="project-summary">${esc([d.objekt,d.auftraggeber].filter(Boolean).join(' · ')||'Objekt und Auftraggeber noch nicht eingetragen')}</p>
     <div id="pjAttention" role="status"></div><div id="bueroAttention" class="buero" role="status"></div><div id="pjRecovery"></div>
+    ${zustHtml(p, zustaendigVon(p, pj.error ? undefined : d), ro)}
     ${!summe&&!ro?'<div class="azrow"><button id="azQuick">Arbeitszettel einlesen …</button></div>':''}
     <details class="card${summe ? '' : ' leer'}" id="pjBox" ${pjAuf ? 'open' : ''}>
       <summary><span class="t">Projektdaten</span><span class="sum">${ro?'Ansehen':summe?'Bearbeiten · Arbeitszettel einlesen':'Ergänzen oder Arbeitszettel einlesen'}</span>
@@ -1138,10 +1307,12 @@ function renderDetail(){
   for (const [k] of PJ_FIELDS){
     const el = $('pj_' + k);
     el.value = k in S.pjDirty ? S.pjDirty[k] : (d[k] || '');   // noch nicht gespeicherte Eingaben nicht durch den alten Stand ersetzen
+    if (k === 'sachverstaendiger'){ const zk = zustaendigVon(p, pj.error ? undefined : d).kuerzel; if (zk && maPerson(zk)) el.placeholder = 'Vorschlag: ' + maName(zk); }   // nur Vorschlag, nichts wird still eingetragen
     if (!ro) el.addEventListener('input', () => { S.pjDirty[k] = el.value; schedulePJ(); });
   }
   if (fokus && $(fokus.id)){ const el = $(fokus.id); el.focus({preventScroll:true}); try{ if (fokus.a != null) el.setSelectionRange(fokus.a, fokus.b); }catch(e){} }
   if (Object.keys(S.pjDirty).length){ $('pjSave').className = 'save'; $('pjSave').textContent = 'Änderungen werden gespeichert …'; }
+  if ($('zust')) $('zust').onchange = e => zustaendigSetzen(p, e.target.value);
   $('goFotos').onclick = () => openBildumbenenner(p);
   $('goPlan').onclick = () => openPlanKit(p);
   $('goLabel').onclick = () => openApp(p, LABELKIT_URL, 'labelkit');
@@ -1403,6 +1574,42 @@ function verteilerHtml(d, ro){
       ${ro || !e.an || e.versandt ? '' : '<button class="vtHeute" title="Heute als Versanddatum eintragen">heute</button>'}</td></tr>`;
   }).join('')}</table>`;
 }
+/* ---------- Zuständig ----------
+   Vorschlag aus dem Ordnernamen; eine abweichende Auswahl steht als „zustaendig“ in _Projekt.json (nur die Projektzentrale schreibt sie).
+   Der Ordner wird nie umbenannt. „Wie Ordnername“ entfernt die manuelle Auswahl wieder. */
+function zustHtml(p, zu, ro){
+  if (!S.ma || S.ma.fehlt) return `<div class="zust m">Zuständig: noch keine Mitarbeiterliste – oben unter „👥 Mitarbeiter“ anlegen.</div>`;
+  if (S.ma.error) return `<div class="zust warn">Zuständig: Mitarbeiterliste nicht lesbar.</div>`;
+  const pers = S.ma.personen || [], gleich = (a, b) => maNorm(a) === maNorm(b);
+  const ausOrdner = p.kuerzel ? `${maName(p.kuerzel)} (${p.kuerzel}) – aus Ordnername` : 'keine Angabe – kein Kürzel im Ordnernamen';
+  const opts = [`<option value="__ordner"${zu.manuell ? '' : ' selected'}>${esc(ausOrdner)}</option>`];
+  for (const x of pers) if (x.aktiv !== false || (zu.manuell && gleich(x.ordnerKuerzel, zu.kuerzel)))
+    opts.push(`<option value="${esc(x.ordnerKuerzel)}"${zu.manuell && gleich(x.ordnerKuerzel, zu.kuerzel) ? ' selected' : ''}>${esc(x.name)} (${esc(x.ordnerKuerzel)})${x.aktiv === false ? ' – inaktiv' : ''}</option>`);
+  if (zu.manuell && zu.kuerzel && !maPerson(zu.kuerzel)) opts.push(`<option value="${esc(zu.kuerzel)}" selected>${esc(zu.kuerzel)} (nicht in der Mitarbeiterliste)</option>`);
+  opts.push(`<option value="__keine"${zu.manuell && !zu.kuerzel ? ' selected' : ''}>keine Angabe</option>`);
+  const hinweis = zu.manuell ? (p.kuerzel && !gleich(zu.kuerzel, p.kuerzel) ? `Ordnername: ${p.kuerzel}` : '') : p.hinweis;
+  return `<div class="zust"><label>Zuständig <select id="zust" ${ro ? 'disabled' : ''}>${opts.join('')}</select></label>${hinweis ? `<span class="m${zu.manuell ? '' : ' warn'}" id="zustHinweis">${esc(hinweis)}</span>` : ''}</div>`;
+}
+async function zustaendigSetzen(p, wahl){
+  const jetzt = new Date().toISOString(), von = lsGet(ICH_KEY);
+  const wert = wahl === '__ordner' ? null
+    : wahl === '__keine' ? { kuerzel: '', gesetzt: 'manuell', am: jetzt, von }
+    : maNorm(wahl) === maNorm(p.kuerzel) ? null   // gleich wie im Ordnernamen: keine manuelle Abweichung speichern
+    : { kuerzel: wahl, gesetzt: 'manuell', am: jetzt, von };
+  await flushPJ();
+  S.pjWriting = S.pjWriting.then(async () => {
+    try{
+      const cur = await readPJ(p.handle);
+      if (cur.error) throw new Error(cur.error);
+      const o = await patchPJ(p.handle, p.name, { zustaendig: wert }, cur.data);
+      if (p.st){ if (o.zustaendig) p.st.zust = o.zustaendig; else delete p.st.zust; }
+      if (S.sel === p){ S.pj = { data: o, exists: true }; renderDetail(); }
+      if (meineAktiv()) renderList(); else updateRow(p);
+    }catch(e){ banner('err', 'Zuständigkeit nicht gespeichert: ' + esc(e.message)); if (S.sel === p) renderDetail(); }
+  });
+  return S.pjWriting;
+}
+
 async function verteilerSetzen(p, k, aenderung){
   await S.pjWriting;
   S.pjWriting = S.pjWriting.then(async () => {
@@ -1769,7 +1976,10 @@ document.addEventListener('keydown', e => { if (e.key === 'F1'){ e.preventDefaul
 
 $('btnUpd').onclick = async () => { await flushPJ(); location.reload(); };
 $('btnArchive').onclick = pickArchive;
-$('btnRescan').onclick = async () => { await flushPJ(); S.projects.forEach(p => p.st = null); await listProjects(); };
+$('btnRescan').onclick = async () => { await flushPJ(); S.projects.forEach(p => p.st = null); await maLaden(); await listProjects(); maWarnung(); };
+$('btnMa').onclick = async () => { await maLaden(); renderList(); if (S.sel) renderDetail(); maDialog(); };   // frisch lesen, damit Änderungen anderer Kollegen nicht überschrieben werden
+$('ich').onchange = () => { lsSet(ICH_KEY, $('ich').value); if (!$('ich').value) lsSet(MEINE_KEY, ''); maUi(); renderList(); };
+$('btnMeine').onclick = () => { lsSet(MEINE_KEY, meineAktiv() ? '' : '1'); maUi(); renderList(); };
 $('q').addEventListener('input', () => { S.q = $('q').value; renderList(); });
 $('dlgBack').addEventListener('click', e => { if (e.target === $('dlgBack')) closeDialog(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('dlgBack').classList.contains('show')) closeDialog(); });
