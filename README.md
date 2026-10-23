@@ -2,7 +2,14 @@
 
 Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung.
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.12.0** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.13.0** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Neu in 1.13.0 · 23.10.2026
+
+**Büroübersicht mit zuständiger Person.** Jede Übergabe zeigt unter dem Schadenort die zuständige Person: die in der Projektzentrale gewählte („in der Projektzentrale gewählt“), sonst die Person zum Kürzel am Ende des Ordnernamens. Der Schadenort steht ohne Kürzel, auch bei Übergaben, die vor 1.12 angelegt wurden (abgeleitet aus dem gespeicherten Ordnernamen; die Übergabedateien bleiben unverändert).
+
+- Filter **„Zuständig“**: Alle · Meine Übergaben (Person aus „Ich bin …“ der Projektzentrale, gleicher Browser) · eine Person · ohne erkannte Person. Die Auswahl wird je Browser gemerkt. Die Suche findet auch Namen und Kürzel.
+- Gelesen werden zusätzlich nur `_Spektron-Mitarbeiter.json` und `_Projekt.json` der Projekte mit Übergaben. Fehlt die Mitarbeiterliste, sieht die Büroübersicht aus wie bisher.
 
 ## Neu in 1.12.0 · 23.10.2026
 
@@ -12,7 +19,7 @@ Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektda
 - **„Zuständig“** im Projektkopf: vorausgewählt ist die Person aus dem Ordnernamen. Eine andere Auswahl wird als `zustaendig` in `_Projekt.json` gespeichert, der Ordner bleibt unverändert; „wie Ordnername“ entfernt sie wieder. Weicht die Auswahl ab, steht „Ordnername: …“ daneben. Ist das Feld „Sachverständiger“ leer, wird der Name nur als Vorschlag angezeigt.
 - **„Ich bin …“ und „Meine Projekte“** filtern die Liste (je Windows-Profil gemerkt, beim Start nicht vorausgewählt). Die Liste zeigt das Kürzel hinter dem Ort.
 - Der Schadenort in `_Projekt.json` wird beim nächsten Speichern ohne Kürzel geschrieben. Kennung bleibt überall der volle Ordnername (Links, „zuletzt“, Büroübergaben).
-- Noch nicht: Anzeige in Büroübersicht und den Projekt-Apps (Phase 2).
+- Anzeige in den Projekt-Apps und der Büroübersicht folgte in 1.13.0 bzw. den App-Versionen vom 23.10.2026.
 
 ## Neu in 1.11.0 · 21.10.2026
 

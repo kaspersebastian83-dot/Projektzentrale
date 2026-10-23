@@ -262,7 +262,7 @@ table.vt button{padding:2px 8px;font-size:12px;margin-left:6px}
 <header>
   <div class="appbar">
     <div class="brand"><span class="hex">⬡</span> Projektzentrale <small>Spektron · Projekte &amp; Apps</small></div>
-    <button id="btnInfo" class="hbadge" title="Version, Speicherorte, Änderungen">v1.12.0</button>
+    <button id="btnInfo" class="hbadge" title="Version, Speicherorte, Änderungen">v1.13.0</button>
     <button id="btnHelp" class="hbadge help" title="Kurzanleitung für alle Projekt-Apps (F1)"><b>?</b> Kurzanleitung</button>
     <button id="btnUpd" class="upd" hidden>Update verfügbar – neu laden</button>
     <span class="spacer"></span>
@@ -721,9 +721,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.12.0';
+const APP_VERSION = '1.13.0';
 const APP_DATE = '2026-10-23';
 const CHANGELOG = [
+  ['1.13.0', '23.10.2026', 'Büroübersicht: Zu jeder Übergabe steht die zuständige Person (Kürzel am Ende des Projektordners oder die in der Projektzentrale gewählte Person), der Schadenort ohne Kürzel – auch bei älteren Übergaben. Neuer Filter „Zuständig“: Meine Übergaben (nach „Ich bin …“ der Projektzentrale), eine bestimmte Person oder Übergaben ohne erkannte Person. Die Suche findet auch Namen.'],
   ['1.12.0', '23.10.2026', 'Zuständige Person: Das Kürzel am Ende des Projektordners (z. B. „26.0123 Köln Nad“) wird erkannt und gehört nicht mehr zum Schadenort. Neue Mitarbeiterliste im Archivordner („👥 Mitarbeiter“, Datei _Spektron-Mitarbeiter.json). Im Projektkopf zeigt „Zuständig“ die erkannte Person; eine andere Auswahl wird in _Projekt.json gespeichert, der Ordner bleibt unverändert. „Ich bin …“ und „Meine Projekte“ filtern die Liste. Der Schadenort in _Projekt.json wird beim nächsten Speichern ohne Kürzel geschrieben.'],
   ['1.11.0', '21.10.2026', 'Projektansicht vereinfacht: Projektkopf und vier jederzeit verfügbare Aufgaben zuerst. Büroübergabe mit kompaktem Stand und aufklappbaren Details; Rückfragen, Fehler und offene Speicherversuche bleiben sichtbar. Frühere Versandangaben und Ordner nachgeordnet, Projektwahl auch per Tastatur. Dateibestand wird nicht als fachliche Fertigstellung angezeigt.'],
   ['1.10.0', '21.10.2026', 'Digitale Übergabe ans Büro mit bestätigter Word-Datei und vollständigen Empfängern. Eigene Büroübersicht unter buero/ für Gegenlesen, PDF-Zuordnung, Rückfragen und Versanddokumentation. Die Papiermappe bleibt; keine weitere Freigabe nach Korrektur. Gemeinsame, ergänzend gespeicherte Rückmeldungen im Projektordner.'],

@@ -1,7 +1,19 @@
 'use strict';
 const D=BueroData,$=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const time=t=>new Date(t).toLocaleString('de-DE');
-const state={archive:null,records:[],errors:['Archivordner nicht verbunden.'],selected:null,busy:false,refreshing:false,updated:null,drafts:new Map(),pending:null};
+const state={archive:null,records:[],errors:['Archivordner nicht verbunden.'],selected:null,busy:false,refreshing:false,updated:null,drafts:new Map(),pending:null,personen:null,maFehler:'',zust:new Map()};
+const M=BueroMa,lsGet=k=>{try{return localStorage.getItem(k)||'';}catch(e){return '';}},lsSet=(k,v)=>{try{v?localStorage.setItem(k,v):localStorage.removeItem(k);}catch(e){}};
+/** Ort ohne Kürzel und zuständige Person (manuelle Auswahl der Projektzentrale vor Ordnername). */
+const view=r=>M.ansicht(r.content.project,state.personen,state.zust.get(r.projectHandle?.name||r.content.project.name));
+const suchtext=r=>{const v=view(r);return `${r.content.project.nr} ${v.ort} ${v.kuerzel} ${v.name}`.toLocaleLowerCase('de');};
+const zustText=v=>!state.personen&&!v.manuell?'':v.kuerzel?esc(v.name)+(v.manuell?' <small>(in der Projektzentrale gewählt)</small>':''):(v.manuell?'Keine Angabe':'Nicht erkannt');
+function werPasst(r){const w=$('wer').value;if(!w||!state.personen)return true;const k=M.maNorm(view(r).kuerzel);
+  if(w==='ich')return !!k&&k===M.maNorm(lsGet('spektron-ich'));if(w==='ohne')return !M.person(state.personen,view(r).kuerzel);return k===w.slice(2);}
+function werOptionen(){const sel=$('wer'),alt=sel.value||lsGet('buero-wer'),ps=state.personen||[],ich=M.person(ps,lsGet('spektron-ich'));
+  $('wer-feld').hidden=!ps.length;
+  $('ma-hinweis').textContent=state.maFehler?' · Zuständige Personen nicht verfügbar ('+state.maFehler+')':'';
+  sel.innerHTML=`<option value="">Alle</option>${ich?`<option value="ich">Meine Übergaben</option>`:''}${ps.filter(p=>p.aktiv!==false).map(p=>`<option value="k:${esc(M.maNorm(p.ordnerKuerzel))}">${esc(p.name)}</option>`).join('')}<option value="ohne">Ohne erkannte Person</option>`;
+  sel.value=[...sel.options].some(o=>o.value===alt)?alt:'';}
 try{const raw=sessionStorage.getItem('buero-office-pending');try{state.pending=JSON.parse(raw);}catch{state.pending={unreadable:raw};}}catch{state.pending={unreadable:'Lokaler Sitzungsspeicher nicht zugänglich.'};}
 const pendingStore=BueroPending.create();
 const store={async open(){return new Promise((res,rej)=>{const r=indexedDB.open('mosaik-suite',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});},async get(){const db=await this.open();return new Promise((res,rej)=>{const r=db.transaction('kv').objectStore('kv').get('archiv');r.onsuccess=()=>{db.close();res(r.result);};r.onerror=()=>rej(r.error);});},async set(h){const db=await this.open();return new Promise((res,rej)=>{const t=db.transaction('kv','readwrite');t.objectStore('kv').put(h,'archiv');t.oncomplete=()=>{db.close();res();};t.onerror=()=>rej(t.error);});}};
@@ -24,23 +36,27 @@ async function use(h){state.archive=h;$('folder').textContent=h.name;$('grant').
 $('archive').onclick=async()=>{try{const h=await showDirectoryPicker({mode:'readwrite',id:'mosaik-archiv'});if(/^\d{2}\.\d+/.test(h.name))throw Error('Bitte den Archivordner mit allen Projekten wählen.');await store.set(h);state.records=[];state.selected=null;await use(h);}catch(e){if(e.name!=='AbortError')message(e.message,true);}};
 $('grant').onclick=async()=>{try{if(await state.archive.requestPermission({mode:'readwrite'})!=='granted')throw Error('Ordnerzugriff nicht erlaubt.');await use(state.archive);}catch(e){state.errors=[e.message];warning();}};
 $('refresh').onclick=refresh;$('retry').onclick=retry;
-$('search').oninput=renderList;$('filter').onchange=renderList;
+$('search').oninput=renderList;$('filter').onchange=renderList;$('wer').onchange=()=>{lsSet('buero-wer',$('wer').value);renderList();};
 async function refresh(){
   if(state.refreshing||state.busy)return;state.refreshing=true;
   try{
     if(!state.archive)throw Error('Bitte Archivordner verbinden.');
     if(state.archive.queryPermission&&await state.archive.queryPermission({mode:'readwrite'})!=='granted'){$('grant').hidden=false;throw Error('Ordnerzugriff fehlt.');}
     const r=await D.scan(state.archive);state.errors=r.errors;
+    // Leicht: eine kleine Datei im Archiv, je Projekt mit Übergaben nur _Projekt.json. Fehler hier blockieren die Arbeitsliste nie.
+    const ma=await M.personenLaden(state.archive);state.maFehler=ma&&ma.error?ma.error:'';if(!state.maFehler)state.personen=ma;
+    const projekte=new Map(r.records.map(x=>[x.projectHandle.name,x.projectHandle]));
+    await Promise.all([...projekte].map(async([n,h])=>state.zust.set(n,await M.zustaendigLaden(h))));
     if(!r.errors.length){state.records=r.records;state.updated=new Date().toISOString();}
     else{const merged=new Map(state.records.map(x=>[x.order.id,x]));r.records.forEach(x=>merged.set(x.order.id,x));state.records=[...merged.values()].sort((a,b)=>a.order.created.localeCompare(b.order.created));}
   }catch(e){state.errors=[e.message];}
-  finally{state.refreshing=false;warning();renderList();renderDetail();}
+  finally{state.refreshing=false;warning();werOptionen();renderList();renderDetail();}
 }
 function renderList(){
   const query=$('search').value.toLocaleLowerCase('de'),all=$('filter').value==='all';
-  const rows=state.records.filter(r=>(all||r.status!=='Erledigt'&&!r.withdrawn||r.conflict)&&(!query||`${r.content.project.nr} ${r.content.project.ort}`.toLocaleLowerCase('de').includes(query)));
-  $('list').innerHTML=rows.length?`<table><thead><tr><th>Projekt / Schadenort</th><th>Übergabe</th><th>Stand / Kürzel</th></tr></thead><tbody>${rows.map(r=>`<tr data-order="${r.order.id}" tabindex="0" aria-label="${esc(r.content.project.nr+' '+r.content.project.ort)}"><td><b>${esc(r.content.project.nr)}</b><br>${esc(r.content.project.ort)}</td><td>${esc(r.content.who)}<br><small>${time(r.order.created)}</small></td><td><span class="b-tag">${esc(r.status)}</span><br>${esc(r.actor||'—')}${r.withdrawn?'<br>Zurückgenommen':''}${r.conflict?'<br><b>Parallel geändert · prüfen</b>':''}</td></tr>`).join('')}</tbody></table><p class="b-hint">${rows.length} Auftrag / Aufträge</p>`:state.errors.length?'<p>Kein verlässlich vollständiger Stand verfügbar.</p>':'<p>Keine passenden '+(all?'':'offenen ')+'Aufträge.</p>';
-  if(!all){const cancelled=state.records.filter(r=>r.withdrawn&&(!query||`${r.content.project.nr} ${r.content.project.ort}`.toLocaleLowerCase('de').includes(query)));if(cancelled.length)$('list').innerHTML+=`<details><summary>Zurückgenommene Übergaben (${cancelled.length}) · bitte beachten</summary>${cancelled.map(r=>`<p><button data-order="${r.order.id}">${esc(r.content.project.nr)} · ${esc(r.content.project.ort)} · Rücknahme ansehen</button></p>`).join('')}</details>`;}
+  const rows=state.records.filter(r=>werPasst(r)&&(all||r.status!=='Erledigt'&&!r.withdrawn||r.conflict)&&(!query||suchtext(r).includes(query)));
+  $('list').innerHTML=rows.length?`<table><thead><tr><th>Projekt / Schadenort · Zuständig</th><th>Übergabe</th><th>Stand / Kürzel</th></tr></thead><tbody>${rows.map(r=>`<tr data-order="${r.order.id}" tabindex="0" aria-label="${esc(r.content.project.nr+' '+view(r).ort)}"><td><b>${esc(r.content.project.nr)}</b><br>${esc(view(r).ort)}${zustText(view(r))?`<br><small data-zust>${zustText(view(r))}</small>`:''}</td><td>${esc(r.content.who)}<br><small>${time(r.order.created)}</small></td><td><span class="b-tag">${esc(r.status)}</span><br>${esc(r.actor||'—')}${r.withdrawn?'<br>Zurückgenommen':''}${r.conflict?'<br><b>Parallel geändert · prüfen</b>':''}</td></tr>`).join('')}</tbody></table><p class="b-hint">${rows.length} Auftrag / Aufträge</p>`:state.errors.length?'<p>Kein verlässlich vollständiger Stand verfügbar.</p>':'<p>Keine passenden '+(all?'':'offenen ')+'Aufträge.</p>';
+  if(!all){const cancelled=state.records.filter(r=>r.withdrawn&&werPasst(r)&&(!query||suchtext(r).includes(query)));if(cancelled.length)$('list').innerHTML+=`<details><summary>Zurückgenommene Übergaben (${cancelled.length}) · bitte beachten</summary>${cancelled.map(r=>`<p><button data-order="${r.order.id}">${esc(r.content.project.nr)} · ${esc(view(r).ort)} · Rücknahme ansehen</button></p>`).join('')}</details>`;}
   $('list').querySelectorAll('[data-order]').forEach(el=>{const select=()=>{if(state.busy)return;state.selected=el.dataset.order;renderDetail();};el.onclick=select;el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();select();}};});
 }
 const labels={claim:'Übernommen',proof:'Gegengelesen',pdf:'PDF erstellt / zugeordnet',send:'Versand dokumentiert',question:'Rückfrage an Sachverständigen',answer:'Rückfrage beantwortet',withdraw:'Übergabe zurückgenommen',revise:'Übergabe geändert',correct:'Status bewusst korrigiert',resolve:'Parallele Rückmeldungen geprüft'};
@@ -52,7 +68,7 @@ function renderDetail(){
   // Preserve focus and selection while new append-only records arrive.
   const active=document.activeElement,key=active?.dataset?.field,pos=key?active.selectionStart:null;
   const blocked=state.busy||!!state.errors.length||!!state.pending||r.withdrawn;
-  $('detail').innerHTML=`<div class="b-row"><h2>${esc(r.content.project.nr)} · ${esc(r.content.project.ort)}</h2><span class="b-tag">${r.status}</span></div>
+  $('detail').innerHTML=`<div class="b-row"><h2>${esc(r.content.project.nr)} · ${esc(view(r).ort)}</h2><span class="b-tag">${r.status}</span></div>${zustText(view(r))?`<p data-zust-detail>Zuständig: ${zustText(view(r))}</p>`:''}
     <p>Von ${esc(r.content.who)} · ${time(r.order.created)}${r.actor?' · Bearbeitung '+esc(r.actor):''}</p>
     ${r.withdrawn?'<p class="b-message b-error">Die Übergabe wurde zurückgenommen. Nicht weiter bearbeiten; Rücknahmegrund im Verlauf beachten.</p>':''}
     ${r.conflict?'<p class="b-message b-error">Parallele Rückmeldungen erkannt. Alle Einträge im Verlauf prüfen, mit den Beteiligten abstimmen und den angezeigten Stand bewusst bestätigen. Bis dahin kein Abschluss.</p>':''}
