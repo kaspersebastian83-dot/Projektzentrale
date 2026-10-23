@@ -268,7 +268,7 @@ table.vt button{padding:2px 8px;font-size:12px;margin-left:6px}
 <header>
   <div class="appbar">
     <div class="brand"><span class="hex">⬡</span> Projektzentrale <small>Spektron · Projekte &amp; Apps</small></div>
-    <button id="btnInfo" class="hbadge" title="Version, Speicherorte, Änderungen">v1.14.0</button>
+    <button id="btnInfo" class="hbadge" title="Version, Speicherorte, Änderungen">v1.15.0</button>
     <button id="btnHelp" class="hbadge help" title="Kurzanleitung für alle Projekt-Apps (F1)"><b>?</b> Kurzanleitung</button>
     <button id="btnUpd" class="upd" hidden>Update verfügbar – neu laden</button>
     <span class="spacer"></span>
@@ -728,9 +728,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.14.0';
+const APP_VERSION = '1.15.0';
 const APP_DATE = '2026-10-23';
 const CHANGELOG = [
+  ['1.15.0', '23.10.2026', 'Neu unter „Weitere Apps“: 🏆 Bestenliste – eigene Seite mit Rangliste (Monat, Jahr, Gesamt), Podest, Abzeichen, „Neueste Erfolge“ und Projekten je Jahr. Punkte gibt es für abgeschlossene Projekte (Büroübergabe „Erledigt“), Proben, Bilddokumentation und Probenplan sowie für Gegenlesen, PDF und Versand im Büro und schnell beantwortete Rückfragen. Die Seite liest nur und aktualisiert sich alle 10 Minuten – geeignet für einen Bildschirm im Büro.'],
   ['1.14.0', '23.10.2026', 'Neu: „📊 Auslastung“ zeigt je Person die offenen Projekte des laufenden und vorigen Jahres, aufgeteilt in „In Bearbeitung“ (noch keine offene Büroübergabe), „Beim Büro“ und „Rückfrage“. Offen ist ein Projekt, bis eine Büroübergabe „Erledigt“ ist; zurückgenommene Übergaben zählen nicht. Zuständig ist die gewählte Person, sonst das Kürzel im Ordnernamen. Eine Zahl anklicken zeigt die Projekte, ein Klick öffnet sie. Es wird nichts gespeichert.'],
   ['1.13.0', '23.10.2026', 'Büroübersicht: Zu jeder Übergabe steht die zuständige Person (Kürzel am Ende des Projektordners oder die in der Projektzentrale gewählte Person), der Schadenort ohne Kürzel – auch bei älteren Übergaben. Neuer Filter „Zuständig“: Meine Übergaben (nach „Ich bin …“ der Projektzentrale), eine bestimmte Person oder Übergaben ohne erkannte Person. Die Suche findet auch Namen.'],
   ['1.12.0', '23.10.2026', 'Zuständige Person: Das Kürzel am Ende des Projektordners (z. B. „26.0123 Köln Nad“) wird erkannt und gehört nicht mehr zum Schadenort. Neue Mitarbeiterliste im Archivordner („👥 Mitarbeiter“, Datei _Spektron-Mitarbeiter.json). Im Projektkopf zeigt „Zuständig“ die erkannte Person; eine andere Auswahl wird in _Projekt.json gespeichert, der Ordner bleibt unverändert. „Ich bin …“ und „Meine Projekte“ filtern die Liste. Der Schadenort in _Projekt.json wird beim nächsten Speichern ohne Kürzel geschrieben.'],
@@ -1300,6 +1301,7 @@ function ordnerKurz(p){
 function weitereApps(){
   return `<div class="more"><h3>Weitere Apps</h3>
     <a class="app" href="buero/" target="spektron-buero" rel="noopener"><span class="ic" aria-hidden="true">▤</span><span><span class="name">Büroübersicht</span><small>Gutachten prüfen und Versand dokumentieren</small></span><span class="go" aria-hidden="true">↗</span></a>
+    <a class="app" href="bestenliste/" target="spektron-bestenliste" rel="noopener"><span class="ic" aria-hidden="true">🏆</span><span><span class="name">Bestenliste</span><small>Punkte, Abzeichen und neueste Erfolge im Team</small></span><span class="go" aria-hidden="true">↗</span></a>
     <a class="app" id="goReise" href="${REISEKOSTEN_URL}" target="reisekosten" rel="noopener" title="Öffnet SpesenKit in einem eigenen Fenster – Reisekosten- und Spesenabrechnung je Monat, unabhängig vom Projekt">
       <span class="ic" aria-hidden="true">🧾</span><span><span class="name">SpesenKit</span><small>Spesenabrechnung für den Monat</small></span><span class="go" aria-hidden="true">↗</span></a></div>`;
 }

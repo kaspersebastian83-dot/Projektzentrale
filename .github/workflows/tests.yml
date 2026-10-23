@@ -30,6 +30,7 @@ jobs:
       - run: node tests/buero.cjs
       - run: node tests/buero-f5.cjs
       - run: node tests/buero-n1.cjs
+      - run: node tests/bestenliste.cjs
       - run: node tests/project-store.cjs
       - run: node tests/ordnername.cjs
 
@@ -63,6 +64,8 @@ jobs:
         run: node tests/buero-zustaendig.cjs ${{ matrix.browser }}
       - name: Workload overview per person and step
         run: node tests/auslastung-browser.cjs ${{ matrix.browser }}
+      - name: Leaderboard page reads the archive and shows points
+        run: node tests/bestenliste-browser.cjs ${{ matrix.browser }}
       - name: Native office attempt persistence (Chromium OPFS and IndexedDB)
         if: matrix.browser == 'chromium'
         run: node tests/buero-n1-native.cjs
