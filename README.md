@@ -2,7 +2,22 @@
 
 Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung.
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.13.0** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.14.0** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Neu in 1.14.0 · 23.10.2026
+
+**„📊 Auslastung“** zeigt je zuständiger Person, wie viele Projekte offen sind und wo sie stehen:
+
+| Spalte | bedeutet |
+|---|---|
+| In Bearbeitung | noch keine offene Büroübergabe (auch: Übergabe zurückgenommen) |
+| Beim Büro | Übergabe offen: Gegenlesen, PDF, Versand |
+| Rückfrage | das Büro wartet auf eine Antwort |
+
+- Offen ist ein Projekt, bis eine Büroübergabe „Erledigt“ ist. Gezählt werden Projekte des laufenden und des vorigen Jahres (z. B. 25.xxxx und 26.xxxx).
+- Zuständig: die in der Projektzentrale gewählte Person, sonst das Kürzel im Ordnernamen; sonst „Ohne erkannte Person“. Aktive Personen stehen auch mit 0 in der Tabelle, inaktive nur mit offenen Projekten.
+- Eine Zahl anklicken zeigt die Projekte, ein Klick darauf öffnet das Projekt. Die Zahlen ergänzen sich, solange die Projekte noch eingelesen werden.
+- Nur lesen, keine neue Datei. Dafür liest die Projektzentrale zusätzlich die Büroübergaben (`_Buero`) der Projekte im Zeitraum.
 
 ## Neu in 1.13.0 · 23.10.2026
 

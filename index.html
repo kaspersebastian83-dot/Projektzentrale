@@ -99,6 +99,12 @@ main{flex:1;display:flex;min-height:0}
 .ma-tab td:nth-child(4),.ma-tab th:nth-child(4){text-align:center}
 .ma-tab input[type=text]{width:100%;color:var(--text)}
 .dialog .ma-tab td:first-child{color:var(--text)}
+.au-tab td:not(:first-child),.au-tab th:not(:first-child){text-align:right}
+.au-tab tfoot td{border-top:1px solid var(--line);font-weight:600}
+.au-tab button.au-n{min-width:2.4em;padding:1px 6px;font-variant-numeric:tabular-nums}
+.au-tab button.au-n[aria-pressed=true]{outline:2px solid var(--accent)}
+.au-liste{max-height:240px;overflow:auto;margin-top:8px}
+.au-liste button{display:block;width:100%;text-align:left;margin:2px 0}
 .dialog .err{color:var(--err);font-size:13px;min-height:1em}
 .chips:empty{display:none}
 .chips{grid-column:1 / -1;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
@@ -262,7 +268,7 @@ table.vt button{padding:2px 8px;font-size:12px;margin-left:6px}
 <header>
   <div class="appbar">
     <div class="brand"><span class="hex">⬡</span> Projektzentrale <small>Spektron · Projekte &amp; Apps</small></div>
-    <button id="btnInfo" class="hbadge" title="Version, Speicherorte, Änderungen">v1.13.0</button>
+    <button id="btnInfo" class="hbadge" title="Version, Speicherorte, Änderungen">v1.14.0</button>
     <button id="btnHelp" class="hbadge help" title="Kurzanleitung für alle Projekt-Apps (F1)"><b>?</b> Kurzanleitung</button>
     <button id="btnUpd" class="upd" hidden>Update verfügbar – neu laden</button>
     <span class="spacer"></span>
@@ -272,6 +278,7 @@ table.vt button{padding:2px 8px;font-size:12px;margin-left:6px}
     <button id="btnArchive" class="primary">Archivordner wählen …</button>
     <button id="btnRescan" disabled title="Ordner neu einlesen (z. B. nachdem Kollegen etwas geändert haben)">Neu einlesen</button>
     <button id="btnMa" disabled title="Mitarbeiterliste: Kürzel am Ende der Projektordner und die zugehörigen Namen">👥 Mitarbeiter</button>
+    <button id="btnAusl" disabled title="Offene Projekte je Person: in Bearbeitung, beim Büro, Rückfrage">📊 Auslastung</button>
     <span class="spacer"></span>
     <select id="ich" disabled title="Wer arbeitet an diesem Rechner? Wird je Windows-Profil gemerkt."><option value="">Ich bin …</option></select>
     <button id="btnMeine" disabled aria-pressed="false" title="Nur Projekte zeigen, für die ich zuständig bin">Meine Projekte</button>
@@ -721,9 +728,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.13.0';
+const APP_VERSION = '1.14.0';
 const APP_DATE = '2026-10-23';
 const CHANGELOG = [
+  ['1.14.0', '23.10.2026', 'Neu: „📊 Auslastung“ zeigt je Person die offenen Projekte des laufenden und vorigen Jahres, aufgeteilt in „In Bearbeitung“ (noch keine offene Büroübergabe), „Beim Büro“ und „Rückfrage“. Offen ist ein Projekt, bis eine Büroübergabe „Erledigt“ ist; zurückgenommene Übergaben zählen nicht. Zuständig ist die gewählte Person, sonst das Kürzel im Ordnernamen. Eine Zahl anklicken zeigt die Projekte, ein Klick öffnet sie. Es wird nichts gespeichert.'],
   ['1.13.0', '23.10.2026', 'Büroübersicht: Zu jeder Übergabe steht die zuständige Person (Kürzel am Ende des Projektordners oder die in der Projektzentrale gewählte Person), der Schadenort ohne Kürzel – auch bei älteren Übergaben. Neuer Filter „Zuständig“: Meine Übergaben (nach „Ich bin …“ der Projektzentrale), eine bestimmte Person oder Übergaben ohne erkannte Person. Die Suche findet auch Namen.'],
   ['1.12.0', '23.10.2026', 'Zuständige Person: Das Kürzel am Ende des Projektordners (z. B. „26.0123 Köln Nad“) wird erkannt und gehört nicht mehr zum Schadenort. Neue Mitarbeiterliste im Archivordner („👥 Mitarbeiter“, Datei _Spektron-Mitarbeiter.json). Im Projektkopf zeigt „Zuständig“ die erkannte Person; eine andere Auswahl wird in _Projekt.json gespeichert, der Ordner bleibt unverändert. „Ich bin …“ und „Meine Projekte“ filtern die Liste. Der Schadenort in _Projekt.json wird beim nächsten Speichern ohne Kürzel geschrieben.'],
   ['1.11.0', '21.10.2026', 'Projektansicht vereinfacht: Projektkopf und vier jederzeit verfügbare Aufgaben zuerst. Büroübergabe mit kompaktem Stand und aufklappbaren Details; Rückfragen, Fehler und offene Speicherversuche bleiben sichtbar. Frühere Versandangaben und Ordner nachgeordnet, Projektwahl auch per Tastatur. Dateibestand wird nicht als fachliche Fertigstellung angezeigt.'],
@@ -999,11 +1007,78 @@ function maAnwenden(){
 function maUi(){
   const ich = lsGet(ICH_KEY), pers = (S.ma && S.ma.personen) || [];
   $('btnMa').disabled = !S.archive;
+  $('btnAusl').disabled = !S.archive;
   $('ich').innerHTML = '<option value="">Ich bin …</option>' + pers.filter(p => p.aktiv !== false || maNorm(p.ordnerKuerzel) === maNorm(ich))
     .map(p => `<option value="${esc(p.ordnerKuerzel)}"${maNorm(p.ordnerKuerzel) === maNorm(ich) ? ' selected' : ''}>${esc(p.name)} (${esc(p.ordnerKuerzel)})</option>`).join('');
   $('ich').disabled = !pers.length;
   const kann = !!maPerson(ich), an = kann && meineAktiv();
   $('btnMeine').disabled = !kann; $('btnMeine').classList.toggle('on', an); $('btnMeine').setAttribute('aria-pressed', String(an));
+}
+/* ---------- Auslastung ----------
+   Offene Projekte je zuständiger Person, aus vorhandenen Daten (keine neue Datei, kein Schreiben):
+   offen = noch keine Büroübergabe „Erledigt“. Schritt: in Bearbeitung (keine offene Übergabe), beim Büro, Rückfrage.
+   Gezählt werden Projekte des laufenden und des vorigen Jahres; zurückgenommene Übergaben zählen nicht. */
+const AU_SCHRITTE = [['arbeit', 'In Bearbeitung', 'noch keine offene Büroübergabe'], ['buero', 'Beim Büro', 'Übergabe offen: gegenlesen, PDF, Versand'], ['rueckfrage', 'Rückfrage', 'das Büro wartet auf eine Antwort']];
+function auImZeitraum(p, jetzt = new Date()){ const yy = jetzt.getFullYear() % 100; return +p.yy === yy || +p.yy === (yy + 99) % 100; }
+/** Stand der Büroübergaben eines Projekts: 'fertig' | 'buero' | 'rueckfrage' | 'arbeit' | 'unklar'. */
+function auBueroPhase(r){
+  const aktiv = r.records.filter(x => !x.withdrawn), offen = aktiv.filter(x => x.status !== 'Erledigt');
+  if (offen.some(x => x.status === 'Rückfrage')) return 'rueckfrage';
+  if (offen.length) return 'buero';
+  if (r.errors.length) return 'unklar';
+  return aktiv.length ? 'fertig' : 'arbeit';
+}
+/** Schritt eines Projekts oder null, solange es noch nicht gelesen ist. */
+const auPhase = p => !p.st ? null : p.st.err ? 'unklar' : (p.st.buero || 'arbeit');
+function auZaehlen(){
+  const projekte = S.projects.filter(p => auImZeitraum(p)), zeilen = new Map(), offenLesen = projekte.filter(p => !p.st).length;
+  const zeile = (key, name, inaktiv) => { if (!zeilen.has(key)) zeilen.set(key, { key, name, inaktiv, arbeit: [], buero: [], rueckfrage: [], unklar: [] }); return zeilen.get(key); };
+  ((S.ma && S.ma.personen) || []).filter(p => p.aktiv !== false).forEach(p => zeile(maNorm(p.ordnerKuerzel), p.name, false));
+  for (const p of projekte){
+    const ph = auPhase(p);
+    if (!ph || ph === 'fertig') continue;
+    const k = zustFuer(p).kuerzel, person = maPerson(k);
+    const z = person ? zeile(maNorm(person.ordnerKuerzel), person.name, person.aktiv === false) : zeile('', 'Ohne erkannte Person', false);
+    z[ph].push(p);
+  }
+  const liste = [...zeilen.values()].filter(z => z.key || AU_SCHRITTE.some(([s]) => z[s].length) || z.unklar.length);
+  liste.sort((a, b) => (!a.key) - (!b.key) || a.name.localeCompare(b.name, 'de'));
+  return { liste, gesamt: projekte.length, offenLesen };
+}
+function auDialog(){
+  if (!S.archive) return;
+  S.au = { wahl: null };
+  auZeichnen();
+}
+function auNeuZeichnen(){ if (!S.au) return; clearTimeout(S.au.timer); S.au.timer = setTimeout(() => { if (S.au && $('dlgBack').classList.contains('show')) auZeichnen(); else S.au = null; }, 300); }
+function auZeichnen(){
+  const { liste, gesamt, offenLesen } = auZaehlen(), yy = new Date().getFullYear() % 100, vor = String((yy + 99) % 100).padStart(2, '0');
+  const n = (z, s) => z[s].length ? `<button type="button" class="au-n" data-z="${esc(z.key)}" data-s="${s}" aria-pressed="${S.au.wahl && S.au.wahl.z === z.key && S.au.wahl.s === s}" title="${esc(z.name)} · ${esc((AU_SCHRITTE.find(x => x[0] === s) || ['', 'Unklar'])[1])}: Projekte anzeigen">${z[s].length}</button>` : '<span class="m">–</span>';
+  const summe = s => liste.reduce((a, z) => a + z[s].length, 0), offen = z => AU_SCHRITTE.reduce((a, [s]) => a + z[s].length, 0);
+  const unklar = summe('unklar');
+  let auswahl = '';
+  if (S.au.wahl){
+    const z = liste.find(x => x.key === S.au.wahl.z), ps = z ? z[S.au.wahl.s] : [];
+    if (ps.length) auswahl = `<div class="m" style="margin-top:10px"><b>${esc(z.name)} · ${esc((AU_SCHRITTE.find(x => x[0] === S.au.wahl.s) || ['', 'Nicht sicher lesbar'])[1])}</b> – Projekt anklicken zum Öffnen</div><div class="au-liste" role="list">${ps.slice().sort((a, b) => a.key - b.key).map(p => `<button type="button" role="listitem" data-p="${esc(p.name)}">${esc(p.nr)} · ${esc(p.ort || p.name)}</button>`).join('')}</div>`;
+  }
+  showDialog(`<h3>Auslastung</h3>
+    <div class="m">Offene Projekte ${vor}.xxxx und ${String(yy).padStart(2, '0')}.xxxx je zuständiger Person. Offen ist ein Projekt, bis eine Büroübergabe „Erledigt“ ist. Eine Zahl anklicken zeigt die Projekte.</div>
+    ${offenLesen ? `<div class="m" role="status">Noch ${offenLesen} von ${gesamt} Projekten werden gelesen – die Zahlen ergänzen sich.</div>` : ''}
+    ${!(S.ma && S.ma.personen && S.ma.personen.length) ? '<div class="warn">Ohne Mitarbeiterliste („👥 Mitarbeiter“) stehen alle Projekte unter „Ohne erkannte Person“.</div>' : ''}
+    <div style="overflow:auto"><table class="ma-tab au-tab"><thead><tr><th>Person</th>${AU_SCHRITTE.map(([, t, h]) => `<th title="${esc(h)}">${esc(t)}</th>`).join('')}<th>Offen</th></tr></thead><tbody>
+    ${liste.map(z => `<tr><td>${esc(z.name)}${z.inaktiv ? ' <span class="m">(inaktiv)</span>' : ''}</td>${AU_SCHRITTE.map(([s]) => `<td>${n(z, s)}</td>`).join('')}<td><b>${offen(z)}</b></td></tr>`).join('')}
+    </tbody><tfoot><tr><td>Gesamt</td>${AU_SCHRITTE.map(([s]) => `<td>${summe(s)}</td>`).join('')}<td>${AU_SCHRITTE.reduce((a, [s]) => a + summe(s), 0)}</td></tr></tfoot></table></div>
+    ${unklar ? `<div class="warn">${unklar} Projekt${unklar === 1 ? '' : 'e'} nicht sicher lesbar (Ordner oder Büroübergaben) – nicht mitgezählt. ${liste.filter(z => z.unklar.length).map(z => n(z, 'unklar')).join(' ')}</div>` : ''}
+    ${auswahl}
+    <div class="btns"><button id="auZu" class="primary">Schließen</button></div>`);
+  $('auZu').onclick = () => { S.au = null; closeDialog(); };
+  $('dialog').querySelectorAll('.au-n').forEach(b => b.onclick = () => {
+    const w = { z: b.dataset.z, s: b.dataset.s };
+    S.au.wahl = S.au.wahl && S.au.wahl.z === w.z && S.au.wahl.s === w.s ? null : w; auZeichnen();
+  });
+  $('dialog').querySelectorAll('[data-p]').forEach(b => b.onclick = () => {
+    const p = S.projects.find(x => x.name === b.dataset.p); S.au = null; closeDialog(); if (p) selectProject(p);
+  });
 }
 function maDialog(){
   if (!S.archive) return;
@@ -1091,6 +1166,7 @@ async function scanProject(p){
         }
         continue;
       }
+      if (h.name === BueroData.DIR && auImZeitraum(p)) st.buero = auBueroPhase(await BueroData.scanProject(p.handle));
       const sub = SUBS.find(s => norm(s[1]) === norm(h.name));
       if (!sub){ st.extra.push(h.name); continue; }
       const info = { handle: h, name: h.name, files: 0, images: 0, pdfDoc: [], probenplan: 0, sicherungen: 0, daten: [], bu: false };
@@ -1119,6 +1195,7 @@ async function scanAll(token){
       p.scanning = false;
       if (token !== S.scanToken) return;
       updateRow(p);
+      auNeuZeichnen();
       if (meineAktiv() && p.st.zust){ clearTimeout(S.listTimer); S.listTimer = setTimeout(renderList, 250); }   // manuelle Zuständigkeit kann die Auswahl ändern
       if (S.sel === p) renderDetail();
     }
@@ -1841,7 +1918,7 @@ async function anlErstellen(p, o){
 
 /* ---------- dialogs / banner ---------- */
 function showDialog(html){ $('dialog').innerHTML = html; $('dlgBack').classList.add('show'); }
-function closeDialog(){ $('dlgBack').classList.remove('show'); $('dialog').innerHTML = ''; $('dialog').className = 'dialog'; }
+function closeDialog(){ S.au = null; $('dlgBack').classList.remove('show'); $('dialog').innerHTML = ''; $('dialog').className = 'dialog'; }
 function confirmDialog(title, html, ok){
   return new Promise(res => {
     showDialog(`<h3>${esc(title)}</h3><div class="m">${html}</div><div class="btns"><button id="dNo">Abbrechen</button><button class="primary" id="dYes">${esc(ok)}</button></div>`);
@@ -1978,6 +2055,7 @@ document.addEventListener('keydown', e => { if (e.key === 'F1'){ e.preventDefaul
 $('btnUpd').onclick = async () => { await flushPJ(); location.reload(); };
 $('btnArchive').onclick = pickArchive;
 $('btnRescan').onclick = async () => { await flushPJ(); S.projects.forEach(p => p.st = null); await maLaden(); await listProjects(); maWarnung(); };
+$('btnAusl').onclick = async () => { await maLaden(); renderList(); if (S.sel) renderDetail(); auDialog(); };
 $('btnMa').onclick = async () => { await maLaden(); renderList(); if (S.sel) renderDetail(); maDialog(); };   // frisch lesen, damit Änderungen anderer Kollegen nicht überschrieben werden
 $('ich').onchange = () => { lsSet(ICH_KEY, $('ich').value); if (!$('ich').value) lsSet(MEINE_KEY, ''); maUi(); renderList(); };
 $('btnMeine').onclick = () => { lsSet(MEINE_KEY, meineAktiv() ? '' : '1'); maUi(); renderList(); };
