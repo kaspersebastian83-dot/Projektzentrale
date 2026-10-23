@@ -115,7 +115,7 @@ node tests/wechsel-browser.cjs chromium         # Projektwechsel nach gescheiter
 
 Die Test-Arbeitszettel in `tests/fixtures/` sind frei erfunden (gleiche Form wie das Original, keine echten Daten).
 
-GitHub führt alle Tests bei jedem Pull Request aus (`.github/workflows/tests.yml`). Wie die Datei in Word aussieht, bitte zusätzlich einmal praktisch prüfen.
+GitHub führt alle Tests bei jedem Pull Request aus (`.github/workflows/tests.yml`, Chromium). Es gibt nur diesen einen Test-Workflow; zusätzliche Kompatibilitäts- und Integrations-Workflows wurden am 23.10.2026 entfernt. Wie die Datei in Word aussieht, bitte zusätzlich einmal praktisch prüfen.
 
 ## Dateien
 

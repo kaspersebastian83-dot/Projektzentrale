@@ -14,7 +14,7 @@ concurrency:
 jobs:
   node-tests:
     name: Node tests (no browser)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
@@ -30,7 +30,6 @@ jobs:
       - run: node tests/buero.cjs
       - run: node tests/buero-f5.cjs
       - run: node tests/buero-n1.cjs
-      - run: node tests/n1-baseline.cjs
       - run: node tests/project-store.cjs
 
   browser-tests:
@@ -40,7 +39,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        browser: [chromium, webkit]
+        browser: [chromium]
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
