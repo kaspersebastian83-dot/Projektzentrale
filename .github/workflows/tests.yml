@@ -18,6 +18,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v6
         with:
           node-version: 24
@@ -26,6 +28,9 @@ jobs:
       - run: node tests/arbeitszettel.cjs
       - run: node tests/sw.cjs
       - run: node tests/buero.cjs
+      - run: node tests/buero-f5.cjs
+      - run: node tests/buero-n1.cjs
+      - run: node tests/n1-baseline.cjs
 
   browser-tests:
     name: Browser tests (${{ matrix.browser }})
@@ -52,8 +57,10 @@ jobs:
       - name: Read an Arbeitszettel PDF in the real browser
         run: node tests/arbeitszettel-browser.cjs ${{ matrix.browser }}
       - name: Office handover and independent shared sessions
+        run: node tests/buero-browser.cjs ${{ matrix.browser }}
+      - name: Native office attempt persistence (Chromium OPFS and IndexedDB)
         if: matrix.browser == 'chromium'
-        run: node tests/buero-browser.cjs
+        run: node tests/buero-n1-native.cjs
       - name: Compact project view and native browser zoom
         if: matrix.browser == 'chromium'
         run: node tests/projektansicht-browser.cjs
