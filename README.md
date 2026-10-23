@@ -2,7 +2,17 @@
 
 Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung.
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.11.0** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.12.0** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Neu in 1.12.0 · 23.10.2026
+
+**Zuständige Person aus dem Projektordner.** Projektordner heißen `<JJ.Nummer> <Ort> <Kürzel>`, z. B. `26.0123 Musterstraße Köln Nad`. Die Projektzentrale liest den Namen von hinten: Ein Kürzel aus der Mitarbeiterliste am Ende wird erkannt (bis zu drei Wörter, ohne Groß-/Kleinschreibung, Leerzeichen und Punkte – „Dr. Ka“ = „Dr.Ka“), alles davor ist der Ort, mit oder ohne Straße. Kein Treffer → Ort bleibt der ganze Rest, mit Hinweis.
+
+- **„👥 Mitarbeiter“** pflegt die Liste in `<Archivordner>/_Spektron-Mitarbeiter.json` (Ordnerkürzel, Name, App-Kürzel für LabelKit/BelegKit, aktiv). Namen stehen nur dort, nicht im Programmcode. Ohne Liste wird nichts abgetrennt (wie bisher). Eine unlesbare Datei wird nie überschrieben; hat ein anderer Rechner die Liste inzwischen geändert, wird nicht gespeichert.
+- **„Zuständig“** im Projektkopf: vorausgewählt ist die Person aus dem Ordnernamen. Eine andere Auswahl wird als `zustaendig` in `_Projekt.json` gespeichert, der Ordner bleibt unverändert; „wie Ordnername“ entfernt sie wieder. Weicht die Auswahl ab, steht „Ordnername: …“ daneben. Ist das Feld „Sachverständiger“ leer, wird der Name nur als Vorschlag angezeigt.
+- **„Ich bin …“ und „Meine Projekte“** filtern die Liste (je Windows-Profil gemerkt, beim Start nicht vorausgewählt). Die Liste zeigt das Kürzel hinter dem Ort.
+- Der Schadenort in `_Projekt.json` wird beim nächsten Speichern ohne Kürzel geschrieben. Kennung bleibt überall der volle Ordnername (Links, „zuletzt“, Büroübergaben).
+- Noch nicht: Anzeige in Büroübersicht und den Projekt-Apps (Phase 2).
 
 ## Neu in 1.11.0 · 21.10.2026
 
@@ -73,7 +83,8 @@ Die App läuft vollständig im Browser auf dem eigenen Rechner. **Ordner, Dateie
 
 | Was | Regel |
 |---|---|
-| Projektordner | `<JJ>.<Nummer> <Schadenort>`, z. B. `26.0123 Köln`. Projektnummer und Schadenort kommen immer aus dem Ordnernamen. |
+| Projektordner | `<JJ>.<Nummer> <Schadenort> <Kürzel>`, z. B. `26.0123 Köln Nad`. Projektnummer, Schadenort und Kürzel kommen immer aus dem Ordnernamen (gelesen mit der Mitarbeiterliste). |
+| Mitarbeiterliste | `<Archivordner>/_Spektron-Mitarbeiter.json`, `format: "spektron-mitarbeiter"`, `version: 1`, `personen: [{ ordnerKuerzel, appKuerzel, name, aktiv }]`. Nur die Projektzentrale schreibt sie. |
 | Unterordner | `Fotos`, `Pläne`, `Laboraufträge`, `Laborergebnisse`, `Mitteilungen`, `Emails`, `Rechnung Labore` |
 | Wer schreibt wohin | FotoKit → `Fotos` (Bilder, `_Bildumbenenner.json`, Bilddokumentation-PDF/ZIP) · PlanKit → `Pläne` (`Probenplan <Projekt>.probenplan`, exportierte Bilder) und `Mitteilungen` (Anlage Probenahme) · LabelKit → `Laboraufträge` (und Scans in `Feldprotokolle`) · Projektzentrale → `_Projekt.json` und `Mitteilungen` (Anlagen, `_Anlagen-Protokoll.txt`) · BelegKit → `Abrechnung` (`Aufwand_<Kürzel>.json` je Person, `_Abrechnung.json`, Stände) und `_AufwandKit-Einstellungen.json` im Archivordner · SpesenKit → nicht ins Archiv, sondern in den eigenen Ordner `SpesenKit` je Person (`Daten/spesenkit.json`, `Spesen/<Jahr>/<Monat>/` mit PDF/ZIP der abgeschlossenen Abrechnungen, `Sicherungen/`) |
 | `_Projekt.json` | `format: "mosaik-projekt"`, `version: 1`. Jede App liest frisch, ändert nur die eigenen geänderten Felder und behält unbekannte Felder. Nicht löschen oder umbenennen. |
@@ -81,7 +92,7 @@ Die App läuft vollständig im Browser auf dem eigenen Rechner. **Ordner, Dateie
 | Absprung | `../labelkit/?projekt=<Ordnername>` (LabelKit) · `../Bildumbenenner/?projekt=<Ordnername>` (FotoKit) · `../Probenplan/?projekt=<Ordnername>` (PlanKit, mit `&aktion=anlage` direkt zur Anlage) · `../aufwandkit/?projekt=<Ordnername>` (BelegKit) · `../reisekosten-pro/` (SpesenKit, ohne Projekt) |
 | Offline-Speicher | Jede App verwaltet nur Caches mit eigenem Präfix (`projektzentrale:`, `bildumbenenner:`, `probenplan:`, `aufwandkit:`, `reisekosten-pro:`; LabelKit hat keinen Service Worker). |
 
-Felder in `_Projekt.json`: `projektnummer`, `schadenort`, `objekt`, `auftraggeber`, `schadennummer`, `schadenereignis`, `schadendatum`, `ortstermin`, `auftragsdatum` (Daten `JJJJ-MM-TT`), `sachverstaendiger`, `versicherungsnehmer`, `sachverstaendigerBeteiligt`, `sanierung`, `kontakte`, `notizen`, `verteiler` (`{ versicherung|sachverstaendiger|versicherungsnehmer|sanierung: { an: true, versandt: "JJJJ-MM-TT" } }`), `arbeitszettel` (`{ datei, sha256, titel, eingelesen }`), `geaendert`, `geaendertMit`.
+Felder in `_Projekt.json`: `projektnummer`, `schadenort`, `objekt`, `auftraggeber`, `schadennummer`, `schadenereignis`, `schadendatum`, `ortstermin`, `auftragsdatum` (Daten `JJJJ-MM-TT`), `sachverstaendiger`, `versicherungsnehmer`, `sachverstaendigerBeteiligt`, `sanierung`, `kontakte`, `notizen`, `zustaendig` (`{ kuerzel, gesetzt: "manuell", am, von }`, fehlt = wie Ordnername), `verteiler` (`{ versicherung|sachverstaendiger|versicherungsnehmer|sanierung: { an: true, versandt: "JJJJ-MM-TT" } }`), `arbeitszettel` (`{ datei, sha256, titel, eingelesen }`), `geaendert`, `geaendertMit`.
 
 ## Neue Version veröffentlichen
 
@@ -99,6 +110,7 @@ node tests/anlage.cjs   # Anlage PN 98 / Brandgeruch: Inhalte, Blind-Modus, Quel
 node tests/arbeitszettel.cjs   # Arbeitszettel lesen: volle und knappe Zettel, Reihenfolge, kein Zettel, Datum
 node tests/buero.cjs    # Übergabe, Empfängerstand, Retry, Fehler, parallele Rückmeldungen
 node tests/sw.cjs       # Service Worker: alle Offline-Dateien vorhanden, pdf.js dabei
+node tests/ordnername.cjs   # Ordnername von hinten lesen: Ort, Kürzel, Hinweise, ohne Mitarbeiterliste
 ```
 
 Browsertest des ganzen Ablaufs (Archiv → Projekt → Anlage → Datei, Prüfsummen, Protokoll), mit Playwright:
@@ -110,6 +122,7 @@ node tests/anlage-browser.cjs webkit
 node tests/projektansicht-browser.cjs           # kompakte Ansicht, Tastatur, Hinweise, Fenstergrößen, nativer Zoom
 node tests/arbeitszettel-browser.cjs chromium   # PDF lesen, Dialog, Speichern, Verteiler
 node tests/zuletzt-browser.cjs chromium         # zuletzt geöffnete Projekte, Vorwahl beim Start
+node tests/zustaendig-browser.cjs chromium      # Mitarbeiterliste, Zuständig, Meine Projekte, unlesbare Liste, Konflikt
 node tests/wechsel-browser.cjs chromium         # Projektwechsel nach gescheitertem Speichern: nichts geht still verloren
 ```
 
