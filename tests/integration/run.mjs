@@ -58,6 +58,7 @@ try {
   const foto=await popup(central,'#goFotos');
   await step('FotoKit: real metadata, rename and discarded-image move',async()=>{
     await foto.locator('#list .row').nth(3).waitFor();
+    await foto.waitForFunction(()=>!document.body.inert&&!document.getElementById('btnMeta').disabled); // N4: real user input is possible only after loading completes.
     const rows=foto.locator('#list .row');
     for(let i=0;i<4;i++){
       await rows.nth(i).locator('.desc').fill(F.descriptions[i]);await rows.nth(i).locator('.sec').fill('TEST Abschnitt');
