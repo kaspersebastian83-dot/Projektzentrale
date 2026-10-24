@@ -737,9 +737,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.17.0';
+const APP_VERSION = '1.17.1';
 const APP_DATE = '2026-10-24';
 const CHANGELOG = [
+  ['1.17.1', '24.10.2026', 'Die Bestenliste ist entfernt: keine Ranglisten, Punkte oder Abzeichen je Person mehr. Durchlaufzeiten bleiben ohne Personenbezug (nur Projekte und Labore).'],
   ['1.17.0', '24.10.2026', 'Neu unter „Weitere Apps“: „📈 Durchlaufzeiten“ zeigt für die Projekte des laufenden und vorigen Jahres, wie lange es vom Ortstermin über Laborauftrag, Prüfbericht und Büroübergabe bis zum Versand dauert – als Median je Abschnitt, je Labor und je Projekt. Nur aus vorhandenen Daten, nichts muss eingegeben werden.'],
   ['1.16.0', '24.10.2026', 'Projektdaten: neues Feld „Nutzung“ (Wohnen, Büro, Öffentlich, Gesundheit & Labor, Gewerbe/Industrie, Landwirtschaft) – PlanKit wählt daraus die VdS-2357-Referenz. Fehlt sie, erscheint ein Hinweis im Projekt. Neu und freiwillig: „Brandgut“.'],
   ['1.15.1', '24.10.2026', 'Aufgeräumt: In _Projekt_Sicherungen bleiben nur noch die Sicherungen der letzten 5 Speichervorgänge, ältere werden beim Speichern entfernt.'],
@@ -1387,7 +1388,6 @@ function ordnerKurz(p){
 function weitereApps(){
   return `<div class="more"><h3>Weitere Apps</h3>
     <a class="app" href="buero/" target="spektron-buero" rel="noopener"><span class="ic" aria-hidden="true">▤</span><span><span class="name">Büroübersicht</span><small>Gutachten prüfen und Versand dokumentieren</small></span><span class="go" aria-hidden="true">↗</span></a>
-    <a class="app" href="bestenliste/" target="spektron-bestenliste" rel="noopener"><span class="ic" aria-hidden="true">🏆</span><span><span class="name">Bestenliste</span><small>Punkte, Abzeichen und neueste Erfolge im Team</small></span><span class="go" aria-hidden="true">↗</span></a>
     <a class="app" id="goDurch" href="#durchlaufzeiten" role="button" title="Wie lange dauert es vom Ortstermin bis zum Versand? Aus vorhandenen Daten, nichts wird eingegeben"><span class="ic" aria-hidden="true">📈</span><span><span class="name">Durchlaufzeiten</span><small>Vom Ortstermin bis zum Versand – je Abschnitt und Labor</small></span><span class="go" aria-hidden="true">›</span></a>
     <a class="app" id="goReise" href="${REISEKOSTEN_URL}" target="reisekosten" rel="noopener" title="Öffnet SpesenKit in einem eigenen Fenster – Reisekosten- und Spesenabrechnung je Monat, unabhängig vom Projekt">
       <span class="ic" aria-hidden="true">🧾</span><span><span class="name">SpesenKit</span><small>Spesenabrechnung für den Monat</small></span><span class="go" aria-hidden="true">↗</span></a></div>`;
