@@ -200,6 +200,12 @@ table.folders .miss{color:var(--warn)}
 .azrow .m{font-size:12.5px;color:var(--muted)}
 .card.drop{outline:2px dashed var(--accent);outline-offset:2px}
 .dialog.az{width:min(820px,96vw)}
+.dialog.dl{width:min(900px,96vw)}
+.dl-tab td:not(:first-child),.dl-tab th:not(:first-child){text-align:right;white-space:nowrap}
+.dl-tab td{border-bottom:1px solid var(--line)}
+.dl-tab tr.gesamt td{font-weight:600}
+.dl-p{background:none;border:0;padding:0;color:var(--accent);cursor:pointer;text-align:left}
+.dl-quelle{font-size:12px;color:var(--muted)}
 .dialog .aztab{overflow:auto;border:1px solid var(--line);border-radius:8px;padding:4px 10px}
 .dialog .aztab td{padding:5px 10px 5px 0;border-bottom:1px solid var(--line)}
 .dialog .aztab tr:last-child td{border-bottom:0}
@@ -261,6 +267,7 @@ table.vt button{padding:2px 8px;font-size:12px;margin-left:6px}
 </style>
 <link rel="stylesheet" href="buero/ui.css">
 <script src="project-store.js"></script>
+<script src="durchlauf.js"></script>
 <script src="buero/data.js"></script>
 <script src="buero/central.js"></script>
 </head>
@@ -281,6 +288,7 @@ table.vt button{padding:2px 8px;font-size:12px;margin-left:6px}
     <button id="btnRescan" disabled title="Ordner neu einlesen (z. B. nachdem Kollegen etwas geändert haben)">Neu einlesen</button>
     <button id="btnMa" disabled title="Mitarbeiterliste: Kürzel am Ende der Projektordner und die zugehörigen Namen">👥 Mitarbeiter</button>
     <button id="btnAusl" disabled title="Offene Projekte je Person: in Bearbeitung, beim Büro, Rückfrage">📊 Auslastung</button>
+    <button id="btnDurch" disabled title="Wie lange dauert es vom Ortstermin bis zum Versand? Aus vorhandenen Daten, nichts wird eingegeben">📈 Durchlaufzeiten</button>
     <span class="spacer"></span>
     <select id="ich" disabled title="Wer arbeitet an diesem Rechner? Wird je Windows-Profil gemerkt."><option value="">Ich bin …</option></select>
     <button id="btnMeine" disabled aria-pressed="false" title="Nur Projekte zeigen, für die ich zuständig bin">Meine Projekte</button>
@@ -730,9 +738,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.16.0';
+const APP_VERSION = '1.17.0';
 const APP_DATE = '2026-10-24';
 const CHANGELOG = [
+  ['1.17.0', '24.10.2026', 'Neu: „📈 Durchlaufzeiten“ zeigt für die Projekte des laufenden und vorigen Jahres, wie lange es vom Ortstermin über Laborauftrag, Prüfbericht und Büroübergabe bis zum Versand dauert – als Median je Abschnitt, je Labor und je Projekt. Nur aus vorhandenen Daten, nichts muss eingegeben werden.'],
   ['1.16.0', '24.10.2026', 'Projektdaten: neues Feld „Nutzung“ (Wohnen, Büro, Öffentlich, Gesundheit & Labor, Gewerbe/Industrie, Landwirtschaft) – PlanKit wählt daraus die VdS-2357-Referenz. Fehlt sie, erscheint ein Hinweis im Projekt. Neu und freiwillig: „Brandgut“.'],
   ['1.15.1', '24.10.2026', 'Aufgeräumt: In _Projekt_Sicherungen bleiben nur noch die Sicherungen der letzten 5 Speichervorgänge, ältere werden beim Speichern entfernt.'],
   ['1.15.0', '23.10.2026', 'Neu unter „Weitere Apps“: 🏆 Bestenliste – eigene Seite mit Rangliste (Monat, Jahr, Gesamt), Podest, Abzeichen, „Neueste Erfolge“ und Projekten je Jahr. Punkte gibt es für abgeschlossene Projekte (Büroübergabe „Erledigt“), Proben, Bilddokumentation und Probenplan sowie für Gegenlesen, PDF und Versand im Büro und schnell beantwortete Rückfragen. Die Seite liest nur und aktualisiert sich alle 10 Minuten – geeignet für einen Bildschirm im Büro.'],
@@ -1023,6 +1032,7 @@ function maUi(){
   const ich = lsGet(ICH_KEY), pers = (S.ma && S.ma.personen) || [];
   $('btnMa').disabled = !S.archive;
   $('btnAusl').disabled = !S.archive;
+  $('btnDurch').disabled = !S.archive;
   $('ich').innerHTML = '<option value="">Ich bin …</option>' + pers.filter(p => p.aktiv !== false || maNorm(p.ordnerKuerzel) === maNorm(ich))
     .map(p => `<option value="${esc(p.ordnerKuerzel)}"${maNorm(p.ordnerKuerzel) === maNorm(ich) ? ' selected' : ''}>${esc(p.name)} (${esc(p.ordnerKuerzel)})</option>`).join('');
   $('ich').disabled = !pers.length;
@@ -1094,6 +1104,69 @@ function auZeichnen(){
   $('dialog').querySelectorAll('[data-p]').forEach(b => b.onclick = () => {
     const p = S.projects.find(x => x.name === b.dataset.p); S.au = null; closeDialog(); if (p) selectProject(p);
   });
+}
+/* ---------- Durchlaufzeiten ----------
+   Nur lesen (durchlauf.js rechnet): Ortstermin, Laborübergabe, Ablage des Prüfberichts, Büroübergabe und Versand der Projekte
+   des laufenden und vorigen Jahres. Keine Eingabe, keine neue Datei. Gelesenes bleibt bis „Neu einlesen“ gemerkt. */
+async function dlLesen(p){
+  const r = { pj: {}, auftraege: [], ergebnisse: [], buero: [] };
+  for await (const h of p.handle.values()){
+    if (h.kind === 'file'){ if (h.name === PJ_FILE) try{ r.pj = JSON.parse(await (await h.getFile()).text()) || {}; }catch(e){} continue; }
+    if (h.name === BueroData.DIR){ try{ r.buero = (await BueroData.scanProject(p.handle)).records; }catch(e){} continue; }
+    const sub = SUBS.find(x => norm(x[1]) === norm(h.name)), key = sub && sub[0];
+    if (key !== 'labauf' && key !== 'laberg') continue;
+    for await (const f of h.values()){
+      if (f.kind !== 'file' || f.name.startsWith('~$')) continue;
+      if (key === 'labauf' ? !/_Laborübergabe\.xls$/i.test(f.name) : !/\.(xml|pdf)$/i.test(f.name)) continue;
+      const file = await f.getFile(), e = { name: f.name, lastModified: file.lastModified };
+      if (key === 'laberg' && /\.xml$/i.test(f.name)) try{ if (/<(\w+:)?AnalyticalReport\b/.test(await file.slice(0, 4000).text())) e.labor = 'Eurofins'; }catch(_){}
+      (key === 'labauf' ? r.auftraege : r.ergebnisse).push(e);
+    }
+  }
+  return Durchlauf.projekt(r);
+}
+function dlDialog(){
+  if (!S.archive) return;
+  if (!S.dl){
+    const projekte = S.projects.filter(p => auImZeitraum(p)), token = S.scanToken;
+    S.dl = { werte: new Map(), fehler: [], gesamt: projekte.length, token };
+    const queue = projekte.slice();
+    const worker = async () => { for (let p = queue.shift(); p; p = queue.shift()){
+      if (!S.dl || S.dl.token !== token) return;
+      try{ S.dl.werte.set(p.name, await dlLesen(p)); }catch(e){ S.dl.werte.set(p.name, null); S.dl.fehler.push(p.name); }
+      dlNeuZeichnen();
+    } };
+    for (let i = 0; i < 4; i++) worker();
+  }
+  dlZeichnen();
+}
+function dlNeuZeichnen(){ clearTimeout(S.dlTimer); S.dlTimer = setTimeout(() => { if ($('dialog').classList.contains('dl') && $('dlgBack').classList.contains('show')) dlZeichnen(); }, 400); }
+function dlZeichnen(){
+  const dl = S.dl, yy = new Date().getFullYear() % 100, vor = String((yy + 99) % 100).padStart(2, '0'), jetzt = String(yy).padStart(2, '0');
+  const liste = [...dl.werte].map(([name, ergebnis]) => ({ name, ergebnis })), a = Durchlauf.auswerten(liste);
+  const t = v => v == null ? '–' : v.toLocaleString('de-DE', { maximumFractionDigits: 1 }), tg = v => v == null ? '–' : t(v) + (v === 1 ? ' Tag' : ' Tage'), kurz = iso => iso ? deDatum(iso).slice(0, 6) : '–';
+  const proj = (name, text) => `<button type="button" class="dl-p" data-p="${esc(name)}" title="Projekt öffnen">${esc(text || name)}</button>`;
+  const mitDaten = liste.filter(x => x.ergebnis && Object.values(x.ergebnis.daten).some(Boolean)).sort((x, y) => y.name.localeCompare(x.name, 'de', { numeric: true }));
+  const hinweise = liste.filter(x => x.ergebnis && x.ergebnis.hinweise.length);
+  const offen = dl.gesamt - dl.werte.size;
+  showDialog(`<h3>Durchlaufzeiten</h3>
+    <div class="m">Projekte ${vor}.xxxx und ${jetzt}.xxxx, in Kalendertagen. <b>Median</b>: die Hälfte der Projekte war schneller. Gezählt wird nur, wo beide Daten vorliegen.</div>
+    ${offen ? `<div class="m" role="status">Noch ${offen} von ${dl.gesamt} Projekten werden gelesen – die Zahlen ergänzen sich.</div>` : ''}
+    <div style="overflow:auto"><table class="ma-tab dl-tab"><thead><tr><th>Abschnitt</th><th>Median</th><th>Projekte</th><th>Am längsten</th></tr></thead><tbody>
+    ${a.abschnitte.map(x => `<tr class="${x.key === 'gesamt' ? 'gesamt' : ''}"><td>${esc(x.name)}</td><td>${x.n ? tg(x.median) : '–'}</td><td>${x.n}</td><td>${x.max ? proj(x.max.name) + ' · ' + tg(x.max.tage) : '–'}</td></tr>`).join('')}
+    </tbody></table></div>
+    ${a.labore.length ? `<div style="overflow:auto"><table class="ma-tab dl-tab"><thead><tr><th>Labor (Auftrag → Prüfbericht)</th><th>Median</th><th>Projekte</th><th>Am längsten</th></tr></thead><tbody>
+      ${a.labore.map(l => `<tr><td>${esc(l.labor)}</td><td>${tg(l.median)}</td><td>${l.n}</td><td>${tg(l.max)}</td></tr>`).join('')}</tbody></table></div>` : ''}
+    ${mitDaten.length ? `<details><summary>Alle Projekte (${mitDaten.length})</summary><div style="overflow:auto;max-height:40vh"><table class="ma-tab dl-tab"><thead><tr><th>Projekt</th><th>Ortstermin</th><th>Laborauftrag</th><th>Prüfbericht</th><th>Übergabe</th><th>Versand</th><th>Gesamt</th></tr></thead><tbody>
+      ${mitDaten.map(x => { const d = x.ergebnis.daten, g = x.ergebnis.abschnitte.gesamt; return `<tr><td>${proj(x.name)}</td><td>${kurz(d.ortstermin)}</td><td>${kurz(d.laborauftrag)}</td><td>${kurz(d.pruefbericht)}</td><td>${kurz(d.uebergabe)}</td><td>${kurz(d.versand)}</td><td>${g == null ? '–' : g + ' T.'}</td></tr>`; }).join('')}
+      </tbody></table></div></details>` : (offen ? '' : '<div class="m">Noch keine Projekte mit auswertbaren Daten.</div>')}
+    ${hinweise.length ? `<details><summary class="warn">${hinweise.length} Projekt${hinweise.length === 1 ? '' : 'e'} mit unplausibler Reihenfolge – dieser Abschnitt nicht mitgezählt</summary>${hinweise.map(x => `<div class="m">${proj(x.name)}: ${x.ergebnis.hinweise.map(esc).join('; ')}</div>`).join('')}</details>` : ''}
+    ${dl.fehler.length ? `<div class="warn">${dl.fehler.length} Projektordner nicht lesbar – nicht mitgezählt.</div>` : ''}
+    <div class="dl-quelle">Woher die Daten kommen: Ortstermin aus den Projektdaten · Laborauftrag aus „…_Laborübergabe.xls“ in „Laboraufträge“ · Prüfbericht = Ablage der ersten XML/PDF in „Laborergebnisse“ · Übergabe und Versand aus der Büroübersicht (ältere Projekte: Versanddatum aus „Frühere Versandangaben“).</div>
+    <div class="btns"><button id="dlZu" class="primary">Schließen</button></div>`);
+  $('dialog').classList.add('dl');
+  $('dlZu').onclick = closeDialog;
+  $('dialog').querySelectorAll('[data-p]').forEach(b => b.onclick = () => { const p = S.projects.find(x => x.name === b.dataset.p); closeDialog(); if (p) selectProject(p); });
 }
 function maDialog(){
   if (!S.archive) return;
@@ -2072,8 +2145,9 @@ document.addEventListener('keydown', e => { if (e.key === 'F1'){ e.preventDefaul
 
 $('btnUpd').onclick = async () => { await flushPJ(); location.reload(); };
 $('btnArchive').onclick = pickArchive;
-$('btnRescan').onclick = async () => { await flushPJ(); S.projects.forEach(p => p.st = null); await maLaden(); await listProjects(); maWarnung(); };
+$('btnRescan').onclick = async () => { await flushPJ(); S.projects.forEach(p => p.st = null); S.dl = null; await maLaden(); await listProjects(); maWarnung(); };
 $('btnAusl').onclick = async () => { await maLaden(); renderList(); if (S.sel) renderDetail(); auDialog(); };
+$('btnDurch').onclick = () => dlDialog();
 $('btnMa').onclick = async () => { await maLaden(); renderList(); if (S.sel) renderDetail(); maDialog(); };   // frisch lesen, damit Änderungen anderer Kollegen nicht überschrieben werden
 $('ich').onchange = () => { lsSet(ICH_KEY, $('ich').value); if (!$('ich').value) lsSet(MEINE_KEY, ''); maUi(); renderList(); };
 $('btnMeine').onclick = () => { lsSet(MEINE_KEY, meineAktiv() ? '' : '1'); maUi(); renderList(); };

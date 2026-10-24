@@ -2,7 +2,21 @@
 
 Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung.
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.16.0** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.17.0** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Neu in 1.17.0 · 24.10.2026
+
+**„📈 Durchlaufzeiten“** (oben neben „📊 Auslastung“): Wie lange dauert ein Projekt? Für die Projekte des laufenden und vorigen Jahres, in Kalendertagen, als Median je Abschnitt mit dem längsten Projekt, dazu Laborzeiten je Labor und eine Liste aller Projekte (Klick öffnet das Projekt). Nichts muss eingegeben werden – die Daten stammen aus dem, was bei der Arbeit ohnehin entsteht:
+
+| Schritt | Quelle |
+|---|---|
+| Ortstermin | `ortstermin` in `_Projekt.json` |
+| Laborauftrag | erste `…_Laborübergabe.xls` in „Laboraufträge“ (Datum aus dem Dateinamen) |
+| Prüfbericht | erste XML/PDF in „Laborergebnisse“ nach dem Laborauftrag (Datum der Ablage); Eurofins wird an der XML erkannt |
+| Übergabe ans Büro | erste nicht zurückgenommene Büroübergabe |
+| Versand | spätestes Versanddatum der ersten erledigten Übergabe; ältere Projekte: „Frühere Versandangaben“ |
+
+Fehlt ein Datum, fällt nur dieser Abschnitt für das Projekt heraus; eine unplausible Reihenfolge wird genannt und nicht gezählt. Nur lesen, keine neue Datei. Die Rechnung steht in `durchlauf.js` (getestet in `tests/durchlauf.cjs`).
 
 ## Neu in 1.15.0 · 23.10.2026
 
@@ -148,6 +162,7 @@ node tests/arbeitszettel.cjs   # Arbeitszettel lesen: volle und knappe Zettel, R
 node tests/buero.cjs    # Übergabe, Empfängerstand, Retry, Fehler, parallele Rückmeldungen
 node tests/sw.cjs       # Service Worker: alle Offline-Dateien vorhanden, pdf.js dabei
 node tests/ordnername.cjs   # Ordnername von hinten lesen: Ort, Kürzel, Hinweise, ohne Mitarbeiterliste
+node tests/durchlauf.cjs    # Durchlaufzeiten: Daten, fehlende/unplausible Angaben, Median, Labore
 ```
 
 Browsertest des ganzen Ablaufs (Archiv → Projekt → Anlage → Datei, Prüfsummen, Protokoll), mit Playwright:
@@ -170,6 +185,7 @@ GitHub führt alle Tests bei jedem Pull Request aus (`.github/workflows/tests.ym
 ## Dateien
 
 - `index.html` – die komplette App
+- `durchlauf.js` – Rechnung der Durchlaufzeiten (ohne Oberfläche, mit Node testbar)
 - `vendor/pdfjs/` – pdf.js (Apache-2.0, siehe `LICENSE` dort), nur zum Lesen der Arbeitszettel; wird bei Bedarf geladen
 - `tests/` – automatische Prüfungen (Node, Browser)
 - `sw.js` – Service Worker: offline nutzbar, immer neueste Version wenn online
