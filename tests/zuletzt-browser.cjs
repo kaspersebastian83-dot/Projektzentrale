@@ -73,6 +73,7 @@ const A = '26.0142 Teststadt', B = '26.0150 Köln';
   await page.waitForTimeout(400);
   assert.equal(await page.locator('.proj.active').count(), 0);
   assert.equal(await page.locator('#detail .empty a#goReise').count(), 1, 'SpesenKit auch ohne gewähltes Projekt erreichbar');
+  assert.equal(await page.locator('#detail .empty a#goAid').getAttribute('href'), '../aidkit/', 'Handbuch (AidKit) auch ohne gewähltes Projekt erreichbar');
 
   // „zuletzt“ nennt ein Projekt, das es nicht mehr gibt: nichts vorgewählt, kein Fehler
   await seed(['99.0001 Weg', A]);

@@ -737,9 +737,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.17.1';
+const APP_VERSION = '1.18.0';
 const APP_DATE = '2026-10-24';
 const CHANGELOG = [
+  ['1.18.0', '24.10.2026', 'Neu unter „Weitere Apps“: 📘 Handbuch (AidKit) – Abläufe Schritt für Schritt (zuerst: Bohrkerne von der Begehung bis zum Labor) und gemeinsame Regeln wie die Probenbezeichnung. Öffnet in einem eigenen Fenster, auch ohne gewähltes Projekt.'],
   ['1.17.1', '24.10.2026', 'Die Bestenliste ist entfernt: keine Ranglisten, Punkte oder Abzeichen je Person mehr. Durchlaufzeiten bleiben ohne Personenbezug (nur Projekte und Labore).'],
   ['1.17.0', '24.10.2026', 'Neu unter „Weitere Apps“: „📈 Durchlaufzeiten“ zeigt für die Projekte des laufenden und vorigen Jahres, wie lange es vom Ortstermin über Laborauftrag, Prüfbericht und Büroübergabe bis zum Versand dauert – als Median je Abschnitt, je Labor und je Projekt. Nur aus vorhandenen Daten, nichts muss eingegeben werden.'],
   ['1.16.0', '24.10.2026', 'Projektdaten: neues Feld „Nutzung“ (Wohnen, Büro, Öffentlich, Gesundheit & Labor, Gewerbe/Industrie, Landwirtschaft) – PlanKit wählt daraus die VdS-2357-Referenz. Fehlt sie, erscheint ein Hinweis im Projekt. Neu und freiwillig: „Brandgut“.'],
@@ -901,6 +902,7 @@ const BILDUMBENENNER_URL = '../Bildumbenenner/';
 const PROBENPLAN_URL = '../Probenplan/';
 const LABELKIT_URL = '../labelkit/';
 const AUFWANDKIT_URL = '../aufwandkit/';
+const AIDKIT_URL = '../aidkit/';   // AidKit: Handbuch der Suite – Abläufe und Regeln, ohne Projektbezug
 const REISEKOSTEN_URL = '../reisekosten-pro/';   // SpesenKit: Spesenabrechnung je Kollege und Monat – ohne Projektbezug, darum kein Schritt und kein ?projekt=
 
 /* ---------- _Projekt.json ----------
@@ -1387,6 +1389,7 @@ function ordnerKurz(p){
 /** Weitere Apps unten im rechten Fenster, auch ohne gewähltes Projekt: Die Monatsabrechnung der Reisekosten gehört zu keinem Projekt. */
 function weitereApps(){
   return `<div class="more"><h3>Weitere Apps</h3>
+    <a class="app" id="goAid" href="${AIDKIT_URL}" target="aidkit" rel="noopener" title="Öffnet das Handbuch in einem eigenen Fenster – Abläufe Schritt für Schritt und gemeinsame Regeln (z. B. Probenbezeichnung Bohrkerne)"><span class="ic" aria-hidden="true">📘</span><span><span class="name">Handbuch (AidKit)</span><small>Abläufe Schritt für Schritt und gemeinsame Regeln</small></span><span class="go" aria-hidden="true">↗</span></a>
     <a class="app" href="buero/" target="spektron-buero" rel="noopener"><span class="ic" aria-hidden="true">▤</span><span><span class="name">Büroübersicht</span><small>Gutachten prüfen und Versand dokumentieren</small></span><span class="go" aria-hidden="true">↗</span></a>
     <a class="app" id="goDurch" href="#durchlaufzeiten" role="button" title="Wie lange dauert es vom Ortstermin bis zum Versand? Aus vorhandenen Daten, nichts wird eingegeben"><span class="ic" aria-hidden="true">📈</span><span><span class="name">Durchlaufzeiten</span><small>Vom Ortstermin bis zum Versand – je Abschnitt und Labor</small></span><span class="go" aria-hidden="true">›</span></a>
     <a class="app" id="goReise" href="${REISEKOSTEN_URL}" target="reisekosten" rel="noopener" title="Öffnet SpesenKit in einem eigenen Fenster – Reisekosten- und Spesenabrechnung je Monat, unabhängig vom Projekt">
@@ -2077,7 +2080,7 @@ function helpDiagram(){
   </svg>`;
 }
 function helpHtml(){
-  return `<p><b>Spektron</b> heißen unsere Büro-Apps zusammen: Projektzentrale, LabelKit, FotoKit, PlanKit, BelegKit und SpesenKit.</p>
+  return `<p><b>Spektron</b> heißen unsere Büro-Apps zusammen: Projektzentrale, LabelKit, FotoKit, PlanKit, BelegKit und SpesenKit, dazu das Handbuch AidKit.</p>
   <p><b>Alle Arbeit startet hier in der Projektzentrale:</b> Sie öffnet LabelKit, FotoKit, PlanKit und BelegKit direkt im richtigen Projektordner, gespeichert wird dort automatisch.</p>
   <h4>Einmalig einrichten</h4>
   <ol>
@@ -2108,6 +2111,7 @@ function helpHtml(){
     <li><b>Ersetzen:</b> Lädt man in PlanKit einen neuen Grundriss, bleibt die alte Datei als „(vorher …)“-Kopie in „Pläne“.</li>
     <li><b>Mehrere Geschosse:</b> In PlanKit unten „＋ Plan“ (EG, 1. OG …). Probennummern laufen über alle Geschosse weiter. Eine mehrseitige PDF mit „Alle Seiten als einzelne Pläne“ übernehmen.</li>
     <li><b>Ergebniskarte:</b> In PlanKit „Ergebnisse“ (Taste K) färbt die Proben nach der Bewertungsskala – dieselbe wie in der FotoKit-Ergebnistabelle. Beim Export „Darstellung: Ergebniskarte“ wählen.</li>
+    <li><b>Handbuch (AidKit):</b> Abläufe Schritt für Schritt und gemeinsame Regeln, z. B. „Bohrkerne: Schritt für Schritt“ und die Probenbezeichnung. Knopf unter „Weitere Apps“, öffnet in einem eigenen Fenster.</li>
     <li><b>SpesenKit:</b> Die monatliche Spesenabrechnung der Kollegen. Der Knopf steht ganz unten im rechten Fenster unter „Weitere Apps“ (auch ohne gewähltes Projekt) und öffnet die App in einem eigenen Fenster. Dort läuft alles über die Monatsübersicht: Dienstreisen und Kosten erfassen, prüfen, abschließen. Einmal „Ordner einrichten“ – SpesenKit speichert dann in einem eigenen Ordner der Person (nicht im Archivordner) und legt abgeschlossene Abrechnungen unter „Spesen/Jahr/Monat“ ab.</li>
     <li><b>Hilfe:</b> In jeder App erklärt der <b>?</b>-Knopf (oder F1) die Bedienung.</li>
     <li><b>Problem melden:</b> In FotoKit „Problem melden“, sonst Screenshot und kurze Beschreibung an <b>sebastian.kasper@dr-schiffers.de</b>.</li>
@@ -2120,6 +2124,7 @@ function helpHtml(){
     <tr><td>FotoKit</td><td>Fotos benennen, Bilddokumentation, Ergebnistabelle</td><td>kaspersebastian83-dot.github.io/Bildumbenenner</td></tr>
     <tr><td>PlanKit</td><td>Probenplan, Ergebniskarte</td><td>kaspersebastian83-dot.github.io/Probenplan</td></tr>
     <tr><td>SpesenKit</td><td>Spesenabrechnung für den Monat (ohne Projektbezug)</td><td>kaspersebastian83-dot.github.io/reisekosten-pro</td></tr>
+    <tr><td>AidKit</td><td>Handbuch: Abläufe Schritt für Schritt, gemeinsame Regeln</td><td>kaspersebastian83-dot.github.io/aidkit</td></tr>
   </table>
   <p>Alle Projektdaten bleiben auf dem Server im Archivordner, die Spesen im SpesenKit-Ordner der Person. Die Apps laden nichts hoch.</p>`;
 }
