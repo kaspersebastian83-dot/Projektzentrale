@@ -189,7 +189,8 @@ table.folders .miss{color:var(--warn)}
 .form label{display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--muted)}
 .form label.wide{grid-column:1 / -1}
 .form input,.form textarea,.form select{color:var(--text)}
-.nutzungHint{margin:6px 0 10px;padding:7px 10px;border-left:3px solid #d9a400;background:rgba(217,164,0,.08);font-size:13px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.nutzungFehlt{margin-left:8px;padding:1px 8px;border-radius:10px;font-size:11.5px;font-weight:600;color:#8a6500;background:rgba(217,164,0,.16);border:1px solid rgba(217,164,0,.45);cursor:pointer;white-space:nowrap}
+@media (prefers-color-scheme:dark){.nutzungFehlt{color:#f0c850}}
 .save{font-size:12.5px;color:var(--muted);margin-top:8px;min-height:18px}
 .save.err{color:var(--err)}
 .save.ok{color:var(--ok)}
@@ -1342,12 +1343,11 @@ function renderDetail(){
   $('detail').innerHTML = `<div class="pz">
     <h2><span class="nr">${esc(p.nr)}</span> ${esc(p.ort)}</h2>
     <p class="project-summary">${esc([d.objekt,d.auftraggeber].filter(Boolean).join(' · ')||'Objekt und Auftraggeber noch nicht eingetragen')}</p>
-    ${!ro && !String(d.nutzung || '').trim() && !('nutzung' in S.pjDirty && S.pjDirty.nutzung) ? '<div class="nutzungHint">Nutzung fehlt – sie bestimmt die VdS-Referenz in PlanKit. <button id="nutzungSetzen">Eintragen</button></div>' : ''}
     <div id="pjAttention" role="status"></div><div id="bueroAttention" class="buero" role="status"></div><div id="pjRecovery"></div>
     ${zustHtml(p, zustaendigVon(p, pj.error ? undefined : d), ro)}
     ${!summe&&!ro?'<div class="azrow"><button id="azQuick">Arbeitszettel einlesen …</button></div>':''}
     <details class="card${summe ? '' : ' leer'}" id="pjBox" ${pjAuf ? 'open' : ''}>
-      <summary><span class="t">Projektdaten</span><span class="sum">${ro?'Ansehen':summe?'Bearbeiten · Arbeitszettel einlesen':'Ergänzen oder Arbeitszettel einlesen'}</span>
+      <summary><span class="t">Projektdaten</span>${!ro && !String(d.nutzung || '').trim() && !(S.pjDirty.nutzung) ? '<span class="nutzungFehlt" id="nutzungFehlt" title="Die Nutzung bestimmt die VdS-Referenz in PlanKit – hier klicken zum Eintragen">Nutzung fehlt</span>' : ''}<span class="sum">${ro?'Ansehen':summe?'Bearbeiten · Arbeitszettel einlesen':'Ergänzen oder Arbeitszettel einlesen'}</span>
         <span class="save" id="pjSave">${pj.exists ? (d.geaendert ? `Gespeichert ${esc(new Date(d.geaendert).toLocaleDateString('de-DE'))}` : '') : ''}</span></summary>
       <div class="body">
         ${nrWarn}
@@ -1382,7 +1382,7 @@ function renderDetail(){
   if(oldAlerts)$('bueroAttention').replaceWith(oldAlerts);
   if(officeFocus){officeFocus.el.focus({preventScroll:true});try{officeFocus.el.setSelectionRange(officeFocus.start,officeFocus.end);}catch{}}
   if($('azQuick'))$('azQuick').onclick=()=>$('azFile').click();
-  if($('nutzungSetzen'))$('nutzungSetzen').onclick=()=>{$('pjBox').open=true;$('pj_nutzung').focus();};
+  if($('nutzungFehlt'))$('nutzungFehlt').onclick=e=>{e.preventDefault();$('pjBox').open=true;$('pj_nutzung').focus();};
   $('pjBox').addEventListener('toggle', () => { S.pjOpen[p.name] = $('pjBox').open; });
   $('ordBox').addEventListener('toggle', () => { S.ordOpen[p.name] = $('ordBox').open; });
   $('vtBox').addEventListener('toggle', () => { S.vtOpen[p.name] = $('vtBox').open; });
