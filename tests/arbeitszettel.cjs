@@ -45,6 +45,8 @@ assert.throws(() => azLeser([{ s: 'Rechnung', x: 60, y: 80 }, { s: 'RISKO', x: 6
 // Datum: nur echte Daten, sonst leer (mit Hinweis)
 assert.equal(azDatum('7.9.2026'), '2026-09-07');
 assert.equal(azDatum('ab 15.10.'), '');
+assert.equal(azDatum('15.13.2026'), '', 'unmöglicher Monat wird nicht gespeichert');
+assert.equal(azDatum('31.02.2026'), '', 'unmöglicher Tag wird nicht gespeichert');
 const ohneDatum = lies('voll').map(i => i.s === '15.10.2026' || i.s === 'Termin: 15.10.2026' ? Object.assign({}, i, { s: 'Termin: nach Absprache' }) : i);
 r = azFelder(azLeser(ohneDatum));
 assert.equal(r.f.ortstermin, '');

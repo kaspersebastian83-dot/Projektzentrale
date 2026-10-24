@@ -17,9 +17,16 @@ ok('vollständiger Ablauf: Daten und Abschnitte', () => {
   assert.deepEqual(r.abschnitte, { aufnahme: 1, labor: 7, gutachten: 6, buero: 2, gesamt: 16 });
   assert.equal(r.labor, 'Eurofins'); assert.deepEqual(r.hinweise, []);
 });
+ok('unmögliches Datum in _Projekt.json wirft das Projekt nicht aus der Auswertung', () => {
+  const r = D.projekt({ ...voll, pj: { ortstermin: '2026-13-15' } });
+  assert.equal(r.daten.ortstermin || '', '');
+  assert.equal(r.daten.versand, '2026-10-17');
+});
 ok('Datum der Laborübergabe kommt aus dem Dateinamen, sonst aus dem Dateidatum', () => {
   assert.equal(D.datumAusName('26.0123_Chlorid_07-10-2026_Laborübergabe.xls'), '2026-10-07');
   assert.equal(D.datumAusName('26.0123_PAK_31-02-2026_Laborübergabe.xls'), '');
+  assert.equal(D.datumAusName('26.0123_PAK_5.1.2026_Laborübergabe.xls'), '2026-01-05', 'LabelKit schreibt das Datum ohne führende Null');
+  assert.equal(D.datumAusName('26.0123_PAK_24.10.2026_Laborübergabe.xls'), '2026-10-24');
   const r = D.projekt({ auftraege: [{ name: 'Alt_Laborübergabe.xls', lastModified: mittag('2026-10-03') }] });
   assert.equal(r.daten.laborauftrag, '2026-10-03');
 });

@@ -7,17 +7,17 @@
   'use strict';
   const ISO = /^\d{4}-\d{2}-\d{2}$/;
   const pad = n => String(n).padStart(2, '0');
-  const gueltig = s => typeof s === 'string' && ISO.test(s) && new Date(s + 'T12:00:00Z').toISOString().slice(0, 10) === s;
+  const gueltig = s => { if (typeof s !== 'string' || !ISO.test(s)) return false; const d = new Date(s + 'T12:00:00Z'); return Number.isFinite(d.getTime()) && d.toISOString().slice(0, 10) === s; };
   /** Kalendertag in Ortszeit für einen Zeitstempel (Dateidatum, ISO-Zeit der Büroübergabe). */
   function tag(wert){
     const d = new Date(wert);
     return Number.isFinite(d.getTime()) ? `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` : '';
   }
-  /** Datum aus einem LabelKit-Dateinamen („26.0123_PAK_24-10-2026_Laborübergabe.xls“), sonst ''. */
+  /** Datum aus einem LabelKit-Dateinamen („26.0123_PAK_24.10.2026_Laborübergabe.xls“, auch „5.1.2026“ oder „24-10-2026“), sonst ''. */
   function datumAusName(name){
-    const m = /(\d{2})[-.](\d{2})[-.](\d{4})/.exec(String(name || ''));
+    const m = /(?:^|\D)(\d{1,2})[-.](\d{1,2})[-.](\d{4})(?!\d)/.exec(String(name || ''));
     if (!m) return '';
-    const iso = `${m[3]}-${m[2]}-${m[1]}`;
+    const iso = `${m[3]}-${pad(m[2])}-${pad(m[1])}`;
     return gueltig(iso) ? iso : '';
   }
   const tage = (von, bis) => Math.round((Date.parse(bis + 'T12:00:00Z') - Date.parse(von + 'T12:00:00Z')) / 864e5);
