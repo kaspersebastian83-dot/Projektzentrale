@@ -2,7 +2,7 @@
 
 Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung.
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.17.0** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.17.1** (Änderungen: Klick auf die Versionsnummer in der App)
 
 ## Neu in 1.17.0 · 24.10.2026
 
@@ -17,21 +17,6 @@ Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektda
 | Versand | spätestes Versanddatum der ersten erledigten Übergabe; ältere Projekte: „Frühere Versandangaben“ |
 
 Fehlt ein Datum, fällt nur dieser Abschnitt für das Projekt heraus; eine unplausible Reihenfolge wird genannt und nicht gezählt. Nur lesen, keine neue Datei. Die Rechnung steht in `durchlauf.js` (getestet in `tests/durchlauf.cjs`).
-
-## Neu in 1.15.0 · 23.10.2026
-
-**🏆 Bestenliste** (`bestenliste/`, in der Projektzentrale unter „Weitere Apps“): eigene Seite für alle, auch als Bildschirm im Büro. Rangliste für Monat, Jahr und Gesamt mit Podest, „Neueste Erfolge“, Abzeichen je Person und Projekte je Jahr. Nur lesen; aktualisiert sich alle 10 Minuten. Neue Erfolge seit dem letzten Besuch gibt es mit Konfetti.
-
-| Punkte | wofür | wer |
-|---|---|---|
-| 10 | Projekt abgeschlossen (Büroübergabe „Erledigt“) | zuständige Person |
-| 1 je Probe, max. 20 | Proben in der LabelKit-Projektdatei | zuständige Person, beim Abschluss |
-| 2 | Bilddokumentations-PDF in „Fotos“ | zuständige Person, beim Abschluss |
-| 2 | Probenplan in „Pläne“ | zuständige Person, beim Abschluss |
-| 3 / 1 / 1 | Gegenlesen / PDF zugeordnet / Versand (einmal je Übergabe) | Kürzel aus der Büroübersicht |
-| 2 | Rückfrage innerhalb von 2 Werktagen beantwortet | zuständige Person |
-
-Abzeichen: Meilensteine (1, 10, 25, 50, 100 Abschlüsse), 👑 Probenkönig/in (meiste Proben im Monat), ⚡ schnellster Abschluss des Jahres, 🔥 Serie (≥ 3 Wochen in Folge mit Abschluss), 🛟 Rückfrage-Retter/in, 🔍 Adlerauge (Gegenlesen). Kürzel aus der Büroübersicht werden über Ordner- oder App-Kürzel der Mitarbeiterliste zugeordnet; was nicht passt, steht als „nicht zugeordnet“ unter der Rangliste. Ältere Projekte ohne Büroübergabe zählen nur in „Projekte je Jahr“. Die Rechnung steht in `bestenliste/punkte.js` (getestet in `tests/bestenliste.cjs`).
 
 ## Neu in 1.14.0 · 23.10.2026
 
