@@ -195,8 +195,13 @@ table.folders .miss{color:var(--warn)}
 .form label{display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--muted)}
 .form label.wide{grid-column:1 / -1}
 .form input,.form textarea,.form select{color:var(--text)}
-.nutzungFehlt{margin-left:8px;padding:1px 8px;border-radius:10px;font-size:11.5px;font-weight:600;color:#8a6500;background:rgba(217,164,0,.16);border:1px solid rgba(217,164,0,.45);cursor:pointer;white-space:nowrap}
-@media (prefers-color-scheme:dark){.nutzungFehlt{color:#f0c850}}
+.pflichtFehlt{margin-left:8px;padding:1px 8px;border-radius:10px;font-size:11.5px;font-weight:600;color:#8a6500;background:rgba(217,164,0,.16);border:1px solid rgba(217,164,0,.45);cursor:pointer;white-space:nowrap}
+@media (prefers-color-scheme:dark){.pflichtFehlt{color:#f0c850}}
+/* Pflichtfelder (in allen Apps gleich): solange leer, warmes Gelb am Feld und „Pflicht“ am Namen; ausgefüllt wieder normal. */
+.pflicht-tag{display:none;margin-left:6px;padding:0 6px;border-radius:8px;font-size:10.5px;font-weight:600;line-height:16px;color:#8a6500;background:rgba(217,164,0,.16);border:1px solid rgba(217,164,0,.45)}
+label.pflicht-offen .pflicht-tag{display:inline-block}
+label.pflicht-offen>input,label.pflicht-offen>select,label.pflicht-offen>textarea{border-color:#d9a400!important;background:#fff8e1;box-shadow:inset 3px 0 0 #d9a400}
+@media (prefers-color-scheme:dark){.pflicht-tag{color:#f0c850}label.pflicht-offen>input,label.pflicht-offen>select,label.pflicht-offen>textarea{background:rgba(217,164,0,.12)}}
 .save{font-size:12.5px;color:var(--muted);margin-top:8px;min-height:18px}
 .save.err{color:var(--err)}
 .save.ok{color:var(--ok)}
@@ -765,9 +770,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.20.0';
+const APP_VERSION = '1.21.0';
 const APP_DATE = '2026-10-24';
 const CHANGELOG = [
+  ['1.21.0', '24.10.2026', 'Pflichtangaben in den Projektdaten: Objekt, Nutzung, Auftraggeber, Schadenereignis, Schadendatum, Ortstermin und Sachverständiger sind gelb hervorgehoben und mit „Pflicht“ markiert, solange sie leer sind. Im Kopf der Karte steht, wie viele fehlen – ein Klick springt zum ersten leeren Feld; die Karte öffnet sich von selbst, solange etwas fehlt. Speichern bleibt jederzeit möglich. Ersetzt den Hinweis „Nutzung fehlt“.'],
   ['1.20.0', '24.10.2026', 'Neues Erscheinungsbild der Word-Anlage „Probenahmeprotokolle PN 98 / Brandgeruch“ – wie die Anlagen aus PlanKit und die Bilddokumentation aus FotoKit: Titel mit feiner blauer Linie statt Unterstreichung, Protokollüberschriften in Firmenblau, Formulare mit Haarlinien statt schwarzem Gitter, Bezeichnungen grau, Zwischenzeilen hell hinterlegt. Inhalte, Quellenvermerk und Dateinamen unverändert.'],
   ['1.19.0', '24.10.2026', 'Neu: Projektstand unter den vier Apps – Ortstermin › Laborauftrag › Prüfbericht › Übergabe ans Büro › Versand › Abrechnung, je mit Datum oder offen. Alles aus vorhandenen Spuren wie bei den Durchlaufzeiten (nichts wird eingegeben); Abrechnung = in BelegKit gespeicherter Stand. Die Karte „Zeiten & Abrechnung“ zeigt dann „Abrechnungsstand vom …“.'],
   ['1.18.2', '24.10.2026', 'Ordner „Pläne“: Speicherkandidaten und Kopien von PlanKit zählen als Sicherungskopien, nicht als Plan – „Probenplan vorhanden“ erscheint nur noch bei der eigentlichen Projektdatei.'],
@@ -942,6 +948,9 @@ const REISEKOSTEN_URL = '../reisekosten-pro/';   // SpesenKit: Spesenabrechnung 
    fields that changed. project-store.js verifies and retains complete predecessor/candidate snapshots,
    including the compare/write race between independent profiles. Folder identity stays authoritative. */
 const PJ_FILE = '_Projekt.json';
+/* Pflichtangaben: was spätere Schritte oder Kundendokumente brauchen (Anlagen-Deckblätter, VdS-Einordnung in PlanKit, Bilddokumentation).
+   Gleiche Liste in FotoKit („Projektdaten …“). Speichern bleibt immer möglich – leere Pflichtfelder werden nur hervorgehoben. */
+const PJ_PFLICHT = ['objekt', 'nutzung', 'auftraggeber', 'schadenereignis', 'schadendatum', 'ortstermin', 'sachverstaendiger'];
 const PJ_FIELDS = [
   // key, label, type, wide, placeholder
   ['objekt',            'Objekt / Adresse',                 'text', true,  'z. B. EFH, Musterstr. 1, 50667 Köln'],
@@ -1455,6 +1464,15 @@ function weitereApps(){
     <a class="app" id="goReise" href="${REISEKOSTEN_URL}" target="reisekosten" rel="noopener" title="Öffnet SpesenKit in einem eigenen Fenster – Reisekosten- und Spesenabrechnung je Monat, unabhängig vom Projekt">
       <span class="ic" aria-hidden="true">🧾</span><span><span class="name">SpesenKit</span><small>Spesenabrechnung für den Monat</small></span><span class="go" aria-hidden="true">↗</span></a></div>`;
 }
+/** Leere Pflichtfelder hervorheben und im Kopf der Karte zählen – nach dem Zeichnen und bei jeder Eingabe. */
+function pflichtZeigen(ro){
+  const leer = ro ? [] : PJ_PFLICHT.filter(k => $('pj_' + k) && !String($('pj_' + k).value).trim());
+  for (const k of PJ_PFLICHT){ const el = $('pj_' + k); if (el) el.closest('label').classList.toggle('pflicht-offen', leer.includes(k)); }
+  const chip = $('pflichtFehlt'); if (!chip) return;
+  chip.hidden = !leer.length;
+  chip.textContent = leer.length === 1 ? '1 Pflichtangabe fehlt' : `${leer.length} Pflichtangaben fehlen`;
+  chip.title = 'Fehlt: ' + leer.map(k => PJ_FIELDS.find(f => f[0] === k)[1]).join(', ') + ' – hier klicken zum Eintragen';
+}
 function renderDetail(){
   const p = S.sel;
   if (!p){ $('detail').innerHTML = '<div class="empty"><p>Links ein Projekt auswählen.</p><p><button class="help-link" data-help>Kurzanleitung öffnen</button></p>' + weitereApps() + '</div>'; return; }
@@ -1468,9 +1486,10 @@ function renderDetail(){
   const summe = ['objekt', 'auftraggeber', 'schadennummer'].map(k => String(d[k] || '').trim()).filter(Boolean).join(' · ');
   S.pjOpen = S.pjOpen || {}; S.ordOpen = S.ordOpen || {}; S.vtOpen = S.vtOpen || {};
   const vst = verteilerStand(d.verteiler);
-  const pjAuf = fokus || Object.keys(S.pjDirty).length ? true : p.name in S.pjOpen ? S.pjOpen[p.name] : (!!nrWarn || !!pj.error || !!pj.newer);
+  const pflichtLeer = ro ? [] : PJ_PFLICHT.filter(k => !String(k in S.pjDirty ? S.pjDirty[k] : (d[k] || '')).trim());
+  const pjAuf = fokus || Object.keys(S.pjDirty).length ? true : p.name in S.pjOpen ? S.pjOpen[p.name] : (!!nrWarn || !!pj.error || !!pj.newer || pflichtLeer.length > 0);
   const feld = k => { const [, label, type, wide, ph] = PJ_FIELDS.find(f => f[0] === k);
-    return `<label class="${wide ? 'wide' : ''}">${esc(label)}
+    return `<label class="${[wide ? 'wide' : '', PJ_PFLICHT.includes(k) && !ro ? 'pflicht' : ''].filter(Boolean).join(' ')}"><span>${esc(label)}${PJ_PFLICHT.includes(k) && !ro ? '<span class="pflicht-tag">Pflicht</span>' : ''}</span>
         ${type === 'area' ? `<textarea id="pj_${k}" rows="3" ${ro ? 'readonly' : ''}></textarea>`
           : type === 'select' ? `<select id="pj_${k}" ${ro ? 'disabled' : ''}><option value="">– wählen –</option>${PJ_OPTIONEN[k].map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join('')}${d[k] && !PJ_OPTIONEN[k].some(([v]) => v === d[k]) ? `<option value="${esc(d[k])}">${esc(d[k])}</option>` : ''}</select>`
           : `<input type="${type}" id="pj_${k}" placeholder="${esc(ph)}" ${ro ? 'readonly' : ''}>`}</label>`; };
@@ -1484,7 +1503,7 @@ function renderDetail(){
     ${zustHtml(p, zustaendigVon(p, pj.error ? undefined : d), ro)}
     ${!summe&&!ro?'<div class="azrow"><button id="azQuick">Arbeitszettel einlesen …</button></div>':''}
     <details class="card${summe ? '' : ' leer'}" id="pjBox" ${pjAuf ? 'open' : ''}>
-      <summary><span class="t">Projektdaten</span>${!ro && !String(d.nutzung || '').trim() && !(S.pjDirty.nutzung) ? '<span class="nutzungFehlt" id="nutzungFehlt" title="Die Nutzung bestimmt die VdS-Referenz in PlanKit – hier klicken zum Eintragen">Nutzung fehlt</span>' : ''}<span class="sum">${ro?'Ansehen':summe?'Bearbeiten · Arbeitszettel einlesen':'Ergänzen oder Arbeitszettel einlesen'}</span>
+      <summary><span class="t">Projektdaten</span><span class="pflichtFehlt" id="pflichtFehlt" hidden></span><span class="sum">${ro?'Ansehen':summe?'Bearbeiten · Arbeitszettel einlesen':'Ergänzen oder Arbeitszettel einlesen'}</span>
         <span class="save" id="pjSave">${pj.exists ? (d.geaendert ? `Gespeichert ${esc(new Date(d.geaendert).toLocaleDateString('de-DE'))}` : '') : ''}</span></summary>
       <div class="body">
         ${nrWarn}
@@ -1520,7 +1539,7 @@ function renderDetail(){
   if(oldAlerts)$('bueroAttention').replaceWith(oldAlerts);
   if(officeFocus){officeFocus.el.focus({preventScroll:true});try{officeFocus.el.setSelectionRange(officeFocus.start,officeFocus.end);}catch{}}
   if($('azQuick'))$('azQuick').onclick=()=>$('azFile').click();
-  if($('nutzungFehlt'))$('nutzungFehlt').onclick=e=>{e.preventDefault();$('pjBox').open=true;$('pj_nutzung').focus();};
+  $('pflichtFehlt').onclick=e=>{e.preventDefault();$('pjBox').open=true;const k=PJ_PFLICHT.find(k=>!String($('pj_'+k).value).trim());if(k)$('pj_'+k).focus();};
   $('pjBox').addEventListener('toggle', () => { S.pjOpen[p.name] = $('pjBox').open; });
   $('ordBox').addEventListener('toggle', () => { S.ordOpen[p.name] = $('ordBox').open; });
   $('vtBox').addEventListener('toggle', () => { S.vtOpen[p.name] = $('vtBox').open; });
@@ -1542,8 +1561,9 @@ function renderDetail(){
     const el = $('pj_' + k);
     el.value = k in S.pjDirty ? S.pjDirty[k] : (d[k] || '');   // noch nicht gespeicherte Eingaben nicht durch den alten Stand ersetzen
     if (k === 'sachverstaendiger'){ const zk = zustaendigVon(p, pj.error ? undefined : d).kuerzel; if (zk && maPerson(zk)) el.placeholder = 'Vorschlag: ' + maName(zk); }   // nur Vorschlag, nichts wird still eingetragen
-    if (!ro) el.addEventListener('input', () => { S.pjDirty[k] = el.value; schedulePJ(); });
+    if (!ro) el.addEventListener('input', () => { S.pjDirty[k] = el.value; schedulePJ(); if (PJ_PFLICHT.includes(k)) pflichtZeigen(ro); });
   }
+  pflichtZeigen(ro);
   if (fokus && $(fokus.id)){ const el = $(fokus.id); el.focus({preventScroll:true}); try{ if (fokus.a != null) el.setSelectionRange(fokus.a, fokus.b); }catch(e){} }
   if (Object.keys(S.pjDirty).length){ $('pjSave').className = 'save'; $('pjSave').textContent = 'Änderungen werden gespeichert …'; }
   if ($('zust')) $('zust').onchange = e => zustaendigSetzen(p, e.target.value);

@@ -85,9 +85,9 @@ const daten = {
     assert.match(await l.textContent(), /SpesenKit[\s\S]*Spesenabrechnung für den Monat/);
     assert.equal(await page.locator('.steps #goReise').count(), 0, 'nicht Teil der nummerierten Arbeitsschritte'); }
   assert.equal(await page.locator('.steps .sw.next,.steps .sw.done').count(), 0, 'Dateibestand erzeugt keine Erledigt- oder Pflichtschrittanzeige');
-  assert.equal(await page.locator('#pjBox').evaluate(d => d.open), false, 'Projektdaten zugeklappt');
+  assert.equal(await page.locator('#pjBox').evaluate(d => d.open), true, 'Projektdaten offen, solange Pflichtangaben fehlen');
   assert.ok(await page.locator('#pjBox.leer').count(), 'leere Projektdaten hervorgehoben');
-  await page.locator('#pjBox summary').click();
+  assert.equal(await page.locator('#pflichtFehlt').innerText(), '7 Pflichtangaben fehlen');
   await page.locator('#pj_objekt').fill('EFH, Testweg 1');
   await page.locator('#mkSubs').click(); await page.locator('#dYes').click();
   await page.waitForFunction(() => !document.getElementById('mkSubs'));
