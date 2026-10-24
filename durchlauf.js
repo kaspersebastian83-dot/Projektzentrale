@@ -37,8 +37,9 @@
    * ergebnisse: [{name, lastModified, labor}] – Dateien in „Laborergebnisse“ (labor: z. B. 'Eurofins' bei Eurofins-XML)
    * buero:      Büroübergaben (records aus BueroData.scanProject)
    * pj:         Inhalt von _Projekt.json
+   * abrechnung: [{name, lastModified}] – Dateien in „Abrechnung“; gespeicherte Stände aus BelegKit „<Nr>_Aufwand_<JJJJ-MM-TT>.json“
    */
-  function projekt({ pj = {}, auftraege = [], ergebnisse = [], buero = [] } = {}){
+  function projekt({ pj = {}, auftraege = [], ergebnisse = [], buero = [], abrechnung = [] } = {}){
     const d = {}, hinweise = [];
     d.ortstermin = gueltig(pj.ortstermin) ? pj.ortstermin : '';
     d.laborauftrag = fruehestes(auftraege.filter(f => /_Laborübergabe\.xls$/i.test(f.name)).map(f => datumAusName(f.name) || tag(f.lastModified)));
@@ -57,6 +58,8 @@
     // Ältere Versandangaben nur, wenn es keine digitale Übergabe gibt – sonst gilt allein die Büroübersicht.
     if (!aktiv.length && pj.verteiler && typeof pj.verteiler === 'object')
       d.versand = spaetestes(Object.values(pj.verteiler).map(v => v && v.an && gueltig(v.versandt) ? v.versandt : ''));
+    // Abrechnung: letzter in BelegKit gespeicherter Stand (Datum aus dem Namen). Nur für den Projektstand, nicht für die Durchlaufzeiten.
+    d.abrechnung = spaetestes(abrechnung.map(f => { const m = /_Aufwand_(\d{4}-\d{2}-\d{2})(?:_\d+)?\.json$/i.exec(String(f.name || '')); return m && gueltig(m[1]) ? m[1] : ''; }));
     const abschnitte = {};
     for (const [k, name, von, bis] of ABSCHNITTE){
       if (!d[von] || !d[bis]) continue;

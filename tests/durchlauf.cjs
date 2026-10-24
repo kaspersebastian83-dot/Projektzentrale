@@ -13,7 +13,7 @@ const voll = {
 
 ok('vollständiger Ablauf: Daten und Abschnitte', () => {
   const r = D.projekt(voll);
-  assert.deepEqual(r.daten, { ortstermin: '2026-10-01', laborauftrag: '2026-10-02', pruefbericht: '2026-10-09', uebergabe: '2026-10-15', versand: '2026-10-17' });
+  assert.deepEqual(r.daten, { ortstermin: '2026-10-01', laborauftrag: '2026-10-02', pruefbericht: '2026-10-09', uebergabe: '2026-10-15', versand: '2026-10-17', abrechnung: '' });
   assert.deepEqual(r.abschnitte, { aufnahme: 1, labor: 7, gutachten: 6, buero: 2, gesamt: 16 });
   assert.equal(r.labor, 'Eurofins'); assert.deepEqual(r.hinweise, []);
 });
@@ -21,6 +21,12 @@ ok('unmögliches Datum in _Projekt.json wirft das Projekt nicht aus der Auswertu
   const r = D.projekt({ ...voll, pj: { ortstermin: '2026-13-15' } });
   assert.equal(r.daten.ortstermin || '', '');
   assert.equal(r.daten.versand, '2026-10-17');
+});
+ok('Abrechnungsstand: letzter gespeicherter BelegKit-Stand aus dem Dateinamen, ändert die Durchlaufzeiten nicht', () => {
+  const r = D.projekt({ ...voll, abrechnung: [{ name: '26-0123_Aufwand_2026-10-20.json', lastModified: mittag('2026-10-20') }, { name: '26-0123_Aufwand_2026-10-22_2.json', lastModified: mittag('2026-10-22') }, { name: 'Aufwand_SK.json', lastModified: mittag('2026-10-30') }, { name: '26-0123_Aufwand_2026-10-22.csv', lastModified: mittag('2026-10-30') }] });
+  assert.equal(r.daten.abrechnung, '2026-10-22');
+  assert.deepEqual(r.abschnitte, D.projekt(voll).abschnitte);
+  assert.equal(D.projekt(voll).daten.abrechnung, '');
 });
 ok('Datum der Laborübergabe kommt aus dem Dateinamen, sonst aus dem Dateidatum', () => {
   assert.equal(D.datumAusName('26.0123_Chlorid_07-10-2026_Laborübergabe.xls'), '2026-10-07');
