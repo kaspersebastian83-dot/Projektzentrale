@@ -50,6 +50,16 @@ ok('ohne digitale Übergabe: Versanddatum aus dem älteren „Verteiler“', () 
   const r = D.projekt({ ...voll, buero: [], pj: { ortstermin: '2026-10-01', verteiler: { versicherung: { an: true, versandt: '2026-10-20' }, sanierung: { an: false, versandt: '2026-10-30' } } } });
   assert.equal(r.daten.versand, '2026-10-20'); assert.equal(r.abschnitte.gesamt, 19); assert.ok(!('buero' in r.abschnitte));
 });
+ok('offene digitale Übergabe: ältere Versandangaben zählen nicht', () => {
+  const r = D.projekt({ ...voll, pj: { ortstermin: '2026-10-01', verteiler: { versicherung: { an: true, versandt: '2026-09-20' } } },
+    buero: [{ order: { created: '2026-10-15T09:00:00Z' }, status: 'In Bearbeitung', withdrawn: false, sent: {} }] });
+  assert.equal(r.daten.versand, ''); assert.ok(!('gesamt' in r.abschnitte)); assert.deepEqual(r.hinweise, []);
+});
+ok('Labor nur aus dem ersten Bericht, nicht aus späteren', () => {
+  const r = D.projekt({ ...voll, ergebnisse: [{ name: 'Fremdlabor.pdf', lastModified: mittag('2026-10-08') }, { name: 'AR-2.xml', lastModified: mittag('2026-10-20'), labor: 'Eurofins' }] });
+  assert.equal(r.daten.pruefbericht, '2026-10-08'); assert.equal(r.labor, '');
+  assert.equal(D.projekt(voll).labor, 'Eurofins', 'XML und PDF vom selben Tag gehören zusammen');
+});
 ok('Median, langsamstes Projekt und Laborzeiten je Labor', () => {
   assert.equal(D.median([5, 1, 3]), 3); assert.equal(D.median([4, 1, 3, 2]), 2.5); assert.equal(D.median([]), null);
   const liste = [['26.0001 A', 5, 'Eurofins'], ['26.0002 B', 9, 'Eurofins'], ['26.0003 C', 3, '']].map(([name, labor, l]) => ({ name, ergebnis: { abschnitte: { labor }, labor: l } }));

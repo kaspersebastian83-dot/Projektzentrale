@@ -1008,7 +1008,7 @@ function showStart(dir){
 }
 
 async function useArchive(dir){
-  S.archive = dir; S.sel = null;
+  S.archive = dir; S.sel = null; S.dl = null;
   $('archiveName').textContent = '📁 ' + dir.name;
   $('btnRescan').disabled = false; $('q').disabled = false;
   await maLaden();
@@ -1109,8 +1109,9 @@ function auZeichnen(){
 async function dlLesen(p){
   const r = { pj: {}, auftraege: [], ergebnisse: [], buero: [] };
   for await (const h of p.handle.values()){
-    if (h.kind === 'file'){ if (h.name === PJ_FILE) try{ r.pj = JSON.parse(await (await h.getFile()).text()) || {}; }catch(e){} continue; }
-    if (h.name === BueroData.DIR){ try{ r.buero = (await BueroData.scanProject(p.handle)).records; }catch(e){} continue; }
+    // Eine unlesbare Projektdatei oder beschädigte Büroübergaben: Projekt nicht mitzählen (Zeile „nicht lesbar“), statt mit Teildaten zu rechnen.
+    if (h.kind === 'file'){ if (h.name === PJ_FILE) r.pj = JSON.parse(await (await h.getFile()).text()) || {}; continue; }
+    if (h.name === BueroData.DIR){ const b = await BueroData.scanProject(p.handle); if (b.errors.length) throw Error('Büroübergaben nicht vollständig lesbar'); r.buero = b.records; continue; }
     const sub = SUBS.find(x => norm(x[1]) === norm(h.name)), key = sub && sub[0];
     if (key !== 'labauf' && key !== 'laberg') continue;
     for await (const f of h.values()){
@@ -1159,7 +1160,7 @@ function dlZeichnen(){
       ${mitDaten.map(x => { const d = x.ergebnis.daten, g = x.ergebnis.abschnitte.gesamt; return `<tr><td>${proj(x.name)}</td><td>${kurz(d.ortstermin)}</td><td>${kurz(d.laborauftrag)}</td><td>${kurz(d.pruefbericht)}</td><td>${kurz(d.uebergabe)}</td><td>${kurz(d.versand)}</td><td>${g == null ? '–' : g + ' T.'}</td></tr>`; }).join('')}
       </tbody></table></div></details>` : (offen ? '' : '<div class="m">Noch keine Projekte mit auswertbaren Daten.</div>')}
     ${hinweise.length ? `<details><summary class="warn">${hinweise.length} Projekt${hinweise.length === 1 ? '' : 'e'} mit unplausibler Reihenfolge – dieser Abschnitt nicht mitgezählt</summary>${hinweise.map(x => `<div class="m">${proj(x.name)}: ${x.ergebnis.hinweise.map(esc).join('; ')}</div>`).join('')}</details>` : ''}
-    ${dl.fehler.length ? `<div class="warn">${dl.fehler.length} Projektordner nicht lesbar – nicht mitgezählt.</div>` : ''}
+    ${dl.fehler.length ? `<details><summary class="warn">${dl.fehler.length} Projekt${dl.fehler.length === 1 ? '' : 'e'} nicht sicher lesbar (Ordner, Projektdaten oder Büroübergaben) – nicht mitgezählt</summary>${dl.fehler.map(n => `<div class="m">${proj(n)}</div>`).join('')}</details>` : ''}
     <div class="dl-quelle">Woher die Daten kommen: Ortstermin aus den Projektdaten · Laborauftrag aus „…_Laborübergabe.xls“ in „Laboraufträge“ · Prüfbericht = Ablage der ersten XML/PDF in „Laborergebnisse“ · Übergabe und Versand aus der Büroübersicht (ältere Projekte: Versanddatum aus „Frühere Versandangaben“).</div>
     <div class="btns"><button id="dlZu" class="primary">Schließen</button></div>`);
   $('dialog').classList.add('dl');

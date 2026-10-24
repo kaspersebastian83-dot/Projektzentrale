@@ -47,13 +47,15 @@
     const passend = d.laborauftrag ? berichte.filter(f => f.tag >= d.laborauftrag) : berichte;
     const erster = passend.sort((a, b) => a.tag.localeCompare(b.tag))[0];
     d.pruefbericht = erster ? erster.tag : '';
-    const labor = (erster && erster.labor) || (berichte.find(f => f.labor) || {}).labor || '';
+    // Labor nur aus den Dateien des gewählten ersten Berichts (gleicher Tag, z. B. XML und PDF), nie aus späteren Berichten.
+    const labor = erster ? (passend.filter(f => f.tag === erster.tag).find(f => f.labor) || {}).labor || '' : '';
     const aktiv = buero.filter(r => r && r.order && !r.withdrawn).sort((a, b) => String(a.order.created).localeCompare(String(b.order.created)));
     d.uebergabe = aktiv.length ? tag(aktiv[0].order.created) : '';
     const erledigt = aktiv.find(r => r.status === 'Erledigt');
     const versandt = erledigt ? Object.values(erledigt.sent || {}).map(s => s && gueltig(s.date) ? s.date : '') : [];
     d.versand = spaetestes(versandt);
-    if (!d.versand && pj.verteiler && typeof pj.verteiler === 'object')
+    // Ältere Versandangaben nur, wenn es keine digitale Übergabe gibt – sonst gilt allein die Büroübersicht.
+    if (!aktiv.length && pj.verteiler && typeof pj.verteiler === 'object')
       d.versand = spaetestes(Object.values(pj.verteiler).map(v => v && v.an && gueltig(v.versandt) ? v.versandt : ''));
     const abschnitte = {};
     for (const [k, name, von, bis] of ABSCHNITTE){
