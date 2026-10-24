@@ -33,6 +33,7 @@ jobs:
       - run: node tests/bestenliste.cjs
       - run: node tests/project-store.cjs
       - run: node tests/ordnername.cjs
+      - run: node tests/durchlauf.cjs
 
   browser-tests:
     name: Browser tests (${{ matrix.browser }})
