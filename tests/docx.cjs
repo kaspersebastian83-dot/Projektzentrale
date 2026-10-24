@@ -35,7 +35,9 @@ assert.ok(doc.includes('🔥'), 'Emoji bleibt');
 assert.doesNotMatch(doc, /\uD800(?![\uDC00-\uDFFF])/, 'einzelnes Surrogat entfernt');
 assert.match(doc, /<w:gridSpan w:val="2"\/>/);
 assert.match(doc, /<w:tblHeader\/>/);
-assert.match(doc, /<w:shd w:val="clear" w:color="auto" w:fill="F2F2F2"\/>/);
+assert.match(doc, /<w:shd w:val="clear" w:color="auto" w:fill="F3F7FB"\/>/);   // Kopfzeile im Berichtsdesign: hell, blaue Linie, keine senkrechten Linien
+assert.match(doc, /<w:bottom w:val="single" w:sz="8" w:space="0" w:color="3B7BC4"\/>/);
+assert.match(doc, /<w:insideV w:val="nil"/);
 assert.match(doc, /<w:br w:type="page"\/>/);
 assert.match(doc, /r:embed="rIdImg1"/);
 assert.equal((doc.match(/<wp:docPr /g) || []).length, 2, 'Bild zweimal gezeigt (auch in einer Tabellenzelle) …');

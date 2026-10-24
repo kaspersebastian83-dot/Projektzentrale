@@ -333,6 +333,9 @@ const DOCX = (() => {
   const PAGE = { w: 11906, h: 16838, top: 1418, bottom: 1134, left: 1418, right: 1418 };   // A4, Ränder wie Bericht (25 mm seitlich)
   const TEXT_W = PAGE.w - PAGE.left - PAGE.right;                                             // 9070 twips nutzbare Breite
   const FONT = 'Arial';
+  // Berichtsdesign aller Anlagen (wie FotoKit-Bilddokumentation): dunkles Blaugrau für Text, Firmenblau als einziger Akzent,
+  // Haarlinien statt Gitter. Kopfzeilen von Tabellen hell mit blauer Linie, keine senkrechten Linien.
+  const CD = { ink: '1D2A33', blue: '245C9E', accent: '3B7BC4', muted: '62707E', rule: 'D6DEE6', wash: 'F3F7FB' };
   const enc = new TextEncoder();
   // XML: Sonderzeichen maskieren und in XML 1.0 unzulässige Steuerzeichen entfernen (würden Word „beschädigt“ melden lassen)
   const ohneEinzelSurrogate = s => { let o = ''; for (let i = 0; i < s.length; i++){ const c = s.charCodeAt(i);
@@ -343,7 +346,8 @@ const DOCX = (() => {
 
   function rPr(o){
     const f = o.mono ? 'Courier New' : (o.font || FONT), sz = Math.round((o.size || 11) * 2);
-    return `<w:rPr><w:rFonts w:ascii="${f}" w:hAnsi="${f}" w:cs="${f}" w:eastAsia="${f}"/>${o.b ? '<w:b/><w:bCs/>' : ''}${o.i ? '<w:i/><w:iCs/>' : ''}${o.u ? '<w:u w:val="single"/>' : ''}${o.color ? `<w:color w:val="${o.color}"/>` : ''}<w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/><w:lang w:val="de-DE"/></w:rPr>`;
+    // Reihenfolge nach Schema: … caps, color, spacing, sz, szCs, u, lang
+    return `<w:rPr><w:rFonts w:ascii="${f}" w:hAnsi="${f}" w:cs="${f}" w:eastAsia="${f}"/>${o.b ? '<w:b/><w:bCs/>' : ''}${o.i ? '<w:i/><w:iCs/>' : ''}${o.caps ? '<w:caps/>' : ''}${o.color ? `<w:color w:val="${o.color}"/>` : ''}${o.track ? `<w:spacing w:val="${Math.round(o.track * 20)}"/>` : ''}<w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/>${o.u ? '<w:u w:val="single"/>' : ''}<w:lang w:val="de-DE"/></w:rPr>`;
   }
   // Ein Lauf; Zeilenumbrüche → <w:br/>, Tabs → <w:tab/>
   function run(r, base){
@@ -362,20 +366,22 @@ const DOCX = (() => {
     const jc = { left: 'left', center: 'center', right: 'right', both: 'both' }[o.align || 'left'];
     const line = o.line || (inCell ? 240 : 240);
     return `<w:pPr>${o.keepNext ? '<w:keepNext/>' : ''}${o.keepLines ? '<w:keepLines/>' : ''}${o.pageBreakBefore ? '<w:pageBreakBefore/>' : ''}`
+      + (o.rule ? `<w:pBdr><w:bottom w:val="single" w:sz="${o.rule.size || 4}" w:space="${o.rule.space == null ? 4 : o.rule.space}" w:color="${o.rule.color}"/></w:pBdr>` : '')
       + `<w:spacing w:before="${o.before || 0}" w:after="${o.after == null ? (inCell ? 0 : 120) : o.after}" w:line="${line}" w:lineRule="auto"/>`
       + (o.indent ? `<w:ind w:left="${o.indent}"/>` : '') + `<w:jc w:val="${jc}"/>${rPr(o)}</w:pPr>`;
   }
   function para(o, inCell){
-    const base = { size: o.size, b: o.b, i: o.i, u: o.u, mono: o.mono, font: o.font, color: o.color };
+    const base = { size: o.size, b: o.b, i: o.i, u: o.u, mono: o.mono, font: o.font, color: o.color, caps: o.caps, track: o.track };
     return `<w:p>${pPr(o, inCell)}${runsOf(o).map(r => run(r, base)).join('')}</w:p>`;
   }
   function table(o, ctx){
     const widths = o.widths, total = widths.reduce((a, b) => a + b, 0), size = o.size || 10;
-    const bd = v => `<w:top w:val="${v}" w:sz="4" w:space="0" w:color="000000"/><w:left w:val="${v}" w:sz="4" w:space="0" w:color="000000"/><w:bottom w:val="${v}" w:sz="4" w:space="0" w:color="000000"/><w:right w:val="${v}" w:sz="4" w:space="0" w:color="000000"/>`;
-    const border = o.borders === false ? 'nil' : 'single';
+    // Haarlinien zwischen den Zeilen und unten; oben nur ohne Kopfzeile; keine senkrechten Linien
+    const line = (side, on, sz = 4, c = CD.rule) => `<w:${side} w:val="${on ? 'single' : 'nil'}" w:sz="${sz}" w:space="0" w:color="${c}"/>`;
+    const on = o.borders !== false, kopf = !!(o.rows[0] && o.rows[0].header);
     let xml = `<w:tbl><w:tblPr><w:tblW w:w="${total}" w:type="dxa"/>${o.align === 'center' ? '<w:jc w:val="center"/>' : ''}<w:tblLayout w:type="fixed"/>`
-      + `<w:tblBorders>${bd(border)}<w:insideH w:val="${border}" w:sz="4" w:space="0" w:color="000000"/><w:insideV w:val="${border}" w:sz="4" w:space="0" w:color="000000"/></w:tblBorders>`
-      + `<w:tblCellMar><w:top w:w="40" w:type="dxa"/><w:left w:w="80" w:type="dxa"/><w:bottom w:w="40" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tblCellMar>`
+      + `<w:tblBorders>${line('top', on && !kopf)}${line('left', false)}${line('bottom', on)}${line('right', false)}${line('insideH', on)}${line('insideV', false)}</w:tblBorders>`
+      + `<w:tblCellMar><w:top w:w="50" w:type="dxa"/><w:left w:w="80" w:type="dxa"/><w:bottom w:w="50" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tblCellMar>`
       + `<w:tblLook w:val="0000" w:firstRow="0" w:lastRow="0" w:firstColumn="0" w:lastColumn="0" w:noHBand="1" w:noVBand="1"/></w:tblPr>`
       + `<w:tblGrid>${widths.map(w => `<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>`;
     for (const row of o.rows){
@@ -385,11 +391,14 @@ const DOCX = (() => {
         const span = c.span || 1, w = widths.slice(col, col + span).reduce((a, b) => a + b, 0); col += span;
         // Zelle mit Bild (z. B. Foto mit Bildunterschrift): Bild-Absatz zuerst, danach die Absätze
         const paras = c.paras || (c.image && c.text == null && !c.runs ? [] : [{ text: c.text, runs: c.runs }]);
+        // Kopfzeile: hell hinterlegt, fett, blaue Linie darunter (wiederholt sich auf Folgeseiten)
+        const kz = row.header && on, fill = kz ? CD.wash : c.shade;
         xml += `<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/>${span > 1 ? `<w:gridSpan w:val="${span}"/>` : ''}`
-          + (c.shade ? `<w:shd w:val="clear" w:color="auto" w:fill="${c.shade}"/>` : '')
-          + `<w:vAlign w:val="${c.vAlign || 'top'}"/></w:tcPr>`
+          + (kz ? `<w:tcBorders>${line('bottom', true, 8, CD.accent)}</w:tcBorders>` : '')
+          + (fill ? `<w:shd w:val="clear" w:color="auto" w:fill="${fill}"/>` : '')
+          + `<w:vAlign w:val="${c.vAlign || (kz ? 'bottom' : 'top')}"/></w:tcPr>`
           + (c.image ? image(Object.assign({ align: c.align || 'center', after: 40 }, c.image), ctx) : '')
-          + paras.map(p => para(Object.assign({ size, align: c.align, b: c.b, i: c.i, after: 0 }, p), true)).join('') + '</w:tc>';
+          + paras.map(p => para(Object.assign({ size, align: c.align, b: kz || c.b, i: c.i, color: c.color || CD.ink, after: 0 }, p), true)).join('') + '</w:tc>';
       }
       if (col !== widths.length) throw new Error(`Tabellenzeile hat ${col} statt ${widths.length} Spalten`);
       xml += '</w:tr>';
@@ -499,7 +508,17 @@ const DOCX = (() => {
   function build(o){ const { files, created } = parts(o); return zip(files, created); }
   /** Bildgröße für eine Breite in mm (Seitenverhältnis bleibt). */
   const fit = (pxW, pxH, maxWmm, maxHmm) => { const s = Math.min(maxWmm / pxW, maxHmm / pxH); return { widthMm: pxW * s, heightMm: pxH * s }; };
-  return { build, parts, zip, crc32, PAGE, TEXT_W, fit, esc: x };
+  /** Bausteine im Berichtsdesign – gleiche Überschriften in allen Anlagen (wie STIL in PlanKit src/docx.ts). */
+  const STIL = {
+    titel: (text, o = {}) => Object.assign({ t: 'p', text, size: 14, b: true, color: CD.ink, after: 40, keepNext: true, rule: { color: CD.accent, size: 8, space: 6 } }, o),
+    unterzeile: (text, o = {}) => Object.assign({ t: 'p', text, size: 10, color: CD.muted, before: 80, after: 200 }, o),
+    abschnitt: (text, o = {}) => Object.assign({ t: 'p', text, size: 12, b: true, color: CD.blue, after: 120, keepNext: true }, o),
+    zwischen: (text, o = {}) => Object.assign({ t: 'p', text, size: 10, b: true, color: CD.ink, before: 200, after: 60, keepNext: true }, o),
+    label: (text, o = {}) => Object.assign({ text, color: CD.muted }, o),
+    gruppe: (text, span, o = {}) => Object.assign({ text, b: true, color: CD.blue, shade: CD.wash, span }, o),
+    hinweis: (text, o = {}) => Object.assign({ t: 'p', text, size: 8.5, color: CD.muted, after: 40 }, o),
+  };
+  return { build, parts, zip, crc32, PAGE, TEXT_W, fit, esc: x, CD, STIL };
 })();
 /* DOCX-ENDE */
 
@@ -549,7 +568,8 @@ const ANLAGE = (() => {
 
   // Bausteine
   const P = (text, o) => Object.assign({ t: 'p', text, size: 11 }, o);
-  const label = text => ({ text, b: true, shade: 'F2F2F2' });
+  const { STIL } = DOCX;
+  const label = text => STIL.label(text);
   const val = (text, span) => ({ text: str(text), span });
 
   function pn98Blatt(p, proj, i, n, ersteSeite){
@@ -567,7 +587,7 @@ const ANLAGE = (() => {
       voll('Art der Probe:', p.probenart),
       voll('vermutete Gefahrstoffe / Gefährdungen:', p.gefahrstoffe),
       dual('Witterung:', p.witterung, 'Witterungseinfluss:', p.witterungseinfluss),
-      { cells: [{ text: 'Beschreibung der Probe', b: true, shade: 'D9D9D9', span: 4 }] },
+      { cells: [STIL.gruppe('Beschreibung der Probe', 4)] },
       dual('Farbe:', p.farbe, 'Geruch:', p.geruch),
       voll('Beschaffenheit (Konsistenz, Homogenität, Körnigkeit etc.):', p.beschaffenheit, 680),
       dual('Probenmenge (kg):', p.menge, 'geschätztes Haufwerksvolumen:', p.haufwerk),
@@ -578,9 +598,10 @@ const ANLAGE = (() => {
       voll('Sonstige Anmerkungen:', p.sonstige, 520),
     ];
     return [
-      P('Probenahmeprotokoll Feststoffe', { b: true, size: 12, align: 'center', after: 40, keepNext: true, pageBreakBefore: !ersteSeite }),
-      P(`in Anlehnung an LAGA PN 98 · Protokoll ${i + 1} von ${n}`, { size: 10, align: 'center', after: 160, keepNext: true }),
+      STIL.abschnitt('Probenahmeprotokoll Feststoffe', { after: 20, pageBreakBefore: !ersteSeite }),
+      STIL.unterzeile(`in Anlehnung an LAGA PN 98 · Protokoll ${i + 1} von ${n}`, { before: 0, after: 160, keepNext: true }),
       { t: 'table', widths: q, rows, size: 10 },
+      P('', { size: 6, after: 200 }),   // Abstand, damit die Unterschriftszeile nicht an der Tabelle klebt
       { t: 'table', widths: [Math.round(W / 2), W - Math.round(W / 2)], size: 10, rows: [{ minHeight: 480, cells: [
         { text: 'Ort / Datum: ' + [t(proj.ort), datum(proj.pndatum)].filter(Boolean).join(', ') },
         { text: 'Probenehmer: ' + t(proj.probenehmer) }] }] },
@@ -607,7 +628,7 @@ const ANLAGE = (() => {
       voll('Grund der Probenahme:', mit(kw('grund'), kw('grundSonstiges'))),
       voll('Vermutete Schadstoffe:', mit(kw('schadstoffe'), kw('schadstoffeSonstige'))),
       dual('Labor:', kw('labor'), 'Übergabe am:', datum(kw('uebergabeAm'))),
-      { cells: [{ text: 'Vor-Ort-Bedingungen (gelten für alle Proben)', b: true, shade: 'D9D9D9', span: 4 }] },
+      { cells: [STIL.gruppe('Vor-Ort-Bedingungen (gelten für alle Proben)', 4)] },
       dual('Material:', kw('material'), 'gelagert seit ca.:', kw('gelagertTage') ? kw('gelagertTage') + ' Tagen' : ''),
       dual('Witterung:', kw('witterung'), 'Transport kühl und dunkel:', jn(k.kuehl)),
       dual('Gerät:', mit(kw('geraet'), kw('geraetSonstiges')), 'Gefäß:', mit(kw('gefaess'), kw('gefaessSonstiges'))),
@@ -617,7 +638,7 @@ const ANLAGE = (() => {
       const mw = key => w(`mp.${j}.${key}`, (m.w || {})[key]);
       const ep = mw('einzelproben');
       const art = mw('art') === 'Mischprobe' ? 'Mischprobe' + (ep ? ` aus ${ep} Einzelproben` : '') : (mw('art') || (ep ? `${ep} Einzelproben` : ''));
-      rows.push({ cells: [{ text: `Probe ${m.nr}` + (mw('probenNr') ? ` · Proben-Nr. ${mw('probenNr')}` : ' · ohne Proben-Nr.'), b: true, shade: 'D9D9D9', span: 4 }] });
+      rows.push({ cells: [STIL.gruppe(`Probe ${m.nr}` + (mw('probenNr') ? ` · Proben-Nr. ${mw('probenNr')}` : ' · ohne Proben-Nr.'), 4)] });
       rows.push(dual('Uhrzeit:', mw('uhrzeit'), 'Foto-Nr.:', mw('foto')));
       rows.push(voll('Entnahmestelle:', mw('stelle')));
       rows.push(voll('Material / Art der Probe:', mw('material')));
@@ -626,7 +647,7 @@ const ANLAGE = (() => {
       rows.push(dual('Konsistenz:', mw('konsistenz'), 'Feuchte:', mw('feuchte')));
       rows.push(voll('Bemerkung:', mw('anmerkung')));
     });
-    rows.push({ cells: [{ text: 'Unterschriften auf dem Bogen', b: true, shade: 'D9D9D9', span: 4 }] });
+    rows.push({ cells: [STIL.gruppe('Unterschriften auf dem Bogen', 4)] });
     rows.push(dual('Probenehmer:', k.unterschrift ? 'vorhanden' : 'nicht bestätigt', 'Anwesende / Zeugen:', k.zeugen ? 'vorhanden' : '—'));
     if (kw('ortDatum')) rows.push(voll('Ort, Datum (lt. Bogen):', kw('ortDatum')));
 
@@ -635,27 +656,27 @@ const ANLAGE = (() => {
         + (rec.pruefung ? `Übertragung geprüft von ${t(rec.pruefung.von)} am ${zeit(rec.pruefung.am)}${rec.pruefung.selbst ? ' (durch die erfassende Person)' : ''}` : 'Übertragung nicht durch eine zweite Person geprüft');
     const ae = Array.isArray(rec.aenderungen) ? rec.aenderungen : [];
     const blocks = [
-      P('Probenahmeprotokoll Feststoffe', { b: true, size: 12, align: 'center', after: 40, keepNext: true, pageBreakBefore: !ersteSeite }),
-      P(`in Anlehnung an LAGA PN 98 · Übertragung des Feldbogens ${t(rec.formularId)} · Feldprotokoll ${i + 1} von ${n}`, { size: 10, align: 'center', after: 160, keepNext: true }),
+      STIL.abschnitt('Probenahmeprotokoll Feststoffe', { after: 20, pageBreakBefore: !ersteSeite }),
+      STIL.unterzeile(`in Anlehnung an LAGA PN 98 · Übertragung des Feldbogens ${t(rec.formularId)} · Feldprotokoll ${i + 1} von ${n}`, { before: 0, after: 160, keepNext: true }),
       { t: 'table', widths: q, rows, size: 10 },
-      P('Übertragung', { b: true, size: 10, before: 160, after: 40, keepNext: true }),
+      STIL.zwischen('Übertragung', { before: 160, after: 40 }),
       P(`Vom handschriftlich ausgefüllten Feldbogen am Schreibtisch übertragen: erfasst von ${t(rec.erfasstVon) || '—'} ab ${zeit(rec.erfasstAm)}; ${status}. `
         + 'Werte wie auf dem Bogen; nicht ausgefüllte Felder bleiben leer; „[unleserlich]“ ist auf dem Bogen nicht sicher lesbar. Maßgeblich ist der Papierbogen bzw. sein Scan.', { size: 9, after: 60 }),
     ];
     if (ae.length){
-      blocks.push(P(`Änderungen nach Abschluss der Erfassung (${ae.length})`, { b: true, size: 10, before: 100, after: 40, keepNext: true }));
+      blocks.push(STIL.zwischen(`Änderungen nach Abschluss der Erfassung (${ae.length})`, { before: 100, after: 40 }));
       blocks.push({ t: 'table', widths: [1700, 700, 2570, 2050, 2050], size: 8, rows: [
-        { header: true, cells: ['Zeit', 'Kürzel', 'Feld', 'alt', 'neu'].map(h => ({ text: h, b: true, shade: 'F2F2F2' })) },
+        { header: true, cells: ['Zeit', 'Kürzel', 'Feld', 'alt', 'neu'].map(h => ({ text: h, b: true })) },
         ...ae.map(a => ({ cells: [zeit(a.am), str(a.von), str(a.feld), str(a.alt), str(a.neu)].map(x => ({ text: x })) }))] });
     }
     const sc = scans || [];
-    blocks.push(P('Scan des Feldbogens', { b: true, size: 10, before: 100, after: 40, keepNext: true }));
+    blocks.push(STIL.zwischen('Scan des Feldbogens', { before: 100, after: 40 }));
     if (!sc.length) blocks.push(P('Kein Scan abgelegt.', { size: 9, after: 60 }));
     const ST = { ok: 'Prüfsumme beim Erstellen der Anlage bestätigt', abweichend: 'ACHTUNG: Datei weicht von der abgelegten Prüfsumme ab', fehlt: 'Datei im Projektordner nicht gefunden', ungeprueft: 'Prüfsumme nicht nachgeprüft' };
     sc.forEach(x => {
       blocks.push(P(`Feldprotokolle/${str(x.datei)} · abgelegt ${zeit(x.abgelegtAm)}${x.abgelegtVon ? ' von ' + str(x.abgelegtVon) : ''}`
         + (x.ungueltig ? ` · als ungültig vermerkt${x.ungueltig.grund ? ': ' + str(x.ungueltig.grund) : ''}` : ` · ${ST[x.status] || ST.ungeprueft}`), { size: 9, after: 0, keepNext: true }));
-      blocks.push(P(`SHA-256 ${str(x.sha256)}`, { size: 8, mono: true, color: '595959', after: 60 }));
+      blocks.push(P(`SHA-256 ${str(x.sha256)}`, { size: 8, mono: true, color: DOCX.CD.muted, after: 60 }));
     });
     sc.filter(x => !x.ungueltig && x.bild).forEach((x, j) => {
       const b = x.bild, s = Math.min(160 / b.widthPx, 215 / b.heightPx);
@@ -668,8 +689,8 @@ const ANLAGE = (() => {
   function brandTabelle(daten){
     const brand = daten.brandgeruchProben || [];
     const w = [600, 3020, 1090, 1090, 1090, 1090, 1090];
-    const head = { header: true, cells: [{ text: 'Nr.', b: true, align: 'center', shade: 'F2F2F2' }, { text: 'Probe', b: true, shade: 'F2F2F2' },
-      ...BG_KEYS.map((k, j) => ({ text: 'Person ' + (j + 1), b: true, align: 'center', shade: 'F2F2F2' }))] };
+    const head = { header: true, cells: [{ text: 'Nr.', b: true, align: 'center' }, { text: 'Probe', b: true },
+      ...BG_KEYS.map((k, j) => ({ text: 'Person ' + (j + 1), b: true, align: 'center' }))] };
     const rows = brand.map((p, i) => ({ cells: [
       { text: String(i + 1), align: 'center' },
       { text: [t(p.z1), t(p.z2)].filter(Boolean).join('\n') },
@@ -685,7 +706,8 @@ const ANLAGE = (() => {
       'Die Angaben sind unverändert aus der Projektdatei übernommen; nicht ausgefüllte Felder bleiben leer.',
       `SHA-256 der Projektdatei: ${q.sha256 || ''}`,
     ];
-    return [P(zeilen[0], { size: 8, color: '595959', before: 240, after: 0, keepLines: true }), P(zeilen[1], { size: 8, color: '595959', after: 0 }), P(zeilen[2], { size: 8, color: '595959', mono: true, after: 0 })];
+    const grau = DOCX.CD.muted;
+    return [P(zeilen[0], { size: 8, color: grau, before: 240, after: 0, keepLines: true }), P(zeilen[1], { size: 8, color: grau, after: 0 }), P(zeilen[2], { size: 8, color: grau, mono: true, after: 0 })];
   }
 
   /** Anlage „Probenahmeprotokolle PN 98 / Brandgeruch“: Bausteine für DOCX.build. */
@@ -696,8 +718,8 @@ const ANLAGE = (() => {
     const titel = t(o.titel) || 'Anlage';
     const teile = [mitPn98 && 'Probenahmeprotokolle nach LAGA PN 98', mitBrand && 'Sensorische Prüfung auf Brandgeruch'].filter(Boolean);
     const blocks = [
-      P(`${titel}: ${teile.join(' und ')}`, { size: 12, u: true, after: 60, keepNext: true }),
-      P(`Projekt ${t(o.projektNr)}${t(o.ort) ? ' · ' + t(o.ort) : ''}`, { size: 11, after: 240, keepNext: true }),
+      STIL.titel(`${titel}: ${teile.join(' und ')}`),
+      STIL.unterzeile(`Projekt ${t(o.projektNr)}${t(o.ort) ? ' · ' + t(o.ort) : ''}`, { after: 240, keepNext: true }),
     ];
     if (mitPn98){
       const feld = feldPn98(d), proj = d.pn98Projekt || {}, list = Array.isArray(d.pn98Proben) ? d.pn98Proben : [];
@@ -705,10 +727,10 @@ const ANLAGE = (() => {
       list.forEach((p, i) => blocks.push(...pn98Blatt(p, proj, i, list.length, i === 0 && !feld.length)));
     }
     if (mitBrand){
-      blocks.push(P('Sensorische Prüfung auf Brandgeruch', { size: 12, b: true, after: 40, keepNext: true, pageBreakBefore: mitPn98 }));
-      blocks.push(P(['Projekt ' + t(o.projektNr), d.brandgeruchDatum ? 'Prüfung am ' + datum(d.brandgeruchDatum) : ''].filter(Boolean).join(' · '), { size: 11, after: 160, keepNext: true }));
+      blocks.push(STIL.abschnitt('Sensorische Prüfung auf Brandgeruch', { after: 20, pageBreakBefore: mitPn98 }));
+      blocks.push(STIL.unterzeile(['Projekt ' + t(o.projektNr), d.brandgeruchDatum ? 'Prüfung am ' + datum(d.brandgeruchDatum) : ''].filter(Boolean).join(' · '), { before: 0, after: 160, keepNext: true }));
       blocks.push(brandTabelle(d));
-      blocks.push(P('Legende: ++ stark · + mittel · (+) schwach · - ohne. Bewertungen je Person unverändert wiedergegeben.', { size: 10, before: 60, after: 0 }));
+      blocks.push(STIL.hinweis('Legende: ++ stark · + mittel · (+) schwach · - ohne. Bewertungen je Person unverändert wiedergegeben.', { size: 9, before: 80, after: 0 }));
     }
     blocks.push(...quellenvermerk(o));
     return { blocks, teile, pruefung: chk, mitPn98, mitBrand };
@@ -743,9 +765,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.19.0';
+const APP_VERSION = '1.20.0';
 const APP_DATE = '2026-10-24';
 const CHANGELOG = [
+  ['1.20.0', '24.10.2026', 'Neues Erscheinungsbild der Word-Anlage „Probenahmeprotokolle PN 98 / Brandgeruch“ – wie die Anlagen aus PlanKit und die Bilddokumentation aus FotoKit: Titel mit feiner blauer Linie statt Unterstreichung, Protokollüberschriften in Firmenblau, Formulare mit Haarlinien statt schwarzem Gitter, Bezeichnungen grau, Zwischenzeilen hell hinterlegt. Inhalte, Quellenvermerk und Dateinamen unverändert.'],
   ['1.19.0', '24.10.2026', 'Neu: Projektstand unter den vier Apps – Ortstermin › Laborauftrag › Prüfbericht › Übergabe ans Büro › Versand › Abrechnung, je mit Datum oder offen. Alles aus vorhandenen Spuren wie bei den Durchlaufzeiten (nichts wird eingegeben); Abrechnung = in BelegKit gespeicherter Stand. Die Karte „Zeiten & Abrechnung“ zeigt dann „Abrechnungsstand vom …“.'],
   ['1.18.2', '24.10.2026', 'Ordner „Pläne“: Speicherkandidaten und Kopien von PlanKit zählen als Sicherungskopien, nicht als Plan – „Probenplan vorhanden“ erscheint nur noch bei der eigentlichen Projektdatei.'],
   ['1.18.1', '24.10.2026', 'Behoben: Ein unmögliches Datum auf dem Arbeitszettel (z. B. 15.13.2026 oder 31.02.2026) wird nicht mehr übernommen, und ein solches Datum nimmt das Projekt nicht mehr ganz aus den Durchlaufzeiten. Das Datum der Laborübergabe wird auch ohne führende Null im Dateinamen erkannt (so speichert LabelKit, z. B. „5.1.2026“).'],
