@@ -124,6 +124,12 @@ main{flex:1;display:flex;min-height:0}
 #detail .pz{max-width:1040px}
 #detail .pz .sub{margin-bottom:16px}
 .steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:18px 0 6px}
+.meilen{display:flex;flex-wrap:wrap;align-items:center;gap:6px 4px;margin:10px 0 4px;font-size:12.5px}
+.meilen .ms{display:inline-flex;align-items:baseline;gap:5px;padding:4px 9px;border:1px solid var(--line,#dde3ea);border-radius:999px;background:#fff;color:#6b7785}
+.meilen .ms.ok{border-color:#9fd0a8;background:#eef8f0;color:#1d4d2a}
+.meilen .ms .ic{font-weight:700}
+.meilen .ms small{font-family:var(--mono,monospace);font-size:11px;opacity:.85}
+.meilen .pf{color:#b5bec8}
 .steps .sw{--ac:var(--accent);position:relative}
 .steps .sw[data-app=label]{--ac:#5469b8}
 .steps .sw[data-app=fotos]{--ac:#2f87a6}
@@ -737,9 +743,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.18.2';
+const APP_VERSION = '1.19.0';
 const APP_DATE = '2026-10-24';
 const CHANGELOG = [
+  ['1.19.0', '24.10.2026', 'Neu: Projektstand unter den vier Apps – Ortstermin › Laborauftrag › Prüfbericht › Übergabe ans Büro › Versand › Abrechnung, je mit Datum oder offen. Alles aus vorhandenen Spuren wie bei den Durchlaufzeiten (nichts wird eingegeben); Abrechnung = in BelegKit gespeicherter Stand. Die Karte „Zeiten & Abrechnung“ zeigt dann „Abrechnungsstand vom …“.'],
   ['1.18.2', '24.10.2026', 'Ordner „Pläne“: Speicherkandidaten und Kopien von PlanKit zählen als Sicherungskopien, nicht als Plan – „Probenplan vorhanden“ erscheint nur noch bei der eigentlichen Projektdatei.'],
   ['1.18.1', '24.10.2026', 'Behoben: Ein unmögliches Datum auf dem Arbeitszettel (z. B. 15.13.2026 oder 31.02.2026) wird nicht mehr übernommen, und ein solches Datum nimmt das Projekt nicht mehr ganz aus den Durchlaufzeiten. Das Datum der Laborübergabe wird auch ohne führende Null im Dateinamen erkannt (so speichert LabelKit, z. B. „5.1.2026“).'],
   ['1.18.0', '24.10.2026', 'Neu unter „Weitere Apps“: 📘 Handbuch (AidKit) – Abläufe Schritt für Schritt (zuerst: Bohrkerne von der Begehung bis zum Labor) und gemeinsame Regeln wie die Probenbezeichnung. Öffnet in einem eigenen Fenster, auch ohne gewähltes Projekt.'],
@@ -1112,11 +1119,12 @@ function auZeichnen(){
    Nur lesen (durchlauf.js rechnet): Ortstermin, Laborübergabe, Ablage des Prüfberichts, Büroübergabe und Versand der Projekte
    des laufenden und vorigen Jahres. Keine Eingabe, keine neue Datei. Gelesenes bleibt bis „Neu einlesen“ gemerkt. */
 async function dlLesen(p){
-  const r = { pj: {}, auftraege: [], ergebnisse: [], buero: [] };
+  const r = { pj: {}, auftraege: [], ergebnisse: [], buero: [], abrechnung: [] };
   for await (const h of p.handle.values()){
     // Eine unlesbare Projektdatei oder beschädigte Büroübergaben: Projekt nicht mitzählen (Zeile „nicht lesbar“), statt mit Teildaten zu rechnen.
     if (h.kind === 'file'){ if (h.name === PJ_FILE) r.pj = JSON.parse(await (await h.getFile()).text()) || {}; continue; }
     if (h.name === BueroData.DIR){ const b = await BueroData.scanProject(p.handle); if (b.errors.length) throw Error('Büroübergaben nicht vollständig lesbar'); r.buero = b.records; continue; }
+    if (norm(h.name) === norm('Abrechnung')){ for await (const f of h.values()) if (f.kind === 'file' && /_Aufwand_\d{4}-\d{2}-\d{2}(?:_\d+)?\.json$/i.test(f.name)) r.abrechnung.push({ name: f.name, lastModified: (await f.getFile()).lastModified }); continue; }
     const sub = SUBS.find(x => norm(x[1]) === norm(h.name)), key = sub && sub[0];
     if (key !== 'labauf' && key !== 'laberg') continue;
     for await (const f of h.values()){
@@ -1352,7 +1360,34 @@ async function selectProject(p){
   S.pj = await readPJ(p.handle);
   if (S.sel !== p) return;
   renderDetail();
+  meilensteineLaden(p);
 }
+/* ---------- Projektstand (Meilensteine) ----------
+   Aus vorhandenen Spuren wie die Durchlaufzeiten (durchlauf.js): Ortstermin, Laborauftrag, Prüfbericht, Übergabe ans Büro,
+   Versand, Abrechnungsstand aus BelegKit. Nur lesen; Ergebnis je Projekt gemerkt bis „Neu einlesen“ oder Zurückkehren ins Fenster. */
+const MEILENSTEINE = [['ortstermin', 'Ortstermin', '_Projekt.json (Projektdaten)'], ['laborauftrag', 'Laborauftrag', 'Laborübergabe aus LabelKit in „Laboraufträge“'],
+  ['pruefbericht', 'Prüfbericht', 'erste XML/PDF in „Laborergebnisse“'], ['uebergabe', 'Übergabe ans Büro', 'Büroübergabe'],
+  ['versand', 'Versand', 'Versanddaten der erledigten Büroübergabe, sonst „Verteiler“'], ['abrechnung', 'Abrechnung', 'gespeicherter Stand in BelegKit („Stand speichern“)']];
+function meilensteineHtml(p){
+  const ms = S.ms && S.ms.get(p.name);
+  if (ms === undefined) return '<span class="m">Projektstand wird gelesen …</span>';
+  if (!ms) return '<span class="m">Projektstand nicht lesbar.</span>';
+  const ort = p === S.sel && S.pj && S.pj.data ? String(S.pj.data.ortstermin || '') : null;   // gerade eingetragener Ortstermin gilt sofort
+  return MEILENSTEINE.map(([k, name, quelle]) => { const v = k === 'ortstermin' && ort !== null ? (/^\d{4}-\d{2}-\d{2}$/.test(ort) ? ort : '') : ms.daten[k];
+    return `<span class="ms ${v ? 'ok' : ''}" title="${esc(name)}: ${v ? esc(deDatum(v)) : 'noch nicht'} – aus ${esc(quelle)}"><span class="ic" aria-hidden="true">${v ? '✓' : '○'}</span>${esc(name)}<small>${v ? esc(deDatum(v).slice(0, 6)) : '–'}</small></span>`; }).join('<span class="pf" aria-hidden="true">›</span>');
+}
+async function meilensteineLaden(p, neu){
+  S.ms = S.ms || new Map();
+  if (S.ms.has(p.name) && !neu) return;
+  let r = null; try{ r = await dlLesen(p); }catch(e){ r = null; }
+  S.ms.set(p.name, r);
+  if (S.sel !== p) return;
+  const el = $('meilen'); if (el) el.innerHTML = meilensteineHtml(p);
+  if (r && r.daten.abrechnung){ const st = document.querySelector('#goAufwand .stat'); if (st) st.textContent = `Abrechnungsstand vom ${deDatum(r.daten.abrechnung)}`; }
+}
+window.addEventListener('focus', () => { if (S.sel && S.ms){ S.ms.delete(S.sel.name); meilensteineLaden(S.sel); } });
+// Büroübergabe angelegt, aktualisiert oder Versand eingetragen: Projektstand danach neu lesen (die Büroübersicht schreibt asynchron).
+document.addEventListener('click', e => { if (S.sel && e.target.closest && e.target.closest('#bueroPanel button')){ const p = S.sel; for (const ms of [1500, 5000]) setTimeout(() => { if (S.sel === p) meilensteineLaden(p, true); }, ms); } });
 function folderRows(p){
   const s = p.st.subs;
   return SUBS.map(([key, , label]) => {
@@ -1402,7 +1437,8 @@ function renderDetail(){
   if (!p){ $('detail').innerHTML = '<div class="empty"><p>Links ein Projekt auswählen.</p><p><button class="help-link" data-help>Kurzanleitung öffnen</button></p>' + weitereApps() + '</div>'; return; }
   const pj = S.pj || { data: {} }, d = pj.data;
   const nrWarn = d.projektnummer && d.projektnummer !== p.nr ? `<div class="warn">Achtung: In „${PJ_FILE}“ steht Projektnummer ${esc(d.projektnummer)}, der Ordner heißt ${esc(p.nr)}. Maßgeblich ist der Ordnername.</div>` : '';
-  const ro = pj.error || pj.newer, stand = arbeitsstand(p);
+  const ro = pj.error || pj.newer, stand = arbeitsstand(p), ms = S.ms && S.ms.get(p.name);
+  if (ms && ms.daten && ms.daten.abrechnung) stand.beleg = { text: `Abrechnungsstand vom ${deDatum(ms.daten.abrechnung)}` };
   // Wird neu gezeichnet, während jemand in den Projektdaten schreibt (Ordner fertig gelesen, Anlage erstellt …), bleibt der Cursor im Feld.
   const ae = document.activeElement, fokus = ae && /^pj_/.test(ae.id) && $('detail').contains(ae) ? { id: ae.id, a: ae.selectionStart, b: ae.selectionEnd } : null;
   const ok = p.st && !p.st.err, fehlend = ok ? SUBS.filter(([k]) => !p.st.subs[k]).map(([, n]) => n) : [];
@@ -1444,6 +1480,7 @@ function renderDetail(){
         stand.plan.present ? `<div class="att"><div class="row"><b>Anlage Probenahme</b><span class="m">Lagepläne, Probenverzeichnis, Fotos, Laborwerte</span><button id="anlPlan" title="Öffnet PlanKit gleich im Export „Word · Anlage Probenahme“">Erstellen …</button></div></div>` : '')}
       ${stepCard('goAufwand', 'beleg', 'Zeiten & Abrechnung', 'BelegKit', stand.beleg, 'Zeiten, km, Spesen eintragen; Proben, Berichtsseiten und Fotos für die Rechnung zusammenstellen – speichert im Ordner „Abrechnung“', '')}
     </div>
+    <div class="meilen" id="meilen" aria-label="Projektstand">${meilensteineHtml(p)}</div>
     <section id="bueroPanel"></section>
     ${fehlend.length ? `<div class="warnbar"><span>Es fehlen Unterordner: <b>${fehlend.map(esc).join(', ')}</b></span><button id="mkSubs">Anlegen</button></div>` : ''}
     <details class="card" id="ordBox" ${S.ordOpen[p.name] ? 'open' : ''}>
@@ -2155,7 +2192,7 @@ document.addEventListener('keydown', e => { if (e.key === 'F1'){ e.preventDefaul
 
 $('btnUpd').onclick = async () => { await flushPJ(); location.reload(); };
 $('btnArchive').onclick = pickArchive;
-$('btnRescan').onclick = async () => { await flushPJ(); S.projects.forEach(p => p.st = null); S.dl = null; await maLaden(); await listProjects(); maWarnung(); };
+$('btnRescan').onclick = async () => { await flushPJ(); S.projects.forEach(p => p.st = null); S.dl = null; S.ms = null; await maLaden(); await listProjects(); maWarnung(); };
 $('btnAusl').onclick = async () => { await maLaden(); renderList(); if (S.sel) renderDetail(); auDialog(); };
 $('detail').addEventListener('click', e => { if (e.target.closest('#goDurch')){ e.preventDefault(); dlDialog(); } });
 $('btnMa').onclick = async () => { await maLaden(); renderList(); if (S.sel) renderDetail(); maDialog(); };   // frisch lesen, damit Änderungen anderer Kollegen nicht überschrieben werden

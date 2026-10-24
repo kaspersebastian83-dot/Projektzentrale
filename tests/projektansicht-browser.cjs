@@ -5,7 +5,7 @@ const tmp=await fs.mkdtemp(path.join(os.tmpdir(),'projekt-ui-')),out=process.env
 await fs.mkdir(out,{recursive:true});
 for(const name of [A,B]){await fs.mkdir(path.join(tmp,name,'Mitteilungen'),{recursive:true});for(const sub of ['Fotos','Pläne','Laboraufträge','Laborergebnisse','Emails','Rechnung Labore'])await fs.mkdir(path.join(tmp,name,sub));}
 await fs.writeFile(path.join(tmp,A,'Mitteilungen','Gutachten B.docx'),'Synthetic placeholder');await fs.writeFile(path.join(tmp,B,'Mitteilungen','Gutachten B.docx'),'Synthetic placeholder');
-await fs.writeFile(path.join(tmp,A,'Fotos','_Bildumbenenner.json'),'{}');await fs.writeFile(path.join(tmp,A,'Pläne','Plan.probenplan'),'{}');
+await fs.writeFile(path.join(tmp,A,'Fotos','_Bildumbenenner.json'),'{}');await fs.mkdir(path.join(tmp,A,'Abrechnung'));await fs.writeFile(path.join(tmp,A,'Abrechnung','24-0012_Aufwand_2026-10-22.json'),'{}');await fs.writeFile(path.join(tmp,A,'Abrechnung','Aufwand_SK.json'),'{}');await fs.writeFile(path.join(tmp,A,'Laboraufträge','24.0012_PAK_5.1.2026_Laborübergabe.xls'),'x');await fs.writeFile(path.join(tmp,A,'Pläne','Plan.probenplan'),'{}');
 const pj={format:'mosaik-projekt',version:1,objekt:'Wohnhaus, Musterweg 12',auftraggeber:'Beispiel AG, Abteilung West',sachverstaendigerBeteiligt:'Dr. Muster, Beispielinstitut',versicherungsnehmer:'Fiktive Person',verteiler:{versicherung:{an:true,versandt:'2026-10-20'},sachverstaendiger:{an:true},versicherungsnehmer:{an:false}}};
 let expectedPj=JSON.stringify(pj);await fs.writeFile(path.join(tmp,A,'_Projekt.json'),expectedPj);
 const server=http.createServer(async(req,res)=>{try{const u=new URL(req.url,'http://local');if(/^\/(labelkit|Bildumbenenner|Probenplan|aufwandkit)\/$/.test(u.pathname)){res.setHeader('Content-Type','text/html');res.end('<!doctype html><title>Fiktives App-Testziel</title>');return;}let file=path.resolve(root,decodeURIComponent(u.pathname).slice(1)||'index.html');if(!file.startsWith(root+path.sep))throw Error();if((await fs.stat(file)).isDirectory())file=path.join(file,'index.html');res.setHeader('Content-Type',({'.html':'text/html; charset=utf-8','.js':'application/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png'})[path.extname(file)]||'application/octet-stream');res.end(await fs.readFile(file));}catch{res.statusCode=404;res.end();}});
@@ -50,6 +50,11 @@ if(!before){
  assert.deepEqual(await page.locator('.steps .name').allTextContents(),['Proben & Laborauftrag','Fotos & Dokumentation','Probenplan bearbeiten','Zeiten & Abrechnung']);
  assert.equal(await page.locator('.steps .done,.steps .next').count(),0);assert.match(await page.locator('.steps').innerText(),/Fotobearbeitung begonnen/);
  assert.ok((await page.locator('.steps').boundingBox()).y<(await page.locator('#bueroPanel').boundingBox()).y);
+ // Projektstand: Laborauftrag (Datum aus dem Dateinamen), Abrechnungsstand aus BelegKit; Prüfbericht, Versand noch offen
+ await page.waitForFunction(()=>document.querySelector('#meilen .ms'));
+ assert.match(await page.locator('#meilen').innerText(),/Laborauftrag\s*05\.01\./);assert.match(await page.locator('#meilen').innerText(),/Abrechnung\s*22\.10\./);
+ assert.match(await page.locator('#goAufwand .stat').textContent(),/Abrechnungsstand vom 22\.10\.2026/);
+ await page.waitForFunction(()=>/Übergabe ans Büro\s*\d\d\.\d\d\./.test(document.querySelector('#meilen').innerText),null,{timeout:10000});   // Übergabe oben angelegt: nach „Aktualisieren“ im Projektstand
  await page.locator(`.proj[data-name="${B}"]`).focus();await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelector('.proj.active')?.dataset.name==='26.9999 Kontrollort');
  assert.ok(await page.locator('#azQuick').isVisible());
  await page.locator(`.proj[data-name="${A}"]`).focus();await page.keyboard.press('Space');await page.waitForFunction(()=>document.querySelector('.proj.active')?.dataset.name==='24.0012 Fiktivstadt');
