@@ -8,7 +8,7 @@
    This worker therefore only ever touches caches with its own prefix and only answers requests inside its own scope. */
 const SCOPE = self.registration.scope;
 const PREFIX = 'projektzentrale:' + SCOPE + ':';
-const CACHE = PREFIX + 'v9';
+const CACHE = PREFIX + 'v10';
 const LEGACY = [];
 const ASSETS = ['./', './index.html', './project-store.js', './durchlauf.js', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png',
   './buero/', './buero/index.html', './buero/data.js', './buero/central.js', './buero/ui.css', './buero/office.css', './buero/office.js',
