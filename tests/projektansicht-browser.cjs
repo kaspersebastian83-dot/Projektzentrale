@@ -106,7 +106,17 @@ if(!before){
  }
  await page.evaluate(()=>document.documentElement.style.zoom=1);await page.setViewportSize({width:1440,height:1000});
  // A project-data save error remains outside its collapsed form and has a direct entry.
- await page.locator('#pjBox > summary').click();await page.evaluate(()=>testIO.failWrite=true);await page.locator('#pj_objekt').fill('Nicht gespeicherter Entwurf');await page.locator('#pjSave.err').waitFor();await page.locator('#pjBox > summary').click();assert.match(await page.locator('#pjAttention').innerText(),/nicht gespeichert/);assert.ok(await page.locator('#showPJ').isVisible());
+ // Pflichtangaben: Karte öffnet sich, solange welche fehlen; leere Pflichtfelder hervorgehoben, Zähler im Kopf springt zum ersten
+ assert.ok(await page.locator('#pjBox').evaluate(d=>d.open),'Karte offen, weil Pflichtangaben fehlen');
+ assert.match(await page.locator('#pflichtFehlt').innerText(),/^\d+ Pflichtangaben fehlen$/);
+ assert.equal(await page.locator('#pj_objekt').evaluate(e=>e.closest('label').classList.contains('pflicht-offen')),false,'Objekt ist ausgefüllt');
+ assert.equal(await page.locator('#pj_nutzung').evaluate(e=>e.closest('label').classList.contains('pflicht-offen')),true,'Nutzung leer → hervorgehoben');
+ assert.equal(await page.locator('#pj_notizen').evaluate(e=>e.closest('label').classList.contains('pflicht')),false,'Notizen sind keine Pflicht');
+ await page.locator('#pflichtFehlt').click();assert.equal(await page.evaluate(()=>document.activeElement.id),'pj_nutzung','Klick springt zum ersten leeren Pflichtfeld');
+ {const vorher=Number((await page.locator('#pflichtFehlt').innerText()).split(' ')[0]);await page.locator('#pj_schadenereignis').fill('Küchenbrand');
+  assert.equal(await page.locator('#pj_schadenereignis').evaluate(e=>e.closest('label').classList.contains('pflicht-offen')),false,'ausgefüllt → normal');
+  assert.equal(Number((await page.locator('#pflichtFehlt').innerText()).split(' ')[0]),vorher-1,'Zähler sofort aktualisiert');}
+ await page.evaluate(()=>testIO.failWrite=true);await page.locator('#pj_objekt').fill('Nicht gespeicherter Entwurf');await page.locator('#pjSave.err').waitFor();await page.locator('#pjBox > summary').click();assert.match(await page.locator('#pjAttention').innerText(),/nicht gespeichert/);assert.ok(await page.locator('#showPJ').isVisible());
  await page.evaluate(()=>testIO.failWrite=false);await page.locator('#showPJ').click();await page.locator('#pj_objekt').fill(pj.objekt);await page.locator('#pjSave.ok').waitFor();
  // Historical editing stays available without a digital order and creates no handover.
  await page.locator(`.proj[data-name="${B}"]`).click();await page.locator('[data-overview]').filter({hasText:'Noch nicht übergeben'}).waitFor();await page.locator('#vtBox > summary').click();

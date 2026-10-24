@@ -56,7 +56,7 @@ const TYP = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.c
   }, A);
   await page.locator('#btnStart, #btnArchive').first().click();
   await page.locator(`.proj[data-name="${A}"]`).click();
-  await page.locator('#pjBox > summary').click();
+  if(!await page.locator('#pjBox').evaluate(d=>d.open))await page.locator('#pjBox > summary').click();   // öffnet sich selbst, solange Pflichtangaben fehlen
   await page.locator('#azBtn').waitFor();
   const ordnerVorher = await page.evaluate(async a => { const r = await navigator.storage.getDirectory(); const p = await (await r.getDirectoryHandle('Mosaik Archivordner')).getDirectoryHandle(a); const n = []; for await (const [k] of p.entries()) n.push(k); return n.sort(); }, A);
   const lesePJ = () => page.evaluate(async a => { const r = await navigator.storage.getDirectory(); const p = await (await r.getDirectoryHandle('Mosaik Archivordner')).getDirectoryHandle(a); return JSON.parse(await (await (await p.getFileHandle('_Projekt.json')).getFile()).text()); }, A);
