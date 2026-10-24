@@ -188,7 +188,8 @@ table.folders .miss{color:var(--warn)}
 .form{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px}
 .form label{display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--muted)}
 .form label.wide{grid-column:1 / -1}
-.form input,.form textarea{color:var(--text)}
+.form input,.form textarea,.form select{color:var(--text)}
+.nutzungHint{margin:6px 0 10px;padding:7px 10px;border-left:3px solid #d9a400;background:rgba(217,164,0,.08);font-size:13px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .save{font-size:12.5px;color:var(--muted);margin-top:8px;min-height:18px}
 .save.err{color:var(--err)}
 .save.ok{color:var(--ok)}
@@ -728,9 +729,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.15.1';
+const APP_VERSION = '1.16.0';
 const APP_DATE = '2026-10-24';
 const CHANGELOG = [
+  ['1.16.0', '24.10.2026', 'Projektdaten: neues Feld „Nutzung“ (Wohnen, Büro, Öffentlich, Gesundheit & Labor, Gewerbe/Industrie, Landwirtschaft) – PlanKit wählt daraus die VdS-2357-Referenz. Fehlt sie, erscheint ein Hinweis im Projekt. Neu und freiwillig: „Brandgut“.'],
   ['1.15.1', '24.10.2026', 'Aufgeräumt: In _Projekt_Sicherungen bleiben nur noch die Sicherungen der letzten 5 Speichervorgänge, ältere werden beim Speichern entfernt.'],
   ['1.15.0', '23.10.2026', 'Neu unter „Weitere Apps“: 🏆 Bestenliste – eigene Seite mit Rangliste (Monat, Jahr, Gesamt), Podest, Abzeichen, „Neueste Erfolge“ und Projekten je Jahr. Punkte gibt es für abgeschlossene Projekte (Büroübergabe „Erledigt“), Proben, Bilddokumentation und Probenplan sowie für Gegenlesen, PDF und Versand im Büro und schnell beantwortete Rückfragen. Die Seite liest nur und aktualisiert sich alle 10 Minuten – geeignet für einen Bildschirm im Büro.'],
   ['1.14.0', '23.10.2026', 'Neu: „📊 Auslastung“ zeigt je Person die offenen Projekte des laufenden und vorigen Jahres, aufgeteilt in „In Bearbeitung“ (noch keine offene Büroübergabe), „Beim Büro“ und „Rückfrage“. Offen ist ein Projekt, bis eine Büroübergabe „Erledigt“ ist; zurückgenommene Übergaben zählen nicht. Zuständig ist die gewählte Person, sonst das Kürzel im Ordnernamen. Eine Zahl anklicken zeigt die Projekte, ein Klick öffnet sie. Es wird nichts gespeichert.'],
@@ -899,9 +901,11 @@ const PJ_FILE = '_Projekt.json';
 const PJ_FIELDS = [
   // key, label, type, wide, placeholder
   ['objekt',            'Objekt / Adresse',                 'text', true,  'z. B. EFH, Musterstr. 1, 50667 Köln'],
+  ['nutzung',           'Nutzung (für die VdS-Einordnung)', 'select', false, ''],
   ['auftraggeber',      'Auftraggeber / Versicherung',      'text', false, ''],
   ['schadennummer',     'Schaden-Nr. des Auftraggebers',    'text', false, ''],
   ['schadenereignis',   'Schadenereignis',                  'text', true,  'z. B. Brand im Erdgeschoss (Küche)'],
+  ['brandgut',          'Brandgut (optional)',              'select', false, ''],
   ['schadendatum',      'Schadendatum',                     'date', false, ''],
   ['ortstermin',        'Ortstermin',                       'date', false, ''],
   ['sachverstaendiger', 'Sachverständiger',                 'text', false, 'z. B. Dr. S. Kasper'],
@@ -912,6 +916,14 @@ const PJ_FIELDS = [
   ['kontakte',          'Ansprechpartner (Regulierer, Anrufer, ASP)', 'area', true, ''],
   ['notizen',           'Notizen',                          'area', true,  ''],
 ];
+/* Auswahllisten: gespeichert wird der kurze Wert, angezeigt der Text. Nutzung bestimmt in PlanKit die VdS-2357-Referenz
+   (Gewerbe/Industrie und Landwirtschaft → Industrie, alles andere → Wohn-/Büroräume). */
+const PJ_OPTIONEN = {
+  nutzung: [['Wohnen', 'Wohnen'], ['Büro', 'Büro'], ['Öffentlich', 'Öffentlich (Schule, Kita, Verwaltung)'],
+    ['Gesundheit & Labor', 'Gesundheit & Labor (Klinik, Apotheke, Labor)'], ['Gewerbe/Industrie', 'Gewerbe/Industrie'], ['Landwirtschaft', 'Landwirtschaft']],
+  brandgut: [['Kunststoffe/PVC', 'Kunststoffe/PVC'], ['Holz/Möbel', 'Holz/Möbel'], ['Elektro/Geräte', 'Elektro/Geräte'], ['Küche/Lebensmittel', 'Küche/Lebensmittel'],
+    ['Fahrzeug', 'Fahrzeug'], ['Lager/gemischt', 'Lager/gemischt'], ['unbekannt', 'unbekannt']],
+};
 async function readPJ(dir){
   try{
     const s = await ProjectStore.read(dir);
@@ -1292,7 +1304,7 @@ function stepCard(id,app,aufgabe,name,st,tip,extra=''){
   return `<div class="sw" data-app="${app}"><button class="step" id="${id}" title="${esc(tip)}"><span><span class="name">${esc(aufgabe)}</span><small>${esc(name)}</small></span><span class="stat">${esc(st.text)}</span></button>${extra}</div>`;
 }
 /* Projektdaten in drei Gruppen; Projektnummer und Schadenort stehen im Kopf (aus dem Ordnernamen). */
-const PJ_GRUPPEN = [['Objekt und Auftrag', ['objekt', 'auftraggeber', 'schadennummer', 'auftragsdatum']], ['Schaden und Termine', ['schadenereignis', 'schadendatum', 'ortstermin', 'sachverstaendiger']],
+const PJ_GRUPPEN = [['Objekt und Auftrag', ['objekt', 'nutzung', 'auftraggeber', 'schadennummer', 'auftragsdatum']], ['Schaden und Termine', ['schadenereignis', 'brandgut', 'schadendatum', 'ortstermin', 'sachverstaendiger']],
   ['Beteiligte', ['versicherungsnehmer', 'sachverstaendigerBeteiligt', 'sanierung', 'kontakte']], ['', ['notizen']]];
 function ordnerKurz(p){
   const s = p.st.subs, da = SUBS.filter(([k]) => s[k]).length, dateien = SUBS.reduce((n, [k]) => n + (s[k] ? s[k].files : 0), 0);
@@ -1322,6 +1334,7 @@ function renderDetail(){
   const feld = k => { const [, label, type, wide, ph] = PJ_FIELDS.find(f => f[0] === k);
     return `<label class="${wide ? 'wide' : ''}">${esc(label)}
         ${type === 'area' ? `<textarea id="pj_${k}" rows="3" ${ro ? 'readonly' : ''}></textarea>`
+          : type === 'select' ? `<select id="pj_${k}" ${ro ? 'disabled' : ''}><option value="">– wählen –</option>${PJ_OPTIONEN[k].map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join('')}${d[k] && !PJ_OPTIONEN[k].some(([v]) => v === d[k]) ? `<option value="${esc(d[k])}">${esc(d[k])}</option>` : ''}</select>`
           : `<input type="${type}" id="pj_${k}" placeholder="${esc(ph)}" ${ro ? 'readonly' : ''}>`}</label>`; };
   const same=S.renderedName===p.name&&S.renderedArchive===S.archive,scroll=$('detail').scrollTop,oldPanel=same?$('bueroPanel'):null,oldAlerts=same?$('bueroAttention'):null;
   const officeFocus=(oldPanel?.contains(document.activeElement)||oldAlerts?.contains(document.activeElement))?{el:document.activeElement,start:document.activeElement.selectionStart,end:document.activeElement.selectionEnd}:null;
@@ -1329,6 +1342,7 @@ function renderDetail(){
   $('detail').innerHTML = `<div class="pz">
     <h2><span class="nr">${esc(p.nr)}</span> ${esc(p.ort)}</h2>
     <p class="project-summary">${esc([d.objekt,d.auftraggeber].filter(Boolean).join(' · ')||'Objekt und Auftraggeber noch nicht eingetragen')}</p>
+    ${!ro && !String(d.nutzung || '').trim() && !('nutzung' in S.pjDirty && S.pjDirty.nutzung) ? '<div class="nutzungHint">Nutzung fehlt – sie bestimmt die VdS-Referenz in PlanKit. <button id="nutzungSetzen">Eintragen</button></div>' : ''}
     <div id="pjAttention" role="status"></div><div id="bueroAttention" class="buero" role="status"></div><div id="pjRecovery"></div>
     ${zustHtml(p, zustaendigVon(p, pj.error ? undefined : d), ro)}
     ${!summe&&!ro?'<div class="azrow"><button id="azQuick">Arbeitszettel einlesen …</button></div>':''}
@@ -1368,6 +1382,7 @@ function renderDetail(){
   if(oldAlerts)$('bueroAttention').replaceWith(oldAlerts);
   if(officeFocus){officeFocus.el.focus({preventScroll:true});try{officeFocus.el.setSelectionRange(officeFocus.start,officeFocus.end);}catch{}}
   if($('azQuick'))$('azQuick').onclick=()=>$('azFile').click();
+  if($('nutzungSetzen'))$('nutzungSetzen').onclick=()=>{$('pjBox').open=true;$('pj_nutzung').focus();};
   $('pjBox').addEventListener('toggle', () => { S.pjOpen[p.name] = $('pjBox').open; });
   $('ordBox').addEventListener('toggle', () => { S.ordOpen[p.name] = $('ordBox').open; });
   $('vtBox').addEventListener('toggle', () => { S.vtOpen[p.name] = $('vtBox').open; });
