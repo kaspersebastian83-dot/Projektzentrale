@@ -770,9 +770,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.21.0';
+const APP_VERSION = '1.21.1';
 const APP_DATE = '2026-10-24';
 const CHANGELOG = [
+  ['1.21.1', '24.10.2026', 'Kurzanleitung: Knöpfe so benannt wie in den Apps („Proben & Laborauftrag“, „Fotos & Dokumentation“, „Probenplan bearbeiten“; in PlanKit „Proben übernehmen …“). Schritt für Schritt je App steht jetzt im Handbuch (AidKit).'],
   ['1.21.0', '24.10.2026', 'Pflichtangaben in den Projektdaten: Objekt, Nutzung, Auftraggeber, Schadenereignis, Schadendatum, Ortstermin und Sachverständiger sind gelb hervorgehoben und mit „Pflicht“ markiert, solange sie leer sind. Im Kopf der Karte steht, wie viele fehlen – ein Klick springt zum ersten leeren Feld; die Karte öffnet sich von selbst, solange etwas fehlt. Speichern bleibt jederzeit möglich. Ersetzt den Hinweis „Nutzung fehlt“.'],
   ['1.20.0', '24.10.2026', 'Neues Erscheinungsbild der Word-Anlage „Probenahmeprotokolle PN 98 / Brandgeruch“ – wie die Anlagen aus PlanKit und die Bilddokumentation aus FotoKit: Titel mit feiner blauer Linie statt Unterstreichung, Protokollüberschriften in Firmenblau, Formulare mit Haarlinien statt schwarzem Gitter, Bezeichnungen grau, Zwischenzeilen hell hinterlegt. Inhalte, Quellenvermerk und Dateinamen unverändert.'],
   ['1.19.0', '24.10.2026', 'Neu: Projektstand unter den vier Apps – Ortstermin › Laborauftrag › Prüfbericht › Übergabe ans Büro › Versand › Abrechnung, je mit Datum oder offen. Alles aus vorhandenen Spuren wie bei den Durchlaufzeiten (nichts wird eingegeben); Abrechnung = in BelegKit gespeicherter Stand. Die Karte „Zeiten & Abrechnung“ zeigt dann „Abrechnungsstand vom …“.'],
@@ -2180,12 +2181,12 @@ function helpHtml(){
   <div class="cap">Durchgezogene Pfeile: Die App speichert dort. Gestrichelt: PlanKit liest die Proben aus LabelKit und die Messwerte vom Labor.</div>
   <ol>
     <li><b>Projektzentrale:</b> Projekt wählen. Rechts stehen vier jederzeit verfügbare Aufgaben. Die Hinweise zeigen nur den erkannten Dateibestand, keine fachliche Fertigstellung oder Pflichtreihenfolge. Oben unter <b>„Projektdaten“</b> mit <b>„Arbeitszettel einlesen …“</b> das PDF des Büro-Systems übernehmen (jeder Wert wird vor dem Speichern gezeigt) oder Objekt, Auftraggeber, Schadendatum … von Hand ergänzen; alle Apps übernehmen sie. Unter <b>„Übergabe ans Büro“</b> Word-Datei und Empfänger bestätigen und den Auftrag bewusst übergeben. Die Papiermappe bleibt Bestandteil des Ablaufs. Das Büro dokumentiert Gegenlesen, PDF und Versand in der separat aufrufbaren <b>Büroübersicht</b> unter „Weitere Apps“. Nach Gegenlesen ist keine weitere Freigabe erforderlich. „Frühere Versandangaben“ bleibt für historische Versandangaben erhalten.</li>
-    <li><b>① LabelKit – Proben erfassen:</b> Proben anlegen, Etiketten drucken, Laborübergabe erstellen, <b>Strg+S</b>. Alles landet in „Laboraufträge“.</li>
-    <li><b>② FotoKit – Fotos bearbeiten:</b> Fotos benennen und die Bilddokumentation als PDF erstellen (Ordner „Fotos“).</li>
-    <li><b>③ PlanKit – Plan bearbeiten:</b> Grundriss aus „Pläne“ wählen. Unter „Laborbericht importieren …“ die <b>Probenerfassung aus LabelKit</b> übernehmen und die Proben auf den Plan ziehen.</li>
-    <li><b>Laborbericht da:</b> XML und PDF in „Laborergebnisse“ ablegen. In PlanKit den Bericht importieren und <b>„Alle Konflikte: Aktualisieren“</b> klicken – die Messwerte hängen dann an den Proben.</li>
+    <li><b>① LabelKit – „Proben &amp; Laborauftrag“:</b> Proben anlegen, Etiketten drucken, Laborübergabe erstellen, <b>Strg+S</b>. Alles landet in „Laboraufträge“.</li>
+    <li><b>② FotoKit – „Fotos &amp; Dokumentation“:</b> Fotos benennen und die Bilddokumentation als PDF erstellen (Ordner „Fotos“).</li>
+    <li><b>③ PlanKit – „Probenplan bearbeiten“:</b> Grundriss aus „Pläne“ wählen. Unter „Proben übernehmen …“ die <b>Probenerfassung aus LabelKit</b> übernehmen und die Proben auf den Plan ziehen.</li>
+    <li><b>Laborbericht da:</b> XML und PDF in „Laborergebnisse“ ablegen. In PlanKit mit „Proben übernehmen …“ den Bericht wählen und <b>„Alle Konflikte: Aktualisieren“</b> klicken – die Messwerte hängen dann an den Proben.</li>
     <li><b>Auswerten:</b> PlanKit „Ergebnisse“ → Ergebniskarte exportieren. FotoKit „Ergebnistabelle …“ → Tabelle für Word.</li>
-    <li><b>④ BelegKit – Abrechnung:</b> Jede Person trägt ihre Ortstermine (Stunden, km, Spesen, Übernachtung) und Auswertungsstunden selbst ein. Proben aus LabelKit, Berichtsseiten und Fotos werden gezählt; „Abrechnung“ zeigt alle Positionen mit Nummern zum Übertragen ins Rechnungsprogramm.</li>
+    <li><b>④ BelegKit – „Zeiten &amp; Abrechnung“:</b> Jede Person trägt ihre Ortstermine (Stunden, km, Spesen, Übernachtung) und Auswertungsstunden selbst ein. Proben aus LabelKit, Berichtsseiten und Fotos werden gezählt; „Abrechnung“ zeigt alle Positionen mit Nummern zum Übertragen ins Rechnungsprogramm.</li>
     <li><b>Anlage Probenahme:</b> An der Karte PlanKit „Anlage Probenahme · Erstellen …“ (sobald ein Plan da ist) – PlanKit öffnet den Export mit „Word · Anlage Probenahme“ (Lagepläne, Probenverzeichnis, Ausschnitte, Fotos, Laborwerte).</li>
     <li><b>Anlagen PN 98 / Brandgeruch:</b> An der Karte LabelKit „Anlage PN 98 / Brandgeruch · Erstellen …“ (sobald LabelKit PN 98-Protokolle oder Brandgeruch-Proben enthält). Die Datei liegt danach in „Mitteilungen“ – in Word an der gewünschten Stelle <b>Einfügen › Objekt › Text aus Datei</b>.</li>
   </ol>
