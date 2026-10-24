@@ -737,9 +737,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.18.0';
+const APP_VERSION = '1.18.1';
 const APP_DATE = '2026-10-24';
 const CHANGELOG = [
+  ['1.18.1', '24.10.2026', 'Behoben: Ein unmögliches Datum auf dem Arbeitszettel (z. B. 15.13.2026 oder 31.02.2026) wird nicht mehr übernommen, und ein solches Datum nimmt das Projekt nicht mehr ganz aus den Durchlaufzeiten. Das Datum der Laborübergabe wird auch ohne führende Null im Dateinamen erkannt (so speichert LabelKit, z. B. „5.1.2026“).'],
   ['1.18.0', '24.10.2026', 'Neu unter „Weitere Apps“: 📘 Handbuch (AidKit) – Abläufe Schritt für Schritt (zuerst: Bohrkerne von der Begehung bis zum Labor) und gemeinsame Regeln wie die Probenbezeichnung. Öffnet in einem eigenen Fenster, auch ohne gewähltes Projekt.'],
   ['1.17.1', '24.10.2026', 'Die Bestenliste ist entfernt: keine Ranglisten, Punkte oder Abzeichen je Person mehr. Durchlaufzeiten bleiben ohne Personenbezug (nur Projekte und Labore).'],
   ['1.17.0', '24.10.2026', 'Neu unter „Weitere Apps“: „📈 Durchlaufzeiten“ zeigt für die Projekte des laufenden und vorigen Jahres, wie lange es vom Ortstermin über Laborauftrag, Prüfbericht und Büroübergabe bis zum Versand dauert – als Median je Abschnitt, je Labor und je Projekt. Nur aus vorhandenen Daten, nichts muss eingegeben werden.'],
@@ -1610,7 +1611,10 @@ function azLeser(items){
 }
 function azDatum(s){
   const m = String(s || '').trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-  return m ? `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : '';
+  if (!m) return '';
+  const iso = `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  const d = new Date(iso + 'T12:00:00Z');   // 15.13.2026 oder 31.02.2026 sind kein Datum → leer statt eines unmöglichen Werts
+  return Number.isFinite(d.getTime()) && d.toISOString().slice(0, 10) === iso ? iso : '';
 }
 function azFelder(z){
   /* Zettel → Felder in _Projekt.json; Hinweise statt stiller Annahmen */
