@@ -6,7 +6,7 @@ Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektda
 
 ## Neu in 1.17.0 · 24.10.2026
 
-**„📈 Durchlaufzeiten“** (oben neben „📊 Auslastung“): Wie lange dauert ein Projekt? Für die Projekte des laufenden und vorigen Jahres, in Kalendertagen, als Median je Abschnitt mit dem längsten Projekt, dazu Laborzeiten je Labor und eine Liste aller Projekte (Klick öffnet das Projekt). Nichts muss eingegeben werden – die Daten stammen aus dem, was bei der Arbeit ohnehin entsteht:
+**„📈 Durchlaufzeiten“** (rechts unten unter „Weitere Apps“): Wie lange dauert ein Projekt? Für die Projekte des laufenden und vorigen Jahres, in Kalendertagen, als Median je Abschnitt mit dem längsten Projekt, dazu Laborzeiten je Labor und eine Liste aller Projekte (Klick öffnet das Projekt). Nichts muss eingegeben werden – die Daten stammen aus dem, was bei der Arbeit ohnehin entsteht:
 
 | Schritt | Quelle |
 |---|---|

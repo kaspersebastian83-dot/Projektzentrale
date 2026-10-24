@@ -288,7 +288,6 @@ table.vt button{padding:2px 8px;font-size:12px;margin-left:6px}
     <button id="btnRescan" disabled title="Ordner neu einlesen (z. B. nachdem Kollegen etwas geändert haben)">Neu einlesen</button>
     <button id="btnMa" disabled title="Mitarbeiterliste: Kürzel am Ende der Projektordner und die zugehörigen Namen">👥 Mitarbeiter</button>
     <button id="btnAusl" disabled title="Offene Projekte je Person: in Bearbeitung, beim Büro, Rückfrage">📊 Auslastung</button>
-    <button id="btnDurch" disabled title="Wie lange dauert es vom Ortstermin bis zum Versand? Aus vorhandenen Daten, nichts wird eingegeben">📈 Durchlaufzeiten</button>
     <span class="spacer"></span>
     <select id="ich" disabled title="Wer arbeitet an diesem Rechner? Wird je Windows-Profil gemerkt."><option value="">Ich bin …</option></select>
     <button id="btnMeine" disabled aria-pressed="false" title="Nur Projekte zeigen, für die ich zuständig bin">Meine Projekte</button>
@@ -741,7 +740,7 @@ const ANLAGE = (() => {
 const APP_VERSION = '1.17.0';
 const APP_DATE = '2026-10-24';
 const CHANGELOG = [
-  ['1.17.0', '24.10.2026', 'Neu: „📈 Durchlaufzeiten“ zeigt für die Projekte des laufenden und vorigen Jahres, wie lange es vom Ortstermin über Laborauftrag, Prüfbericht und Büroübergabe bis zum Versand dauert – als Median je Abschnitt, je Labor und je Projekt. Nur aus vorhandenen Daten, nichts muss eingegeben werden.'],
+  ['1.17.0', '24.10.2026', 'Neu unter „Weitere Apps“: „📈 Durchlaufzeiten“ zeigt für die Projekte des laufenden und vorigen Jahres, wie lange es vom Ortstermin über Laborauftrag, Prüfbericht und Büroübergabe bis zum Versand dauert – als Median je Abschnitt, je Labor und je Projekt. Nur aus vorhandenen Daten, nichts muss eingegeben werden.'],
   ['1.16.0', '24.10.2026', 'Projektdaten: neues Feld „Nutzung“ (Wohnen, Büro, Öffentlich, Gesundheit & Labor, Gewerbe/Industrie, Landwirtschaft) – PlanKit wählt daraus die VdS-2357-Referenz. Fehlt sie, erscheint ein Hinweis im Projekt. Neu und freiwillig: „Brandgut“.'],
   ['1.15.1', '24.10.2026', 'Aufgeräumt: In _Projekt_Sicherungen bleiben nur noch die Sicherungen der letzten 5 Speichervorgänge, ältere werden beim Speichern entfernt.'],
   ['1.15.0', '23.10.2026', 'Neu unter „Weitere Apps“: 🏆 Bestenliste – eigene Seite mit Rangliste (Monat, Jahr, Gesamt), Podest, Abzeichen, „Neueste Erfolge“ und Projekten je Jahr. Punkte gibt es für abgeschlossene Projekte (Büroübergabe „Erledigt“), Proben, Bilddokumentation und Probenplan sowie für Gegenlesen, PDF und Versand im Büro und schnell beantwortete Rückfragen. Die Seite liest nur und aktualisiert sich alle 10 Minuten – geeignet für einen Bildschirm im Büro.'],
@@ -1032,7 +1031,6 @@ function maUi(){
   const ich = lsGet(ICH_KEY), pers = (S.ma && S.ma.personen) || [];
   $('btnMa').disabled = !S.archive;
   $('btnAusl').disabled = !S.archive;
-  $('btnDurch').disabled = !S.archive;
   $('ich').innerHTML = '<option value="">Ich bin …</option>' + pers.filter(p => p.aktiv !== false || maNorm(p.ordnerKuerzel) === maNorm(ich))
     .map(p => `<option value="${esc(p.ordnerKuerzel)}"${maNorm(p.ordnerKuerzel) === maNorm(ich) ? ' selected' : ''}>${esc(p.name)} (${esc(p.ordnerKuerzel)})</option>`).join('');
   $('ich').disabled = !pers.length;
@@ -1126,7 +1124,7 @@ async function dlLesen(p){
   return Durchlauf.projekt(r);
 }
 function dlDialog(){
-  if (!S.archive) return;
+  if (!S.archive){ showDialog('<h3>Durchlaufzeiten</h3><div class="m">Bitte zuerst oben den Archivordner wählen.</div><div class="btns"><button id="dlZu" class="primary">Schließen</button></div>'); $('dlZu').onclick = closeDialog; return; }
   if (!S.dl){
     const projekte = S.projects.filter(p => auImZeitraum(p)), token = S.scanToken;
     S.dl = { werte: new Map(), fehler: [], gesamt: projekte.length, token };
@@ -1389,6 +1387,7 @@ function weitereApps(){
   return `<div class="more"><h3>Weitere Apps</h3>
     <a class="app" href="buero/" target="spektron-buero" rel="noopener"><span class="ic" aria-hidden="true">▤</span><span><span class="name">Büroübersicht</span><small>Gutachten prüfen und Versand dokumentieren</small></span><span class="go" aria-hidden="true">↗</span></a>
     <a class="app" href="bestenliste/" target="spektron-bestenliste" rel="noopener"><span class="ic" aria-hidden="true">🏆</span><span><span class="name">Bestenliste</span><small>Punkte, Abzeichen und neueste Erfolge im Team</small></span><span class="go" aria-hidden="true">↗</span></a>
+    <a class="app" id="goDurch" href="#durchlaufzeiten" role="button" title="Wie lange dauert es vom Ortstermin bis zum Versand? Aus vorhandenen Daten, nichts wird eingegeben"><span class="ic" aria-hidden="true">📈</span><span><span class="name">Durchlaufzeiten</span><small>Vom Ortstermin bis zum Versand – je Abschnitt und Labor</small></span><span class="go" aria-hidden="true">›</span></a>
     <a class="app" id="goReise" href="${REISEKOSTEN_URL}" target="reisekosten" rel="noopener" title="Öffnet SpesenKit in einem eigenen Fenster – Reisekosten- und Spesenabrechnung je Monat, unabhängig vom Projekt">
       <span class="ic" aria-hidden="true">🧾</span><span><span class="name">SpesenKit</span><small>Spesenabrechnung für den Monat</small></span><span class="go" aria-hidden="true">↗</span></a></div>`;
 }
@@ -2147,7 +2146,7 @@ $('btnUpd').onclick = async () => { await flushPJ(); location.reload(); };
 $('btnArchive').onclick = pickArchive;
 $('btnRescan').onclick = async () => { await flushPJ(); S.projects.forEach(p => p.st = null); S.dl = null; await maLaden(); await listProjects(); maWarnung(); };
 $('btnAusl').onclick = async () => { await maLaden(); renderList(); if (S.sel) renderDetail(); auDialog(); };
-$('btnDurch').onclick = () => dlDialog();
+$('detail').addEventListener('click', e => { if (e.target.closest('#goDurch')){ e.preventDefault(); dlDialog(); } });
 $('btnMa').onclick = async () => { await maLaden(); renderList(); if (S.sel) renderDetail(); maDialog(); };   // frisch lesen, damit Änderungen anderer Kollegen nicht überschrieben werden
 $('ich').onchange = () => { lsSet(ICH_KEY, $('ich').value); if (!$('ich').value) lsSet(MEINE_KEY, ''); maUi(); renderList(); };
 $('btnMeine').onclick = () => { lsSet(MEINE_KEY, meineAktiv() ? '' : '1'); maUi(); renderList(); };
