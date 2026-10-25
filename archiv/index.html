@@ -4,7 +4,7 @@
 <title>Spektron · Datenarchiv</title><link rel="icon" href="../icon.svg"><link rel="stylesheet" href="archiv.css">
 <script defer src="auswertung.js"></script><script defer src="lesen.js"></script><script defer src="archiv.js"></script></head>
 <body>
-<header><div class="kopf"><img src="../icon.svg" width="34" height="34" alt=""><h1>Spektron <span>· Datenarchiv</span></h1><span class="tag">Version 1 · liest nur</span></div>
+<header><div class="kopf"><img src="../icon.svg" width="34" height="34" alt=""><h1>Spektron <span>· Datenarchiv</span></h1><span class="tag">Version 1.1 · liest nur</span></div>
 <p>Messwerte aller Projekte aus den Prüfberichten im Archivordner – zum Vergleichen und Lernen. Bleibt im Büro: nichts verlässt den Archivordner.</p></header>
 <main>
 <section class="leiste">
@@ -22,8 +22,10 @@
 </nav>
 <section id="ansicht" class="karte"><p class="hinweis">Archivordner verbinden und „Einlesen“ wählen. Gelesen werden die Eurofins-XML im Ordner „Laborergebnisse“ jedes Projekts sowie Nutzung und Brandgut aus den Projektdaten. Beim nächsten Mal geht es schneller: Unveränderte Projekte merkt sich der Browser.</p></section>
 <details class="karte klein"><summary>Was diese Seite tut – und was nicht</summary>
-<p><b>Liest nur.</b> Projektdateien und Laborberichte werden nie verändert. Die einzige Datei, die geschrieben wird, ist <code>_Spektron-Archiv.json</code> im Archivordner – und nur, wenn unter „Zuordnen“ Nutzung oder Brandgut für ein Projekt ergänzt wird, das in den Projektdaten keine Angabe hat.</p>
+<p><b>Liest nur.</b> Projektdateien und Laborberichte werden nie verändert. Die einzige Datei, die geschrieben wird, ist <code>_Spektron-Archiv.json</code> im Archivordner – und nur, wenn unter „Zuordnen“ Nutzung oder Brandgut für ein Projekt ohne Angabe in den Projektdaten ergänzt oder die Rolle einer Probe korrigiert wird.</p>
 <p><b>Keine Bewertung.</b> Es gibt keine Grenz- oder Orientierungswerte und keine Schwellen für Quotienten. Gezeigt wird nur, was im eigenen Bestand gemessen wurde.</p>
 <p><b>Ehrlich gezählt.</b> Werte unter BG und „n. n.“ sind keine Null, sondern zählen als kleinste Werte; fällt eine Kennzahl darauf, steht dort „&lt; BG“. Kennzahlen erst ab 5 Werten. Vorläufige Berichte zählen nicht. Einheiten werden nicht umgerechnet (µg/m², µg/100 cm² und mg/kg bleiben getrennt).</p>
+<p><b>Rolle der Proben:</b> aus der Probenbezeichnung und -beschreibung, wie sie ohnehin geschrieben werden – „Brandraum“, „Brandbereich“ → Brandbereich; „REF“, „Referenz“, „unbelastet“ → Referenz; „Kleber“, „Teer“, „Bitumen“ → Verdachtsquelle; „F-“ vor der alten ID → Freimessung. Unter „Zuordnen“ je Probe korrigierbar; die Korrektur gilt vor der Konvention.</p>
+<p><b>PAK-Muster:</b> normiert nur über die Stoffe, die in allen verglichenen Proben über BG liegen; Werte unter BG werden nicht ersetzt. Die Literaturquotienten (Yunker u. a.) sind für Sedimente und Außenluft hergeleitet und für Brandrückstände nicht validiert – darum eingeklappt und ohne Schwellen.</p>
 <p><b>Version 1:</b> nur Eurofins-XML. Projekte, die nur PDF-Berichte haben, werden gezählt, aber noch nicht gelesen.</p></details>
 </main></body></html>
