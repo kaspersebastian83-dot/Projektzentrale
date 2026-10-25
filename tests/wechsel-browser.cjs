@@ -46,10 +46,15 @@ let schritt = 'Start', seite = null;   // für die Fehlermeldung in CI: wo es hi
   }, [A, B]);
   await page.reload(); await page.waitForSelector('#btnInfo');
   await page.evaluate(async () => { const r = await navigator.storage.getDirectory(); const a = await r.getDirectoryHandle('Mosaik Archivordner'); window.showDirectoryPicker = async () => a; });
-  await page.locator('#btnStart, #btnArchive').first().click();
+  // Mit gespeichertem Ordner öffnet die Projektzentrale das Archiv selbst und wählt A vor. Nur ohne das den Ordner wählen –
+  // ein zweites Öffnen (Kopfknopf) startet einen zweiten Scan, der A während der Eingabe erneut auswählt (Wettlauf im Test).
+  await page.locator('.proj, #btnStart, #btnGrant').first().waitFor({ timeout: 8000 });
+  if (await page.locator('#btnStart').count()) await page.locator('#btnStart').click();
+  else if (await page.locator('#btnGrant').count()) await page.locator('#btnGrant').click();
   schritt = 'Projekt A aktiv';
   await page.locator('.proj.active').waitFor({ timeout: 8000 });
   assert.equal(await page.locator('.proj.active').getAttribute('data-name'), A);
+  await page.locator('#pj_objekt').waitFor({ state: 'attached', timeout: 8000 });   // Detailansicht von A gezeichnet
 
   // Speichern scheitert ab jetzt
   await page.evaluate(() => { FileSystemFileHandle.prototype.createWritable = async function(){ throw new DOMException('Die Datei ist von einem anderen Programm gesperrt.', 'NoModificationAllowedError'); }; });
