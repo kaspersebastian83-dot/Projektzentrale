@@ -83,8 +83,8 @@
       if (!b.vorlaeufig) endgueltig.add(probe);
       for (const w of pr.werte || []){
         const p = tidy(w.p), u = einheit(w.u); if (!p) continue;
-        const e = ergebnis(w.r, w.loq);
-        m.set(probe + '\u0000' + p + '\u0000' + u, { probe, ref: tidy(pr.ref), art: tidy(pr.art), datum: pr.datum || '', p, u, q: e.q, v: e.v, roh: tidy(w.r), bericht: b.bericht || '', vorlaeufig: !!b.vorlaeufig });
+        const e = ergebnis(w.r, w.loq), bg = zahl(w.loq);
+        m.set(probe + '\u0000' + p + '\u0000' + u, { probe, ref: tidy(pr.ref), desc: tidy(pr.desc), art: tidy(pr.art), datum: pr.datum || '', p, u, q: e.q, v: e.v, bg: Number.isFinite(bg) && bg >= 0 ? bg : null, roh: tidy(w.r), bericht: b.bericht || '', vorlaeufig: !!b.vorlaeufig });
       }
     }
     return [...m.values()].filter(x => !(x.vorlaeufig && endgueltig.has(x.probe)));
@@ -114,7 +114,7 @@
     const proben = new Map();
     for (const x of messungen){
       if (!zaehlt(x)) continue; const i = pakIndex(x.p); if (i < 0) continue;
-      const k = x.probe + '|' + x.u; if (!proben.has(k)) proben.set(k, { probe: x.probe, ref: x.ref, art: x.art, u: x.u, werte: new Array(16).fill(undefined), unter: new Array(16).fill(false) });
+      const k = x.probe + '|' + x.u; if (!proben.has(k)) proben.set(k, { probe: x.probe, ref: x.ref, desc: x.desc, art: x.art, datum: x.datum, u: x.u, werte: new Array(16).fill(undefined), unter: new Array(16).fill(false) });
       const pr = proben.get(k); if (x.q === 'gemessen'){ pr.werte[i] = x.v; pr.unter[i] = false; } else if (pr.werte[i] === undefined){ pr.werte[i] = 0; pr.unter[i] = true; }
     }
     const out = [];
@@ -133,16 +133,66 @@
       const h = xs.length >> 1; return xs.length % 2 ? xs[h] : (xs[h - 1] + xs[h]) / 2; });
   }
 
+  /* ---------- Rolle einer Probe (Konvention, nachträglich änderbar) ----------
+     Gelesen aus Probenbezeichnung und Probenbeschreibung. Reihenfolge: Freimessung vor Referenz vor Verdachtsquelle vor Brandbereich.
+     Konvention des Handbuchs: „F-“ vor der alten ID = Freimessung, „REF“ = Referenz aus unbelasteter Stelle. Nichts erkannt → keine Rolle. */
+  const ROLLEN = [['brand', 'Brandbereich'], ['betroffen', 'betroffener Bereich'], ['referenz', 'Referenz (unbelastet)'], ['quelle', 'Verdachtsquelle (z. B. Kleber)'], ['frei', 'Freimessung nach Sanierung']];
+  const ROLLE_NAME = Object.fromEntries(ROLLEN);
+  const istFrei = id => /^F[-_ ]/i.test(tidy(id));
+  function rolleAuto(ref, desc){
+    const t = (tidy(ref) + ' | ' + tidy(desc)).toLocaleLowerCase('de');
+    if (istFrei(ref) || istFrei(desc) || /freimessung|sanierungskontrolle|nach (der )?sanierung/.test(t)) return 'frei';
+    if (/(^|[^a-zäöüß])ref([^a-zäöüß]|$)|referenz|unbelastet|nullprobe|hintergrund/.test(t)) return 'referenz';
+    if (/kleber|teer|bitumen|dachpappe|schwarzanstrich/.test(t)) return 'quelle';
+    if (/brandraum|brandbereich|brandherd|brandstelle|brandausbruch/.test(t)) return 'brand';
+    return '';
+  }
+  /** Zur Freimessung „F-EG-WZ-B-7-T1“ gehört „EG-WZ-B-7-T1“: ID ohne das F-Präfix (gleich verglichen, ohne Groß/klein). */
+  const freiBasis = id => istFrei(id) ? norm(tidy(id).replace(/^F[-_ ]/i, '')) : '';
+
+  /** Kalendertag in Berlin aus einem Zeitstempel des Labors (2026-10-07T22:00:00Z → 2026-10-08) oder JJJJ-MM-TT. */
+  function berlinTag(wert){
+    const v = tidy(wert); if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+    const d = new Date(v); if (!/^\d{4}-\d{2}-\d{2}T/.test(v) || !Number.isFinite(d.getTime())) return '';
+    const t = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(d), g = k => t.find(x => x.type === k).value;
+    return `${g('year')}-${g('month')}-${g('day')}`;
+  }
+  /** Tage zwischen Schadendatum und Probenahme; null, wenn eines fehlt oder die Probe vor dem Schaden liegt. */
+  function tageNachBrand(schaden, probe){
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(schaden || '') || !/^\d{4}-\d{2}-\d{2}$/.test(probe || '')) return null;
+    const t = Math.round((Date.parse(probe + 'T12:00:00Z') - Date.parse(schaden + 'T12:00:00Z')) / 864e5);
+    return t >= 0 ? t : null;
+  }
+  /* Nur zum Gruppieren in der Anzeige, keine Bewertung. */
+  const TAGE_KLASSEN = [[7, '0–7 Tage'], [30, '8–30 Tage'], [90, '31–90 Tage'], [Infinity, 'über 90 Tage']];
+  const tageKlasse = t => t == null ? 'Datum unbekannt' : TAGE_KLASSEN.find(([g]) => t <= g)[1];
+
+  /** Einzel-PAK, die in allen Proben über BG gemessen sind (Indizes 0–15). */
+  const gemeinsam = profile => PAK16.map((_, i) => i).filter(i => profile.length && profile.every(p => p.werte[i] !== undefined && !p.unter[i] && p.werte[i] > 0));
+  /** Anteile einer Probe, normiert nur über die gemeinsame Stoffmenge; null, wenn ein Stoff der Menge fehlt oder unter BG ist. */
+  function aufMenge(p, menge){
+    if (!menge.length || menge.some(i => p.werte[i] === undefined || p.unter[i] || !(p.werte[i] > 0))) return null;
+    const s = menge.reduce((a, i) => a + p.werte[i], 0); return menge.map(i => p.werte[i] / s);
+  }
+  /** Kosinus-Ähnlichkeit zweier Anteilsvektoren (1 = gleiches Muster). Stützt nur – ein deutlicher Unterschied sagt mehr als hohe Ähnlichkeit. */
+  function kosinus(a, b){ let ab = 0, aa = 0, bb = 0; for (let i = 0; i < a.length; i++){ ab += a[i] * b[i]; aa += a[i] * a[i]; bb += b[i] * b[i]; } return aa && bb ? ab / Math.sqrt(aa * bb) : null; }
+  /** Median je Stelle über mehrere Vektoren gleicher Länge (ab MIN_N Vektoren). */
+  function medianVektor(vs){
+    if (vs.length < MIN_N) return null;
+    return vs[0].map((_, i) => { const xs = vs.map(v => v[i]).sort((a, b) => a - b), h = xs.length >> 1; return xs.length % 2 ? xs[h] : (xs[h - 1] + xs[h]) / 2; });
+  }
+
   /** Semikolon-CSV mit Dezimalkomma für Excel. Keine Ortsangaben, keine Probenbeschreibung – nur Projektnummer. */
   function csv(zeilen){
     const zelle = v => { const s = v == null ? '' : typeof v === 'number' ? String(v).replace('.', ',') : String(v); return /[;"\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-    const kopf = ['Projekt', 'Jahr', 'Nutzung', 'Brandgut', 'Probe', 'Matrix', 'Parameter', 'Einheit', 'Ergebnis', 'Wert', 'unter BG', 'Prüfbericht', 'vorläufig'];
+    const kopf = ['Projekt', 'Jahr', 'Nutzung', 'Brandgut', 'Probe', 'Rolle', 'Tage nach Brand', 'Matrix', 'Parameter', 'Einheit', 'Ergebnis', 'Wert', 'unter BG', 'BG', 'Prüfbericht', 'vorläufig'];
     const q = { gemessen: 'gemessen', unter: '< BG', nn: 'n. n.', nb: 'n. b.', unklar: 'unklar' };
-    return '﻿' + [kopf, ...zeilen.map(x => [x.nr, x.jahr, x.nutzung, x.brandgut, x.probe, x.art, x.p, x.u, x.roh, x.v, unterBG(x) ? q[x.q] : '', x.bericht, x.vorlaeufig ? 'ja' : ''])]
+    return '﻿' + [kopf, ...zeilen.map(x => [x.nr, x.jahr, x.nutzung, x.brandgut, x.probe, x.rolle ? ROLLE_NAME[x.rolle] : '', x.tage, x.art, x.p, x.u, x.roh, x.v, unterBG(x) ? q[x.q] : '', x.bg, x.bericht, x.vorlaeufig ? 'ja' : ''])]
       .map(r => r.map(zelle).join(';')).join('\r\n') + '\r\n';
   }
 
-  const api = Object.freeze({ zahl, ergebnis, einheit, PAK16, pakIndex, QUOTIENTEN, QUELLE, MIN_N, projektKopf, projektMessungen, zaehlt, unterBG, statistik, parameterListe, profile, medianProfil, csv, norm, tidy });
+  const api = Object.freeze({ zahl, ergebnis, einheit, PAK16, pakIndex, QUOTIENTEN, QUELLE, MIN_N, projektKopf, projektMessungen, zaehlt, unterBG, statistik, parameterListe, profile, medianProfil, csv, norm, tidy,
+    ROLLEN, ROLLE_NAME, rolleAuto, freiBasis, berlinTag, tageNachBrand, tageKlasse, gemeinsam, aufMenge, kosinus, medianVektor });
   root.ArchivAuswertung = api;
   if (typeof module !== 'undefined') module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

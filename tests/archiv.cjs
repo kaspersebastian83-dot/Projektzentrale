@@ -76,9 +76,40 @@ check('Vergleichsmuster nur ab genug Proben', () => {
   const m = A.medianProfil([p(.1), p(.2), p(.3), p(.4), p(.5)]); assert.equal(m[0], .3); assert.equal(m[1], undefined);
 });
 check('CSV: Semikolon, Dezimalkomma, BOM, keine Orte', () => {
-  const t = A.csv([{ nr: '26.0001', jahr: 2026, nutzung: 'Wohnen', brandgut: 'Küche/Lebensmittel', probe: '1', art: 'Wisch;probe', p: 'BaP', u: 'µg/m²', roh: '< 0,5', v: 0.5, q: 'unter', bericht: 'AR-1' }]);
-  assert.ok(t.startsWith('﻿Projekt;Jahr;'));
-  assert.ok(t.includes('26.0001;2026;Wohnen;Küche/Lebensmittel;1;"Wisch;probe";BaP;µg/m²;< 0,5;0,5;< BG;AR-1;'));
+  const t = A.csv([{ nr: '26.0001', jahr: 2026, nutzung: 'Wohnen', brandgut: 'Küche/Lebensmittel', probe: '1', rolle: 'referenz', tage: 6, desc: 'Gästezimmer Musterweg 3', art: 'Wisch;probe', p: 'BaP', u: 'µg/m²', roh: '< 0,5', v: 0.5, bg: 0.5, q: 'unter', bericht: 'AR-1' }]);
+  assert.ok(t.startsWith('\ufeffProjekt;Jahr;Nutzung;Brandgut;Probe;Rolle;Tage nach Brand;'));
+  assert.ok(t.includes('26.0001;2026;Wohnen;Küche/Lebensmittel;1;Referenz (unbelastet);6;"Wisch;probe";BaP;µg/m²;< 0,5;0,5;< BG;0,5;AR-1;'));
+  assert.ok(!t.includes('Musterweg'), 'Probenbeschreibung nicht im Export');
   assert.ok(!/Ort|Adresse|Objekt/.test(t.split('\r\n')[0]));
+});
+check('Rolle aus der Probenbezeichnung (Konvention), Reihenfolge Freimessung vor Referenz', () => {
+  const r = (ref, desc = '') => A.rolleAuto(ref, desc);
+  assert.equal(r('26.0142-3', 'Brandraum Decke'), 'brand'); assert.equal(r('P2', 'Brandbereich EG'), 'brand'); assert.equal(r('P3', 'Brandherd Küche'), 'brand');
+  assert.equal(r('REF-1-T2'), 'referenz'); assert.equal(r('P4', 'Referenz OG unbelastet'), 'referenz');
+  assert.equal(r('P5', 'Parkettkleber Flur'), 'quelle'); assert.equal(r('P6', 'Bitumenbahn'), 'quelle');
+  assert.equal(r('F-EG-WZ-B-7-T1'), 'frei'); assert.equal(r('P7', 'Freimessung Brandraum'), 'frei', 'Freimessung vor Brandraum');
+  assert.equal(r('F-REF-1-T2'), 'frei'); assert.equal(r('P8', 'Wohnzimmer Wand'), '', 'nichts erkannt → keine Rolle');
+  assert.equal(r('P9', 'Prefab-Wand'), '', '„ref“ nur als eigenes Wort');
+  assert.equal(A.freiBasis('F-EG-WZ-B-7-T1'), A.norm('EG-WZ-B-7-T1')); assert.equal(A.freiBasis('EG-WZ-B-7-T1'), '');
+});
+check('Tage nach dem Brand: Berliner Kalendertag des Labors, nie negativ', () => {
+  assert.equal(A.berlinTag('2026-10-07T22:00:00Z'), '2026-10-08'); assert.equal(A.berlinTag('2026-10-07'), '2026-10-07'); assert.equal(A.berlinTag('kaputt'), '');
+  assert.equal(A.tageNachBrand('2026-10-01', '2026-10-08'), 7); assert.equal(A.tageNachBrand('2026-10-09', '2026-10-08'), null); assert.equal(A.tageNachBrand('', '2026-10-08'), null);
+  assert.equal(A.tageKlasse(7), '0–7 Tage'); assert.equal(A.tageKlasse(8), '8–30 Tage'); assert.equal(A.tageKlasse(null), 'Datum unbekannt');
+});
+check('Gemeinsame Stoffmenge: nur über BG in allen Proben, Normierung darüber, Kosinus', () => {
+  const pr = werte => ({ werte: werte.map(v => v == null ? undefined : Math.max(v, 0)), unter: werte.map(v => v === 0) });
+  const leer = Array(16).fill(null);
+  const a = leer.slice(), b = leer.slice(); [a[6], a[7], a[8], a[9]] = [6, 2, 0, 2]; [b[6], b[7], b[8], b[9]] = [3, 1, 4, 1];
+  const m = A.gemeinsam([pr(a), pr(b)]); assert.deepEqual(m, [6, 7, 9], 'BaA in a unter BG → nicht in der Menge');
+  assert.deepEqual(A.aufMenge(pr(a), m), [0.6, 0.2, 0.2]); assert.deepEqual(A.aufMenge(pr(b), m), [0.6, 0.2, 0.2]);
+  assert.equal(A.kosinus([0.6, 0.2, 0.2], [0.6, 0.2, 0.2]).toFixed(6), '1.000000');
+  assert.ok(A.kosinus([1, 0, 0], [0, 1, 0]) === 0);
+  const c = leer.slice(); c[6] = 5; assert.equal(A.aufMenge(pr(c), m), null, 'fehlender Stoff der Menge → kein Vektor');
+  assert.equal(A.medianVektor([[1], [2]]), null); assert.deepEqual(A.medianVektor([[1, 5], [2, 4], [3, 3], [4, 2], [5, 1]]), [3, 3]);
+});
+check('Messungen tragen Beschreibung und BG auch bei gemessenen Werten', () => {
+  const m = A.projektMessungen([{ datei: 'a.xml', geaendert: 1, bericht: 'AR-1', proben: [{ labNr: '1', ref: 'P1', desc: 'Brandraum', art: 'Wischprobe', datum: '2026-10-08', werte: [{ p: 'BaP', r: '12', u: 'µg/m²', loq: '0,5' }] }] }]);
+  assert.equal(m[0].desc, 'Brandraum'); assert.equal(m[0].bg, 0.5); assert.equal(m[0].v, 12);
 });
 console.log(n + ' Prüfungen Datenarchiv bestanden');

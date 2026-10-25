@@ -39,3 +39,7 @@ tr.klick{cursor:pointer}tr.klick:hover td{background:var(--wash)}
 .meldung{padding:9px 12px;border-left:3px solid var(--akzent);background:var(--wash);margin:10px 0}.meldung.fehler{border-color:var(--fehler);color:var(--fehler)}
 .aus-pj{color:var(--muted);font-size:12px}
 code{background:var(--wash);padding:1px 4px;border-radius:4px}
+.waerme th.gem{color:var(--ink);font-weight:700;border-bottom-color:var(--ink)}.waerme tr.aus td{opacity:.45}
+label.wahl{display:inline-flex;gap:5px;align-items:center;font-weight:600}select.rolle{font-size:12px;padding:3px 5px;max-width:220px}
+table.sim td.z{min-width:64px}details.lit-q{margin-top:18px;border-top:1px solid var(--linie);padding-top:10px}details.lit-q summary{cursor:pointer;color:var(--muted)}
+h2.abstand{margin-top:26px}

@@ -37,7 +37,7 @@
       for (const sp of s ? kinder(s, 'SamplePartner') : []){
         const extra = n => { const el = kinder(sp, 'AdditionalFields').find(e => e.getAttribute('Name') === n); return el ? wert(el, 'Value') : ''; };
         const lines = kind(sp, 'Lines');
-        out.proben.push({ labNr: wert(sp, 'SamplePartnerCode'), ref: wert(sp, 'Description'), art: extra('SAMPLETYPE') || wert(sp, 'Matrix'), datum: wert(sp, 'SamplingDate').slice(0, 10),
+        out.proben.push({ labNr: wert(sp, 'SamplePartnerCode'), ref: wert(sp, 'Description'), desc: extra('SPLPT_NAME'), art: extra('SAMPLETYPE') || wert(sp, 'Matrix'), datum: A.berlinTag(wert(sp, 'SamplingDate')),
           werte: (lines ? kinder(lines, 'AnalyticalReportLine') : []).map(l => ({ p: wert(l, 'ParameterName') || wert(l, 'ParameterDescription'), r: wert(l, 'Result'), u: wert(l, 'Unit'), loq: wert(l, 'LOQ') })).filter(w => w.p && w.r) });
       }
     }
@@ -58,7 +58,7 @@
       else if (h.kind === 'directory' && norm(h.name) === 'laborergebnisse') await labor(h, 0);
     }
     b.xml.sort((x, y) => x.name.localeCompare(y.name));
-    b.sig = JSON.stringify(['v1', b.pj && [b.pj.size, b.pj.t], b.xml.map(x => [x.name, x.size, x.t]), b.pdf]);
+    b.sig = JSON.stringify(['v2', b.pj && [b.pj.size, b.pj.t], b.xml.map(x => [x.name, x.size, x.t]), b.pdf]);
     return b;
   }
   async function projektLesen(dir){
@@ -69,7 +69,7 @@
     if (b.pj && b.pj.size <= MAX_PJ) try{ pj = JSON.parse((await (await b.pj.h.getFile()).text()).replace(/^﻿/, '')) || {}; }catch(e){ pj = {}; }
     const berichte = [];
     for (const x of b.xml){ if (x.size > MAX_XML) continue; let r = null; try{ r = xmlLesen(await (await x.h.getFile()).text()); }catch(e){} if (r) berichte.push({ ...r, datei: x.name, geaendert: x.t }); }
-    const eintrag = { name: dir.name, nr: kopf.nr, jahr: kopf.jahr, nutzung: String(pj.nutzung || ''), brandgut: String(pj.brandgut || ''), schadenereignis: String(pj.schadenereignis || '').slice(0, 200),
+    const eintrag = { name: dir.name, nr: kopf.nr, jahr: kopf.jahr, nutzung: String(pj.nutzung || ''), brandgut: String(pj.brandgut || ''), schadenereignis: String(pj.schadenereignis || '').slice(0, 200), schadendatum: /^\d{4}-\d{2}-\d{2}$/.test(pj.schadendatum || '') ? pj.schadendatum : '',
       berichte: berichte.length, vorlaeufig: berichte.filter(r => r.vorlaeufig).length, pdf: b.pdf, messungen: A.projektMessungen(berichte) };
     await idbPut('spektron-archiv', 'projekte', dir.name, { sig: b.sig, eintrag }).catch(() => {});
     return eintrag;
@@ -103,10 +103,11 @@
     schreibKette = schreibKette.catch(() => {}).then(async () => {
       if (!await recht(archiv, 'readwrite', true)) throw Error('Kein Schreibrecht für den Archivordner.');
       const t = await tagsLesen(archiv), p = Object.assign({}, t.projekte[projekt]);
-      if (wert) p[feld] = wert; else delete p[feld];
+      if (feld.startsWith('probe:')){ const r = Object.assign({}, p.rollen), id = feld.slice(6); if (wert) r[id] = wert; else delete r[id]; if (Object.keys(r).length) p.rollen = r; else delete p.rollen; }
+      else if (wert) p[feld] = wert; else delete p[feld];
       const projekte = Object.assign({}, t.projekte);
       if (Object.keys(p).some(k => k !== 'geaendert')){ p.geaendert = new Date().toISOString(); projekte[projekt] = p; } else delete projekte[projekt];
-      const o = Object.assign({}, t.roh || {}, { format: 'spektron-archiv', version: 1, hinweis: 'Zuordnungen des Datenarchivs (Projektzentrale › Datenarchiv). Nur für Projekte ohne Angabe in _Projekt.json.', projekte });
+      const o = Object.assign({}, t.roh || {}, { format: 'spektron-archiv', version: 1, hinweis: 'Zuordnungen des Datenarchivs (Projektzentrale › Datenarchiv): Nutzung/Brandgut nur für Projekte ohne Angabe in _Projekt.json; rollen = korrigierte Rolle einzelner Proben (keine = Konvention aus der Probenbezeichnung).', projekte });
       const w = await (await archiv.getFileHandle(TAGS, { create: true })).createWritable();
       try{ await w.write(JSON.stringify(o, null, 2) + '\n'); await w.close(); }catch(e){ try{ await w.abort(); }catch(_){} throw e; }
       return projekte;
