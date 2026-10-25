@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Spektron · Datenarchiv</title><link rel="icon" href="../icon.svg"><link rel="stylesheet" href="archiv.css">
+<script defer src="auswertung.js"></script><script defer src="lesen.js"></script><script defer src="archiv.js"></script></head>
+<body>
+<header><div class="kopf"><img src="../icon.svg" width="34" height="34" alt=""><h1>Spektron <span>· Datenarchiv</span></h1><span class="tag">Version 1 · liest nur</span></div>
+<p>Messwerte aller Projekte aus den Prüfberichten im Archivordner – zum Vergleichen und Lernen. Bleibt im Büro: nichts verlässt den Archivordner.</p></header>
+<main>
+<section class="leiste">
+  <button id="waehlen">Archivordner wählen …</button><button id="erlauben" hidden>Zugriff erlauben</button>
+  <button id="lesen" class="primaer" disabled>Einlesen</button>
+  <span id="ordner" class="hinweis"></span><span id="stand" class="hinweis" role="status">Noch nicht eingelesen.</span>
+  <progress id="fortschritt" hidden></progress>
+  <button id="csv" class="rechts" disabled title="Alle Messwerte als Tabelle für Excel – mit Projektnummer, ohne Ort und Probenbeschreibung">CSV exportieren</button>
+</section>
+<nav id="reiter" role="tablist">
+  <button role="tab" data-reiter="uebersicht" aria-selected="true">Übersicht</button>
+  <button role="tab" data-reiter="vergleich" aria-selected="false">Vergleich</button>
+  <button role="tab" data-reiter="muster" aria-selected="false">PAK-Muster</button>
+  <button role="tab" data-reiter="zuordnen" aria-selected="false">Zuordnen <span id="offenZahl" class="zahl" hidden></span></button>
+</nav>
+<section id="ansicht" class="karte"><p class="hinweis">Archivordner verbinden und „Einlesen“ wählen. Gelesen werden die Eurofins-XML im Ordner „Laborergebnisse“ jedes Projekts sowie Nutzung und Brandgut aus den Projektdaten. Beim nächsten Mal geht es schneller: Unveränderte Projekte merkt sich der Browser.</p></section>
+<details class="karte klein"><summary>Was diese Seite tut – und was nicht</summary>
+<p><b>Liest nur.</b> Projektdateien und Laborberichte werden nie verändert. Die einzige Datei, die geschrieben wird, ist <code>_Spektron-Archiv.json</code> im Archivordner – und nur, wenn unter „Zuordnen“ Nutzung oder Brandgut für ein Projekt ergänzt wird, das in den Projektdaten keine Angabe hat.</p>
+<p><b>Keine Bewertung.</b> Es gibt keine Grenz- oder Orientierungswerte und keine Schwellen für Quotienten. Gezeigt wird nur, was im eigenen Bestand gemessen wurde.</p>
+<p><b>Ehrlich gezählt.</b> Werte unter BG und „n. n.“ sind keine Null, sondern zählen als kleinste Werte; fällt eine Kennzahl darauf, steht dort „&lt; BG“. Kennzahlen erst ab 5 Werten. Vorläufige Berichte zählen nicht. Einheiten werden nicht umgerechnet (µg/m², µg/100 cm² und mg/kg bleiben getrennt).</p>
+<p><b>Version 1:</b> nur Eurofins-XML. Projekte, die nur PDF-Berichte haben, werden gezählt, aber noch nicht gelesen.</p></details>
+</main></body></html>

@@ -1,0 +1,41 @@
+:root{--ink:#1D2A33;--blau:#245C9E;--akzent:#3B7BC4;--muted:#62707E;--linie:#D6DEE6;--wash:#F3F7FB;--flaeche:#fff;--hervor:#C2410C;--fehler:#B3261E;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--wash);color:var(--ink);font:14px/1.5 'Segoe UI',system-ui,sans-serif}
+header{padding:18px 24px 6px;max-width:1280px;margin:0 auto}header p{margin:6px 0 0;color:var(--muted)}
+.kopf{display:flex;gap:12px;align-items:center}h1{margin:0;font-size:22px;font-weight:600}h1 span{color:var(--muted);font-weight:400}
+.tag{font-size:12px;border:1px solid var(--linie);border-radius:999px;padding:2px 9px;color:var(--muted);background:var(--flaeche)}
+main{max-width:1280px;margin:0 auto;padding:6px 24px 40px}
+button,select,input{font:inherit;color:inherit}
+button{padding:7px 12px;border:1px solid var(--linie);border-radius:7px;background:var(--flaeche);cursor:pointer}button:hover{border-color:var(--akzent)}button:disabled{opacity:.5;cursor:default}
+.primaer{background:var(--blau);border-color:var(--blau);color:#fff}
+select{padding:6px 8px;border:1px solid var(--linie);border-radius:6px;background:var(--flaeche);max-width:100%}
+label.feld{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}label.feld select{color:var(--ink);font-size:14px}
+.leiste{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:12px 0}.leiste .rechts{margin-left:auto}
+.hinweis{color:var(--muted);font-size:13px}progress{width:160px}
+nav{display:flex;gap:4px;border-bottom:1px solid var(--linie);flex-wrap:wrap}
+nav button{border:0;border-bottom:3px solid transparent;border-radius:0;background:none;padding:9px 14px;color:var(--muted)}
+nav button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--blau);font-weight:600}
+.zahl{display:inline-block;min-width:20px;padding:0 6px;border-radius:999px;background:var(--wash);border:1px solid var(--linie);font-size:12px;color:var(--ink)}
+.karte{background:var(--flaeche);border:1px solid var(--linie);border-radius:10px;padding:18px;margin:14px 0}.karte.klein{font-size:13px}.karte.klein summary{cursor:pointer;color:var(--muted)}
+#ansicht{margin-top:0;border-top-left-radius:0;border-top-right-radius:0;border-top:0;min-height:200px}
+.kacheln{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.kachel{border:1px solid var(--linie);border-radius:8px;padding:12px 14px}.kachel b{display:block;font-size:26px;font-weight:600;line-height:1.2}.kachel span{color:var(--muted);font-size:13px}
+.zwei{display:grid;grid-template-columns:2fr 1fr;gap:20px}@media(max-width:800px){.zwei{grid-template-columns:1fr}}
+h2{font-size:15px;margin:4px 0 10px}h3{font-size:14px;margin:16px 0 8px}
+table{border-collapse:collapse;width:100%;font-size:13px}th,td{padding:5px 8px;border-bottom:1px solid var(--linie);text-align:left;vertical-align:top}th{color:var(--muted);font-weight:600;font-size:12px}
+td.z,th.z{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.klick{cursor:pointer}tr.klick:hover td{background:var(--wash)}
+.filter{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-bottom:14px}
+.legende{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:6px 0}.legende i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.diagramm{width:100%;overflow-x:auto}.diagramm svg{display:block;font:12px 'Segoe UI',system-ui,sans-serif}
+.diagramm .achse{stroke:var(--linie)}.diagramm .gitter{stroke:var(--linie);stroke-dasharray:2 3}.diagramm text{fill:var(--muted)}.diagramm text.n{fill:var(--ink)}
+.diagramm .pkt{fill:var(--blau);fill-opacity:.32}.diagramm .pkt:hover{fill-opacity:.9}
+.diagramm .hp{fill:var(--hervor);stroke:#fff;stroke-width:2}
+.diagramm .med{stroke:var(--ink);stroke-width:2}.diagramm .p90{stroke:var(--ink);stroke-width:1.5;stroke-dasharray:3 2}
+.diagramm .bgbox{fill:var(--wash);stroke:var(--linie)}
+.waerme td.z{min-width:44px}.waerme td.bg{color:var(--muted);font-size:11px}.waerme td.leer{color:#aab4bf}
+.waerme tr.ref td{border-top:2px solid var(--ink);font-weight:600}
+.quelle{font-size:12px;color:var(--muted);margin-top:10px}
+.meldung{padding:9px 12px;border-left:3px solid var(--akzent);background:var(--wash);margin:10px 0}.meldung.fehler{border-color:var(--fehler);color:var(--fehler)}
+.aus-pj{color:var(--muted);font-size:12px}
+code{background:var(--wash);padding:1px 4px;border-radius:4px}
