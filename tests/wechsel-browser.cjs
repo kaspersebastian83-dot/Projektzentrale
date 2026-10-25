@@ -10,6 +10,7 @@ const playwright = require('playwright');
 const name = process.argv[2] || 'chromium';
 const root = path.join(__dirname, '..');
 const A = '26.0142 Teststadt', B = '26.0150 Musterhausen';
+let schritt = 'Start', seite = null;   // für die Fehlermeldung in CI: wo es hing und was zu sehen war
 
 (async () => {
   const server = http.createServer((req, res) => {
@@ -20,7 +21,7 @@ const A = '26.0142 Teststadt', B = '26.0150 Musterhausen';
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   const url = `http://127.0.0.1:${server.address().port}/index.html`;
   const browser = await playwright[name].launch();
-  const page = await (await browser.newContext({ viewport: { width: 1400, height: 900 } })).newPage();
+  const page = await (await browser.newContext({ viewport: { width: 1400, height: 900 } })).newPage(); seite = page;
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   await page.goto(url);
@@ -46,6 +47,7 @@ const A = '26.0142 Teststadt', B = '26.0150 Musterhausen';
   await page.reload(); await page.waitForSelector('#btnInfo');
   await page.evaluate(async () => { const r = await navigator.storage.getDirectory(); const a = await r.getDirectoryHandle('Mosaik Archivordner'); window.showDirectoryPicker = async () => a; });
   await page.locator('#btnStart, #btnArchive').first().click();
+  schritt = 'Projekt A aktiv';
   await page.locator('.proj.active').waitFor({ timeout: 8000 });
   assert.equal(await page.locator('.proj.active').getAttribute('data-name'), A);
 
@@ -53,9 +55,11 @@ const A = '26.0142 Teststadt', B = '26.0150 Musterhausen';
   await page.evaluate(() => { FileSystemFileHandle.prototype.createWritable = async function(){ throw new DOMException('Die Datei ist von einem anderen Programm gesperrt.', 'NoModificationAllowedError'); }; });
   if (!(await page.locator('#pj_objekt').isVisible())) await page.locator('#pjBox > summary').click();
   await page.locator('#pj_objekt').fill('EFH, Musterweg 7');
+  schritt = 'Speichern scheitert sichtbar (#pjSave.err)';
   await page.locator('#pjSave.err').waitFor({ timeout: 5000 });
 
   // Wechsel: Rückfrage, Abbrechen bleibt im Projekt mit der Eingabe
+  schritt = 'Rückfrage beim ersten Wechsel';
   await page.locator(`.proj[data-name="${B}"]`).click();
   const dlg = page.locator('#dialog');
   await dlg.getByText('Änderungen nicht gespeichert').waitFor({ timeout: 5000 });
@@ -65,6 +69,7 @@ const A = '26.0142 Teststadt', B = '26.0150 Musterhausen';
   assert.equal(await page.locator('#pj_objekt').inputValue(), 'EFH, Musterweg 7');
 
   // „Trotzdem wechseln“ wechselt
+  schritt = 'Rückfrage beim zweiten Wechsel';
   await page.locator(`.proj[data-name="${B}"]`).click();
   await dlg.getByText('Änderungen nicht gespeichert').waitFor({ timeout: 5000 });
   await page.locator('#dYes').click();
@@ -78,4 +83,11 @@ const A = '26.0142 Teststadt', B = '26.0150 Musterhausen';
   assert.deepEqual(errors, []);
   await browser.close(); server.close();
   console.log(`OK (${name}): Rückfrage beim Wechsel nach gescheitertem Speichern, Abbrechen behält die Eingabe`);
-})().catch(e => { console.error(e); console.log(`::error title=Browsertest Projektwechsel ${process.argv[2] || 'chromium'}::${String(e && e.message || e).split('\n')[0]}`); process.exit(1); });
+})().catch(async e => {
+  console.error(e);
+  let zustand = '';
+  try{ zustand = await seite.evaluate(() => ['pjSave=' + (document.getElementById('pjSave')?.className || '–') + ':' + (document.getElementById('pjSave')?.textContent || '').trim().slice(0, 60),
+    'dialog=' + (document.getElementById('dlgBack')?.classList.contains('show') ? (document.getElementById('dialog')?.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 160) : 'zu'),
+    'aktiv=' + (document.querySelector('.proj.active')?.dataset.name || '–')].join(' | ')); }catch(_){ zustand = 'Seite nicht lesbar'; }
+  console.log(`::error title=Browsertest Projektwechsel ${process.argv[2] || 'chromium'}::${schritt}: ${String(e && e.message || e).split('\n')[0]} · ${zustand}`); process.exit(1);
+});
