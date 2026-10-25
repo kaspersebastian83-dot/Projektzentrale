@@ -60,6 +60,8 @@ Die Projektansicht zeigt zuerst Projektkopf und vier jederzeit verfügbare Aufga
 
 [Spektron · Büroübersicht](buero/README.md) ist direkt unter `buero/` erreichbar. Die Projektzentrale übergibt nach bewusstem Klick eine konkrete Word-Datei und vollständige Empfänger. Das Büro dokumentiert Gegenlesen, bewusst gewählte Versand-PDF, Rückfragen und Versand je Empfänger. Papiermappe bleibt; nach Korrektur keine weitere Sachverständigenfreigabe. Gemeinsame Ablage: `<Projekt>/_Buero/<Auftrags-UUID>/auftrag.json` und einzelne `rueckmeldung-<UUID>.json`. Datenformat, Konflikte, Fehlerbehandlung und manueller Netzlaufwerktest: [Büro-Dokumentation](buero/README.md).
 
+[Spektron · Datenarchiv](archiv/README.md) (ab 1.22) ist direkt unter `archiv/` erreichbar, in der Projektzentrale über den kleinen Link „Datenarchiv“ unter „Weitere Apps“. Liest die Eurofins-XML aus „Laborergebnisse“ aller Projektordner sowie Nutzung/Brandgut aus `_Projekt.json`: Übersicht, Vergleich je Parameter, PAK-Muster, CSV-Export. Schreibt nur `<Archiv>/_Spektron-Archiv.json` (eigene Zuordnungen für Projekte ohne Angabe), nie Projektdateien.
+
 ## Neu in 1.9.4 · 20.10.2026
 
 Projektzentrale und Spektron-Leiste übergeben Projekte jetzt über #projekt im Fragment. Sonderzeichen bleiben erhalten; alte ?projekt-Links funktionieren weiterhin und werden nach dem Laden bereinigt. Projektwechsel laden auch bereits geöffnete App-Fenster neu; eine Warnung vor ungesicherten Eingaben kann den Wechsel abbrechen.

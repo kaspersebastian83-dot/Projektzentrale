@@ -183,6 +183,7 @@ main{flex:1;display:flex;min-height:0}
 .more a.app .name{display:block;font-size:15px;font-weight:700;line-height:1.2}
 .more a.app small{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
 .more a.app .go{margin-left:auto;color:var(--ac);font-size:18px}
+.more a.more-link{display:inline-block;margin-top:10px;font-size:12px;color:var(--muted);text-decoration:none}.more a.more-link:hover{color:var(--accent);text-decoration:underline}
 .empty .more{text-align:left;max-width:560px;margin:40px auto 0}
 @media (prefers-color-scheme:dark){ .more a.app{--ac:#5fbfa9} }
 table.folders{width:100%;border-collapse:collapse;font-size:13px}
@@ -770,9 +771,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.21.1';
-const APP_DATE = '2026-10-24';
+const APP_VERSION = '1.22.0';
+const APP_DATE = '2026-10-25';
 const CHANGELOG = [
+  ['1.22.0', '25.10.2026', 'Unter „Weitere Apps“ ganz unten: kleiner Link „Datenarchiv“. Eigene Seite, die die Messwerte aller Projekte aus den Eurofins-XML im Ordner „Laborergebnisse“ liest – Übersicht, Vergleich je Parameter (nach Brandgut, Nutzung, Matrix oder Jahr), PAK-Muster je Probe und CSV-Export. Liest nur; an der Projektzentrale und den Projektdaten ändert sich nichts.'],
   ['1.21.1', '24.10.2026', 'Kurzanleitung: Knöpfe so benannt wie in den Apps („Proben & Laborauftrag“, „Fotos & Dokumentation“, „Probenplan bearbeiten“; in PlanKit „Proben übernehmen …“). Schritt für Schritt je App steht jetzt im Handbuch (AidKit).'],
   ['1.21.0', '24.10.2026', 'Pflichtangaben in den Projektdaten: Objekt, Nutzung, Auftraggeber, Schadenereignis, Schadendatum, Ortstermin und Sachverständiger sind gelb hervorgehoben und mit „Pflicht“ markiert, solange sie leer sind. Im Kopf der Karte steht, wie viele fehlen – ein Klick springt zum ersten leeren Feld; die Karte öffnet sich von selbst, solange etwas fehlt. Speichern bleibt jederzeit möglich. Ersetzt den Hinweis „Nutzung fehlt“.'],
   ['1.20.0', '24.10.2026', 'Neues Erscheinungsbild der Word-Anlage „Probenahmeprotokolle PN 98 / Brandgeruch“ – wie die Anlagen aus PlanKit und die Bilddokumentation aus FotoKit: Titel mit feiner blauer Linie statt Unterstreichung, Protokollüberschriften in Firmenblau, Formulare mit Haarlinien statt schwarzem Gitter, Bezeichnungen grau, Zwischenzeilen hell hinterlegt. Inhalte, Quellenvermerk und Dateinamen unverändert.'],
@@ -1463,7 +1465,8 @@ function weitereApps(){
     <a class="app" href="buero/" target="spektron-buero" rel="noopener"><span class="ic" aria-hidden="true">▤</span><span><span class="name">Büroübersicht</span><small>Gutachten prüfen und Versand dokumentieren</small></span><span class="go" aria-hidden="true">↗</span></a>
     <a class="app" id="goDurch" href="#durchlaufzeiten" role="button" title="Wie lange dauert es vom Ortstermin bis zum Versand? Aus vorhandenen Daten, nichts wird eingegeben"><span class="ic" aria-hidden="true">📈</span><span><span class="name">Durchlaufzeiten</span><small>Vom Ortstermin bis zum Versand – je Abschnitt und Labor</small></span><span class="go" aria-hidden="true">›</span></a>
     <a class="app" id="goReise" href="${REISEKOSTEN_URL}" target="reisekosten" rel="noopener" title="Öffnet SpesenKit in einem eigenen Fenster – Reisekosten- und Spesenabrechnung je Monat, unabhängig vom Projekt">
-      <span class="ic" aria-hidden="true">🧾</span><span><span class="name">SpesenKit</span><small>Spesenabrechnung für den Monat</small></span><span class="go" aria-hidden="true">↗</span></a></div>`;
+      <span class="ic" aria-hidden="true">🧾</span><span><span class="name">SpesenKit</span><small>Spesenabrechnung für den Monat</small></span><span class="go" aria-hidden="true">↗</span></a>
+    <a class="more-link" href="archiv/" target="spektron-archiv" rel="noopener" title="Messwerte aller Projekte aus den Prüfberichten vergleichen – liest nur, öffnet in einem eigenen Fenster">Datenarchiv ↗</a></div>`;
 }
 /** Leere Pflichtfelder hervorheben und im Kopf der Karte zählen – nach dem Zeichnen und bei jeder Eingabe. */
 function pflichtZeigen(ro){

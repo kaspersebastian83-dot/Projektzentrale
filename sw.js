@@ -8,11 +8,12 @@
    This worker therefore only ever touches caches with its own prefix and only answers requests inside its own scope. */
 const SCOPE = self.registration.scope;
 const PREFIX = 'projektzentrale:' + SCOPE + ':';
-const CACHE = PREFIX + 'v11';
+const CACHE = PREFIX + 'v12';
 const LEGACY = [];
 const ASSETS = ['./', './index.html', './project-store.js', './durchlauf.js', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png',
   './buero/', './buero/index.html', './buero/data.js', './buero/central.js', './buero/ui.css', './buero/office.css', './buero/office.js',
   './buero/pending.js', './buero/mitarbeiter.js',
+  './archiv/', './archiv/index.html', './archiv/auswertung.js', './archiv/lesen.js', './archiv/archiv.js', './archiv/archiv.css',
   './vendor/pdfjs/pdf.min.js', './vendor/pdfjs/pdf.worker.min.js']   // pdf.js für „Arbeitszettel einlesen“ – auch offline
   .map(f => new URL(f, SCOPE).href);
 const INDEX = new URL('index.html', SCOPE).href;
@@ -34,7 +35,7 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET' || !req.url.startsWith(SCOPE)) return;
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
-    const pageIndex = req.url.startsWith(new URL('buero/', SCOPE).href) ? new URL('buero/index.html', SCOPE).href : INDEX;
+    const pageIndex = ['buero/', 'archiv/'].map(d => new URL(d, SCOPE).href).filter(d => req.url.startsWith(d)).map(d => d + 'index.html')[0] || INDEX;
     const fromNet = fetch(req, { cache: 'no-store' }).then(res => {
       if (res.ok && res.type === 'basic') cache.put(req.mode === 'navigate' ? pageIndex : req, res.clone());
       return res;
