@@ -56,7 +56,7 @@ if(!before){
  assert.match(await page.locator('#goAufwand .stat').textContent(),/Abrechnungsstand vom 22\.10\.2026/);
  await page.waitForFunction(()=>/Übergabe ans Büro\s*\d\d\.\d\d\./.test(document.querySelector('#meilen').innerText),null,{timeout:10000});   // Übergabe oben angelegt: nach „Aktualisieren“ im Projektstand
  await page.locator(`.proj[data-name="${B}"]`).focus();await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelector('.proj.active')?.dataset.name==='26.9999 Kontrollort');
- assert.ok(await page.locator('#azQuick').isVisible());
+  assert.ok(await page.locator('#azQuick').isVisible());
  // ResultKit-Karte: XML+PDF gleichen Namens = ein Bericht, PDF allein zählt mit; nach der Übernahme in ResultKit beim Zurückkehren aktualisiert
  assert.match(await page.locator('#goErgebnis .stat').textContent(),/^2 Prüfberichte – noch nicht übernommen$/);
  await fs.writeFile(path.join(tmp,B,'Laborergebnisse','_Ergebnisse.json'),JSON.stringify({format:'spektron-ergebnisse',version:1,vollstaendig:false,offen:['P4'],berichte:[]}));
@@ -118,9 +118,21 @@ if(!before){
  assert.equal(await page.locator('#pj_nutzung').evaluate(e=>e.closest('label').classList.contains('pflicht-offen')),true,'Nutzung leer → hervorgehoben');
  assert.equal(await page.locator('#pj_notizen').evaluate(e=>e.closest('label').classList.contains('pflicht')),false,'Notizen sind keine Pflicht');
  await page.locator('#pflichtFehlt').click();assert.equal(await page.evaluate(()=>document.activeElement.id),'pj_nutzung','Klick springt zum ersten leeren Pflichtfeld');
- {const vorher=Number((await page.locator('#pflichtFehlt').innerText()).split(' ')[0]);await page.locator('#pj_schadenereignis').fill('Küchenbrand');
-  assert.equal(await page.locator('#pj_schadenereignis').evaluate(e=>e.closest('label').classList.contains('pflicht-offen')),false,'ausgefüllt → normal');
+ assert.equal(await page.locator('#pj_schadenereignis').evaluate(e=>e.closest('label').classList.contains('pflicht')),false,'Schadenereignis ist keine Pflicht');
+ {const vorher=Number((await page.locator('#pflichtFehlt').innerText()).split(' ')[0]);await page.locator('#pj_sachverstaendiger').fill('Dr. Beispiel');
+  assert.equal(await page.locator('#pj_sachverstaendiger').evaluate(e=>e.closest('label').classList.contains('pflicht-offen')),false,'ausgefüllt → normal');
   assert.equal(Number((await page.locator('#pflichtFehlt').innerText()).split(' ')[0]),vorher-1,'Zähler sofort aktualisiert');}
+ // Schadendatum „nicht bekannt“: gilt als ausgefüllt, gespeichert als „unbekannt“; zurück auf Datum möglich
+ {const vorher=Number((await page.locator('#pflichtFehlt').innerText()).split(' ')[0]);await page.locator('#pj_schadendatum_nb').click();
+  assert.equal(await page.locator('#pj_schadendatum_nb').getAttribute('aria-pressed'),'true');assert.ok(await page.locator('#pj_schadendatum').isDisabled(),'Datumsfeld gesperrt');
+  assert.equal(await page.locator('#pj_schadendatum').evaluate(e=>e.closest('label').classList.contains('pflicht-offen')),false,'nicht bekannt → erledigt');
+  assert.equal(Number((await page.locator('#pflichtFehlt').innerText()).split(' ')[0]),vorher-1,'Zähler sofort aktualisiert');
+  await page.locator('#pjSave.ok').waitFor();assert.equal(JSON.parse(await fs.readFile(path.join(tmp,A,'_Projekt.json'),'utf8')).schadendatum,'unbekannt');
+  await page.locator('#pjBox > summary').click();await page.locator('#pjBox > summary').click();
+  assert.equal(await page.locator('#pj_schadendatum_nb').getAttribute('aria-pressed'),'true','bleibt nach dem Neuzeichnen');
+  await page.locator('#pj_schadendatum_nb').click();assert.ok(await page.locator('#pj_schadendatum').isEnabled());await page.locator('#pj_schadendatum').fill('2026-10-01');
+  await page.waitForFunction(()=>document.querySelector('#pjSave')?.classList.contains('ok'));await page.waitForTimeout(900);
+  assert.equal(JSON.parse(await fs.readFile(path.join(tmp,A,'_Projekt.json'),'utf8')).schadendatum,'2026-10-01');}
  await page.evaluate(()=>testIO.failWrite=true);await page.locator('#pj_objekt').fill('Nicht gespeicherter Entwurf');await page.locator('#pjSave.err').waitFor();await page.locator('#pjBox > summary').click();assert.match(await page.locator('#pjAttention').innerText(),/nicht gespeichert/);assert.ok(await page.locator('#showPJ').isVisible());
  await page.evaluate(()=>testIO.failWrite=false);await page.locator('#showPJ').click();await page.locator('#pj_objekt').fill(pj.objekt);await page.locator('#pjSave.ok').waitFor();
  // Historical editing stays available without a digital order and creates no handover.

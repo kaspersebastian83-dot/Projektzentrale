@@ -206,8 +206,12 @@ table.folders .miss{color:var(--warn)}
 /* Pflichtfelder (in allen Apps gleich): solange leer, warmes Gelb am Feld und „Pflicht“ am Namen; ausgefüllt wieder normal. */
 .pflicht-tag{display:none;margin-left:6px;padding:0 6px;border-radius:8px;font-size:10.5px;font-weight:600;line-height:16px;color:#8a6500;background:rgba(217,164,0,.16);border:1px solid rgba(217,164,0,.45)}
 label.pflicht-offen .pflicht-tag{display:inline-block}
-label.pflicht-offen>input,label.pflicht-offen>select,label.pflicht-offen>textarea{border-color:#d9a400!important;background:#fff8e1;box-shadow:inset 3px 0 0 #d9a400}
-@media (prefers-color-scheme:dark){.pflicht-tag{color:#f0c850}label.pflicht-offen>input,label.pflicht-offen>select,label.pflicht-offen>textarea{background:rgba(217,164,0,.12)}}
+label.pflicht-offen>input,label.pflicht-offen>select,label.pflicht-offen>textarea,label.pflicht-offen>.datum-nb>input{border-color:#d9a400!important;background:#fff8e1;box-shadow:inset 3px 0 0 #d9a400}
+.datum-nb{display:flex;gap:6px;align-items:stretch}.datum-nb>input{flex:1;min-width:0}
+.datum-nb>.nb{flex:0 0 auto;font-size:12px;padding:3px 9px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer;white-space:nowrap}
+.datum-nb>.nb[aria-pressed="true"]{background:var(--accent,#2a6fb0);border-color:var(--accent,#2a6fb0);color:#fff}
+.datum-nb>.nb:disabled{cursor:default;opacity:.6}
+@media (prefers-color-scheme:dark){.pflicht-tag{color:#f0c850}label.pflicht-offen>input,label.pflicht-offen>select,label.pflicht-offen>textarea,label.pflicht-offen>.datum-nb>input{background:rgba(217,164,0,.12)}}
 .save{font-size:12.5px;color:var(--muted);margin-top:8px;min-height:18px}
 .save.err{color:var(--err)}
 .save.ok{color:var(--ok)}
@@ -966,7 +970,12 @@ const REISEKOSTEN_URL = '../reisekosten-pro/';   // SpesenKit: Spesenabrechnung 
 const PJ_FILE = '_Projekt.json';
 /* Pflichtangaben: was spätere Schritte oder Kundendokumente brauchen (Anlagen-Deckblätter, VdS-Einordnung in PlanKit, Bilddokumentation).
    Gleiche Liste in FotoKit („Projektdaten …“). Speichern bleibt immer möglich – leere Pflichtfelder werden nur hervorgehoben. */
-const PJ_PFLICHT = ['objekt', 'nutzung', 'auftraggeber', 'schadenereignis', 'schadendatum', 'ortstermin', 'sachverstaendiger'];
+const PJ_PFLICHT = ['objekt', 'nutzung', 'auftraggeber', 'schadendatum', 'ortstermin', 'sachverstaendiger'];
+/* Datumsfelder, die „nicht bekannt“ sein dürfen: gespeichert wird dann der Text „unbekannt“ (statt JJJJ-MM-TT), angezeigt
+   „nicht bekannt“; die Pflichtangabe gilt damit als erledigt. Gleiche Regel in FotoKit (Schadendatum) und PlanKit (Anlage). */
+const PJ_UNBEKANNT = ['schadendatum'], UNBEKANNT = 'unbekannt';
+/** Aktueller Wert eines Projektdaten-Felds im Formular (bei „nicht bekannt“ der gespeicherte Text). */
+const pjFeldWert = k => { const nb = $('pj_' + k + '_nb'); return nb && nb.getAttribute('aria-pressed') === 'true' ? UNBEKANNT : $('pj_' + k) ? $('pj_' + k).value : ''; };
 const PJ_FIELDS = [
   // key, label, type, wide, placeholder
   ['objekt',            'Objekt / Adresse',                 'text', true,  'z. B. EFH, Musterstr. 1, 50667 Köln'],
@@ -1513,7 +1522,7 @@ function weitereApps(){
 }
 /** Leere Pflichtfelder hervorheben und im Kopf der Karte zählen – nach dem Zeichnen und bei jeder Eingabe. */
 function pflichtZeigen(ro){
-  const leer = ro ? [] : PJ_PFLICHT.filter(k => $('pj_' + k) && !String($('pj_' + k).value).trim());
+  const leer = ro ? [] : PJ_PFLICHT.filter(k => $('pj_' + k) && !String(pjFeldWert(k)).trim());
   for (const k of PJ_PFLICHT){ const el = $('pj_' + k); if (el) el.closest('label').classList.toggle('pflicht-offen', leer.includes(k)); }
   const chip = $('pflichtFehlt'); if (!chip) return;
   chip.hidden = !leer.length;
@@ -1539,6 +1548,7 @@ function renderDetail(){
     return `<label class="${[wide ? 'wide' : '', PJ_PFLICHT.includes(k) && !ro ? 'pflicht' : ''].filter(Boolean).join(' ')}"><span>${esc(label)}${PJ_PFLICHT.includes(k) && !ro ? '<span class="pflicht-tag">Pflicht</span>' : ''}</span>
         ${type === 'area' ? `<textarea id="pj_${k}" rows="3" ${ro ? 'readonly' : ''}></textarea>`
           : type === 'select' ? `<select id="pj_${k}" ${ro ? 'disabled' : ''}><option value="">– wählen –</option>${PJ_OPTIONEN[k].map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join('')}${d[k] && !PJ_OPTIONEN[k].some(([v]) => v === d[k]) ? `<option value="${esc(d[k])}">${esc(d[k])}</option>` : ''}</select>`
+          : PJ_UNBEKANNT.includes(k) ? `<span class="datum-nb"><input type="${type}" id="pj_${k}" ${ro ? 'readonly' : ''}><button type="button" class="nb" id="pj_${k}_nb" aria-pressed="false" title="Datum ist nicht bekannt – erscheint in den Anlagen als „nicht bekannt“" ${ro ? 'disabled' : ''}>nicht bekannt</button></span>`
           : `<input type="${type}" id="pj_${k}" placeholder="${esc(ph)}" ${ro ? 'readonly' : ''}>`}</label>`; };
   const same=S.renderedName===p.name&&S.renderedArchive===S.archive,scroll=$('detail').scrollTop,oldPanel=same?$('bueroPanel'):null,oldAlerts=same?$('bueroAttention'):null;
   const officeFocus=(oldPanel?.contains(document.activeElement)||oldAlerts?.contains(document.activeElement))?{el:document.activeElement,start:document.activeElement.selectionStart,end:document.activeElement.selectionEnd}:null;
@@ -1588,7 +1598,7 @@ function renderDetail(){
   if(oldAlerts)$('bueroAttention').replaceWith(oldAlerts);
   if(officeFocus){officeFocus.el.focus({preventScroll:true});try{officeFocus.el.setSelectionRange(officeFocus.start,officeFocus.end);}catch{}}
   if($('azQuick'))$('azQuick').onclick=()=>$('azFile').click();
-  $('pflichtFehlt').onclick=e=>{e.preventDefault();$('pjBox').open=true;const k=PJ_PFLICHT.find(k=>!String($('pj_'+k).value).trim());if(k)$('pj_'+k).focus();};
+  $('pflichtFehlt').onclick=e=>{e.preventDefault();$('pjBox').open=true;const k=PJ_PFLICHT.find(k=>!String(pjFeldWert(k)).trim());if(k)$('pj_'+k).focus();};
   $('pjBox').addEventListener('toggle', () => { S.pjOpen[p.name] = $('pjBox').open; });
   $('ordBox').addEventListener('toggle', () => { S.ordOpen[p.name] = $('ordBox').open; });
   $('vtBox').addEventListener('toggle', () => { S.vtOpen[p.name] = $('vtBox').open; });
@@ -1611,6 +1621,12 @@ function renderDetail(){
     el.value = k in S.pjDirty ? S.pjDirty[k] : (d[k] || '');   // noch nicht gespeicherte Eingaben nicht durch den alten Stand ersetzen
     if (k === 'sachverstaendiger'){ const zk = zustaendigVon(p, pj.error ? undefined : d).kuerzel; if (zk && maPerson(zk)) el.placeholder = 'Vorschlag: ' + maName(zk); }   // nur Vorschlag, nichts wird still eingetragen
     if (!ro) el.addEventListener('input', () => { S.pjDirty[k] = el.value; schedulePJ(); if (PJ_PFLICHT.includes(k)) pflichtZeigen(ro); });
+    const nb = $('pj_' + k + '_nb');
+    if (nb){
+      const setzen = an => { nb.setAttribute('aria-pressed', String(an)); el.disabled = an; if (an) el.value = ''; };
+      setzen(String(k in S.pjDirty ? S.pjDirty[k] : (d[k] || '')).trim() === UNBEKANNT);
+      if (!ro) nb.addEventListener('click', () => { const an = nb.getAttribute('aria-pressed') !== 'true'; setzen(an); S.pjDirty[k] = an ? UNBEKANNT : ''; schedulePJ(); if (PJ_PFLICHT.includes(k)) pflichtZeigen(ro); if (!an) el.focus(); });
+    }
   }
   pflichtZeigen(ro);
   if (fokus && $(fokus.id)){ const el = $(fokus.id); el.focus({preventScroll:true}); try{ if (fokus.a != null) el.setSelectionRange(fokus.a, fokus.b); }catch(e){} }
@@ -1799,7 +1815,7 @@ const AZ_FELDER = [   // Reihenfolge im Dialog
   ['arbeitsauftrag', 'Arbeitsauftrag → Notizen']
 ];
 const azZeig = (k, v) => !v ? '' : (PJ_FIELDS.find(f => f[0] === k) || [])[2] === 'date' ? deDatum(v) : v;
-function deDatum(iso){ const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? `${m[3]}.${m[2]}.${m[1]}` : String(iso || ''); }
+function deDatum(iso){ if (String(iso || '').trim() === UNBEKANNT) return 'nicht bekannt'; const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? `${m[3]}.${m[2]}.${m[1]}` : String(iso || ''); }
 async function arbeitszettelEinlesen(p, file){
   if (!p || S.sel !== p) return;
   if (S.pj && (S.pj.error || S.pj.newer)){ banner('err', `„${PJ_FILE}“ ist nicht beschreibbar – Arbeitszettel wird nicht übernommen.`); return; }
