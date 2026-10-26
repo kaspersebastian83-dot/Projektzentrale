@@ -4,11 +4,11 @@ const root=process.env.PROJECT_UI_ROOT||path.resolve(__dirname,'..'),A='24.0012 
 const tmp=await fs.mkdtemp(path.join(os.tmpdir(),'projekt-ui-')),out=process.env.UI_SCREENSHOTS_OUTPUT||path.resolve(__dirname,'projektansicht-results'),before=!!process.env.PROJECT_UI_ROOT;
 await fs.mkdir(out,{recursive:true});
 for(const name of [A,B]){await fs.mkdir(path.join(tmp,name,'Mitteilungen'),{recursive:true});for(const sub of ['Fotos','Pläne','Laboraufträge','Laborergebnisse','Emails','Rechnung Labore'])await fs.mkdir(path.join(tmp,name,sub));}
-await fs.writeFile(path.join(tmp,A,'Mitteilungen','Gutachten B.docx'),'Synthetic placeholder');await fs.writeFile(path.join(tmp,B,'Mitteilungen','Gutachten B.docx'),'Synthetic placeholder');
+await fs.writeFile(path.join(tmp,A,'Mitteilungen','Gutachten B.docx'),'Synthetic placeholder');await fs.writeFile(path.join(tmp,B,'Laborergebnisse','AR-1-01.xml'),'<x/>');await fs.writeFile(path.join(tmp,B,'Laborergebnisse','AR-1-01.pdf'),'%PDF');await fs.writeFile(path.join(tmp,B,'Laborergebnisse','AR-1-02.pdf'),'%PDF');await fs.writeFile(path.join(tmp,B,'Mitteilungen','Gutachten B.docx'),'Synthetic placeholder');
 await fs.writeFile(path.join(tmp,A,'Fotos','_Bildumbenenner.json'),'{}');await fs.mkdir(path.join(tmp,A,'Abrechnung'));await fs.writeFile(path.join(tmp,A,'Abrechnung','24-0012_Aufwand_2026-10-22.json'),'{}');await fs.writeFile(path.join(tmp,A,'Abrechnung','Aufwand_SK.json'),'{}');await fs.writeFile(path.join(tmp,A,'Laboraufträge','24.0012_PAK_5.1.2026_Laborübergabe.xls'),'x');await fs.writeFile(path.join(tmp,A,'Pläne','Plan.probenplan'),'{}');
 const pj={format:'mosaik-projekt',version:1,objekt:'Wohnhaus, Musterweg 12',auftraggeber:'Beispiel AG, Abteilung West',sachverstaendigerBeteiligt:'Dr. Muster, Beispielinstitut',versicherungsnehmer:'Fiktive Person',verteiler:{versicherung:{an:true,versandt:'2026-10-20'},sachverstaendiger:{an:true},versicherungsnehmer:{an:false}}};
 let expectedPj=JSON.stringify(pj);await fs.writeFile(path.join(tmp,A,'_Projekt.json'),expectedPj);
-const server=http.createServer(async(req,res)=>{try{const u=new URL(req.url,'http://local');if(/^\/(labelkit|Bildumbenenner|Probenplan|aufwandkit)\/$/.test(u.pathname)){res.setHeader('Content-Type','text/html');res.end('<!doctype html><title>Fiktives App-Testziel</title>');return;}let file=path.resolve(root,decodeURIComponent(u.pathname).slice(1)||'index.html');if(!file.startsWith(root+path.sep))throw Error();if((await fs.stat(file)).isDirectory())file=path.join(file,'index.html');res.setHeader('Content-Type',({'.html':'text/html; charset=utf-8','.js':'application/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png'})[path.extname(file)]||'application/octet-stream');res.end(await fs.readFile(file));}catch{res.statusCode=404;res.end();}});
+const server=http.createServer(async(req,res)=>{try{const u=new URL(req.url,'http://local');if(/^\/(labelkit|Bildumbenenner|resultkit|Probenplan|aufwandkit)\/$/.test(u.pathname)){res.setHeader('Content-Type','text/html');res.end('<!doctype html><title>Fiktives App-Testziel</title>');return;}let file=path.resolve(root,decodeURIComponent(u.pathname).slice(1)||'index.html');if(!file.startsWith(root+path.sep))throw Error();if((await fs.stat(file)).isDirectory())file=path.join(file,'index.html');res.setHeader('Content-Type',({'.html':'text/html; charset=utf-8','.js':'application/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png'})[path.extname(file)]||'application/octet-stream');res.end(await fs.readFile(file));}catch{res.statusCode=404;res.end();}});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port;
 const browser=await pw.chromium.launch(process.env.BROWSER_EXECUTABLE?{executablePath:process.env.BROWSER_EXECUTABLE,args:['--no-sandbox']}:{}),contexts=[];const errors=[];
 try{
@@ -47,7 +47,7 @@ async function shot(state){if(state==='uebergabe')await page.locator('#bueroPane
 await shot('projekt');
 if(!before){
  const list=await page.locator('#listWrap').boundingBox(),detail=await page.locator('#detail').boundingBox();assert.ok(detail.width>list.width*1.6);
- assert.deepEqual(await page.locator('.steps .name').allTextContents(),['Proben & Laborauftrag','Fotos & Dokumentation','Probenplan bearbeiten','Zeiten & Abrechnung']);
+ assert.deepEqual(await page.locator('.steps .name').allTextContents(),['Proben & Laborauftrag','Fotos & Dokumentation','Laborergebnisse prüfen','Probenplan bearbeiten','Zeiten & Abrechnung']);
  assert.equal(await page.locator('.steps .done,.steps .next').count(),0);assert.match(await page.locator('.steps').innerText(),/Fotobearbeitung begonnen/);
  assert.ok((await page.locator('.steps').boundingBox()).y<(await page.locator('#bueroPanel').boundingBox()).y);
  // Projektstand: Laborauftrag (Datum aus dem Dateinamen), Abrechnungsstand aus BelegKit; Prüfbericht, Versand noch offen
@@ -57,8 +57,13 @@ if(!before){
  await page.waitForFunction(()=>/Übergabe ans Büro\s*\d\d\.\d\d\./.test(document.querySelector('#meilen').innerText),null,{timeout:10000});   // Übergabe oben angelegt: nach „Aktualisieren“ im Projektstand
  await page.locator(`.proj[data-name="${B}"]`).focus();await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelector('.proj.active')?.dataset.name==='26.9999 Kontrollort');
  assert.ok(await page.locator('#azQuick').isVisible());
+ // ResultKit-Karte: XML+PDF gleichen Namens = ein Bericht, PDF allein zählt mit; nach der Übernahme in ResultKit beim Zurückkehren aktualisiert
+ assert.match(await page.locator('#goErgebnis .stat').textContent(),/^2 Prüfberichte – noch nicht übernommen$/);
+ await fs.writeFile(path.join(tmp,B,'Laborergebnisse','_Ergebnisse.json'),JSON.stringify({format:'spektron-ergebnisse',version:1,vollstaendig:false,offen:['P4'],berichte:[]}));
+ await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
+ await page.waitForFunction(()=>/Zwischenstand übernommen · 1 offen/.test(document.querySelector('#goErgebnis .stat').textContent));
  await page.locator(`.proj[data-name="${A}"]`).focus();await page.keyboard.press('Space');await page.waitForFunction(()=>document.querySelector('.proj.active')?.dataset.name==='24.0012 Fiktivstadt');
- for(const [button,app] of [['goLabel','labelkit'],['goFotos','Bildumbenenner'],['goPlan','Probenplan'],['goAufwand','aufwandkit']]){
+ for(const [button,app] of [['goLabel','labelkit'],['goFotos','Bildumbenenner'],['goErgebnis','resultkit'],['goPlan','Probenplan'],['goAufwand','aufwandkit']]){
   const [pop]=await Promise.all([page.waitForEvent('popup'),page.locator('#'+button).click()]);await pop.waitForURL(base+'/'+app+'/**');const u=new URL(pop.url());assert.equal(u.search,'');assert.equal(new URLSearchParams(u.hash.slice(1)).get('projekt'),A);await pop.close();
  }
 }
@@ -176,6 +181,6 @@ if(!before){
  await z.evaluate(()=>document.fonts.ready);assert.equal(await z.evaluate(()=>devicePixelRatio),1.5,'native browser zoom, not CSS scaling');assert.ok(await z.evaluate(()=>innerWidth<=700));
  assert.ok(await z.locator('#bueroAttention [data-answer]').isVisible());const alertBounds=await z.locator('#bueroAttention').boundingBox();assert.ok(alertBounds.y+alertBounds.height<=await z.evaluate(()=>innerHeight),'question is inside the visible zoomed viewport: '+JSON.stringify({alertBounds,height:await z.evaluate(()=>innerHeight)}));assert.ok(await z.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await z.locator('#detail').evaluate(e=>e.scrollTop=0);const cdp=await zc.newCDPSession(z);const screen=await cdp.send('Page.captureScreenshot',{format:'png',fromSurface:true});await fs.writeFile(path.join(out,'nachher-browserzoom-150.png'),Buffer.from(screen.data,'base64'));
 }
-assert.deepEqual(errors,[]);console.log('OK Projektansicht: '+(before?'Vorher-Screenshots':'Maus/Tastatur, vier Fragmentlinks, Klappen/Empfänger/Cursor, drei Übergabeeinstiege, mehrere offene Aufträge, erhaltener lokaler Entwurf, Retry bei bereits lesbarer Datei und zugeklappten Details, historische Angaben, sichtbare Rückfrage und Speicherfehler, Desktop/klein/echter 150%-Browserzoom'));
+assert.deepEqual(errors,[]);console.log('OK Projektansicht: '+(before?'Vorher-Screenshots':'Maus/Tastatur, fünf Fragmentlinks, Klappen/Empfänger/Cursor, drei Übergabeeinstiege, mehrere offene Aufträge, erhaltener lokaler Entwurf, Retry bei bereits lesbarer Datei und zugeklappten Details, historische Angaben, sichtbare Rückfrage und Speicherfehler, Desktop/klein/echter 150%-Browserzoom'));
 }finally{for(const c of contexts)await c.close();await browser.close();server.closeAllConnections();await new Promise(r=>server.close(r));await fs.rm(tmp,{recursive:true,force:true});}
 })().catch(e=>{console.error(e);process.exitCode=1;});
