@@ -133,6 +133,7 @@ main{flex:1;display:flex;min-height:0}
 .steps .sw{--ac:var(--accent);position:relative}
 .steps .sw[data-app=label]{--ac:#5469b8}
 .steps .sw[data-app=fotos]{--ac:#2f87a6}
+.steps .sw[data-app=ergebnis]{--ac:#7a5ca8}
 .steps .sw[data-app=plan]{--ac:#4179b2}
 .steps .sw[data-app=beleg]{--ac:#2f7d6d}
 .steps .step{position:relative;z-index:1;display:grid;grid-template-columns:1fr;align-items:center;gap:14px;width:100%;min-height:64px;padding:10px 16px 10px 14px;text-align:left;
@@ -172,7 +173,7 @@ main{flex:1;display:flex;min-height:0}
   background:color-mix(in srgb,var(--warn) 7%,var(--panel));color:var(--warn);font-size:13px}
 .warnbar button{margin-left:auto}
 @media (prefers-color-scheme:dark){
-  .steps .sw[data-app=label]{--ac:#8b9cdd} .steps .sw[data-app=fotos]{--ac:#5bb6d2} .steps .sw[data-app=plan]{--ac:#6fa3dc} .steps .sw[data-app=beleg]{--ac:#5fbfa9}
+  .steps .sw[data-app=label]{--ac:#8b9cdd} .steps .sw[data-app=fotos]{--ac:#5bb6d2} .steps .sw[data-app=ergebnis]{--ac:#a58bd3} .steps .sw[data-app=plan]{--ac:#6fa3dc} .steps .sw[data-app=beleg]{--ac:#5fbfa9}
 }
 /* Weitere Apps: nicht Teil des Projektablaufs (kein Projektbezug, keine Nummer) – ruhige Zeile ganz unten */
 .more{margin:22px 0 4px;padding-top:14px;border-top:1px solid var(--line)}
@@ -775,9 +776,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.25.0';
+const APP_VERSION = '1.26.0';
 const APP_DATE = '2026-10-26';
 const CHANGELOG = [
+  ['1.26.0', '26.10.2026', 'Neue Aufgabe „Laborergebnisse prüfen“ (ResultKit) zwischen Fotos und Probenplan: zeigt, ob die Laborergebnisse übernommen sind, ob noch Proben offen sind oder ob Prüfberichte auf die Übernahme warten. ResultKit vergleicht den Laborauftrag aus LabelKit mit den Prüfberichten, importiert neue Berichte und übergibt die geprüften Werte an PlanKit und FotoKit. Spektron-Leiste in den Apps mit fünf Schritten.'],
   ['1.25.0', '26.10.2026', 'Neu unter „Weitere Apps“: 💬 Rückmeldung – Fehler oder Wunsch an den Betreuer melden. Öffnet das Formular in einem eigenen Fenster; Programm, Version und (falls ein Projekt gewählt ist) die Projektnummer sind schon eingetragen.'],
   ['1.24.0', '26.10.2026', 'Hilfe-Links ins Handbuch (AidKit), immer im selben Fenster und direkt am Kapitel: in den Projektdaten „📘 Projektzentrale im Handbuch“, in der Kurzanleitung „Projektzentrale“ und „Brandschaden von A bis Z“, im Datenarchiv „📘 Handbuch“. Nur Links.'],
   ['1.23.0', '25.10.2026', 'Datenarchiv 1.1 (nur die Seite „Datenarchiv“, an der Projektzentrale ändert sich nichts): Rolle jeder Probe aus der Probenbezeichnung – „Brandraum“/„Brandbereich“, „REF“/„Referenz“, „Kleber“/„Teer“/„Bitumen“, „F-“ für Freimessungen –, im Archiv je Probe korrigierbar. Tage zwischen Schadendatum und Probenahme. PAK-Muster normiert nur über Stoffe, die in allen verglichenen Proben über BG liegen, mit Ähnlichkeit der Muster (Kosinus) und Freimessungen vorher/nachher. Literaturquotienten eingeklappt und als nicht für Brandrückstände validiert gekennzeichnet. CSV mit Rolle, Tagen nach Brand und BG.'],
@@ -950,6 +952,7 @@ const BILDUMBENENNER_URL = '../Bildumbenenner/';
 const PROBENPLAN_URL = '../Probenplan/';
 const LABELKIT_URL = '../labelkit/';
 const AUFWANDKIT_URL = '../aufwandkit/';
+const RESULTKIT_URL = '../resultkit/';   // ResultKit: Laborergebnisse prüfen – Laborauftrag gegen Prüfberichte, Import, „_Ergebnisse.json“ für PlanKit/FotoKit
 const AIDKIT_URL = '../aidkit/';   // AidKit: Handbuch der Suite – Abläufe und Regeln, ohne Projektbezug
 /** Hilfe-Link ins Handbuch: feste Kapiteladresse aus AidKit (hilfe-anker.json), immer dasselbe Fenster „aidkit“. */
 const handbuchLink = (anker, text, titel) => `<a class="hilfe-link" href="${AIDKIT_URL}#${anker}" target="aidkit" rel="noopener" title="${esc(titel)} – öffnet das Handbuch (AidKit) in einem eigenen Fenster">📘 ${esc(text)}</a>`;
@@ -1314,7 +1317,7 @@ async function scanProject(p){
       if (h.name === BueroData.DIR && auImZeitraum(p)) st.buero = auBueroPhase(await BueroData.scanProject(p.handle));
       const sub = SUBS.find(s => norm(s[1]) === norm(h.name));
       if (!sub){ st.extra.push(h.name); continue; }
-      const info = { handle: h, name: h.name, files: 0, images: 0, pdfDoc: [], probenplan: 0, sicherungen: 0, daten: [], bu: false };
+      const info = { handle: h, name: h.name, files: 0, images: 0, pdfDoc: [], probenplan: 0, sicherungen: 0, daten: [], bu: false, xml: 0, ergebnisse: null };
       for await (const f of h.values()){
         if (f.kind !== 'file' || f.name.startsWith('~$')) continue;
         info.files++;
@@ -1324,6 +1327,10 @@ async function scanProject(p){
         if (/\.probenplan$/i.test(f.name)){ if (/ \((vorher|Wiederherstellung|Speicherkandidat|Kopie)\b[^)]*\)\.probenplan$/i.test(f.name)) info.sicherungen++; else info.probenplan++; }
         if (/_Daten\.json$/i.test(f.name)) info.daten.push(f.name);
         if (f.name === '_Bildumbenenner.json') info.bu = true;
+        if (sub[0] === 'laberg' && /\.xml$/i.test(f.name)) info.xml++;
+        if (sub[0] === 'laberg' && f.name === '_Ergebnisse.json'){   // ResultKit: übernommener Stand (nur lesen)
+          try{ const o = JSON.parse(await (await f.getFile()).text()); info.ergebnisse = { vollstaendig: !!(o && o.vollstaendig), offen: o && Array.isArray(o.offen) ? o.offen.length : 0 }; }catch(e){ info.ergebnisse = { vollstaendig: false, offen: 0, fehler: true }; }
+        }
       }
       st.subs[sub[0]] = info;
     }
@@ -1452,10 +1459,11 @@ function folderRows(p){
 /* Dateibestand ist eine Orientierung, keine fachliche Fertigstellung oder Pflichtabfolge. */
 function arbeitsstand(p){
   const st=p.st&&!p.st.err?p.st:null;
-  if(!st){const text=p.st?.err?'Bestand nicht lesbar':'Bestand wird geprüft';return {label:{text},fotos:{text},plan:{text},beleg:{text:'Jederzeit verfügbar'}};}
-  const lab=st.subs.labauf,fo=st.subs.fotos,pl=st.subs.plaene;
+  if(!st){const text=p.st?.err?'Bestand nicht lesbar':'Bestand wird geprüft';return {label:{text},fotos:{text},ergebnis:{text},plan:{text},beleg:{text:'Jederzeit verfügbar'}};}
+  const lab=st.subs.labauf,fo=st.subs.fotos,pl=st.subs.plaene,le=st.subs.laberg,er=le?.ergebnisse;
   return {label:{text:lab?.daten.length?'Probendaten vorhanden':lab?'Keine Probendaten gefunden':'Ordner fehlt'},
     fotos:{text:fo?.pdfDoc.length?'Bilddokumentation vorhanden':fo?.bu?'Fotobearbeitung begonnen':fo?.images?`${fo.images} Bilder vorhanden`:fo?'Keine Bilder gefunden':'Ordner fehlt'},
+    ergebnis:{text:er?(er.fehler?'Ergebnisdatei nicht lesbar':er.vollstaendig?'Ergebnisse vollständig übernommen':`Zwischenstand übernommen${er.offen?` · ${er.offen} offen`:''}`):le?.xml?`${le.xml} Prüfbericht${le.xml===1?'':'e'} – noch nicht übernommen`:le?'Noch keine Prüfberichte':'Ordner fehlt'},
     plan:{present:!!pl?.probenplan,text:pl?.probenplan?'Probenplan vorhanden':pl?'Kein Probenplan gefunden':'Ordner fehlt'},beleg:{text:'Jederzeit verfügbar'}};
 }
 function stepCard(id,app,aufgabe,name,st,tip,extra=''){
@@ -1540,6 +1548,7 @@ function renderDetail(){
     <div class="steps">
       ${stepCard('goLabel', 'label', 'Proben & Laborauftrag', 'LabelKit', stand.label, 'Öffnet den Ordner „Laboraufträge“ dieses Projekts und speichert dort', '<div class="att" id="anl"></div>')}
       ${stepCard('goFotos', 'fotos', 'Fotos & Dokumentation', 'FotoKit · auch Ergebnistabellen', stand.fotos, 'Öffnet den Ordner „Fotos“ dieses Projekts und speichert dort')}
+      ${stepCard('goErgebnis', 'ergebnis', 'Laborergebnisse prüfen', 'ResultKit', stand.ergebnis, 'Zeigt, was beim Labor ist, was zurück ist und was fehlt; Prüfberichte dort importieren und für PlanKit und FotoKit übernehmen – Ordner „Laborergebnisse“')}
       ${stepCard('goPlan', 'plan', 'Probenplan bearbeiten', 'PlanKit', stand.plan, 'Öffnet den Ordner „Pläne“ dieses Projekts und speichert dort',
         stand.plan.present ? `<div class="att"><div class="row"><b>Anlage Probenahme</b><span class="m">Lagepläne, Probenverzeichnis, Fotos, Laborwerte</span><button id="anlPlan" title="Öffnet PlanKit gleich im Export „Word · Anlage Probenahme“">Erstellen …</button></div></div>` : '')}
       ${stepCard('goAufwand', 'beleg', 'Zeiten & Abrechnung', 'BelegKit', stand.beleg, 'Zeiten, km, Spesen eintragen; Proben, Berichtsseiten und Fotos für die Rechnung zusammenstellen – speichert im Ordner „Abrechnung“', '')}
@@ -1590,6 +1599,7 @@ function renderDetail(){
   if (Object.keys(S.pjDirty).length){ $('pjSave').className = 'save'; $('pjSave').textContent = 'Änderungen werden gespeichert …'; }
   if ($('zust')) $('zust').onchange = e => zustaendigSetzen(p, e.target.value);
   $('goFotos').onclick = () => openBildumbenenner(p);
+  $('goErgebnis').onclick = () => openApp(p, RESULTKIT_URL, 'resultkit');
   $('goPlan').onclick = () => openPlanKit(p);
   $('goLabel').onclick = () => openApp(p, LABELKIT_URL, 'labelkit');
   $('goAufwand').onclick = () => openApp(p, AUFWANDKIT_URL, 'aufwandkit');
@@ -2182,7 +2192,7 @@ function helpDiagram(){
     <rect x="${cB - 150}" y="56" width="300" height="48" rx="8" fill="color-mix(in srgb, var(--accent) 12%, transparent)" stroke="${acc}" stroke-width="2"/>
     ${t(cB, 76, 'Projektzentrale', 'b')}${t(cB, 94, 'Projekt wählen, App öffnen', 'q')}
     ${app(cA, 'LabelKit', 'Proben, Etiketten')}${app(cB, 'FotoKit', 'Fotos, Doku, Tabelle')}${app(cC, 'PlanKit', 'Plan, Ergebniskarte')}
-    ${dir(cA, 'Laboraufträge', '…_Daten.json, Übergabe')}${dir(cB, 'Fotos', 'Bilder, Bilddoku-PDF')}${dir(cC, 'Pläne', 'Probenplan, Bilder')}${dir(cD, 'Laborergebnisse', 'XML und PDF vom Labor')}
+    ${dir(cA, 'Laboraufträge', '…_Daten.json, Übergabe')}${dir(cB, 'Fotos', 'Bilder, Bilddoku-PDF')}${dir(cC, 'Pläne', 'Probenplan, Bilder')}${dir(cD, 'Laborergebnisse', 'Prüfberichte (über ResultKit), _Ergebnisse.json')}
     ${t(350, 251, 'Proben vorab', 'q')}${t(570, 251, 'Messwerte', 'q')}
   </svg>`;
 }
@@ -2205,7 +2215,7 @@ function helpHtml(){
     <li><b>① LabelKit – „Proben &amp; Laborauftrag“:</b> Proben anlegen, Etiketten drucken, Laborübergabe erstellen, <b>Strg+S</b>. Alles landet in „Laboraufträge“.</li>
     <li><b>② FotoKit – „Fotos &amp; Dokumentation“:</b> Fotos benennen und die Bilddokumentation als PDF erstellen (Ordner „Fotos“).</li>
     <li><b>③ PlanKit – „Probenplan bearbeiten“:</b> Grundriss aus „Pläne“ wählen. Unter „Proben übernehmen …“ die <b>Probenerfassung aus LabelKit</b> übernehmen und die Proben auf den Plan ziehen.</li>
-    <li><b>Laborbericht da:</b> XML und PDF in „Laborergebnisse“ ablegen. In PlanKit mit „Proben übernehmen …“ den Bericht wählen und <b>„Alle Konflikte: Aktualisieren“</b> klicken – die Messwerte hängen dann an den Proben.</li>
+    <li><b>Laborbericht da:</b> In <b>ResultKit</b> („Laborergebnisse prüfen“) XML und PDF importieren, prüfen und <b>„Ergebnisse übernehmen“</b>. Dann in PlanKit mit „Proben übernehmen …“ den Bericht wählen und <b>„Alle Konflikte: Aktualisieren“</b> klicken – die Messwerte hängen dann an den Proben. FotoKits Ergebnistabelle nimmt die Werte von selbst.</li>
     <li><b>Auswerten:</b> PlanKit „Ergebnisse“ → Ergebniskarte exportieren. FotoKit „Ergebnistabelle …“ → Tabelle für Word.</li>
     <li><b>④ BelegKit – „Zeiten &amp; Abrechnung“:</b> Jede Person trägt ihre Ortstermine (Stunden, km, Spesen, Übernachtung) und Auswertungsstunden selbst ein. Proben aus LabelKit, Berichtsseiten und Fotos werden gezählt; „Abrechnung“ zeigt alle Positionen mit Nummern zum Übertragen ins Rechnungsprogramm.</li>
     <li><b>Anlage Probenahme:</b> An der Karte PlanKit „Anlage Probenahme · Erstellen …“ (sobald ein Plan da ist) – PlanKit öffnet den Export mit „Word · Anlage Probenahme“ (Lagepläne, Probenverzeichnis, Ausschnitte, Fotos, Laborwerte).</li>
@@ -2229,6 +2239,7 @@ function helpHtml(){
     <tr><td>LabelKit</td><td>Proben erfassen, Etiketten, Laborübergabe</td><td>kaspersebastian83-dot.github.io/labelkit</td></tr>
     <tr><td>BelegKit</td><td>Zeiten, km, Spesen, Proben, Berichtsseiten für die Rechnung</td><td>kaspersebastian83-dot.github.io/aufwandkit</td></tr>
     <tr><td>FotoKit</td><td>Fotos benennen, Bilddokumentation, Ergebnistabelle</td><td>kaspersebastian83-dot.github.io/Bildumbenenner</td></tr>
+    <tr><td>ResultKit</td><td>Laborergebnisse: was beim Labor ist, was zurück ist, was fehlt; Prüfberichte importieren und übernehmen</td><td>kaspersebastian83-dot.github.io/resultkit</td></tr>
     <tr><td>PlanKit</td><td>Probenplan, Ergebniskarte</td><td>kaspersebastian83-dot.github.io/Probenplan</td></tr>
     <tr><td>SpesenKit</td><td>Spesenabrechnung für den Monat (ohne Projektbezug)</td><td>kaspersebastian83-dot.github.io/reisekosten-pro</td></tr>
     <tr><td>AidKit</td><td>Handbuch: Abläufe Schritt für Schritt, gemeinsame Regeln</td><td>kaspersebastian83-dot.github.io/aidkit</td></tr>

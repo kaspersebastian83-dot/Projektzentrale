@@ -76,7 +76,7 @@ const daten = {
   assert.match(await page.locator('#goPlan .stat').textContent(), /Probenplan vorhanden/);
   // Projektdaten: Neuzeichnen der Ansicht, bevor die Eingabe gespeichert ist (hier: fehlende Unterordner anlegen), behält die Eingabe
   // Projektansicht 1.7: Arbeitsschritte als Karten in der Reihenfolge der Arbeit; Projektdaten zugeklappt (leer: einladend hervorgehoben)
-  assert.deepEqual(await page.locator('.steps .step').evaluateAll(b => b.map(x => x.id)), ['goLabel', 'goFotos', 'goPlan', 'goAufwand']);
+  assert.deepEqual(await page.locator('.steps .step').evaluateAll(b => b.map(x => x.id)), ['goLabel', 'goFotos', 'goErgebnis', 'goPlan', 'goAufwand']);
   // SpesenKit: eigene Zeile „Weitere Apps“ ganz unten im rechten Fenster – kein Schritt, kein Projektbezug
   { const l = page.locator('#detail .pz > .more:last-child a#goReise');
     assert.equal(await l.count(), 1, 'Knopf ganz unten im rechten Fenster');
@@ -120,8 +120,8 @@ const daten = {
   assert.equal(anlageLink.search, '');
   assert.equal(new URLSearchParams(anlageLink.hash.slice(1)).get('projekt'), '26.0142 Teststadt');
   assert.equal(new URLSearchParams(anlageLink.hash.slice(1)).get('aktion'), 'anlage');
-  // Alle vier echten Absprungknöpfe: Ziele bleiben erhalten, Projekt nur im Fragment.
-  for (const [id, app, target] of [['goLabel','labelkit','labelkit'],['goFotos','Bildumbenenner','bildumbenenner'],['goPlan','Probenplan','plankit'],['goAufwand','aufwandkit','aufwandkit']]){
+  // Alle fünf echten Absprungknöpfe: Ziele bleiben erhalten, Projekt nur im Fragment.
+  for (const [id, app, target] of [['goLabel','labelkit','labelkit'],['goFotos','Bildumbenenner','bildumbenenner'],['goErgebnis','resultkit','resultkit'],['goPlan','Probenplan','plankit'],['goAufwand','aufwandkit','aufwandkit']]){
     await page.evaluate(() => { window.__sprung = null; window.open = (_, target) => ({ location: { href: 'about:blank', assign: url => { window.__sprung = {url, target}; } }, focus(){} }); });
     await page.locator('#' + id).click();
     await page.waitForFunction(() => window.__sprung !== null);
@@ -132,7 +132,7 @@ const daten = {
   const special = '26.0142 Köln & Süd + 50% #Hof';
   await page.locator('.proj').filter({hasText:special}).click();
   await page.locator('#anlPlan').waitFor();
-  for (const id of ['goLabel','goFotos','goPlan','goAufwand','anlPlan']){
+  for (const id of ['goLabel','goFotos','goErgebnis','goPlan','goAufwand','anlPlan']){
     await page.evaluate(() => {
       window.__sprung = null;
       window.open = (_, target) => ({location:{href:target === 'plankit' ? new URL('../Probenplan/#projekt=alt',location.href).href : 'about:blank',assign:url=>{window.__sprung={url,target};}},focus(){}});
