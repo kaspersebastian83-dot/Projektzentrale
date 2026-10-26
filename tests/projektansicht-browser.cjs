@@ -6,6 +6,7 @@ await fs.mkdir(out,{recursive:true});
 for(const name of [A,B]){await fs.mkdir(path.join(tmp,name,'Mitteilungen'),{recursive:true});for(const sub of ['Fotos','Pläne','Laboraufträge','Laborergebnisse','Emails','Rechnung Labore'])await fs.mkdir(path.join(tmp,name,sub));}
 await fs.writeFile(path.join(tmp,A,'Mitteilungen','Gutachten B.docx'),'Synthetic placeholder');await fs.writeFile(path.join(tmp,B,'Laborergebnisse','AR-1-01.xml'),'<x/>');await fs.writeFile(path.join(tmp,B,'Laborergebnisse','AR-1-01.pdf'),'%PDF');await fs.writeFile(path.join(tmp,B,'Laborergebnisse','AR-1-02.pdf'),'%PDF');await fs.writeFile(path.join(tmp,B,'Mitteilungen','Gutachten B.docx'),'Synthetic placeholder');
 await fs.writeFile(path.join(tmp,A,'Fotos','_Bildumbenenner.json'),'{}');await fs.mkdir(path.join(tmp,A,'Abrechnung'));await fs.writeFile(path.join(tmp,A,'Abrechnung','24-0012_Aufwand_2026-10-22.json'),'{}');await fs.writeFile(path.join(tmp,A,'Abrechnung','Aufwand_SK.json'),'{}');await fs.writeFile(path.join(tmp,A,'Laboraufträge','24.0012_PAK_5.1.2026_Laborübergabe.xls'),'x');await fs.writeFile(path.join(tmp,A,'Pläne','Plan.probenplan'),'{}');
+const C='26.9998 Haus &lt;Nord&gt;';await fs.mkdir(path.join(tmp,C,'Fotos'),{recursive:true});   // Ordnername mit HTML-ähnlichem Text (unter Windows erlaubt)
 const pj={format:'mosaik-projekt',version:1,objekt:'Wohnhaus, Musterweg 12',auftraggeber:'Beispiel AG, Abteilung West',sachverstaendigerBeteiligt:'Dr. Muster, Beispielinstitut',versicherungsnehmer:'Fiktive Person',verteiler:{versicherung:{an:true,versandt:'2026-10-20'},sachverstaendiger:{an:true},versicherungsnehmer:{an:false}}};
 let expectedPj=JSON.stringify(pj);await fs.writeFile(path.join(tmp,A,'_Projekt.json'),expectedPj);
 const server=http.createServer(async(req,res)=>{try{const u=new URL(req.url,'http://local');if(/^\/(labelkit|Bildumbenenner|resultkit|Probenplan|aufwandkit)\/$/.test(u.pathname)){res.setHeader('Content-Type','text/html');res.end('<!doctype html><title>Fiktives App-Testziel</title>');return;}let file=path.resolve(root,decodeURIComponent(u.pathname).slice(1)||'index.html');if(!file.startsWith(root+path.sep))throw Error();if((await fs.stat(file)).isDirectory())file=path.join(file,'index.html');res.setHeader('Content-Type',({'.html':'text/html; charset=utf-8','.js':'application/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png'})[path.extname(file)]||'application/octet-stream');res.end(await fs.readFile(file));}catch{res.statusCode=404;res.end();}});
@@ -56,12 +57,33 @@ if(!before){
  assert.match(await page.locator('#goAufwand .stat').textContent(),/Abrechnungsstand vom 22\.10\.2026/);
  await page.waitForFunction(()=>/Übergabe ans Büro\s*\d\d\.\d\d\./.test(document.querySelector('#meilen').innerText),null,{timeout:10000});   // Übergabe oben angelegt: nach „Aktualisieren“ im Projektstand
  await page.locator(`.proj[data-name="${B}"]`).focus();await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelector('.proj.active')?.dataset.name==='26.9999 Kontrollort');
- assert.ok(await page.locator('#azQuick').isVisible());
+  assert.ok(await page.locator('#azQuick').isVisible());
  // ResultKit-Karte: XML+PDF gleichen Namens = ein Bericht, PDF allein zählt mit; nach der Übernahme in ResultKit beim Zurückkehren aktualisiert
  assert.match(await page.locator('#goErgebnis .stat').textContent(),/^2 Prüfberichte – noch nicht übernommen$/);
- await fs.writeFile(path.join(tmp,B,'Laborergebnisse','_Ergebnisse.json'),JSON.stringify({format:'spektron-ergebnisse',version:1,vollstaendig:false,offen:['P4'],berichte:[]}));
- await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
- await page.waitForFunction(()=>/Zwischenstand übernommen · 1 offen/.test(document.querySelector('#goErgebnis .stat').textContent));
+ // Dateistand wie in ResultKit (Name|Größe|Änderungszeit, sortiert; der Test-Dateizugriff meldet Änderungszeit 1): XML/PDF und neueste LabelKit-Datei
+ const kennung=async extra=>{const d=[];for(const n of await fs.readdir(path.join(tmp,B,'Laborergebnisse')))if(/\.(xml|pdf)$/i.test(n))d.push({name:n,size:(await fs.stat(path.join(tmp,B,'Laborergebnisse',n))).size,t:1});for(const n of extra||[])d.push({name:'Laboraufträge/'+n,size:(await fs.stat(path.join(tmp,B,'Laboraufträge',n))).size,t:1});return d.sort((a,b)=>a.name.localeCompare(b.name)).map(x=>`${x.name}|${x.size}|${x.t}`).join('\n');};
+ const ergebnis=async (o,extra)=>fs.writeFile(path.join(tmp,B,'Laborergebnisse','_Ergebnisse.json'),JSON.stringify({format:'spektron-ergebnisse',version:1,uebernommen:'2026-10-26T10:00:00.000Z',vollstaendig:false,offen:['P4'],berichte:[],stand:await kennung(extra),...o}));
+ const zurueck=async re=>{await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await page.waitForFunction(r=>new RegExp(r).test(document.querySelector('#goErgebnis .stat').textContent),re);};
+ await ergebnis();
+ await zurueck('^Zwischenstand übernommen · 1 offen$');
+ // LabelKit speichert danach (Auftrag geändert): Karte nicht mehr „übernommen“, Proben-Karte ohne neues Projekt-Lesen aktualisiert
+ await fs.writeFile(path.join(tmp,B,'Laboraufträge','26.9999_2026-10-26_Daten.json'),JSON.stringify({proben:[]}));
+ await zurueck('^Übernommen – seit der Übernahme geändert, in ResultKit erneut übernehmen$');
+ assert.equal(await page.locator('#goLabel .stat').textContent(),'Probendaten vorhanden');
+ await ergebnis({vollstaendig:true,offen:[]},['26.9999_2026-10-26_Daten.json']);await zurueck('^Ergebnisse vollständig übernommen$');
+ // neuer Prüfbericht nach der Übernahme
+ await fs.writeFile(path.join(tmp,B,'Laborergebnisse','AR-2-01.pdf'),'%PDF');
+ await zurueck('^Übernommen – seit der Übernahme geändert, in ResultKit erneut übernehmen$');
+ // fremde oder neuere Ergebnisdatei: nicht als übernommen werten
+ await ergebnis({format:'irgendwas'},['26.9999_2026-10-26_Daten.json']);await zurueck('^Ergebnisdatei nicht lesbar$');
+ await ergebnis({version:2},['26.9999_2026-10-26_Daten.json']);await zurueck('^Ergebnisdatei nicht lesbar$');
+ await ergebnis({},['26.9999_2026-10-26_Daten.json']);await zurueck('^Zwischenstand übernommen · 1 offen$');
+ // unveränderter Ordner: Zurückkehren zeichnet die Ansicht nicht neu
+ await page.evaluate(()=>{document.querySelector('#goErgebnis').dataset.unveraendert='1';window.dispatchEvent(new Event('focus'));});await page.waitForTimeout(1000);
+ assert.equal(await page.locator('#goErgebnis').getAttribute('data-unveraendert'),'1');
+ // Fehlende Unterordner anlegen: der Projektname steht als Text im Dialog
+ await page.locator('.proj').filter({hasText:'Haus &lt;Nord&gt;'}).click();await page.locator('#mkSubs').click();
+ assert.match(await page.locator('#dialog .m').textContent(),/^In „26\.9998 Haus &lt;Nord&gt;“ werden angelegt: /);await page.locator('#dNo').click();
  await page.locator(`.proj[data-name="${A}"]`).focus();await page.keyboard.press('Space');await page.waitForFunction(()=>document.querySelector('.proj.active')?.dataset.name==='24.0012 Fiktivstadt');
  for(const [button,app] of [['goLabel','labelkit'],['goFotos','Bildumbenenner'],['goErgebnis','resultkit'],['goPlan','Probenplan'],['goAufwand','aufwandkit']]){
   const [pop]=await Promise.all([page.waitForEvent('popup'),page.locator('#'+button).click()]);await pop.waitForURL(base+'/'+app+'/**');const u=new URL(pop.url());assert.equal(u.search,'');assert.equal(new URLSearchParams(u.hash.slice(1)).get('projekt'),A);await pop.close();
@@ -118,9 +140,21 @@ if(!before){
  assert.equal(await page.locator('#pj_nutzung').evaluate(e=>e.closest('label').classList.contains('pflicht-offen')),true,'Nutzung leer → hervorgehoben');
  assert.equal(await page.locator('#pj_notizen').evaluate(e=>e.closest('label').classList.contains('pflicht')),false,'Notizen sind keine Pflicht');
  await page.locator('#pflichtFehlt').click();assert.equal(await page.evaluate(()=>document.activeElement.id),'pj_nutzung','Klick springt zum ersten leeren Pflichtfeld');
- {const vorher=Number((await page.locator('#pflichtFehlt').innerText()).split(' ')[0]);await page.locator('#pj_schadenereignis').fill('Küchenbrand');
-  assert.equal(await page.locator('#pj_schadenereignis').evaluate(e=>e.closest('label').classList.contains('pflicht-offen')),false,'ausgefüllt → normal');
+ assert.equal(await page.locator('#pj_schadenereignis').evaluate(e=>e.closest('label').classList.contains('pflicht')),false,'Schadenereignis ist keine Pflicht');
+ {const vorher=Number((await page.locator('#pflichtFehlt').innerText()).split(' ')[0]);await page.locator('#pj_sachverstaendiger').fill('Dr. Beispiel');
+  assert.equal(await page.locator('#pj_sachverstaendiger').evaluate(e=>e.closest('label').classList.contains('pflicht-offen')),false,'ausgefüllt → normal');
   assert.equal(Number((await page.locator('#pflichtFehlt').innerText()).split(' ')[0]),vorher-1,'Zähler sofort aktualisiert');}
+ // Schadendatum „nicht bekannt“: gilt als ausgefüllt, gespeichert als „unbekannt“; zurück auf Datum möglich
+ {const vorher=Number((await page.locator('#pflichtFehlt').innerText()).split(' ')[0]);await page.locator('#pj_schadendatum_nb').click();
+  assert.equal(await page.locator('#pj_schadendatum_nb').getAttribute('aria-pressed'),'true');assert.ok(await page.locator('#pj_schadendatum').isDisabled(),'Datumsfeld gesperrt');
+  assert.equal(await page.locator('#pj_schadendatum').evaluate(e=>e.closest('label').classList.contains('pflicht-offen')),false,'nicht bekannt → erledigt');
+  assert.equal(Number((await page.locator('#pflichtFehlt').innerText()).split(' ')[0]),vorher-1,'Zähler sofort aktualisiert');
+  await page.locator('#pjSave.ok').waitFor();assert.equal(JSON.parse(await fs.readFile(path.join(tmp,A,'_Projekt.json'),'utf8')).schadendatum,'unbekannt');
+  await page.locator('#pjBox > summary').click();await page.locator('#pjBox > summary').click();
+  assert.equal(await page.locator('#pj_schadendatum_nb').getAttribute('aria-pressed'),'true','bleibt nach dem Neuzeichnen');
+  await page.locator('#pj_schadendatum_nb').click();assert.ok(await page.locator('#pj_schadendatum').isEnabled());await page.locator('#pj_schadendatum').fill('2026-10-01');
+  await page.waitForFunction(()=>document.querySelector('#pjSave')?.classList.contains('ok'));await page.waitForTimeout(900);
+  assert.equal(JSON.parse(await fs.readFile(path.join(tmp,A,'_Projekt.json'),'utf8')).schadendatum,'2026-10-01');}
  await page.evaluate(()=>testIO.failWrite=true);await page.locator('#pj_objekt').fill('Nicht gespeicherter Entwurf');await page.locator('#pjSave.err').waitFor();await page.locator('#pjBox > summary').click();assert.match(await page.locator('#pjAttention').innerText(),/nicht gespeichert/);assert.ok(await page.locator('#showPJ').isVisible());
  await page.evaluate(()=>testIO.failWrite=false);await page.locator('#showPJ').click();await page.locator('#pj_objekt').fill(pj.objekt);await page.locator('#pjSave.ok').waitFor();
  // Historical editing stays available without a digital order and creates no handover.

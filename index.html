@@ -206,8 +206,12 @@ table.folders .miss{color:var(--warn)}
 /* Pflichtfelder (in allen Apps gleich): solange leer, warmes Gelb am Feld und „Pflicht“ am Namen; ausgefüllt wieder normal. */
 .pflicht-tag{display:none;margin-left:6px;padding:0 6px;border-radius:8px;font-size:10.5px;font-weight:600;line-height:16px;color:#8a6500;background:rgba(217,164,0,.16);border:1px solid rgba(217,164,0,.45)}
 label.pflicht-offen .pflicht-tag{display:inline-block}
-label.pflicht-offen>input,label.pflicht-offen>select,label.pflicht-offen>textarea{border-color:#d9a400!important;background:#fff8e1;box-shadow:inset 3px 0 0 #d9a400}
-@media (prefers-color-scheme:dark){.pflicht-tag{color:#f0c850}label.pflicht-offen>input,label.pflicht-offen>select,label.pflicht-offen>textarea{background:rgba(217,164,0,.12)}}
+label.pflicht-offen>input,label.pflicht-offen>select,label.pflicht-offen>textarea,label.pflicht-offen>.datum-nb>input{border-color:#d9a400!important;background:#fff8e1;box-shadow:inset 3px 0 0 #d9a400}
+.datum-nb{display:flex;gap:6px;align-items:stretch}.datum-nb>input{flex:1;min-width:0}
+.datum-nb>.nb{flex:0 0 auto;font-size:12px;padding:3px 9px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer;white-space:nowrap}
+.datum-nb>.nb[aria-pressed="true"]{background:var(--accent,#2a6fb0);border-color:var(--accent,#2a6fb0);color:#fff}
+.datum-nb>.nb:disabled{cursor:default;opacity:.6}
+@media (prefers-color-scheme:dark){.pflicht-tag{color:#f0c850}label.pflicht-offen>input,label.pflicht-offen>select,label.pflicht-offen>textarea,label.pflicht-offen>.datum-nb>input{background:rgba(217,164,0,.12)}}
 .save{font-size:12.5px;color:var(--muted);margin-top:8px;min-height:18px}
 .save.err{color:var(--err)}
 .save.ok{color:var(--ok)}
@@ -776,9 +780,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.26.0';
+const APP_VERSION = '1.27.0';
 const APP_DATE = '2026-10-26';
 const CHANGELOG = [
+  ['1.27.0', '26.10.2026', 'Projektdaten: Das Schadendatum kann „nicht bekannt“ sein (Knopf neben dem Feld; gespeichert als „unbekannt“, in den Anlagen „nicht bekannt“) – die Pflichtangabe gilt damit als erledigt. Das Schadenereignis ist keine Pflichtangabe mehr. Karte „Laborergebnisse prüfen“: Kommt nach der Übernahme in ResultKit ein neuer Prüfbericht dazu oder ändert sich der Laborauftrag aus LabelKit, steht dort „Übernommen – seit der Übernahme geändert, in ResultKit erneut übernehmen“ statt „vollständig übernommen“; eine Ergebnisdatei, die nicht aus ResultKit stammt oder ein neueres Format hat, gilt als nicht lesbar. Zurück aus LabelKit, PlanKit, FotoKit oder ResultKit werden alle Karten und die Anlagen neu eingelesen (bisher nur bei geänderten Projektdaten). Fehlende Unterordner anlegen: Projektname im Dialog als Text angezeigt. Wiederherstellen einer Projektfassung prüft die Projektnummer jetzt auch bei 2–6-stelligen Nummern richtig.'],
   ['1.26.0', '26.10.2026', 'Neue Aufgabe „Laborergebnisse prüfen“ (ResultKit) zwischen Fotos und Probenplan: zeigt, ob die Laborergebnisse übernommen sind, ob noch Proben offen sind oder ob Prüfberichte auf die Übernahme warten. ResultKit vergleicht den Laborauftrag aus LabelKit mit den Prüfberichten, importiert neue Berichte und übergibt die geprüften Werte an PlanKit und FotoKit. Spektron-Leiste in den Apps mit fünf Schritten.'],
   ['1.25.0', '26.10.2026', 'Neu unter „Weitere Apps“: 💬 Rückmeldung – Fehler oder Wunsch an den Betreuer melden. Öffnet das Formular in einem eigenen Fenster; Programm, Version und (falls ein Projekt gewählt ist) die Projektnummer sind schon eingetragen.'],
   ['1.24.0', '26.10.2026', 'Hilfe-Links ins Handbuch (AidKit), immer im selben Fenster und direkt am Kapitel: in den Projektdaten „📘 Projektzentrale im Handbuch“, in der Kurzanleitung „Projektzentrale“ und „Brandschaden von A bis Z“, im Datenarchiv „📘 Handbuch“. Nur Links.'],
@@ -966,7 +971,12 @@ const REISEKOSTEN_URL = '../reisekosten-pro/';   // SpesenKit: Spesenabrechnung 
 const PJ_FILE = '_Projekt.json';
 /* Pflichtangaben: was spätere Schritte oder Kundendokumente brauchen (Anlagen-Deckblätter, VdS-Einordnung in PlanKit, Bilddokumentation).
    Gleiche Liste in FotoKit („Projektdaten …“). Speichern bleibt immer möglich – leere Pflichtfelder werden nur hervorgehoben. */
-const PJ_PFLICHT = ['objekt', 'nutzung', 'auftraggeber', 'schadenereignis', 'schadendatum', 'ortstermin', 'sachverstaendiger'];
+const PJ_PFLICHT = ['objekt', 'nutzung', 'auftraggeber', 'schadendatum', 'ortstermin', 'sachverstaendiger'];
+/* Datumsfelder, die „nicht bekannt“ sein dürfen: gespeichert wird dann der Text „unbekannt“ (statt JJJJ-MM-TT), angezeigt
+   „nicht bekannt“; die Pflichtangabe gilt damit als erledigt. Gleiche Regel in FotoKit (Schadendatum) und PlanKit (Anlage). */
+const PJ_UNBEKANNT = ['schadendatum'], UNBEKANNT = 'unbekannt';
+/** Aktueller Wert eines Projektdaten-Felds im Formular (bei „nicht bekannt“ der gespeicherte Text). */
+const pjFeldWert = k => { const nb = $('pj_' + k + '_nb'); return nb && nb.getAttribute('aria-pressed') === 'true' ? UNBEKANNT : $('pj_' + k) ? $('pj_' + k).value : ''; };
 const PJ_FIELDS = [
   // key, label, type, wide, placeholder
   ['objekt',            'Objekt / Adresse',                 'text', true,  'z. B. EFH, Musterstr. 1, 50667 Köln'],
@@ -1302,26 +1312,30 @@ async function listProjects(){
   }
   scanAll(token);
 }
-/** ResultKit-Stand im Ordner „Laborergebnisse“ (nur lesen): Prüfberichte (XML und PDF gleichen Namens = ein Bericht) und die übernommene „_Ergebnisse.json“. */
-async function laborStand(dir){
-  const namen = new Set(); let ergebnisse = null;
+/** ResultKit-Stand im Ordner „Laborergebnisse“ (nur lesen): Prüfberichte (XML und PDF gleichen Namens = ein Bericht) und die übernommene „_Ergebnisse.json“.
+    Dateistand wie in ResultKit (und FotoKit/PlanKit): XML/PDF in „Laborergebnisse“ und die neueste LabelKit-Datei in „Laboraufträge“ –
+    weicht er vom übernommenen ab, wurde danach etwas geändert. */
+const standKennung = dateien => [...dateien].sort((a, b) => a.name.localeCompare(b.name)).map(d => `${d.name}|${d.size}|${d.t}`).join('\n');
+async function laborStand(dir, auftraege){
+  const namen = new Set(), berichtDateien = []; let ergebnisse = null, uebernommen = '';
   for await (const f of dir.values()){
     if (f.kind !== 'file') continue;
-    if (/\.(xml|pdf)$/i.test(f.name)) namen.add(f.name.replace(/\.(xml|pdf)$/i, '').normalize('NFC').toLowerCase());
+    if (/\.(xml|pdf)$/i.test(f.name)){ namen.add(f.name.replace(/\.(xml|pdf)$/i, '').normalize('NFC').toLowerCase()); berichtDateien.push(f); }
     if (f.name === '_Ergebnisse.json'){
-      try{ const o = JSON.parse(await (await f.getFile()).text()); ergebnisse = { vollstaendig: !!(o && o.vollstaendig), offen: o && Array.isArray(o.offen) ? o.offen.length : 0 }; }
-      catch(e){ ergebnisse = { vollstaendig: false, offen: 0, fehler: true }; }
+      try{
+        const o = JSON.parse(await (await f.getFile()).text());
+        if (!o || o.format !== 'spektron-ergebnisse' || o.version !== 1) throw Error('keine ResultKit-Ergebnisdatei in Version 1');
+        ergebnisse = { vollstaendig: !!o.vollstaendig, offen: Array.isArray(o.offen) ? o.offen.length : 0 }; uebernommen = typeof o.stand === 'string' ? o.stand : '';
+      }catch(e){ ergebnisse = { vollstaendig: false, offen: 0, fehler: true }; }
     }
   }
+  if (ergebnisse && !ergebnisse.fehler) try{
+    const stand = [];
+    for (const f of berichtDateien){ const d = await f.getFile(); stand.push({ name: f.name, size: d.size, t: d.lastModified }); }
+    if (auftraege){ let neu = null; for await (const h of auftraege.values()) if (h.kind === 'file' && /_Daten\.json$/i.test(h.name)){ const d = await h.getFile(); if (!neu || d.lastModified > neu.t) neu = { name: 'Laboraufträge/' + h.name, size: d.size, t: d.lastModified }; } if (neu) stand.push(neu); }
+    ergebnisse.veraltet = standKennung(stand) !== uebernommen;
+  }catch(e){ /* Dateistand nicht lesbar: Karte wie bisher nach der Ergebnisdatei */ }
   return { berichte: namen.size, ergebnisse };
-}
-/** Nach ResultKit zurück im Fenster: nur den Laborstand neu lesen (ResultKit schreibt nie in _Projekt.json). */
-async function laborStandAuffrischen(p){
-  const info = p && p.st && p.st.subs && p.st.subs.laberg;
-  if (!info || !info.handle) return;
-  const alt = JSON.stringify([info.berichte, info.ergebnisse]);
-  try{ Object.assign(info, await laborStand(info.handle)); }catch(e){ return; }
-  if (JSON.stringify([info.berichte, info.ergebnisse]) !== alt && S.sel === p) renderDetail();
 }
 async function scanProject(p){
   const st = { subs: {}, extra: [], pj: false, err: '' };
@@ -1349,9 +1363,10 @@ async function scanProject(p){
         if (/_Daten\.json$/i.test(f.name)) info.daten.push(f.name);
         if (f.name === '_Bildumbenenner.json') info.bu = true;
       }
-      if (sub[0] === 'laberg') Object.assign(info, await laborStand(h));
       st.subs[sub[0]] = info;
     }
+    // nach der Schleife: der Stand braucht auch „Laboraufträge“
+    if (st.subs.laberg) Object.assign(st.subs.laberg, await laborStand(st.subs.laberg.handle, st.subs.labauf && st.subs.labauf.handle));
   }catch(e){ st.err = e.message; }
   return st;
 }
@@ -1481,7 +1496,7 @@ function arbeitsstand(p){
   const lab=st.subs.labauf,fo=st.subs.fotos,pl=st.subs.plaene,le=st.subs.laberg,er=le?.ergebnisse;
   return {label:{text:lab?.daten.length?'Probendaten vorhanden':lab?'Keine Probendaten gefunden':'Ordner fehlt'},
     fotos:{text:fo?.pdfDoc.length?'Bilddokumentation vorhanden':fo?.bu?'Fotobearbeitung begonnen':fo?.images?`${fo.images} Bilder vorhanden`:fo?'Keine Bilder gefunden':'Ordner fehlt'},
-    ergebnis:{text:er?(er.fehler?'Ergebnisdatei nicht lesbar':er.vollstaendig?'Ergebnisse vollständig übernommen':`Zwischenstand übernommen${er.offen?` · ${er.offen} offen`:''}`):le?.berichte?`${le.berichte} Prüfbericht${le.berichte===1?'':'e'} – noch nicht übernommen`:le?'Noch keine Prüfberichte':'Ordner fehlt'},
+    ergebnis:{text:er?(er.fehler?'Ergebnisdatei nicht lesbar':er.veraltet?'Übernommen – seit der Übernahme geändert, in ResultKit erneut übernehmen':er.vollstaendig?'Ergebnisse vollständig übernommen':`Zwischenstand übernommen${er.offen?` · ${er.offen} offen`:''}`):le?.berichte?`${le.berichte} Prüfbericht${le.berichte===1?'':'e'} – noch nicht übernommen`:le?'Noch keine Prüfberichte':'Ordner fehlt'},
     plan:{present:!!pl?.probenplan,text:pl?.probenplan?'Probenplan vorhanden':pl?'Kein Probenplan gefunden':'Ordner fehlt'},beleg:{text:'Jederzeit verfügbar'}};
 }
 function stepCard(id,app,aufgabe,name,st,tip,extra=''){
@@ -1513,7 +1528,7 @@ function weitereApps(){
 }
 /** Leere Pflichtfelder hervorheben und im Kopf der Karte zählen – nach dem Zeichnen und bei jeder Eingabe. */
 function pflichtZeigen(ro){
-  const leer = ro ? [] : PJ_PFLICHT.filter(k => $('pj_' + k) && !String($('pj_' + k).value).trim());
+  const leer = ro ? [] : PJ_PFLICHT.filter(k => $('pj_' + k) && !String(pjFeldWert(k)).trim());
   for (const k of PJ_PFLICHT){ const el = $('pj_' + k); if (el) el.closest('label').classList.toggle('pflicht-offen', leer.includes(k)); }
   const chip = $('pflichtFehlt'); if (!chip) return;
   chip.hidden = !leer.length;
@@ -1539,6 +1554,7 @@ function renderDetail(){
     return `<label class="${[wide ? 'wide' : '', PJ_PFLICHT.includes(k) && !ro ? 'pflicht' : ''].filter(Boolean).join(' ')}"><span>${esc(label)}${PJ_PFLICHT.includes(k) && !ro ? '<span class="pflicht-tag">Pflicht</span>' : ''}</span>
         ${type === 'area' ? `<textarea id="pj_${k}" rows="3" ${ro ? 'readonly' : ''}></textarea>`
           : type === 'select' ? `<select id="pj_${k}" ${ro ? 'disabled' : ''}><option value="">– wählen –</option>${PJ_OPTIONEN[k].map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join('')}${d[k] && !PJ_OPTIONEN[k].some(([v]) => v === d[k]) ? `<option value="${esc(d[k])}">${esc(d[k])}</option>` : ''}</select>`
+          : PJ_UNBEKANNT.includes(k) ? `<span class="datum-nb"><input type="${type}" id="pj_${k}" ${ro ? 'readonly' : ''}><button type="button" class="nb" id="pj_${k}_nb" aria-pressed="false" title="Datum ist nicht bekannt – erscheint in den Anlagen als „nicht bekannt“" ${ro ? 'disabled' : ''}>nicht bekannt</button></span>`
           : `<input type="${type}" id="pj_${k}" placeholder="${esc(ph)}" ${ro ? 'readonly' : ''}>`}</label>`; };
   const same=S.renderedName===p.name&&S.renderedArchive===S.archive,scroll=$('detail').scrollTop,oldPanel=same?$('bueroPanel'):null,oldAlerts=same?$('bueroAttention'):null;
   const officeFocus=(oldPanel?.contains(document.activeElement)||oldAlerts?.contains(document.activeElement))?{el:document.activeElement,start:document.activeElement.selectionStart,end:document.activeElement.selectionEnd}:null;
@@ -1588,7 +1604,7 @@ function renderDetail(){
   if(oldAlerts)$('bueroAttention').replaceWith(oldAlerts);
   if(officeFocus){officeFocus.el.focus({preventScroll:true});try{officeFocus.el.setSelectionRange(officeFocus.start,officeFocus.end);}catch{}}
   if($('azQuick'))$('azQuick').onclick=()=>$('azFile').click();
-  $('pflichtFehlt').onclick=e=>{e.preventDefault();$('pjBox').open=true;const k=PJ_PFLICHT.find(k=>!String($('pj_'+k).value).trim());if(k)$('pj_'+k).focus();};
+  $('pflichtFehlt').onclick=e=>{e.preventDefault();$('pjBox').open=true;const k=PJ_PFLICHT.find(k=>!String(pjFeldWert(k)).trim());if(k)$('pj_'+k).focus();};
   $('pjBox').addEventListener('toggle', () => { S.pjOpen[p.name] = $('pjBox').open; });
   $('ordBox').addEventListener('toggle', () => { S.ordOpen[p.name] = $('ordBox').open; });
   $('vtBox').addEventListener('toggle', () => { S.vtOpen[p.name] = $('vtBox').open; });
@@ -1611,6 +1627,12 @@ function renderDetail(){
     el.value = k in S.pjDirty ? S.pjDirty[k] : (d[k] || '');   // noch nicht gespeicherte Eingaben nicht durch den alten Stand ersetzen
     if (k === 'sachverstaendiger'){ const zk = zustaendigVon(p, pj.error ? undefined : d).kuerzel; if (zk && maPerson(zk)) el.placeholder = 'Vorschlag: ' + maName(zk); }   // nur Vorschlag, nichts wird still eingetragen
     if (!ro) el.addEventListener('input', () => { S.pjDirty[k] = el.value; schedulePJ(); if (PJ_PFLICHT.includes(k)) pflichtZeigen(ro); });
+    const nb = $('pj_' + k + '_nb');
+    if (nb){
+      const setzen = an => { nb.setAttribute('aria-pressed', String(an)); el.disabled = an; if (an) el.value = ''; };
+      setzen(String(k in S.pjDirty ? S.pjDirty[k] : (d[k] || '')).trim() === UNBEKANNT);
+      if (!ro) nb.addEventListener('click', () => { const an = nb.getAttribute('aria-pressed') !== 'true'; setzen(an); S.pjDirty[k] = an ? UNBEKANNT : ''; schedulePJ(); if (PJ_PFLICHT.includes(k)) pflichtZeigen(ro); if (!an) el.focus(); });
+    }
   }
   pflichtZeigen(ro);
   if (fokus && $(fokus.id)){ const el = $(fokus.id); el.focus({preventScroll:true}); try{ if (fokus.a != null) el.setSelectionRange(fokus.a, fokus.b); }catch(e){} }
@@ -1799,7 +1821,7 @@ const AZ_FELDER = [   // Reihenfolge im Dialog
   ['arbeitsauftrag', 'Arbeitsauftrag → Notizen']
 ];
 const azZeig = (k, v) => !v ? '' : (PJ_FIELDS.find(f => f[0] === k) || [])[2] === 'date' ? deDatum(v) : v;
-function deDatum(iso){ const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? `${m[3]}.${m[2]}.${m[1]}` : String(iso || ''); }
+function deDatum(iso){ if (String(iso || '').trim() === UNBEKANNT) return 'nicht bekannt'; const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? `${m[3]}.${m[2]}.${m[1]}` : String(iso || ''); }
 async function arbeitszettelEinlesen(p, file){
   if (!p || S.sel !== p) return;
   if (S.pj && (S.pj.error || S.pj.newer)){ banner('err', `„${PJ_FILE}“ ist nicht beschreibbar – Arbeitszettel wird nicht übernommen.`); return; }
@@ -1934,7 +1956,7 @@ async function verteilerSetzen(p, k, aenderung){
 
 async function makeSubs(p){
   const miss = SUBS.filter(([k]) => !p.st.subs[k]).map(s => s[1]);
-  if (!(await confirmDialog('Fehlende Unterordner anlegen?', `In „${p.name}“ werden angelegt: <b>${miss.map(esc).join(', ')}</b>`, 'Anlegen'))) return;
+  if (!(await confirmDialog('Fehlende Unterordner anlegen?', `In „${esc(p.name)}“ werden angelegt: <b>${miss.map(esc).join(', ')}</b>`, 'Anlegen'))) return;
   try{
     for (const n of miss) await p.handle.getDirectoryHandle(n, { create: true });
   }catch(e){ banner('err', 'Unterordner konnten nicht angelegt werden: ' + esc(e.message)); }
@@ -2300,7 +2322,17 @@ window.addEventListener('beforeunload', e => { if (Object.keys(S.pjDirty).length
 window.addEventListener('focus', () => { S.pjRecoveryRefresh?.(); const p = S.sel; if (p && !Object.keys(S.pjDirty).length) readPJ(p.handle).then(pj => {   // pick up changes from Bildumbenenner / coworkers
   // inzwischen ein anderes Projekt gewählt? Dann gehören Daten und Ordnerstand nicht zu ihm
   if (S.sel !== p || Object.keys(S.pjDirty).length) return;
-  if (JSON.stringify(pj.data) === JSON.stringify(S.pj && S.pj.data)){ laborStandAuffrischen(p); return; }   // ResultKit ändert nur „Laborergebnisse“
+  if (JSON.stringify(pj.data) === JSON.stringify(S.pj && S.pj.data)){
+    // Projektdaten gleich, aber LabelKit, PlanKit, FotoKit oder ResultKit können Unterordner geändert haben: neu lesen,
+    // nur bei geändertem Bestand neu zeichnen – und nicht, während Eingaben ungespeichert sind
+    scanProject(p).then(st => {
+      if (S.sel !== p || Object.keys(S.pjDirty).length) return;
+      // gleicher Dateibestand, aber LabelKit kann dieselbe …_Daten.json überschrieben haben: Anlage-Kasten trotzdem neu lesen
+      if (JSON.stringify(st) === JSON.stringify(p.st)){ if (st && !st.err) anlStatus(p); return; }
+      p.st = st; updateRow(p); renderDetail();
+    });
+    return;
+  }
   S.pj = pj; scanProject(p).then(st => { p.st = st; updateRow(p); if (S.sel === p) renderDetail(); });
 }); });
 

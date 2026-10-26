@@ -87,7 +87,7 @@ const daten = {
   assert.equal(await page.locator('.steps .sw.next,.steps .sw.done').count(), 0, 'Dateibestand erzeugt keine Erledigt- oder Pflichtschrittanzeige');
   assert.equal(await page.locator('#pjBox').evaluate(d => d.open), true, 'Projektdaten offen, solange Pflichtangaben fehlen');
   assert.ok(await page.locator('#pjBox.leer').count(), 'leere Projektdaten hervorgehoben');
-  assert.equal(await page.locator('#pflichtFehlt').innerText(), '7 Pflichtangaben fehlen');
+  assert.equal(await page.locator('#pflichtFehlt').innerText(), '6 Pflichtangaben fehlen');
   await page.locator('#pj_objekt').fill('EFH, Testweg 1');
   await page.locator('#mkSubs').click(); await page.locator('#dYes').click();
   await page.waitForFunction(() => !document.getElementById('mkSubs'));
