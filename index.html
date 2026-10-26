@@ -2326,7 +2326,9 @@ window.addEventListener('focus', () => { S.pjRecoveryRefresh?.(); const p = S.se
     // Projektdaten gleich, aber LabelKit, PlanKit, FotoKit oder ResultKit können Unterordner geändert haben: neu lesen,
     // nur bei geändertem Bestand neu zeichnen – und nicht, während Eingaben ungespeichert sind
     scanProject(p).then(st => {
-      if (S.sel !== p || Object.keys(S.pjDirty).length || JSON.stringify(st) === JSON.stringify(p.st)) return;
+      if (S.sel !== p || Object.keys(S.pjDirty).length) return;
+      // gleicher Dateibestand, aber LabelKit kann dieselbe …_Daten.json überschrieben haben: Anlage-Kasten trotzdem neu lesen
+      if (JSON.stringify(st) === JSON.stringify(p.st)){ if (st && !st.err) anlStatus(p); return; }
       p.st = st; updateRow(p); renderDetail();
     });
     return;
