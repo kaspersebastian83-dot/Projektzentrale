@@ -183,6 +183,10 @@ main{flex:1;display:flex;min-height:0}
 .more a.app .name{display:block;font-size:15px;font-weight:700;line-height:1.2}
 .more a.app small{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
 .more a.app .go{margin-left:auto;color:var(--ac);font-size:18px}
+.hilfe-verweis{margin:0 0 10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12.5px;color:var(--muted)}
+.hilfe-link{font-size:12px;font-weight:600;color:var(--accent);text-decoration:none;border:1px solid var(--line2);border-radius:999px;padding:3px 10px;background:var(--panel);white-space:nowrap}
+.hilfe-link:hover,.hilfe-link:focus-visible{border-color:var(--accent);text-decoration:underline}
+@media print{.hilfe-verweis{display:none!important}}
 .more a.more-link{display:inline-block;margin-top:10px;font-size:12px;color:var(--muted);text-decoration:none}.more a.more-link:hover{color:var(--accent);text-decoration:underline}
 .empty .more{text-align:left;max-width:560px;margin:40px auto 0}
 @media (prefers-color-scheme:dark){ .more a.app{--ac:#5fbfa9} }
@@ -771,9 +775,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.23.0';
-const APP_DATE = '2026-10-25';
+const APP_VERSION = '1.24.0';
+const APP_DATE = '2026-10-26';
 const CHANGELOG = [
+  ['1.24.0', '26.10.2026', 'Hilfe-Links ins Handbuch (AidKit), immer im selben Fenster und direkt am Kapitel: in den Projektdaten „📘 Projektzentrale im Handbuch“, in der Kurzanleitung „Projektzentrale“ und „Brandschaden von A bis Z“, im Datenarchiv „📘 Handbuch“. Nur Links.'],
   ['1.23.0', '25.10.2026', 'Datenarchiv 1.1 (nur die Seite „Datenarchiv“, an der Projektzentrale ändert sich nichts): Rolle jeder Probe aus der Probenbezeichnung – „Brandraum“/„Brandbereich“, „REF“/„Referenz“, „Kleber“/„Teer“/„Bitumen“, „F-“ für Freimessungen –, im Archiv je Probe korrigierbar. Tage zwischen Schadendatum und Probenahme. PAK-Muster normiert nur über Stoffe, die in allen verglichenen Proben über BG liegen, mit Ähnlichkeit der Muster (Kosinus) und Freimessungen vorher/nachher. Literaturquotienten eingeklappt und als nicht für Brandrückstände validiert gekennzeichnet. CSV mit Rolle, Tagen nach Brand und BG.'],
   ['1.22.0', '25.10.2026', 'Unter „Weitere Apps“ ganz unten: kleiner Link „Datenarchiv“. Eigene Seite, die die Messwerte aller Projekte aus den Eurofins-XML im Ordner „Laborergebnisse“ liest – Übersicht, Vergleich je Parameter (nach Brandgut, Nutzung, Matrix oder Jahr), PAK-Muster je Probe und CSV-Export. Liest nur; an der Projektzentrale und den Projektdaten ändert sich nichts.'],
   ['1.21.1', '24.10.2026', 'Kurzanleitung: Knöpfe so benannt wie in den Apps („Proben & Laborauftrag“, „Fotos & Dokumentation“, „Probenplan bearbeiten“; in PlanKit „Proben übernehmen …“). Schritt für Schritt je App steht jetzt im Handbuch (AidKit).'],
@@ -945,6 +950,8 @@ const PROBENPLAN_URL = '../Probenplan/';
 const LABELKIT_URL = '../labelkit/';
 const AUFWANDKIT_URL = '../aufwandkit/';
 const AIDKIT_URL = '../aidkit/';   // AidKit: Handbuch der Suite – Abläufe und Regeln, ohne Projektbezug
+/** Hilfe-Link ins Handbuch: feste Kapiteladresse aus AidKit (hilfe-anker.json), immer dasselbe Fenster „aidkit“. */
+const handbuchLink = (anker, text, titel) => `<a class="hilfe-link" href="${AIDKIT_URL}#${anker}" target="aidkit" rel="noopener" title="${esc(titel)} – öffnet das Handbuch (AidKit) in einem eigenen Fenster">📘 ${esc(text)}</a>`;
 const REISEKOSTEN_URL = '../reisekosten-pro/';   // SpesenKit: Spesenabrechnung je Kollege und Monat – ohne Projektbezug, darum kein Schritt und kein ?projekt=
 
 /* ---------- _Projekt.json ----------
@@ -1511,6 +1518,7 @@ function renderDetail(){
       <summary><span class="t">Projektdaten</span><span class="pflichtFehlt" id="pflichtFehlt" hidden></span><span class="sum">${ro?'Ansehen':summe?'Bearbeiten · Arbeitszettel einlesen':'Ergänzen oder Arbeitszettel einlesen'}</span>
         <span class="save" id="pjSave">${pj.exists ? (d.geaendert ? `Gespeichert ${esc(new Date(d.geaendert).toLocaleDateString('de-DE'))}` : '') : ''}</span></summary>
       <div class="body">
+        <p class="hilfe-verweis">${handbuchLink('app-projektzentrale', 'Projektzentrale im Handbuch', 'Handbuch: Projektzentrale Schritt für Schritt – Projektdaten, Arbeitszettel, Übergabe ans Büro')}</p>
         ${nrWarn}
         ${pj.error ? `<div class="warn">„${PJ_FILE}“ ist nicht lesbar (${esc(pj.error)}) und wird nicht überschrieben.</div>` : ''}
         ${pj.newer ? `<div class="warn">„${PJ_FILE}“ stammt von einer neueren Version – bitte Projektzentrale aktualisieren. Nur Ansicht.</div>` : ''}
@@ -2219,7 +2227,7 @@ function helpHtml(){
   <p>Alle Projektdaten bleiben auf dem Server im Archivordner, die Spesen im SpesenKit-Ordner der Person. Die Apps laden nichts hoch.</p>`;
 }
 function openHelp(){
-  showDialog(`<h3>Kurzanleitung – Spektron-Apps</h3><div class="help-body">${helpHtml()}</div>
+  showDialog(`<h3>Kurzanleitung – Spektron-Apps</h3><p class="hilfe-verweis">Schritt für Schritt mit Übungen: ${handbuchLink('app-projektzentrale', 'Projektzentrale', 'Handbuch: Projektzentrale Schritt für Schritt')} ${handbuchLink('brandschaden', 'Brandschaden von A bis Z', 'Handbuch: der ganze Ablauf über alle Apps')}</p><div class="help-body">${helpHtml()}</div>
     <div class="btns"><button id="hPrint">Drucken / PDF</button><button class="primary" id="hClose">Schließen</button></div>`);
   $('dialog').classList.add('help');
   $('hClose').onclick = closeDialog;

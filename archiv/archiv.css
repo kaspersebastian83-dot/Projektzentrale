@@ -43,3 +43,5 @@ code{background:var(--wash);padding:1px 4px;border-radius:4px}
 label.wahl{display:inline-flex;gap:5px;align-items:center;font-weight:600}select.rolle{font-size:12px;padding:3px 5px;max-width:220px}
 table.sim td.z{min-width:64px}details.lit-q{margin-top:18px;border-top:1px solid var(--linie);padding-top:10px}details.lit-q summary{cursor:pointer;color:var(--muted)}
 h2.abstand{margin-top:26px}
+.hilfe-link{margin-left:auto;font-size:12px;font-weight:600;color:var(--blau);text-decoration:none;border:1px solid var(--linie);border-radius:999px;padding:3px 10px;background:var(--flaeche);white-space:nowrap}.hilfe-link:hover,.hilfe-link:focus-visible{border-color:var(--akzent);text-decoration:underline}
+@media print{.hilfe-link{display:none}}
