@@ -6,6 +6,7 @@ await fs.mkdir(out,{recursive:true});
 for(const name of [A,B]){await fs.mkdir(path.join(tmp,name,'Mitteilungen'),{recursive:true});for(const sub of ['Fotos','Pläne','Laboraufträge','Laborergebnisse','Emails','Rechnung Labore'])await fs.mkdir(path.join(tmp,name,sub));}
 await fs.writeFile(path.join(tmp,A,'Mitteilungen','Gutachten B.docx'),'Synthetic placeholder');await fs.writeFile(path.join(tmp,B,'Laborergebnisse','AR-1-01.xml'),'<x/>');await fs.writeFile(path.join(tmp,B,'Laborergebnisse','AR-1-01.pdf'),'%PDF');await fs.writeFile(path.join(tmp,B,'Laborergebnisse','AR-1-02.pdf'),'%PDF');await fs.writeFile(path.join(tmp,B,'Mitteilungen','Gutachten B.docx'),'Synthetic placeholder');
 await fs.writeFile(path.join(tmp,A,'Fotos','_Bildumbenenner.json'),'{}');await fs.mkdir(path.join(tmp,A,'Abrechnung'));await fs.writeFile(path.join(tmp,A,'Abrechnung','24-0012_Aufwand_2026-10-22.json'),'{}');await fs.writeFile(path.join(tmp,A,'Abrechnung','Aufwand_SK.json'),'{}');await fs.writeFile(path.join(tmp,A,'Laboraufträge','24.0012_PAK_5.1.2026_Laborübergabe.xls'),'x');await fs.writeFile(path.join(tmp,A,'Pläne','Plan.probenplan'),'{}');
+const C='26.9998 Haus &lt;Nord&gt;';await fs.mkdir(path.join(tmp,C,'Fotos'),{recursive:true});   // Ordnername mit HTML-ähnlichem Text (unter Windows erlaubt)
 const pj={format:'mosaik-projekt',version:1,objekt:'Wohnhaus, Musterweg 12',auftraggeber:'Beispiel AG, Abteilung West',sachverstaendigerBeteiligt:'Dr. Muster, Beispielinstitut',versicherungsnehmer:'Fiktive Person',verteiler:{versicherung:{an:true,versandt:'2026-10-20'},sachverstaendiger:{an:true},versicherungsnehmer:{an:false}}};
 let expectedPj=JSON.stringify(pj);await fs.writeFile(path.join(tmp,A,'_Projekt.json'),expectedPj);
 const server=http.createServer(async(req,res)=>{try{const u=new URL(req.url,'http://local');if(/^\/(labelkit|Bildumbenenner|resultkit|Probenplan|aufwandkit)\/$/.test(u.pathname)){res.setHeader('Content-Type','text/html');res.end('<!doctype html><title>Fiktives App-Testziel</title>');return;}let file=path.resolve(root,decodeURIComponent(u.pathname).slice(1)||'index.html');if(!file.startsWith(root+path.sep))throw Error();if((await fs.stat(file)).isDirectory())file=path.join(file,'index.html');res.setHeader('Content-Type',({'.html':'text/html; charset=utf-8','.js':'application/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png'})[path.extname(file)]||'application/octet-stream');res.end(await fs.readFile(file));}catch{res.statusCode=404;res.end();}});
@@ -59,9 +60,30 @@ if(!before){
   assert.ok(await page.locator('#azQuick').isVisible());
  // ResultKit-Karte: XML+PDF gleichen Namens = ein Bericht, PDF allein zählt mit; nach der Übernahme in ResultKit beim Zurückkehren aktualisiert
  assert.match(await page.locator('#goErgebnis .stat').textContent(),/^2 Prüfberichte – noch nicht übernommen$/);
- await fs.writeFile(path.join(tmp,B,'Laborergebnisse','_Ergebnisse.json'),JSON.stringify({format:'spektron-ergebnisse',version:1,vollstaendig:false,offen:['P4'],berichte:[]}));
- await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
- await page.waitForFunction(()=>/Zwischenstand übernommen · 1 offen/.test(document.querySelector('#goErgebnis .stat').textContent));
+ // Dateistand wie in ResultKit (Name|Größe|Änderungszeit, sortiert; der Test-Dateizugriff meldet Änderungszeit 1): XML/PDF und neueste LabelKit-Datei
+ const kennung=async extra=>{const d=[];for(const n of await fs.readdir(path.join(tmp,B,'Laborergebnisse')))if(/\.(xml|pdf)$/i.test(n))d.push({name:n,size:(await fs.stat(path.join(tmp,B,'Laborergebnisse',n))).size,t:1});for(const n of extra||[])d.push({name:'Laboraufträge/'+n,size:(await fs.stat(path.join(tmp,B,'Laboraufträge',n))).size,t:1});return d.sort((a,b)=>a.name.localeCompare(b.name)).map(x=>`${x.name}|${x.size}|${x.t}`).join('\n');};
+ const ergebnis=async (o,extra)=>fs.writeFile(path.join(tmp,B,'Laborergebnisse','_Ergebnisse.json'),JSON.stringify({format:'spektron-ergebnisse',version:1,uebernommen:'2026-10-26T10:00:00.000Z',vollstaendig:false,offen:['P4'],berichte:[],stand:await kennung(extra),...o}));
+ const zurueck=async re=>{await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await page.waitForFunction(r=>new RegExp(r).test(document.querySelector('#goErgebnis .stat').textContent),re);};
+ await ergebnis();
+ await zurueck('^Zwischenstand übernommen · 1 offen$');
+ // LabelKit speichert danach (Auftrag geändert): Karte nicht mehr „übernommen“, Proben-Karte ohne neues Projekt-Lesen aktualisiert
+ await fs.writeFile(path.join(tmp,B,'Laboraufträge','26.9999_2026-10-26_Daten.json'),JSON.stringify({proben:[]}));
+ await zurueck('^Übernommen – seit der Übernahme geändert, in ResultKit erneut übernehmen$');
+ assert.equal(await page.locator('#goLabel .stat').textContent(),'Probendaten vorhanden');
+ await ergebnis({vollstaendig:true,offen:[]},['26.9999_2026-10-26_Daten.json']);await zurueck('^Ergebnisse vollständig übernommen$');
+ // neuer Prüfbericht nach der Übernahme
+ await fs.writeFile(path.join(tmp,B,'Laborergebnisse','AR-2-01.pdf'),'%PDF');
+ await zurueck('^Übernommen – seit der Übernahme geändert, in ResultKit erneut übernehmen$');
+ // fremde oder neuere Ergebnisdatei: nicht als übernommen werten
+ await ergebnis({format:'irgendwas'},['26.9999_2026-10-26_Daten.json']);await zurueck('^Ergebnisdatei nicht lesbar$');
+ await ergebnis({version:2},['26.9999_2026-10-26_Daten.json']);await zurueck('^Ergebnisdatei nicht lesbar$');
+ await ergebnis({},['26.9999_2026-10-26_Daten.json']);await zurueck('^Zwischenstand übernommen · 1 offen$');
+ // unveränderter Ordner: Zurückkehren zeichnet die Ansicht nicht neu
+ await page.evaluate(()=>{document.querySelector('#goErgebnis').dataset.unveraendert='1';window.dispatchEvent(new Event('focus'));});await page.waitForTimeout(1000);
+ assert.equal(await page.locator('#goErgebnis').getAttribute('data-unveraendert'),'1');
+ // Fehlende Unterordner anlegen: der Projektname steht als Text im Dialog
+ await page.locator('.proj').filter({hasText:'Haus &lt;Nord&gt;'}).click();await page.locator('#mkSubs').click();
+ assert.match(await page.locator('#dialog .m').textContent(),/^In „26\.9998 Haus &lt;Nord&gt;“ werden angelegt: /);await page.locator('#dNo').click();
  await page.locator(`.proj[data-name="${A}"]`).focus();await page.keyboard.press('Space');await page.waitForFunction(()=>document.querySelector('.proj.active')?.dataset.name==='24.0012 Fiktivstadt');
  for(const [button,app] of [['goLabel','labelkit'],['goFotos','Bildumbenenner'],['goErgebnis','resultkit'],['goPlan','Probenplan'],['goAufwand','aufwandkit']]){
   const [pop]=await Promise.all([page.waitForEvent('popup'),page.locator('#'+button).click()]);await pop.waitForURL(base+'/'+app+'/**');const u=new URL(pop.url());assert.equal(u.search,'');assert.equal(new URLSearchParams(u.hash.slice(1)).get('projekt'),A);await pop.close();

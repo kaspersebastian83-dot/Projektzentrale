@@ -780,9 +780,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.26.0';
+const APP_VERSION = '1.27.0';
 const APP_DATE = '2026-10-26';
 const CHANGELOG = [
+  ['1.27.0', '26.10.2026', 'Projektdaten: Das Schadendatum kann „nicht bekannt“ sein (Knopf neben dem Feld; gespeichert als „unbekannt“, in den Anlagen „nicht bekannt“) – die Pflichtangabe gilt damit als erledigt. Das Schadenereignis ist keine Pflichtangabe mehr. Karte „Laborergebnisse prüfen“: Kommt nach der Übernahme in ResultKit ein neuer Prüfbericht dazu oder ändert sich der Laborauftrag aus LabelKit, steht dort „Übernommen – seit der Übernahme geändert, in ResultKit erneut übernehmen“ statt „vollständig übernommen“; eine Ergebnisdatei, die nicht aus ResultKit stammt oder ein neueres Format hat, gilt als nicht lesbar. Zurück aus LabelKit, PlanKit, FotoKit oder ResultKit werden alle Karten und die Anlagen neu eingelesen (bisher nur bei geänderten Projektdaten). Fehlende Unterordner anlegen: Projektname im Dialog als Text angezeigt. Wiederherstellen einer Projektfassung prüft die Projektnummer jetzt auch bei 2–6-stelligen Nummern richtig.'],
   ['1.26.0', '26.10.2026', 'Neue Aufgabe „Laborergebnisse prüfen“ (ResultKit) zwischen Fotos und Probenplan: zeigt, ob die Laborergebnisse übernommen sind, ob noch Proben offen sind oder ob Prüfberichte auf die Übernahme warten. ResultKit vergleicht den Laborauftrag aus LabelKit mit den Prüfberichten, importiert neue Berichte und übergibt die geprüften Werte an PlanKit und FotoKit. Spektron-Leiste in den Apps mit fünf Schritten.'],
   ['1.25.0', '26.10.2026', 'Neu unter „Weitere Apps“: 💬 Rückmeldung – Fehler oder Wunsch an den Betreuer melden. Öffnet das Formular in einem eigenen Fenster; Programm, Version und (falls ein Projekt gewählt ist) die Projektnummer sind schon eingetragen.'],
   ['1.24.0', '26.10.2026', 'Hilfe-Links ins Handbuch (AidKit), immer im selben Fenster und direkt am Kapitel: in den Projektdaten „📘 Projektzentrale im Handbuch“, in der Kurzanleitung „Projektzentrale“ und „Brandschaden von A bis Z“, im Datenarchiv „📘 Handbuch“. Nur Links.'],
@@ -1311,26 +1312,30 @@ async function listProjects(){
   }
   scanAll(token);
 }
-/** ResultKit-Stand im Ordner „Laborergebnisse“ (nur lesen): Prüfberichte (XML und PDF gleichen Namens = ein Bericht) und die übernommene „_Ergebnisse.json“. */
-async function laborStand(dir){
-  const namen = new Set(); let ergebnisse = null;
+/** ResultKit-Stand im Ordner „Laborergebnisse“ (nur lesen): Prüfberichte (XML und PDF gleichen Namens = ein Bericht) und die übernommene „_Ergebnisse.json“.
+    Dateistand wie in ResultKit (und FotoKit/PlanKit): XML/PDF in „Laborergebnisse“ und die neueste LabelKit-Datei in „Laboraufträge“ –
+    weicht er vom übernommenen ab, wurde danach etwas geändert. */
+const standKennung = dateien => [...dateien].sort((a, b) => a.name.localeCompare(b.name)).map(d => `${d.name}|${d.size}|${d.t}`).join('\n');
+async function laborStand(dir, auftraege){
+  const namen = new Set(), berichtDateien = []; let ergebnisse = null, uebernommen = '';
   for await (const f of dir.values()){
     if (f.kind !== 'file') continue;
-    if (/\.(xml|pdf)$/i.test(f.name)) namen.add(f.name.replace(/\.(xml|pdf)$/i, '').normalize('NFC').toLowerCase());
+    if (/\.(xml|pdf)$/i.test(f.name)){ namen.add(f.name.replace(/\.(xml|pdf)$/i, '').normalize('NFC').toLowerCase()); berichtDateien.push(f); }
     if (f.name === '_Ergebnisse.json'){
-      try{ const o = JSON.parse(await (await f.getFile()).text()); ergebnisse = { vollstaendig: !!(o && o.vollstaendig), offen: o && Array.isArray(o.offen) ? o.offen.length : 0 }; }
-      catch(e){ ergebnisse = { vollstaendig: false, offen: 0, fehler: true }; }
+      try{
+        const o = JSON.parse(await (await f.getFile()).text());
+        if (!o || o.format !== 'spektron-ergebnisse' || o.version !== 1) throw Error('keine ResultKit-Ergebnisdatei in Version 1');
+        ergebnisse = { vollstaendig: !!o.vollstaendig, offen: Array.isArray(o.offen) ? o.offen.length : 0 }; uebernommen = typeof o.stand === 'string' ? o.stand : '';
+      }catch(e){ ergebnisse = { vollstaendig: false, offen: 0, fehler: true }; }
     }
   }
+  if (ergebnisse && !ergebnisse.fehler) try{
+    const stand = [];
+    for (const f of berichtDateien){ const d = await f.getFile(); stand.push({ name: f.name, size: d.size, t: d.lastModified }); }
+    if (auftraege){ let neu = null; for await (const h of auftraege.values()) if (h.kind === 'file' && /_Daten\.json$/i.test(h.name)){ const d = await h.getFile(); if (!neu || d.lastModified > neu.t) neu = { name: 'Laboraufträge/' + h.name, size: d.size, t: d.lastModified }; } if (neu) stand.push(neu); }
+    ergebnisse.veraltet = standKennung(stand) !== uebernommen;
+  }catch(e){ /* Dateistand nicht lesbar: Karte wie bisher nach der Ergebnisdatei */ }
   return { berichte: namen.size, ergebnisse };
-}
-/** Nach ResultKit zurück im Fenster: nur den Laborstand neu lesen (ResultKit schreibt nie in _Projekt.json). */
-async function laborStandAuffrischen(p){
-  const info = p && p.st && p.st.subs && p.st.subs.laberg;
-  if (!info || !info.handle) return;
-  const alt = JSON.stringify([info.berichte, info.ergebnisse]);
-  try{ Object.assign(info, await laborStand(info.handle)); }catch(e){ return; }
-  if (JSON.stringify([info.berichte, info.ergebnisse]) !== alt && S.sel === p) renderDetail();
 }
 async function scanProject(p){
   const st = { subs: {}, extra: [], pj: false, err: '' };
@@ -1358,9 +1363,10 @@ async function scanProject(p){
         if (/_Daten\.json$/i.test(f.name)) info.daten.push(f.name);
         if (f.name === '_Bildumbenenner.json') info.bu = true;
       }
-      if (sub[0] === 'laberg') Object.assign(info, await laborStand(h));
       st.subs[sub[0]] = info;
     }
+    // nach der Schleife: der Stand braucht auch „Laboraufträge“
+    if (st.subs.laberg) Object.assign(st.subs.laberg, await laborStand(st.subs.laberg.handle, st.subs.labauf && st.subs.labauf.handle));
   }catch(e){ st.err = e.message; }
   return st;
 }
@@ -1490,7 +1496,7 @@ function arbeitsstand(p){
   const lab=st.subs.labauf,fo=st.subs.fotos,pl=st.subs.plaene,le=st.subs.laberg,er=le?.ergebnisse;
   return {label:{text:lab?.daten.length?'Probendaten vorhanden':lab?'Keine Probendaten gefunden':'Ordner fehlt'},
     fotos:{text:fo?.pdfDoc.length?'Bilddokumentation vorhanden':fo?.bu?'Fotobearbeitung begonnen':fo?.images?`${fo.images} Bilder vorhanden`:fo?'Keine Bilder gefunden':'Ordner fehlt'},
-    ergebnis:{text:er?(er.fehler?'Ergebnisdatei nicht lesbar':er.vollstaendig?'Ergebnisse vollständig übernommen':`Zwischenstand übernommen${er.offen?` · ${er.offen} offen`:''}`):le?.berichte?`${le.berichte} Prüfbericht${le.berichte===1?'':'e'} – noch nicht übernommen`:le?'Noch keine Prüfberichte':'Ordner fehlt'},
+    ergebnis:{text:er?(er.fehler?'Ergebnisdatei nicht lesbar':er.veraltet?'Übernommen – seit der Übernahme geändert, in ResultKit erneut übernehmen':er.vollstaendig?'Ergebnisse vollständig übernommen':`Zwischenstand übernommen${er.offen?` · ${er.offen} offen`:''}`):le?.berichte?`${le.berichte} Prüfbericht${le.berichte===1?'':'e'} – noch nicht übernommen`:le?'Noch keine Prüfberichte':'Ordner fehlt'},
     plan:{present:!!pl?.probenplan,text:pl?.probenplan?'Probenplan vorhanden':pl?'Kein Probenplan gefunden':'Ordner fehlt'},beleg:{text:'Jederzeit verfügbar'}};
 }
 function stepCard(id,app,aufgabe,name,st,tip,extra=''){
@@ -1950,7 +1956,7 @@ async function verteilerSetzen(p, k, aenderung){
 
 async function makeSubs(p){
   const miss = SUBS.filter(([k]) => !p.st.subs[k]).map(s => s[1]);
-  if (!(await confirmDialog('Fehlende Unterordner anlegen?', `In „${p.name}“ werden angelegt: <b>${miss.map(esc).join(', ')}</b>`, 'Anlegen'))) return;
+  if (!(await confirmDialog('Fehlende Unterordner anlegen?', `In „${esc(p.name)}“ werden angelegt: <b>${miss.map(esc).join(', ')}</b>`, 'Anlegen'))) return;
   try{
     for (const n of miss) await p.handle.getDirectoryHandle(n, { create: true });
   }catch(e){ banner('err', 'Unterordner konnten nicht angelegt werden: ' + esc(e.message)); }
@@ -2316,7 +2322,15 @@ window.addEventListener('beforeunload', e => { if (Object.keys(S.pjDirty).length
 window.addEventListener('focus', () => { S.pjRecoveryRefresh?.(); const p = S.sel; if (p && !Object.keys(S.pjDirty).length) readPJ(p.handle).then(pj => {   // pick up changes from Bildumbenenner / coworkers
   // inzwischen ein anderes Projekt gewählt? Dann gehören Daten und Ordnerstand nicht zu ihm
   if (S.sel !== p || Object.keys(S.pjDirty).length) return;
-  if (JSON.stringify(pj.data) === JSON.stringify(S.pj && S.pj.data)){ laborStandAuffrischen(p); return; }   // ResultKit ändert nur „Laborergebnisse“
+  if (JSON.stringify(pj.data) === JSON.stringify(S.pj && S.pj.data)){
+    // Projektdaten gleich, aber LabelKit, PlanKit, FotoKit oder ResultKit können Unterordner geändert haben: neu lesen,
+    // nur bei geändertem Bestand neu zeichnen – und nicht, während Eingaben ungespeichert sind
+    scanProject(p).then(st => {
+      if (S.sel !== p || Object.keys(S.pjDirty).length || JSON.stringify(st) === JSON.stringify(p.st)) return;
+      p.st = st; updateRow(p); renderDetail();
+    });
+    return;
+  }
   S.pj = pj; scanProject(p).then(st => { p.st = st; updateRow(p); if (S.sel === p) renderDetail(); });
 }); });
 
