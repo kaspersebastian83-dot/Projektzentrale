@@ -775,9 +775,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.24.0';
+const APP_VERSION = '1.25.0';
 const APP_DATE = '2026-10-26';
 const CHANGELOG = [
+  ['1.25.0', '26.10.2026', 'Neu unter „Weitere Apps“: 💬 Rückmeldung – Fehler oder Wunsch an den Betreuer melden. Öffnet das Formular in einem eigenen Fenster; Programm, Version und (falls ein Projekt gewählt ist) die Projektnummer sind schon eingetragen.'],
   ['1.24.0', '26.10.2026', 'Hilfe-Links ins Handbuch (AidKit), immer im selben Fenster und direkt am Kapitel: in den Projektdaten „📘 Projektzentrale im Handbuch“, in der Kurzanleitung „Projektzentrale“ und „Brandschaden von A bis Z“, im Datenarchiv „📘 Handbuch“. Nur Links.'],
   ['1.23.0', '25.10.2026', 'Datenarchiv 1.1 (nur die Seite „Datenarchiv“, an der Projektzentrale ändert sich nichts): Rolle jeder Probe aus der Probenbezeichnung – „Brandraum“/„Brandbereich“, „REF“/„Referenz“, „Kleber“/„Teer“/„Bitumen“, „F-“ für Freimessungen –, im Archiv je Probe korrigierbar. Tage zwischen Schadendatum und Probenahme. PAK-Muster normiert nur über Stoffe, die in allen verglichenen Proben über BG liegen, mit Ähnlichkeit der Muster (Kosinus) und Freimessungen vorher/nachher. Literaturquotienten eingeklappt und als nicht für Brandrückstände validiert gekennzeichnet. CSV mit Rolle, Tagen nach Brand und BG.'],
   ['1.22.0', '25.10.2026', 'Unter „Weitere Apps“ ganz unten: kleiner Link „Datenarchiv“. Eigene Seite, die die Messwerte aller Projekte aus den Eurofins-XML im Ordner „Laborergebnisse“ liest – Übersicht, Vergleich je Parameter (nach Brandgut, Nutzung, Matrix oder Jahr), PAK-Muster je Probe und CSV-Export. Liest nur; an der Projektzentrale und den Projektdaten ändert sich nichts.'],
@@ -952,6 +953,7 @@ const AUFWANDKIT_URL = '../aufwandkit/';
 const AIDKIT_URL = '../aidkit/';   // AidKit: Handbuch der Suite – Abläufe und Regeln, ohne Projektbezug
 /** Hilfe-Link ins Handbuch: feste Kapiteladresse aus AidKit (hilfe-anker.json), immer dasselbe Fenster „aidkit“. */
 const handbuchLink = (anker, text, titel) => `<a class="hilfe-link" href="${AIDKIT_URL}#${anker}" target="aidkit" rel="noopener" title="${esc(titel)} – öffnet das Handbuch (AidKit) in einem eigenen Fenster">📘 ${esc(text)}</a>`;
+const RUECKMELDUNG_URL = '../rueckmeldung/';   // Rückmeldung: Fehler oder Wunsch an den Betreuer – Programm, Version und Projektnummer werden vorbelegt
 const REISEKOSTEN_URL = '../reisekosten-pro/';   // SpesenKit: Spesenabrechnung je Kollege und Monat – ohne Projektbezug, darum kein Schritt und kein ?projekt=
 
 /* ---------- _Projekt.json ----------
@@ -1467,6 +1469,12 @@ function ordnerKurz(p){
   return `${da} von ${SUBS.length} Unterordnern · ${dateien} Datei${dateien === 1 ? '' : 'en'}`;
 }
 /** Weitere Apps unten im rechten Fenster, auch ohne gewähltes Projekt: Die Monatsabrechnung der Reisekosten gehört zu keinem Projekt. */
+/** Link zum Rückmeldeformular: Programm und Version immer, die Projektnummer (nur die Nummer, kein Ort) wenn ein Projekt gewählt ist. */
+function rueckmeldungUrl(){
+  const q = new URLSearchParams({ app: 'projektzentrale', version: APP_VERSION });
+  if (S.sel && S.sel.nr) q.set('projekt', S.sel.nr);
+  return esc(RUECKMELDUNG_URL + '?' + q);
+}
 function weitereApps(){
   return `<div class="more"><h3>Weitere Apps</h3>
     <a class="app" id="goAid" href="${AIDKIT_URL}" target="aidkit" rel="noopener" title="Öffnet das Handbuch in einem eigenen Fenster – Abläufe Schritt für Schritt und gemeinsame Regeln (z. B. Probenbezeichnung Bohrkerne)"><span class="ic" aria-hidden="true">📘</span><span><span class="name">Handbuch (AidKit)</span><small>Abläufe Schritt für Schritt und gemeinsame Regeln</small></span><span class="go" aria-hidden="true">↗</span></a>
@@ -1474,6 +1482,7 @@ function weitereApps(){
     <a class="app" id="goDurch" href="#durchlaufzeiten" role="button" title="Wie lange dauert es vom Ortstermin bis zum Versand? Aus vorhandenen Daten, nichts wird eingegeben"><span class="ic" aria-hidden="true">📈</span><span><span class="name">Durchlaufzeiten</span><small>Vom Ortstermin bis zum Versand – je Abschnitt und Labor</small></span><span class="go" aria-hidden="true">›</span></a>
     <a class="app" id="goReise" href="${REISEKOSTEN_URL}" target="reisekosten" rel="noopener" title="Öffnet SpesenKit in einem eigenen Fenster – Reisekosten- und Spesenabrechnung je Monat, unabhängig vom Projekt">
       <span class="ic" aria-hidden="true">🧾</span><span><span class="name">SpesenKit</span><small>Spesenabrechnung für den Monat</small></span><span class="go" aria-hidden="true">↗</span></a>
+    <a class="app" id="goRueck" href="${rueckmeldungUrl()}" target="rueckmeldung" rel="noopener" title="Öffnet das Rückmeldeformular in einem eigenen Fenster – Programm, Version und (falls gewählt) Projektnummer sind schon eingetragen"><span class="ic" aria-hidden="true">💬</span><span><span class="name">Rückmeldung</span><small>Fehler oder Wunsch melden</small></span><span class="go" aria-hidden="true">↗</span></a>
     <a class="more-link" href="archiv/" target="spektron-archiv" rel="noopener" title="Messwerte aller Projekte aus den Prüfberichten vergleichen – liest nur, öffnet in einem eigenen Fenster">Datenarchiv ↗</a></div>`;
 }
 /** Leere Pflichtfelder hervorheben und im Kopf der Karte zählen – nach dem Zeichnen und bei jeder Eingabe. */

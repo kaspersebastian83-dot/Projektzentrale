@@ -35,6 +35,7 @@ jobs:
       - run: node tests/durchlauf.cjs
       - run: node tests/archiv.cjs
       - run: node tests/hilfe-links.cjs
+      - run: node tests/rueckmeldung-link.cjs
 
   browser-tests:
     name: Browser tests (${{ matrix.browser }})
