@@ -9,6 +9,13 @@ await fs.writeFile(path.join(tmp,A,'Fotos','_Bildumbenenner.json'),'{}');await f
 const C='26.9998 Haus &lt;Nord&gt;';await fs.mkdir(path.join(tmp,C,'Fotos'),{recursive:true});   // Ordnername mit HTML-ähnlichem Text (unter Windows erlaubt)
 const pj={format:'mosaik-projekt',version:1,objekt:'Wohnhaus, Musterweg 12',auftraggeber:'Beispiel AG, Abteilung West',sachverstaendigerBeteiligt:'Dr. Muster, Beispielinstitut',versicherungsnehmer:'Fiktive Person',verteiler:{versicherung:{an:true,versandt:'2026-10-20'},sachverstaendiger:{an:true},versicherungsnehmer:{an:false}}};
 let expectedPj=JSON.stringify(pj);await fs.writeFile(path.join(tmp,A,'_Projekt.json'),expectedPj);
+// Frühere Büroübergabe (Projektzentrale bis 1.27, „_Buero/<UUID>/“), vom Büro übernommen: erscheint weiter als offene Aufgabe
+const id='0f0e0d0c-1111-4222-8333-944455556666';await fs.mkdir(path.join(tmp,A,'_Buero',id),{recursive:true});
+await fs.writeFile(path.join(tmp,A,'_Buero',id,'auftrag.json'),JSON.stringify({format:'spektron-buero',version:1,id,created:'2026-10-26T09:00:00.000Z',content:{project:{name:A,nr:'24.0012',ort:'Fiktivstadt'},word:'Mitteilungen/Gutachten B.docx',who:'SK',note:'Papiermappe am Büroplatz.',recipients:[{id:'r-1',group:'versicherung',label:'Auftraggeber',details:'Beispiel AG, Abteilung West'},{id:'r-2',group:'sachverstaendiger',label:'Empfangende Sachverständige',details:'Dr. Muster, Beispielinstitut'}]}}));
+await fs.writeFile(path.join(tmp,A,'_Buero',id,'rueckmeldung-1a2b3c4d-0000-4000-8000-000000000001.json'),JSON.stringify({format:'spektron-buero',version:1,id:'1a2b3c4d-0000-4000-8000-000000000001',orderId:id,at:'2026-10-26T10:00:00.000Z',actor:'AB',parents:[],type:'claim',payload:{}}));
+// Word-Dateien in „Mitteilungen“: neueste vorgewählt; Word-Sperrdatei und andere Dateien nicht in der Auswahl
+await fs.writeFile(path.join(tmp,A,'Mitteilungen','Gutachten Z alt.docx'),'Synthetic placeholder');await fs.utimes(path.join(tmp,A,'Mitteilungen','Gutachten Z alt.docx'),new Date('2026-01-02'),new Date('2026-01-02'));
+await fs.writeFile(path.join(tmp,A,'Mitteilungen','~$tachten B.docx'),'lock');await fs.writeFile(path.join(tmp,A,'Mitteilungen','Notiz.txt'),'x');
 const server=http.createServer(async(req,res)=>{try{const u=new URL(req.url,'http://local');if(/^\/(labelkit|Bildumbenenner|resultkit|Probenplan|aufwandkit)\/$/.test(u.pathname)){res.setHeader('Content-Type','text/html');res.end('<!doctype html><title>Fiktives App-Testziel</title>');return;}let file=path.resolve(root,decodeURIComponent(u.pathname).slice(1)||'index.html');if(!file.startsWith(root+path.sep))throw Error();if((await fs.stat(file)).isDirectory())file=path.join(file,'index.html');res.setHeader('Content-Type',({'.html':'text/html; charset=utf-8','.js':'application/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png'})[path.extname(file)]||'application/octet-stream');res.end(await fs.readFile(file));}catch{res.statusCode=404;res.end();}});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port;
 const browser=await pw.chromium.launch(process.env.BROWSER_EXECUTABLE?{executablePath:process.env.BROWSER_EXECUTABLE,args:['--no-sandbox']}:{}),contexts=[];const errors=[];
@@ -23,7 +30,7 @@ async function context(existing){
    case'dir':if(arg.create)await fs.mkdir(absolute,{recursive:true});if(!(await fs.stat(absolute)).isDirectory())throw Error('not directory');return true;
    case'file':if(arg.create)await fs.appendFile(absolute,'');if(!(await fs.stat(absolute)).isFile())throw Error('not file');return true;
    case'list':return (await fs.readdir(absolute,{withFileTypes:true})).map(x=>({name:x.name,kind:x.isDirectory()?'directory':'file'}));
-   case'read':{const buf=await fs.readFile(absolute);return {text:buf.toString(),size:buf.length};}
+   case'read':{const buf=await fs.readFile(absolute);return {text:buf.toString(),size:buf.length,mtime:(await fs.stat(absolute)).mtimeMs};}
    case'write':await fs.writeFile(absolute,arg.text);return true;
   }}catch(e){if(e.code==='ENOENT')return {notfound:true};throw e;}
  });
@@ -31,7 +38,7 @@ async function context(existing){
   window.testIO={failWrite:false,failList:false,failRead:false,failAfterClose:false,hideGrant:false};
   const io=async arg=>{const r=await window.__sharedIO(arg);if(r?.notfound)throw new DOMException('Missing','NotFoundError');return r;};
   class Handle{constructor(rel,kind){this.rel=rel;this.kind=kind;this.name=rel.split('/').at(-1)||'Testarchiv';}async queryPermission(){return window.testIO.hideGrant?'denied':'granted';}async requestPermission(){return this.queryPermission();}async isSameEntry(h){return h.rel===this.rel;}}
-  class FileHandle extends Handle{constructor(rel){super(rel,'file');}async getFile(){const r=await io({op:'read',rel:this.rel,fail:window.testIO.failRead&&this.name.startsWith('rueckmeldung-')?'read':null});return {name:this.name,size:r.size,lastModified:1,text:async()=>r.text,arrayBuffer:async()=>new TextEncoder().encode(r.text).buffer};}async createWritable(){if(window.testIO.failWrite)throw Error('SYNTHETIC write');let text;const rel=this.rel;return{write:async value=>{text=value;},abort:async()=>{},close:async()=>{await io({op:'write',rel,text});if(window.testIO.failAfterClose){window.testIO.failRead=true;window.testIO.failAfterClose=false;}}};}}
+  class FileHandle extends Handle{constructor(rel){super(rel,'file');}async getFile(){const r=await io({op:'read',rel:this.rel,fail:window.testIO.failRead&&this.name.startsWith('rueckmeldung-')?'read':null});return {name:this.name,size:r.size,lastModified:/\.docx?$/i.test(this.name)?r.mtime:1,text:async()=>r.text,arrayBuffer:async()=>new TextEncoder().encode(r.text).buffer};}async createWritable(){if(window.testIO.failWrite)throw Error('SYNTHETIC write');let text;const rel=this.rel;return{write:async value=>{text=value;},abort:async()=>{},close:async()=>{await io({op:'write',rel,text});if(window.testIO.failAfterClose){window.testIO.failRead=true;window.testIO.failAfterClose=false;}}};}}
   class DirectoryHandle extends Handle{constructor(rel){super(rel,'directory');}child(n){return(this.rel?this.rel+'/':'')+n;}async getDirectoryHandle(n,opts={}){const rel=this.child(n);await io({op:'dir',rel,create:opts.create});return new DirectoryHandle(rel);}async getFileHandle(n,opts={}){const rel=this.child(n);await io({op:'file',rel,create:opts.create});return new FileHandle(rel);}async *values(){if(window.testIO.pauseList&&this.name==='_Buero')await new Promise(resolve=>(window.testIO.resumeLists??=[]).push(resolve));for(const h of await io({op:'list',rel:this.rel,fail:window.testIO.failList&&this.name==='_Buero'?'list':null}))yield h.kind==='directory'?new DirectoryHandle(this.child(h.name)):new FileHandle(this.child(h.name));}async resolve(h){const prefix=this.rel?this.rel+'/':'';return h.rel.startsWith(prefix)?h.rel.slice(prefix.length).split('/'):null;}}
   window.SharedDirectoryHandle=DirectoryHandle;
   window.showDirectoryPicker=async()=>new DirectoryHandle('');
@@ -41,8 +48,7 @@ async function context(existing){
 }
 const page=await(await context()).newPage();page.on('pageerror',e=>errors.push(e.message));await page.setViewportSize({width:1440,height:1000});
 await page.goto(base+'/index.html');await page.locator('#btnStart').click();await page.locator(`.proj[data-name="${A}"]`).click();
-const id=await page.evaluate(async()=>{const p=await new SharedDirectoryHandle('').getDirectoryHandle('24.0012 Fiktivstadt');const o=BueroData.order(BueroData.snapshot({name:p.name,nr:'24.0012',ort:'Fiktivstadt'},'Mitteilungen/Gutachten B.docx','SK','Papiermappe am Büroplatz.',BueroData.recipients({auftraggeber:'Beispiel AG, Abteilung West',sachverstaendigerBeteiligt:'Dr. Muster, Beispielinstitut'})));await BueroData.create(p,o);let r=await BueroData.load(p,o.id);await BueroData.append(p,BueroData.event(r,'claim',{},'AB'));return o.id;});
-await page.locator('[data-refresh]').click();await page.waitForFunction(()=>document.querySelector('#bueroPanel').textContent.includes('In Bearbeitung'));
+await page.locator('#bueroPanel [data-ab-aufgabe]').waitFor();
 async function top(){await page.locator('#detail').evaluate(e=>e.scrollTop=0);}
 async function shot(state){if(state==='uebergabe')await page.locator('#bueroPanel').evaluate(e=>e.scrollIntoView({block:'start'}));else await top();await page.screenshot({path:path.join(out,(before?'vorher':'nachher')+'-'+state+'.png')});}
 await shot('projekt');
@@ -90,44 +96,54 @@ if(!before){
  }
 }
 if(!before){
- assert.equal(await page.locator('[data-handover-label]').innerText(),'Übergabe ansehen');
- await page.locator('[data-handover] > summary').click();await page.locator(`[data-revise="${id}"]`).waitFor();
- assert.ok(await page.locator(`[data-record="${id}"]`).evaluate(e=>e.open));
- assert.ok(!await page.locator('[data-form]').isVisible());
- assert.match(await page.locator(`[data-record="${id}"]`).innerText(),/Mitteilungen\/Gutachten B.docx/);
- await page.locator('#bueroPanel').evaluate(e=>e.scrollIntoView({block:'start'}));
- await page.screenshot({path:path.join(out,'offene-uebergabe-details.png')});
- await page.locator(`[data-revise="${id}"]`).click();
- await page.waitForFunction(()=>document.querySelector('[data-form-label]')?.textContent==='Offene Übergabe ändern');
-}
-if(!await page.locator('[data-form]').evaluate(e=>e.open))await page.locator('[data-form] > summary').click();
-if(!before){
- await page.locator('[data-group="2"]').check();await page.locator('[data-add="2"]').click();await page.locator('[data-entry="2:0"]').fill('Entwurf Versicherungsnehmer, Beispielweg 8');await page.locator('[data-group="2"]').uncheck();assert.equal(await page.locator('[data-entry="2:0"]').inputValue(),'Entwurf Versicherungsnehmer, Beispielweg 8');assert.ok(!await page.locator('[data-entry="2:0"]').isVisible());
- await page.locator('[data-note]').fill('Unfertiger Hinweis bleibt erhalten.');await page.locator('[data-note]').evaluate(e=>{e.focus();e.setSelectionRange(4,9);});
- expectedPj=JSON.stringify({...pj,objekt:'Extern aktualisiertes fiktives Objekt'});await fs.writeFile(path.join(tmp,A,'_Projekt.json'),expectedPj);
- await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await page.locator('.project-summary').filter({hasText:'Extern aktualisiertes'}).waitFor();await page.waitForFunction(()=>document.activeElement?.matches('[data-note]'));
- assert.deepEqual(await page.locator('[data-note]').evaluate(e=>[e.selectionStart,e.selectionEnd]),[4,9]);
- await page.locator('[data-handover] > summary').click();assert.ok(!await page.locator('[data-note]').isVisible());await page.locator('[data-handover] > summary').click();assert.equal(await page.locator('[data-note]').inputValue(),'Unfertiger Hinweis bleibt erhalten.');
- await page.locator('[data-group="2"]').check();assert.equal(await page.locator('[data-entry="2:0"]').inputValue(),'Entwurf Versicherungsnehmer, Beispielweg 8');await page.locator('[data-group="2"]').uncheck();
-}
-if(!before){expectedPj=JSON.stringify(pj);await fs.writeFile(path.join(tmp,A,'_Projekt.json'),expectedPj);await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await page.locator('.project-summary').filter({hasText:'Wohnhaus'}).waitFor();}
-await page.locator('[data-note]').fill('Unfertiger Hinweis bleibt erhalten.');await shot('uebergabe');
-if(!before){
- await page.locator('[data-handover] > summary').click();await page.locator('#vtBox > summary').click();assert.ok(await page.locator('#vtBox .vtAn').first().isDisabled());
- assert.equal(await fs.readFile(path.join(tmp,A,'_Projekt.json'),'utf8'),expectedPj,'digital legacy display never rewrites PJ');
+ // Karte „Ans Büro“: frühere Übergabe als offene Aufgabe in einer Zeile; Formular zu, weil schon ein Gutachten beim Büro ist
+ assert.equal(await page.locator('#bueroPanel h3').innerText(),'Ans Büro');
+ assert.match(await page.locator('#bueroPanel [data-ab-stand]').innerText(),/^Gutachten beim Büro · übergeben 26\.10\. von SK · noch offen: Gegenlesen · PDF · Versand · in Arbeit bei AB$/);
+ assert.equal(await page.locator(`[data-ab-aufgabe="${id}"]`).getAttribute('title'),'Word-Datei: Mitteilungen/Gutachten B.docx');
+ assert.ok(!await page.locator('[data-ab-form]').evaluate(e=>e.open),'Formular zu: Gutachten schon beim Büro');
+ assert.equal(await page.locator('[data-ab-kit]').getAttribute('href'),'../buerokit/');assert.equal(await page.locator('[data-ab-kit]').getAttribute('target'),'buerokit');
+ assert.equal(await page.locator('#goBuero').getAttribute('href'),'../buerokit/');assert.equal(await page.locator('#goBuero').getAttribute('target'),'buerokit');
+ assert.match(await page.locator('#goBuero').innerText(),/BüroKit\s*Aufgaben des Büros: Gutachten gegenlesen, PDF, Versand/);
+ // Übergabeformular vorbelegt: neueste Word-Datei aus „Mitteilungen“, Auftraggeber und beteiligter Sachverständiger angehakt
+ await page.locator('[data-ab-summary]').click();
+ assert.deepEqual(await page.locator('[data-ab-word] option').allTextContents(),['– keine Word-Datei –','Gutachten B.docx','Gutachten Z alt.docx']);
+ assert.equal(await page.locator('[data-ab-word]').inputValue(),'Mitteilungen/Gutachten B.docx');
+ assert.deepEqual(await page.locator('[data-ab-an]').evaluateAll(es=>es.map(e=>e.checked)),[true,true,false,false]);
+ assert.deepEqual(await page.locator('[data-ab-details]').evaluateAll(es=>es.map(e=>e.value)),['Beispiel AG, Abteilung West','Dr. Muster, Beispielinstitut','Fiktive Person','']);
+ // Halb ausgefüllt: bleibt beim Neuzeichnen (Projektdaten von außen geändert) und beim Projektwechsel; Cursor bleibt
+ await page.locator('[data-ab-details="2"]').fill('Entwurf Versicherungsnehmer, Beispielweg 8');await page.locator('[data-ab-an="2"]').check();await page.locator('[data-ab-word]').selectOption('Mitteilungen/Gutachten Z alt.docx');
+ await page.locator('[data-ab-hinweis]').fill('Unfertiger Hinweis bleibt erhalten.');await page.locator('[data-ab-hinweis]').evaluate(e=>{e.focus();e.setSelectionRange(4,9);});
+ expectedPj=JSON.stringify({...pj,objekt:'Extern aktualisiertes fiktives Objekt',auftraggeber:'Neue Beispiel AG'});await fs.writeFile(path.join(tmp,A,'_Projekt.json'),expectedPj);
+ await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await page.locator('.project-summary').filter({hasText:'Extern aktualisiertes'}).waitFor();await page.waitForFunction(()=>document.activeElement?.matches('[data-ab-hinweis]'));
+ assert.deepEqual(await page.locator('[data-ab-hinweis]').evaluate(e=>[e.selectionStart,e.selectionEnd]),[4,9]);
+ await page.waitForFunction(()=>document.querySelector('[data-ab-details="0"]')?.value==='Neue Beispiel AG');   // nicht selbst geänderter Empfänger folgt den Projektdaten
+ assert.equal(await page.locator('[data-ab-details="2"]').inputValue(),'Entwurf Versicherungsnehmer, Beispielweg 8');
+ await page.locator(`.proj[data-name="${B}"]`).click();await page.locator('#bueroPanel[data-projekt="26.9999 Kontrollort"] [data-ab-stand]').filter({hasText:'Noch nichts beim Büro'}).waitFor();
+ await page.locator(`.proj[data-name="${A}"]`).click();await page.locator(`#bueroPanel [data-ab-aufgabe="${id}"]`).waitFor();
+ assert.ok(await page.locator('[data-ab-form]').evaluate(e=>e.open),'selbst aufgeklappt bleibt offen');
+ assert.equal(await page.locator('[data-ab-hinweis]').inputValue(),'Unfertiger Hinweis bleibt erhalten.');assert.equal(await page.locator('[data-ab-word]').inputValue(),'Mitteilungen/Gutachten Z alt.docx');
+ assert.ok(await page.locator('[data-ab-an="2"]').isChecked());assert.equal(await page.locator('[data-ab-details="2"]').inputValue(),'Entwurf Versicherungsnehmer, Beispielweg 8');
+ expectedPj=JSON.stringify(pj);await fs.writeFile(path.join(tmp,A,'_Projekt.json'),expectedPj);await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await page.locator('.project-summary').filter({hasText:'Wohnhaus'}).waitFor();
+ await page.waitForFunction(()=>document.querySelector('[data-ab-details="0"]')?.value==='Beispiel AG, Abteilung West');
+ // Frühere Versandangaben: mit Gutachten beim Büro nur Ansicht; die Anzeige schreibt die Projektdaten nicht
+ await page.locator('#vtBox > summary').click();assert.ok(await page.locator('#vtBox .vtAn').first().isDisabled());
+ assert.equal(await fs.readFile(path.join(tmp,A,'_Projekt.json'),'utf8'),expectedPj,'display never rewrites PJ');
  await page.locator('#vtBox > summary').click();
 }
-await page.evaluate(async id=>{const p=await new SharedDirectoryHandle('').getDirectoryHandle('24.0012 Fiktivstadt');const r=await BueroData.load(p,id);await BueroData.append(p,BueroData.event(r,'question',{text:'Bitte Empfängeradresse ergänzen. Die Papiermappe liegt im Büro.'},'AB'));},id);
+await shot('uebergabe');
+// Rückfrage des Büros (so wie BüroKit sie schreibt) erscheint oben am Projektkopf
+await fs.mkdir(path.join(tmp,A,'_Buero','vermerke'),{recursive:true});
+await fs.writeFile(path.join(tmp,A,'_Buero','vermerke','2b3c4d5e-0000-4000-8000-000000000002.json'),JSON.stringify({format:'spektron-buerokit',version:1,typ:'vermerk',id:'2b3c4d5e-0000-4000-8000-000000000002',aufgabe:id,zeit:'2026-10-27T08:15:00.000Z',von:'AB',schritt:'frage',wert:true,text:'Bitte Empfängeradresse ergänzen. Die Papiermappe liegt im Büro.'}));
 await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
-await page.locator(before?'[data-records]':'#bueroAttention').filter({hasText:'Bitte Empfängeradresse ergänzen.'}).waitFor();
+await page.locator('#bueroAttention').filter({hasText:'Bitte Empfängeradresse ergänzen.'}).waitFor();
 await shot('rueckfrage');
 if(!before){
- assert.ok(await page.locator('#bueroAttention [data-answer]').isVisible());
+ assert.ok(await page.locator('#bueroAttention [data-ab-antworten]').isVisible());
  const alert=await page.locator('#bueroAttention').boundingBox();assert.ok(alert.y<350);
  // A narrower office window and 150% rendering enlargement; no new browser matrix.
  for(const [width,height,zoom,name] of [[1024,768,1,'klein']]){
   await page.setViewportSize({width,height});await page.evaluate(zoom=>document.documentElement.style.zoom=zoom,zoom);await top();
-  assert.ok(await page.locator('#bueroAttention [data-answer]').isVisible());
+  assert.ok(await page.locator('#bueroAttention [data-ab-antworten]').isVisible());
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'no horizontal document overflow');
   await page.screenshot({path:path.join(out,'nachher-'+name+'.png')});
  }
@@ -157,55 +173,68 @@ if(!before){
   assert.equal(JSON.parse(await fs.readFile(path.join(tmp,A,'_Projekt.json'),'utf8')).schadendatum,'2026-10-01');}
  await page.evaluate(()=>testIO.failWrite=true);await page.locator('#pj_objekt').fill('Nicht gespeicherter Entwurf');await page.locator('#pjSave.err').waitFor();await page.locator('#pjBox > summary').click();assert.match(await page.locator('#pjAttention').innerText(),/nicht gespeichert/);assert.ok(await page.locator('#showPJ').isVisible());
  await page.evaluate(()=>testIO.failWrite=false);await page.locator('#showPJ').click();await page.locator('#pj_objekt').fill(pj.objekt);await page.locator('#pjSave.ok').waitFor();
- // Historical editing stays available without a digital order and creates no handover.
- await page.locator(`.proj[data-name="${B}"]`).click();await page.locator('[data-overview]').filter({hasText:'Noch nicht übergeben'}).waitFor();await page.locator('#vtBox > summary').click();
+ // Ohne Gutachten beim Büro: frühere Versandangaben bearbeitbar; nichts wird ins Büro geschrieben
+ await page.locator(`.proj[data-name="${B}"]`).click();await page.locator('#bueroPanel[data-projekt="26.9999 Kontrollort"] [data-ab-stand]').filter({hasText:'Noch nichts beim Büro'}).waitFor();
+ await page.locator('#vtBox > summary').click();
  assert.ok(await page.locator('#vtBox .vtAn').first().isEnabled());await page.locator('#vtBox .vtAn').first().check();await page.waitForFunction(()=>document.querySelector('#vtBox .vtAn')?.checked);
  assert.ok(!await fs.stat(path.join(tmp,B,'_Buero')).catch(()=>null));
- assert.equal(await page.locator('[data-handover-label]').innerText(),'Übergabe vorbereiten');
- await fs.mkdir(path.join(tmp,B,'_Buero'));
- await page.evaluate(()=>testIO.pauseList=true);await page.locator('[data-refresh]').click();await page.waitForFunction(()=>testIO.resumeLists?.length>0);
- assert.equal(await page.locator('[data-handover-label]').innerText(),'Übergaben werden geprüft …');assert.ok(await page.locator('[data-form]').evaluate(e=>e.hidden),'running read offers no creation form');
- await page.evaluate(()=>{testIO.pauseList=false;for(const resume of testIO.resumeLists)resume();});await page.locator('[data-handover-label]').filter({hasText:'Übergabe vorbereiten'}).waitFor();
- await page.evaluate(()=>testIO.failList=true);await page.locator('[data-refresh]').click();await page.locator('#bueroAttention').filter({hasText:'unvollständig/veraltet'}).waitFor();
- await page.locator('[data-handover] > summary').click();assert.ok(!await page.locator('[data-form]').isVisible(),'failed read offers no empty creation form');
- await page.evaluate(()=>testIO.failList=false);await page.locator('[data-refresh]').click();await page.locator('[data-overview]').filter({hasText:'Noch nicht übergeben'}).waitFor();
- await page.locator('[data-handover] > summary').click();await page.locator('[data-handover] > summary').click();await page.waitForFunction(()=>document.querySelector('[data-form]')?.open);await page.locator('[data-path] > summary').click();
- await page.locator('[data-word]').fill('Mitteilungen/Gutachten B.docx');await page.locator('[data-entry="0:0"]').fill('Bestätigter Empfänger B');await page.locator('[data-who]').fill('SK');
- await page.evaluate(()=>testIO.failWrite=true);await page.locator('[data-submit]').click();await page.locator('[data-message]').filter({hasText:'Nicht bestätigt gespeichert'}).waitFor();
- const pending=await page.evaluate(()=>JSON.parse(sessionStorage.getItem('buero-draft:26.9999 Kontrollort')).pending);
- await page.locator('[data-handover] > summary').click();assert.ok(!await page.locator('[data-submit]').isVisible());assert.ok(await page.locator('#bueroAttention [data-head-retry]').isVisible());
- await page.locator('#bueroAttention [data-head-retry]').focus();await page.evaluate(()=>{testIO.failWrite=false;window.dispatchEvent(new Event('focus'));});await page.locator('#bueroAttention').filter({hasText:'unvollständig/veraltet'}).waitFor();
- assert.ok(await page.locator('#bueroAttention [data-head-retry]').evaluate(e=>document.activeElement===e),'refresh retains keyboard focus on the direct retry action');
- assert.ok(await page.locator('#bueroAttention [data-head-retry]').isEnabled());
- // The uncertain write is now readable, but only the explicit retry may confirm it.
- await fs.writeFile(path.join(tmp,B,'_Buero',pending.data.id,'auftrag.json'),JSON.stringify(pending.data));
- await page.locator('[data-refresh]').click();await page.waitForFunction(()=>document.querySelector('[data-overview]')?.textContent.includes('Mitteilungen/Gutachten B.docx'));
- assert.deepEqual(await page.evaluate(()=>JSON.parse(sessionStorage.getItem('buero-draft:26.9999 Kontrollort')).pending),pending);
- assert.ok(!await page.locator('[data-submit]').isVisible());assert.ok(await page.locator('#bueroAttention [data-head-retry]').isVisible());
- await page.locator('#bueroAttention [data-head-retry]').click();await page.locator('[data-message]').filter({hasText:'Gespeichert und rückgelesen'}).waitFor();
- const orders=await fs.readdir(path.join(tmp,B,'_Buero'));assert.deepEqual(orders,[pending.data.id]);assert.deepEqual(JSON.parse(await fs.readFile(path.join(tmp,B,'_Buero',pending.data.id,'auftrag.json'),'utf8')),pending.data);
- // Closed orders stay in history; opening a new draft never reuses them.
- const completed=await page.evaluate(async content=>{const p=new SharedDirectoryHandle('26.9999 Kontrollort'),o=BueroData.order(content);await BueroData.create(p,o);for(const [type,payload] of [['proof',{}],['pdf',{path:'Mitteilungen/Fiktives Gutachten.pdf'}],['send',{ids:content.recipients.map(r=>r.id),date:'2026-10-21'}]]){const r=await BueroData.load(p,o.id);await BueroData.append(p,BueroData.event(r,type,payload,'AB'));}return o.id;},pending.data.content);
- await page.evaluate(async id=>{const p=new SharedDirectoryHandle('26.9999 Kontrollort'),r=await BueroData.load(p,id);await BueroData.append(p,BueroData.event(r,'withdraw',{text:'Fiktiver Rückzug'},'SK'));},pending.data.id);
- await page.locator('[data-refresh]').click();await page.locator('[data-handover-label]').filter({hasText:'Neue Übergabe vorbereiten'}).waitFor();
- await page.locator('[data-handover] > summary').click();await page.waitForFunction(()=>document.querySelector('[data-form]')?.open);
- assert.equal(await page.locator('[data-form-label]').innerText(),'Neue Übergabe vorbereiten');assert.equal(await page.locator('[data-history] [data-record]').count(),2);assert.match(await page.locator(`[data-record="${completed}"] > summary`).textContent(),/Erledigt/);
- assert.deepEqual((await fs.readdir(path.join(tmp,B,'_Buero'))).sort(),[pending.data.id,completed].sort());
- await page.locator('[data-note]').fill('Noch nicht übergebener lokaler Entwurf');
- // Two foreign open orders must both remain explicit, without replacing the local draft.
- const foreign=await page.evaluate(async content=>{const p=new SharedDirectoryHandle('26.9999 Kontrollort'),ids=[];for(let i=0;i<2;i++){const o=BueroData.order({...content,note:'Fremder offener Auftrag '+i});await BueroData.create(p,o);ids.push(o.id);}return ids;},pending.data.content);
- await page.locator('[data-refresh]').click();await page.locator('[data-handover-label]').filter({hasText:'Offene Übergaben ansehen'}).waitFor();
- assert.equal(await page.locator('[data-form-label]').innerText(),'Noch nicht übergebener Entwurf');assert.equal(await page.locator('[data-note]').inputValue(),'Noch nicht übergebener lokaler Entwurf');
- assert.equal(await page.locator('[data-who]').inputValue(),'SK');assert.equal(await page.locator('[data-entry="0:0"]').inputValue(),'Bestätigter Empfänger B');
- for(const fid of foreign)assert.equal(await page.locator(`[data-record="${fid}"]`).count(),1);
- await page.locator('[data-handover] > summary').click();await page.locator('[data-refresh]').click();await page.locator('[data-handover] > summary').click();
- assert.equal(await page.locator('[data-note]').inputValue(),'Noch nicht übergebener lokaler Entwurf');
- for(const fid of foreign){await page.locator(`[data-revise="${fid}"]`).waitFor();assert.ok(await page.locator(`[data-record="${fid}"]`).evaluate(e=>e.open));}
- const independent=await(await context()).newPage();independent.on('pageerror',e=>errors.push(e.message));await independent.goto(base+'/index.html');await independent.locator('#btnStart').click();await independent.locator(`.proj[data-name="${B}"]`).click();await independent.locator('[data-handover-label]').filter({hasText:'Offene Übergaben ansehen'}).waitFor();await independent.locator('[data-handover] > summary').click();
- assert.ok(!await independent.locator('[data-form]').isVisible());for(const fid of foreign){await independent.locator(`[data-revise="${fid}"]`).waitFor();assert.ok(await independent.locator(`[data-record="${fid}"]`).evaluate(e=>e.open));}await independent.close();
-
- await page.locator('[data-submit]').click();await page.locator('[data-message]').filter({hasText:'bereits eine offene Übergabe'}).waitFor();assert.equal((await fs.readdir(path.join(tmp,B,'_Buero'))).length,4);
-
+ assert.ok(await page.locator('[data-ab-form]').evaluate(e=>e.open),'Formular offen: noch kein Gutachten beim Büro');
+ assert.equal(await page.locator('[data-ab-word]').inputValue(),'Mitteilungen/Gutachten B.docx');
+ assert.deepEqual(await page.locator('[data-ab-an]').evaluateAll(es=>es.map(e=>e.checked)),[false,false,false,false],'nichts eingetragen → nichts angehakt');
+ // Ohne „Ich bin …“ wird nichts geschrieben
+ await page.evaluate(()=>localStorage.removeItem('spektron-ich'));
+ await page.locator('[data-ab-hinweis]').fill('Bitte zuerst an die Versicherung.');await page.locator('[data-ab-faellig]').fill('2026-11-03');
+ await page.locator('[data-ab-los]').click();await page.locator('#bueroPanel .ab-msg.err').filter({hasText:'„Ich bin …“'}).waitFor();
+ assert.ok(!await fs.stat(path.join(tmp,B,'_Buero')).catch(()=>null));
+ // Fehler des Datenmoduls stehen in der Karte, Eingaben bleiben
+ await page.evaluate(()=>localStorage.setItem('spektron-ich','SK'));
+ await page.locator('[data-ab-los]').click();await page.locator('#bueroPanel .ab-msg.err').filter({hasText:'Mindestens einen Empfänger'}).waitFor();
+ assert.equal(await page.locator('[data-ab-hinweis]').inputValue(),'Bitte zuerst an die Versicherung.');assert.equal(await page.locator('[data-ab-faellig]').inputValue(),'2026-11-03');
+ // Übergabe in einem Schritt: genau eine Datei in „_Buero/aufgaben“
+ await page.locator('[data-ab-an="0"]').check();await page.locator('[data-ab-details="0"]').fill('Bestätigter Empfänger B');
+ await page.locator('[data-ab-los]').click();await page.locator('#bueroPanel [data-ab-msg]').filter({hasText:'✓ Ans Büro übergeben – erscheint jetzt in BüroKit'}).waitFor();
+ const aufgaben=await fs.readdir(path.join(tmp,B,'_Buero','aufgaben'));assert.equal(aufgaben.length,1);assert.deepEqual(await fs.readdir(path.join(tmp,B,'_Buero')),['aufgaben']);
+ const auf=JSON.parse(await fs.readFile(path.join(tmp,B,'_Buero','aufgaben',aufgaben[0]),'utf8')),bId=auf.id;
+ assert.equal(auf.format,'spektron-buerokit');assert.equal(auf.art,'gutachten');assert.equal(auf.von,'SK');assert.equal(auf.word,'Mitteilungen/Gutachten B.docx');assert.equal(auf.faellig,'2026-11-03');assert.equal(auf.hinweis,'Bitte zuerst an die Versicherung.');assert.equal(auf.projekt.name,B);
+ assert.deepEqual(auf.empfaenger.map(({gruppe,label,details})=>({gruppe,label,details})),[{gruppe:'versicherung',label:'Auftraggeber',details:'Bestätigter Empfänger B'}]);
+ await page.locator(`[data-ab-aufgabe="${bId}"]`).filter({hasText:/^Gutachten beim Büro · übergeben \d\d\.\d\d\. von SK · noch offen: Gegenlesen · PDF · Versand · fällig 03\.11\.$/}).waitFor();
+ assert.ok(!await page.locator('[data-ab-form]').evaluate(e=>e.open),'nach der Übergabe zu');assert.equal(await page.locator('[data-ab-hinweis]').inputValue(),'','Formular frisch');
+ assert.ok(await page.locator('#vtBox .vtAn').first().isDisabled(),'jetzt gilt der Versand in BüroKit');
+ await page.waitForFunction(()=>/Übergabe ans Büro\s*\d\d\.\d\d\./.test(document.querySelector('#meilen').innerText),null,{timeout:10000});
+ // Das Büro arbeitet in BüroKit; nach Rückkehr ins Fenster steht der neue Stand da
+ const buero=(f,...a)=>page.evaluate(async([f,a])=>{const p=await new SharedDirectoryHandle('').getDirectoryHandle('26.9999 Kontrollort');return BueroAufgaben[f](p,...a);},[f,a]);
+ await buero('vermerken',{aufgabe:bId,schritt:'uebernommen',von:'Nad'});await buero('vermerken',{aufgabe:bId,schritt:'gegenlesen',von:'Nad'});
+ await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
+ await page.locator(`[data-ab-aufgabe="${bId}"]`).filter({hasText:'noch offen: PDF · Versand · fällig 03.11. · in Arbeit bei Nad'}).waitFor();
+ // Rückfrage beantworten: ein Vermerk „antwort“ mit Kürzel, danach ist sie weg
+ await buero('vermerken',{aufgabe:bId,schritt:'frage',von:'Nad',text:'Welche Fassung soll raus?'});
+ await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await page.locator('#bueroAttention').filter({hasText:'Welche Fassung soll raus?'}).waitFor();
+ assert.match(await page.locator(`[data-ab-aufgabe="${bId}"]`).innerText(),/Rückfrage offen/);
+ await page.locator(`[data-ab-antwort="${bId}"]`).fill('Die neueste.');
+ await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await page.waitForTimeout(400);assert.equal(await page.locator(`[data-ab-antwort="${bId}"]`).inputValue(),'Die neueste.','Antwort-Entwurf bleibt beim Neulesen');
+ await page.locator(`[data-ab-antworten="${bId}"]`).click();await page.waitForFunction(()=>!document.querySelector('#bueroAttention').textContent.includes('Welche Fassung'));
+ const vermerke=[];for(const n of await fs.readdir(path.join(tmp,B,'_Buero','vermerke')))vermerke.push(JSON.parse(await fs.readFile(path.join(tmp,B,'_Buero','vermerke',n),'utf8')));
+ const antwort=vermerke.filter(v=>v.schritt==='antwort');assert.equal(antwort.length,1);assert.equal(antwort[0].text,'Die neueste.');assert.equal(antwort[0].von,'SK');assert.equal(antwort[0].aufgabe,bId);
+ // Ein zweites Gutachten nur nach Rückfrage
+ await page.locator('[data-ab-summary]').click();await page.locator('[data-ab-an="0"]').check();await page.locator('[data-ab-details="0"]').fill('Ergänzungsempfänger B');
+ page.once('dialog',d=>d.dismiss());await page.locator('[data-ab-los]').click();await page.waitForTimeout(500);
+ assert.equal((await fs.readdir(path.join(tmp,B,'_Buero','aufgaben'))).length,1,'abgebrochen: nichts geschrieben');
+ let frage='';page.once('dialog',d=>{frage=d.message();d.accept();});await page.locator('[data-ab-los]').click();await page.waitForFunction(()=>document.querySelectorAll('#bueroPanel [data-ab-aufgabe]').length===2);
+ assert.equal(frage,'Es ist schon ein Gutachten beim Büro offen. Trotzdem ein weiteres übergeben?');
+ const zweite=(await fs.readdir(path.join(tmp,B,'_Buero','aufgaben'))).map(n=>n.slice(0,-5)).find(n=>n!==bId);
+ // Zurückgezogen: ausgeblendet · erledigt: klein „Gutachten erledigt am …“ · eigene Büroaufgabe als kurze Liste
+ await buero('vermerken',{aufgabe:zweite,schritt:'geloescht',von:'Nad'});
+ await buero('vermerken',{aufgabe:bId,schritt:'pdf',von:'Nad',pdf:'Mitteilungen/Gutachten B.pdf'});
+ for(const r of auf.empfaenger)await buero('vermerken',{aufgabe:bId,schritt:'versand',von:'Nad',empfaenger:r.id,datum:'2026-10-27'});
+ await buero('aufgabeAnlegen',{art:'eigene',titel:'Laborrechnung prüfen',von:'Nad',faellig:'2026-10-30'});
+ await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await page.locator('[data-ab-erledigt]').waitFor();
+ assert.equal(await page.locator('#bueroPanel [data-ab-aufgabe]').count(),0);
+ assert.match(await page.locator('[data-ab-erledigt]').innerText(),/^Gutachten erledigt am \d\d\.\d\d\.\d{4}$/);
+ assert.equal(await page.locator('[data-ab-eigene]').innerText(),'Büro-Aufgaben: Laborrechnung prüfen (fällig 30.10.)');
+ assert.ok(await page.locator('[data-ab-form]').evaluate(e=>e.open),'kein Gutachten mehr offen: Formular wieder offen');
+ // Durchlaufzeiten und Auslastung lesen denselben Stand
+ assert.deepEqual(await page.evaluate(async()=>{const p=await new SharedDirectoryHandle('').getDirectoryHandle('26.9999 Kontrollort');return BueroAufgaben.alsDurchlauf((await BueroAufgaben.projektLesen(p)).aufgaben).map(r=>[r.status,r.withdrawn]);}),[['Erledigt',false],['Zurückgezogen',true]]);
+ await page.locator('#bueroPanel').evaluate(e=>e.scrollIntoView({block:'start'}));await page.screenshot({path:path.join(out,'buero-erledigt.png')});
 }
 if(!before){
  const zc=await pw.chromium.launchPersistentContext(path.join(tmp,'.zoom-profile'),{executablePath:process.env.BROWSER_EXECUTABLE||pw.chromium.executablePath(),headless:true,viewport:null,args:['--no-sandbox','--window-size=1024,768']});
@@ -213,8 +242,8 @@ if(!before){
  const settings=await zc.newPage();await settings.goto('chrome://settings/appearance');await settings.evaluate(()=>new Promise(resolve=>chrome.settingsPrivate.setDefaultZoom(1.5,resolve)));await settings.close();
  await context(zc);const z=zc.pages()[0];z.on('pageerror',e=>errors.push(e.message));await z.goto(base+'/index.html');await z.locator('#btnStart').click();await z.locator(`.proj[data-name="${A}"]`).click();await z.locator('#bueroAttention').filter({hasText:'Bitte Empfängeradresse ergänzen.'}).waitFor();
  await z.evaluate(()=>document.fonts.ready);assert.equal(await z.evaluate(()=>devicePixelRatio),1.5,'native browser zoom, not CSS scaling');assert.ok(await z.evaluate(()=>innerWidth<=700));
- assert.ok(await z.locator('#bueroAttention [data-answer]').isVisible());const alertBounds=await z.locator('#bueroAttention').boundingBox();assert.ok(alertBounds.y+alertBounds.height<=await z.evaluate(()=>innerHeight),'question is inside the visible zoomed viewport: '+JSON.stringify({alertBounds,height:await z.evaluate(()=>innerHeight)}));assert.ok(await z.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await z.locator('#detail').evaluate(e=>e.scrollTop=0);const cdp=await zc.newCDPSession(z);const screen=await cdp.send('Page.captureScreenshot',{format:'png',fromSurface:true});await fs.writeFile(path.join(out,'nachher-browserzoom-150.png'),Buffer.from(screen.data,'base64'));
+ assert.ok(await z.locator('#bueroAttention [data-ab-antworten]').isVisible());const alertBounds=await z.locator('#bueroAttention').boundingBox();assert.ok(alertBounds.y+alertBounds.height<=await z.evaluate(()=>innerHeight),'question is inside the visible zoomed viewport: '+JSON.stringify({alertBounds,height:await z.evaluate(()=>innerHeight)}));assert.ok(await z.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await z.locator('#detail').evaluate(e=>e.scrollTop=0);const cdp=await zc.newCDPSession(z);const screen=await cdp.send('Page.captureScreenshot',{format:'png',fromSurface:true});await fs.writeFile(path.join(out,'nachher-browserzoom-150.png'),Buffer.from(screen.data,'base64'));
 }
-assert.deepEqual(errors,[]);console.log('OK Projektansicht: '+(before?'Vorher-Screenshots':'Maus/Tastatur, fünf Fragmentlinks, Klappen/Empfänger/Cursor, drei Übergabeeinstiege, mehrere offene Aufträge, erhaltener lokaler Entwurf, Retry bei bereits lesbarer Datei und zugeklappten Details, historische Angaben, sichtbare Rückfrage und Speicherfehler, Desktop/klein/echter 150%-Browserzoom'));
+assert.deepEqual(errors,[]);console.log('OK Projektansicht: '+(before?'Vorher-Screenshots':'Maus/Tastatur, fünf Fragmentlinks, Ans Büro: frühere Übergabe, vorbelegtes Formular (neueste Word-Datei, Empfänger), Entwurf bleibt beim Neuzeichnen und Projektwechsel, Übergabe = eine Aufgabendatei, Kürzel nötig, Fehler in der Karte, offene Schritte, Rückfrage oben beantworten, zweite Übergabe nur nach Rückfrage, zurückgezogen/erledigt/eigene Aufgaben, frühere Versandangaben, Speicherfehler, Desktop/klein/echter 150%-Browserzoom'));
 }finally{for(const c of contexts)await c.close();await browser.close();server.closeAllConnections();await new Promise(r=>server.close(r));await fs.rm(tmp,{recursive:true,force:true});}
-})().catch(e=>{console.error(e);process.exitCode=1;});
+})().catch(e=>{console.error(e);if(process.env.GITHUB_ACTIONS)console.log('::error title=projektansicht-browser::'+String(e&&e.stack||e).slice(0,1500).replace(/%/g,'%25').replace(/\r/g,'%0D').replace(/\n/g,'%0A'));process.exitCode=1;});
