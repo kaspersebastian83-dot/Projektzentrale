@@ -86,7 +86,9 @@
     const erreicht = Math.max(-1, ...reiheAlle.map((k, i) => spur(k) ? i : -1));
     for (let i = 0; i < erreicht; i++){
       const k = reiheAlle[i];
-      if (s[k].zustand === 'offen' || s[k].zustand === 'wartet') s[k] = { zustand: 'uebersprungen', text: UEBERSPRUNGEN[k] };
+      // Labor mit Prüfberichten (z. B. Zwischenstand übernommen) wurde nicht übersprungen, nur nicht abgeschlossen: eigenen Stand behalten
+      const mitBerichten = k === 'labor' && !!(f.berichte || er);
+      if (s[k].zustand === 'offen' || s[k].zustand === 'wartet') s[k] = { zustand: 'uebersprungen', text: mitBerichten ? `${s[k].text} – nicht abgeschlossen` : UEBERSPRUNGEN[k] };
     }
     // Aktuelle Stufe: die erste nicht fertige ab Stufe 2. Was Labor/Büro gerade tun, wartet; danach ist alles „später“.
     const reihe = STUFEN.slice(1).map(([k]) => k);

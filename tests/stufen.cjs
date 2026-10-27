@@ -69,3 +69,11 @@ assert.equal(r.gruppe, 'dich'); assert.equal(r.kurz, 'Büro-Stand unklar'); asse
 r = S.berechnen({ pj: true, laborauftrag: '2026-10-08' });
 assert.equal(r.gruppe, 'laeuft'); assert.equal(r.kurz, 'Beim Labor');
 console.log('OK stufen: Büro-Stand unklar, Laborübergabe ohne Probendaten');
+// Gutachten ans Büro, obwohl das Labor nur einen Zwischenstand hat: Stufe Labor nicht „keine Prüfberichte“, sondern ihr Stand
+r = S.berechnen({ pj: true, proben: true, berichte: 2, ergebnisse: { vollstaendig: false, offen: 1 }, plan: true, uebergabe: '2026-10-27', buero: { offen: true, offenText: 'PDF · Versand' } });
+assert.deepEqual(r.stufen.find(s => s.key === 'labor'), { key: 'labor', name: 'Labor', app: 'ResultKit', zustand: 'uebersprungen', text: 'Zwischenstand übernommen · 1 offen beim Labor – nicht abgeschlossen' });
+assert.equal(r.aktuell, 'buero'); assert.equal(r.kurz, 'Beim Büro');
+// ohne Prüfberichte bleibt es „übersprungen“ wie bisher
+r = S.berechnen({ pj: true, proben: true, plan: true, uebergabe: '2026-10-27', buero: { offen: true } });
+assert.equal(r.stufen.find(s => s.key === 'labor').text, 'Keine Prüfberichte im Ordner – übersprungen');
+console.log('OK stufen: Labor-Zwischenstand bleibt sichtbar, wenn das Gutachten schon beim Büro ist');

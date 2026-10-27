@@ -2,7 +2,11 @@
 
 Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung.
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.30.2** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.30.3** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Neu in 1.30.3 · 27.10.2026
+
+- Stufe Labor: Ging das Gutachten ans Büro, während das Labor nur einen Zwischenstand hatte, stand fälschlich „Keine Prüfberichte im Ordner – übersprungen“. Jetzt der eigene Stand mit „– nicht abgeschlossen“. Aufgefallen beim Integrationstest „Spektron-Kette“.
 
 ## Neu in 1.30.2 · 27.10.2026
 
