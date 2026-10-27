@@ -85,7 +85,7 @@ const daten = {
     assert.match(await l.textContent(), /SpesenKit[\s\S]*Spesenabrechnung für den Monat/);
     assert.equal(await page.locator('#stufen #goReise').count(), 0, 'nicht Teil der Stufen'); }
   assert.equal(await page.locator('#pjBox').evaluate(d => d.open), false, 'Projektdaten zugeklappt – fehlende Pflichtangaben stehen oben und in Stufe 1');
-  assert.match(await page.locator('[data-stufe=projekt] [data-stext]').textContent(), /6 Pflichtangaben fehlen/);
+  assert.match(await page.locator('[data-stufe=projekt] [data-stext]').textContent(), /Noch keine Projektdaten – Arbeitszettel einlesen/);
   await page.locator('#pjBox > summary').click();
   assert.ok(await page.locator('#pjBox.leer').count(), 'leere Projektdaten hervorgehoben');
   assert.equal(await page.locator('#pflichtFehlt').innerText(), '6 Pflichtangaben fehlen');
