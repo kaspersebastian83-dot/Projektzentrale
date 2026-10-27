@@ -49,41 +49,46 @@ async function context(existing){
 const page=await(await context()).newPage();page.on('pageerror',e=>errors.push(e.message));await page.setViewportSize({width:1440,height:1000});
 await page.goto(base+'/index.html');await page.locator('#btnStart').click();await page.locator(`.proj[data-name="${A}"]`).click();
 await page.locator('#bueroPanel [data-ab-aufgabe]').waitFor();
+const stext=k=>page.locator(`[data-stufe="${k}"] [data-stext]`).textContent();
 async function top(){await page.locator('#detail').evaluate(e=>e.scrollTop=0);}
 async function shot(state){if(state==='uebergabe')await page.locator('#bueroPanel').evaluate(e=>e.scrollIntoView({block:'start'}));else await top();await page.screenshot({path:path.join(out,(before?'vorher':'nachher')+'-'+state+'.png')});}
 await shot('projekt');
 if(!before){
  const list=await page.locator('#listWrap').boundingBox(),detail=await page.locator('#detail').boundingBox();assert.ok(detail.width>list.width*1.6);
- assert.deepEqual(await page.locator('.steps .name').allTextContents(),['Proben & Laborauftrag','Fotos & Dokumentation','Laborergebnisse prüfen','Probenplan bearbeiten','Zeiten & Abrechnung']);
- assert.equal(await page.locator('.steps .done,.steps .next').count(),0);assert.match(await page.locator('.steps').innerText(),/Fotobearbeitung begonnen/);
- assert.ok((await page.locator('.steps').boundingBox()).y<(await page.locator('#bueroPanel').boundingBox()).y);
- // Projektstand: Laborauftrag (Datum aus dem Dateinamen), Abrechnungsstand aus BelegKit; Prüfbericht, Versand noch offen
- await page.waitForFunction(()=>document.querySelector('#meilen .ms'));
- assert.match(await page.locator('#meilen').innerText(),/Laborauftrag\s*05\.01\./);assert.match(await page.locator('#meilen').innerText(),/Abrechnung\s*22\.10\./);
- assert.match(await page.locator('#goAufwand .stat').textContent(),/Abrechnungsstand vom 22\.10\.2026/);
- await page.waitForFunction(()=>/Übergabe ans Büro\s*\d\d\.\d\d\./.test(document.querySelector('#meilen').innerText),null,{timeout:10000});   // Übergabe oben angelegt: nach „Aktualisieren“ im Projektstand
+ // 1.29: sechs Stufen in Arbeitsreihenfolge, je Zustand und ein Satz; darüber „Jetzt dran“ mit einem blauen Knopf
+ assert.deepEqual(await page.locator('#stufen > li').evaluateAll(l=>l.map(x=>x.dataset.stufe)),['projekt','ortstermin','labor','gutachten','buero','abrechnung']);
+ assert.deepEqual(await page.locator('#stufen .sname').evaluateAll(l=>l.map(x=>x.firstChild.textContent.trim())),['Projekt anlegen','Ortstermin: Proben & Fotos','Labor','Gutachten','Ans Büro → Versand','Abrechnung']);
+ assert.match(await stext('ortstermin'),/Fotos in Bearbeitung/);
+ assert.ok((await page.locator('#jetzt').boundingBox()).y<(await page.locator('#stufen').boundingBox()).y);
+ assert.ok(await page.locator('#detail button.primary:visible').count()<=1,'höchstens ein blauer Knopf: „Jetzt dran“');assert.match(await page.locator('#jetzt').innerText(),/Gerade beim Büro\s*Beim Büro\s*Noch offen: Gegenlesen · PDF · Versand/i);
+ // Projektstand: Laborauftrag (Datum aus dem Dateinamen) in Stufe 2, Abrechnungsstand aus BelegKit in Stufe 6, frühere Übergabe in Stufe 4
+ await page.waitForFunction(()=>/Laborauftrag 05\.01\./.test(document.querySelector('[data-stufe=ortstermin] [data-stext]').textContent));
+ assert.match(await stext('abrechnung'),/Abrechnungsstand vom 22\.10\./);
+ await page.waitForFunction(()=>/Gutachten übergeben \d\d\.\d\d\./.test(document.querySelector('[data-stufe=gutachten] [data-stext]').textContent),null,{timeout:10000});
+ assert.match(await stext('buero'),/^Beim Büro · noch offen: Gegenlesen · PDF · Versand$/);
  await page.locator(`.proj[data-name="${B}"]`).focus();await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelector('.proj.active')?.dataset.name==='26.9999 Kontrollort');
   assert.ok(await page.locator('#azQuick').isVisible());
  // ResultKit-Karte: XML+PDF gleichen Namens = ein Bericht, PDF allein zählt mit; nach der Übernahme in ResultKit beim Zurückkehren aktualisiert
- assert.match(await page.locator('#goErgebnis .stat').textContent(),/^2 Prüfberichte – noch nicht übernommen$/);
+ assert.match(await stext('labor'),/^2 Prüfberichte eingegangen, noch nicht geprüft$/);
+ assert.equal(await page.locator('#jetztGo').innerText(),'Ergebnisse prüfen →');assert.match(await page.locator('#goErgebnis').getAttribute('class'),/passt/);
  // Dateistand wie in ResultKit (Name|Größe|Änderungszeit, sortiert; der Test-Dateizugriff meldet Änderungszeit 1): XML/PDF und neueste LabelKit-Datei
  const kennung=async extra=>{const d=[];for(const n of await fs.readdir(path.join(tmp,B,'Laborergebnisse')))if(/\.(xml|pdf)$/i.test(n))d.push({name:n,size:(await fs.stat(path.join(tmp,B,'Laborergebnisse',n))).size,t:1});for(const n of extra||[])d.push({name:'Laboraufträge/'+n,size:(await fs.stat(path.join(tmp,B,'Laboraufträge',n))).size,t:1});return d.sort((a,b)=>a.name.localeCompare(b.name)).map(x=>`${x.name}|${x.size}|${x.t}`).join('\n');};
  const ergebnis=async (o,extra)=>fs.writeFile(path.join(tmp,B,'Laborergebnisse','_Ergebnisse.json'),JSON.stringify({format:'spektron-ergebnisse',version:1,uebernommen:'2026-10-26T10:00:00.000Z',vollstaendig:false,offen:['P4'],berichte:[],stand:await kennung(extra),...o}));
- const zurueck=async re=>{await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await page.waitForFunction(r=>new RegExp(r).test(document.querySelector('#goErgebnis .stat').textContent),re);};
+ const zurueck=async re=>{await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await page.waitForFunction(r=>new RegExp(r).test(document.querySelector('[data-stufe=labor] [data-stext]').textContent),re);};
  await ergebnis();
- await zurueck('^Zwischenstand übernommen · 1 offen$');
+ await zurueck('^Zwischenstand übernommen · 1 offen beim Labor$');
  // LabelKit speichert danach (Auftrag geändert): Karte nicht mehr „übernommen“, Proben-Karte ohne neues Projekt-Lesen aktualisiert
  await fs.writeFile(path.join(tmp,B,'Laboraufträge','26.9999_2026-10-26_Daten.json'),JSON.stringify({proben:[]}));
- await zurueck('^Übernommen – seit der Übernahme geändert, in ResultKit erneut übernehmen$');
- assert.equal(await page.locator('#goLabel .stat').textContent(),'Probendaten vorhanden');
- await ergebnis({vollstaendig:true,offen:[]},['26.9999_2026-10-26_Daten.json']);await zurueck('^Ergebnisse vollständig übernommen$');
+ await zurueck('^Neue Prüfberichte seit der Übernahme – prüfen und übernehmen$');
+ assert.match(await stext('ortstermin'),/^Proben erfasst/);
+ await ergebnis({vollstaendig:true,offen:[]},['26.9999_2026-10-26_Daten.json']);await zurueck('^Ergebnisse vollständig übernommen');
  // neuer Prüfbericht nach der Übernahme
  await fs.writeFile(path.join(tmp,B,'Laborergebnisse','AR-2-01.pdf'),'%PDF');
- await zurueck('^Übernommen – seit der Übernahme geändert, in ResultKit erneut übernehmen$');
+ await zurueck('^Neue Prüfberichte seit der Übernahme – prüfen und übernehmen$');
  // fremde oder neuere Ergebnisdatei: nicht als übernommen werten
- await ergebnis({format:'irgendwas'},['26.9999_2026-10-26_Daten.json']);await zurueck('^Ergebnisdatei nicht lesbar$');
- await ergebnis({version:2},['26.9999_2026-10-26_Daten.json']);await zurueck('^Ergebnisdatei nicht lesbar$');
- await ergebnis({},['26.9999_2026-10-26_Daten.json']);await zurueck('^Zwischenstand übernommen · 1 offen$');
+ await ergebnis({format:'irgendwas'},['26.9999_2026-10-26_Daten.json']);await zurueck('^Ergebnisdatei nicht lesbar');
+ await ergebnis({version:2},['26.9999_2026-10-26_Daten.json']);await zurueck('^Ergebnisdatei nicht lesbar');
+ await ergebnis({},['26.9999_2026-10-26_Daten.json']);await zurueck('^Zwischenstand übernommen · 1 offen beim Labor$');
  // unveränderter Ordner: Zurückkehren zeichnet die Ansicht nicht neu
  await page.evaluate(()=>{document.querySelector('#goErgebnis').dataset.unveraendert='1';window.dispatchEvent(new Event('focus'));});await page.waitForTimeout(1000);
  assert.equal(await page.locator('#goErgebnis').getAttribute('data-unveraendert'),'1');
@@ -150,7 +155,9 @@ if(!before){
  await page.evaluate(()=>document.documentElement.style.zoom=1);await page.setViewportSize({width:1440,height:1000});
  // A project-data save error remains outside its collapsed form and has a direct entry.
  // Pflichtangaben: Karte öffnet sich, solange welche fehlen; leere Pflichtfelder hervorgehoben, Zähler im Kopf springt zum ersten
- assert.ok(await page.locator('#pjBox').evaluate(d=>d.open),'Karte offen, weil Pflichtangaben fehlen');
+ // 1.29: Projektdaten bleiben zugeklappt; fehlende Pflichtangaben stehen oben (Hinweis) und in Stufe 1
+ assert.ok(!await page.locator('#pjBox').evaluate(d=>d.open),'Projektdaten zugeklappt');assert.match(await stext('projekt'),/Pflichtangaben fehlen$/);
+ await page.locator('#pjBox > summary').click();
  assert.match(await page.locator('#pflichtFehlt').innerText(),/^\d+ Pflichtangaben fehlen$/);
  assert.equal(await page.locator('#pj_objekt').evaluate(e=>e.closest('label').classList.contains('pflicht-offen')),false,'Objekt ist ausgefüllt');
  assert.equal(await page.locator('#pj_nutzung').evaluate(e=>e.closest('label').classList.contains('pflicht-offen')),true,'Nutzung leer → hervorgehoben');
@@ -178,7 +185,8 @@ if(!before){
  await page.locator('#vtBox > summary').click();
  assert.ok(await page.locator('#vtBox .vtAn').first().isEnabled());await page.locator('#vtBox .vtAn').first().check();await page.waitForFunction(()=>document.querySelector('#vtBox .vtAn')?.checked);
  assert.ok(!await fs.stat(path.join(tmp,B,'_Buero')).catch(()=>null));
- assert.ok(await page.locator('[data-ab-form]').evaluate(e=>e.open),'Formular offen: noch kein Gutachten beim Büro');
+ assert.ok(!await page.locator('[data-ab-form]').evaluate(e=>e.open),'Formular zu: gerade sind die Prüfberichte dran');
+ await page.locator('#goUebergabe').click();assert.ok(await page.locator('[data-ab-form]').evaluate(e=>e.open),'„Ans Büro übergeben“ in Stufe 5 öffnet das Formular');
  assert.equal(await page.locator('[data-ab-word]').inputValue(),'Mitteilungen/Gutachten B.docx');
  assert.deepEqual(await page.locator('[data-ab-an]').evaluateAll(es=>es.map(e=>e.checked)),[false,false,false,false],'nichts eingetragen → nichts angehakt');
  // Ohne „Ich bin …“ wird nichts geschrieben
@@ -200,7 +208,8 @@ if(!before){
  await page.locator(`[data-ab-aufgabe="${bId}"]`).filter({hasText:/^Gutachten beim Büro · übergeben \d\d\.\d\d\. von SK · noch offen: Gegenlesen · PDF · Versand · fällig 03\.11\.$/}).waitFor();
  assert.ok(!await page.locator('[data-ab-form]').evaluate(e=>e.open),'nach der Übergabe zu');assert.equal(await page.locator('[data-ab-hinweis]').inputValue(),'','Formular frisch');
  assert.ok(await page.locator('#vtBox .vtAn').first().isDisabled(),'jetzt gilt der Versand in BüroKit');
- await page.waitForFunction(()=>/Übergabe ans Büro\s*\d\d\.\d\d\./.test(document.querySelector('#meilen').innerText),null,{timeout:10000});
+ await page.waitForFunction(()=>/Gutachten übergeben \d\d\.\d\d\./.test(document.querySelector('[data-stufe=gutachten] [data-stext]').textContent),null,{timeout:10000});
+ assert.ok(await page.locator('#goUebergabe').isHidden(),'Gutachten beim Büro: kein zweiter Übergabe-Knopf in der Stufe');
  // Das Büro arbeitet in BüroKit; nach Rückkehr ins Fenster steht der neue Stand da
  const buero=(f,...a)=>page.evaluate(async([f,a])=>{const p=await new SharedDirectoryHandle('').getDirectoryHandle('26.9999 Kontrollort');return BueroAufgaben[f](p,...a);},[f,a]);
  await buero('vermerken',{aufgabe:bId,schritt:'uebernommen',von:'Nad'});await buero('vermerken',{aufgabe:bId,schritt:'gegenlesen',von:'Nad'});
@@ -231,7 +240,8 @@ if(!before){
  assert.equal(await page.locator('#bueroPanel [data-ab-aufgabe]').count(),0);
  assert.match(await page.locator('[data-ab-erledigt]').innerText(),/^Gutachten erledigt am \d\d\.\d\d\.\d{4}$/);
  assert.equal(await page.locator('[data-ab-eigene]').innerText(),'Büro-Aufgaben: Laborrechnung prüfen (fällig 30.10.)');
- assert.ok(await page.locator('[data-ab-form]').evaluate(e=>e.open),'kein Gutachten mehr offen: Formular wieder offen');
+ assert.ok(!await page.locator('[data-ab-form]').evaluate(e=>e.open),'versandt: Formular zu');assert.ok(await page.locator('#goUebergabe').isVisible(),'kein Gutachten mehr offen: Übergabe (Nachtrag) wieder möglich');
+ assert.match(await stext('buero'),/^Versandt \d\d\.\d\d\.$/);
  // Durchlaufzeiten und Auslastung lesen denselben Stand
  assert.deepEqual(await page.evaluate(async()=>{const p=await new SharedDirectoryHandle('').getDirectoryHandle('26.9999 Kontrollort');return BueroAufgaben.alsDurchlauf((await BueroAufgaben.projektLesen(p)).aufgaben).map(r=>[r.status,r.withdrawn]);}),[['Erledigt',false],['Zurückgezogen',true]]);
  await page.locator('#bueroPanel').evaluate(e=>e.scrollIntoView({block:'start'}));await page.screenshot({path:path.join(out,'buero-erledigt.png')});

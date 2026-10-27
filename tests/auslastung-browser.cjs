@@ -73,7 +73,7 @@ const PROJEKTE = [
       await seed(liste);
       await page.locator('#btnStart, #btnArchive').first().click();
       await page.locator(`.proj[data-name="${PROJEKTE[0][0]}"]`).waitFor();
-      await page.click('#btnAusl');
+      await page.click('#btnMehr'); await page.click('#btnAusl');   // 1.29: im Menü „⋯ Mehr“
       await page.locator('.au-tab').waitFor();
       await page.waitForFunction(() => !/werden gelesen/.test(document.getElementById('dialog').textContent), null, { timeout: 15000 });
     };

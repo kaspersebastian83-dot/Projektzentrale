@@ -73,19 +73,20 @@ const daten = {
   await page.locator('#anlPn98').waitFor();
   // Sicherungskopien von PlanKit zählen nicht als eigene Pläne
   assert.match(await page.locator('#detail').textContent(), /3 Dateien · Probenplan · 2 Sicherungskopien von PlanKit/);
-  assert.match(await page.locator('#goPlan .stat').textContent(), /Probenplan vorhanden/);
+  assert.match(await page.locator('[data-stufe=gutachten] [data-stext]').textContent(), /Probenplan angelegt/);
   // Projektdaten: Neuzeichnen der Ansicht, bevor die Eingabe gespeichert ist (hier: fehlende Unterordner anlegen), behält die Eingabe
-  // Projektansicht 1.7: Arbeitsschritte als Karten in der Reihenfolge der Arbeit; Projektdaten zugeklappt (leer: einladend hervorgehoben)
-  assert.deepEqual(await page.locator('.steps .step').evaluateAll(b => b.map(x => x.id)), ['goLabel', 'goFotos', 'goErgebnis', 'goPlan', 'goAufwand']);
-  // SpesenKit: eigene Zeile „Weitere Apps“ ganz unten im rechten Fenster – kein Schritt, kein Projektbezug
-  { const l = page.locator('#detail .pz > .more:last-child a#goReise');
-    assert.equal(await l.count(), 1, 'Knopf ganz unten im rechten Fenster');
+  // Projektansicht 1.29: sechs Stufen in Arbeitsreihenfolge, Knöpfe der Apps in ihrer Stufe; Projektdaten zugeklappt (leer: einladend hervorgehoben)
+  assert.deepEqual(await page.locator('#stufen button.sk').evaluateAll(b => b.map(x => x.id)), ['azQuick', 'goLabel', 'goFotos', 'goErgebnis', 'goPlan', 'anlPlan', 'goUebergabe', 'goAufwand']);
+  // SpesenKit: unter „⋯ Mehr“ – kein Schritt, kein Projektbezug
+  { const l = page.locator('#mehr .more a#goReise');
+    assert.equal(await l.count(), 1, 'im Menü „⋯ Mehr“');
     assert.equal(await l.getAttribute('href'), '../reisekosten-pro/', 'ohne ?projekt= – die App gehört zu keinem Projekt');
     assert.equal(await l.getAttribute('target'), 'reisekosten');
     assert.match(await l.textContent(), /SpesenKit[\s\S]*Spesenabrechnung für den Monat/);
-    assert.equal(await page.locator('.steps #goReise').count(), 0, 'nicht Teil der nummerierten Arbeitsschritte'); }
-  assert.equal(await page.locator('.steps .sw.next,.steps .sw.done').count(), 0, 'Dateibestand erzeugt keine Erledigt- oder Pflichtschrittanzeige');
-  assert.equal(await page.locator('#pjBox').evaluate(d => d.open), true, 'Projektdaten offen, solange Pflichtangaben fehlen');
+    assert.equal(await page.locator('#stufen #goReise').count(), 0, 'nicht Teil der Stufen'); }
+  assert.equal(await page.locator('#pjBox').evaluate(d => d.open), false, 'Projektdaten zugeklappt – fehlende Pflichtangaben stehen oben und in Stufe 1');
+  assert.match(await page.locator('[data-stufe=projekt] [data-stext]').textContent(), /6 Pflichtangaben fehlen/);
+  await page.locator('#pjBox > summary').click();
   assert.ok(await page.locator('#pjBox.leer').count(), 'leere Projektdaten hervorgehoben');
   assert.equal(await page.locator('#pflichtFehlt').innerText(), '6 Pflichtangaben fehlen');
   await page.locator('#pj_objekt').fill('EFH, Testweg 1');
