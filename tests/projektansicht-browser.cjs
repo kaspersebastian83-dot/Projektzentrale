@@ -246,4 +246,4 @@ if(!before){
 }
 assert.deepEqual(errors,[]);console.log('OK Projektansicht: '+(before?'Vorher-Screenshots':'Maus/Tastatur, fünf Fragmentlinks, Ans Büro: frühere Übergabe, vorbelegtes Formular (neueste Word-Datei, Empfänger), Entwurf bleibt beim Neuzeichnen und Projektwechsel, Übergabe = eine Aufgabendatei, Kürzel nötig, Fehler in der Karte, offene Schritte, Rückfrage oben beantworten, zweite Übergabe nur nach Rückfrage, zurückgezogen/erledigt/eigene Aufgaben, frühere Versandangaben, Speicherfehler, Desktop/klein/echter 150%-Browserzoom'));
 }finally{for(const c of contexts)await c.close();await browser.close();server.closeAllConnections();await new Promise(r=>server.close(r));await fs.rm(tmp,{recursive:true,force:true});}
-})().catch(e=>{console.error(e);process.exitCode=1;});
+})().catch(e=>{console.error(e);if(process.env.GITHUB_ACTIONS)console.log('::error title=projektansicht-browser::'+String(e&&e.stack||e).slice(0,1500).replace(/%/g,'%25').replace(/\r/g,'%0D').replace(/\n/g,'%0A'));process.exitCode=1;});
