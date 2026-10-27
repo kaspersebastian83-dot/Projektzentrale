@@ -926,9 +926,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.30.2';
+const APP_VERSION = '1.30.3';
 const APP_DATE = '2026-10-27';
 const CHANGELOG = [
+  ['1.30.3', '27.10.2026', 'Stufe Labor: Ging das Gutachten ans Büro, während das Labor nur einen Zwischenstand hatte, stand dort „Keine Prüfberichte im Ordner – übersprungen“. Jetzt steht der eigene Stand, z. B. „Zwischenstand übernommen · 1 offen beim Labor – nicht abgeschlossen“.'],
   ['1.30.2', '27.10.2026', 'Datenarchiv 1.2: oben ein sichtbarer Hinweis, dass es die Original-XML liest und nicht den in ResultKit übernommenen Stand – für Gutachten gilt ResultKit.'],
   ['1.30.1', '27.10.2026', 'Frühere Büroübergaben (bis 1.27) mit mehreren neuen Fassungen: Die Änderungen werden in zeitlicher Reihenfolge gelesen – vorher konnte eine ältere Word-Datei als aktuelle erscheinen (gemeinsames Modul wie BüroKit 1.0.1).'],
   ['1.30.0', '27.10.2026', 'Spektron-Start: Ab Projekt 26.0560 arbeitet das Büro mit Spektron. Ältere Projekte stehen links unten zugeklappt unter „Vor Spektron“ – ohne „Jetzt dran“, nicht in „Heute für dich“ und nicht in der Auslastung (Suche findet sie weiter). Arbeitet eine Spektron-App in einem älteren Projekt (Laborauftrag aus LabelKit, in ResultKit übernommene Ergebnisse, Übergabe ans Büro, Abrechnung aus BelegKit), rückt es von selbst nach oben; sonst „In Spektron übernehmen“ in der Projektansicht (rückgängig im Projektkopf). „Heute für dich“ zeigt den Fortschritt seit dem Start. In die alten Projektordner wird nichts geschrieben.'],
