@@ -2,7 +2,11 @@
 
 Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung.
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.30.0** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.30.1** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Neu in 1.30.1 · 27.10.2026
+
+- Frühere Büroübergaben (bis 1.27) mit mehreren neuen Fassungen werden in zeitlicher Reihenfolge gelesen; vorher konnte eine ältere Word-Datei als aktuelle erscheinen. `buero-aufgaben.js` byte-gleich mit BüroKit 1.0.1 – CI vergleicht jetzt wirklich mit BüroKit (holt es daneben) statt den Vergleich zu überspringen.
 
 ## Neu in 1.30.0 · 27.10.2026
 

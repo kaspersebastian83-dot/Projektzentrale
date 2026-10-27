@@ -27,7 +27,14 @@ jobs:
       - run: node tests/anlage.cjs
       - run: node tests/arbeitszettel.cjs
       - run: node tests/sw.cjs
+      - name: BüroKit daneben holen (gemeinsames Modul byte-gleich prüfen)
+        env:
+          ZWEIG: ${{ github.head_ref }}
+        # gleichnamiger Zweig in BüroKit, falls es ihn gibt (Änderung in beiden Repos), sonst main
+        run: git clone --quiet --depth 1 --branch "$ZWEIG" https://github.com/kaspersebastian83-dot/buerokit.git ../buerokit 2>/dev/null || git clone --quiet --depth 1 https://github.com/kaspersebastian83-dot/buerokit.git ../buerokit
       - run: node tests/buero-aufgaben-gleich.cjs
+        env:
+          BUEROKIT_PFLICHT: '1'
       - run: node tests/project-store.cjs
       - run: node tests/ordnername.cjs
       - run: node tests/durchlauf.cjs

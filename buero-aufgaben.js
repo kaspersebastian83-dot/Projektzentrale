@@ -86,11 +86,17 @@ async function altLesen(dir, id, projektName, fehler){
     if (!c.project || nfc(c.project.name) !== nfc(projektName)) throw Error(`gehört zu „${text(c.project && c.project.name, 200)}“`);
     const aufgabe = { id, art: 'gutachten', titel: 'Gutachten', erstellt: gueltigeZeit(o.created) ? o.created : new Date(0).toISOString(), von: text(c.who, 40), fuer: '', faellig: '',
       hinweis: text(c.note), word: text(c.word, 400), empfaenger: empfaengerPruefen(c.recipients), alt: true };
-    const vermerke = [];
+    const vermerke = [], ereignisse = [];
     for await (const h of dir.values()){
       if (h.kind !== 'file' || !/^rueckmeldung-[0-9a-zA-Z-]+\.json$/.test(h.name)) continue;
       let e; try{ e = await jsonLesen(dir, h.name); }catch(x){ fehler.push(`${projektName}: frühere Übergabe ${h.name}: ${x.message}`); continue; }
       if (!e || e.format !== ALT || e.orderId !== id || !gueltigeZeit(e.at) || !e.payload) continue;
+      ereignisse.push(e);
+    }
+    // Zeitlich ordnen, bevor sie wirken: „revise“ ändert Word, Empfänger und Hinweis – die letzte Fassung muss zuletzt kommen,
+    // unabhängig davon, in welcher Reihenfolge das Dateisystem die Dateien liefert.
+    ereignisse.sort((a, b) => String(a.at).localeCompare(String(b.at)) || String(a.id).localeCompare(String(b.id)));
+    for (const e of ereignisse){
       const v = (schritt, mehr = {}) => vermerke.push({ id: e.id + (mehr.empfaenger ? ':' + mehr.empfaenger : ''), aufgabe: id, zeit: e.at, von: text(e.actor, 40), schritt, wert: true, empfaenger: '', text: '', pdf: '', datum: '', ...mehr });
       const p = e.payload;
       switch (e.type){
