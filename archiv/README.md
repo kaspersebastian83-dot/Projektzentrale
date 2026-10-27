@@ -1,6 +1,6 @@
 # Spektron · Datenarchiv, Version 1.1
 
-Eigene Seite unter `archiv/` (Projektzentrale › Weitere Apps › kleiner Link „Datenarchiv“). Chrome/Edge, gemeinsamer Archivordner aus `mosaik-suite/kv/archiv` wie Projektzentrale und Büroübersicht. Kein Server, keine externen Dienste, nichts verlässt den Archivordner.
+Eigene Seite unter `archiv/` (Projektzentrale › Weitere Apps › kleiner Link „Datenarchiv“). Chrome/Edge, gemeinsamer Archivordner aus `mosaik-suite/kv/archiv` wie Projektzentrale und BüroKit. Kein Server, keine externen Dienste, nichts verlässt den Archivordner.
 
 ## Was gelesen wird
 

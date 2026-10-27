@@ -27,9 +27,7 @@ jobs:
       - run: node tests/anlage.cjs
       - run: node tests/arbeitszettel.cjs
       - run: node tests/sw.cjs
-      - run: node tests/buero.cjs
-      - run: node tests/buero-f5.cjs
-      - run: node tests/buero-n1.cjs
+      - run: node tests/buero-aufgaben-gleich.cjs
       - run: node tests/project-store.cjs
       - run: node tests/ordnername.cjs
       - run: node tests/durchlauf.cjs
@@ -61,18 +59,11 @@ jobs:
         run: node tests/zuletzt-browser.cjs ${{ matrix.browser }}
       - name: Read an Arbeitszettel PDF in the real browser
         run: node tests/arbeitszettel-browser.cjs ${{ matrix.browser }}
-      - name: Office handover and independent shared sessions
-        run: node tests/buero-browser.cjs ${{ matrix.browser }}
-      - name: Office overview shows the responsible person
-        run: node tests/buero-zustaendig.cjs ${{ matrix.browser }}
       - name: Data archive reads lab XML from all projects
         run: node tests/archiv-browser.cjs ${{ matrix.browser }}
       - name: Workload overview per person and step
         run: node tests/auslastung-browser.cjs ${{ matrix.browser }}
-      - name: Native office attempt persistence (Chromium OPFS and IndexedDB)
-        if: matrix.browser == 'chromium'
-        run: node tests/buero-n1-native.cjs
-      - name: Compact project view and native browser zoom
+      - name: Compact project view, hand-over to BüroKit and native browser zoom
         if: matrix.browser == 'chromium'
         run: node tests/projektansicht-browser.cjs
       - name: Project switch after a failed save

@@ -1,6 +1,6 @@
 // Auslastung: node tests/auslastung-browser.cjs [chromium]
 // Offene Projekte je Person und Schritt (in Bearbeitung / beim Büro / Rückfrage), laufendes und voriges Jahr,
-// erledigte Büroübergabe = nicht offen, zurückgenommene zählt nicht, manuelle Zuständigkeit, inaktive Person,
+// erledigtes Gutachten beim Büro = nicht offen, zurückgezogenes zählt nicht, manuelle Zuständigkeit, inaktive Person,
 // ohne erkannte Person, Projektliste per Klick, ohne Mitarbeiterliste. Archiv im OPFS; nur erfundene Namen.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -55,14 +55,15 @@ const PROJEKTE = [
         const p = await archiv.getDirectoryHandle(name, { create: true });
         if (zust) await schreib(p, '_Projekt.json', { format: 'mosaik-projekt', version: 1, zustaendig: zust });
         if (!buero) continue;
-        const D = BueroData, content = D.snapshot({ name, nr: name.slice(0, 7), ort: 'x' }, 'Mitteilungen/G.docx', 'QA', '', D.recipients({ auftraggeber: 'Muster AG', sachverstaendigerBeteiligt: 'Dr. Muster' }));
-        const o = D.order(content); await D.create(p, o);
-        const weiter = async (typ, payload) => D.append(p, D.event(await D.load(p, o.id), typ, payload, 'QA'));
-        if (buero === 'rueckfrage') await weiter('question', { text: 'Frage' });
-        if (buero === 'zurueck') await weiter('withdraw', { reason: 'Test' });
+        // Gutachten ans Büro wie in der Projektzentrale („Ans Büro“), Haken wie in BüroKit
+        const D = BueroAufgaben, empfaenger = D.empfaengerVorschlag({ auftraggeber: 'Muster AG', sachverstaendigerBeteiligt: 'Dr. Muster' }).filter(r => r.an);
+        const o = await D.aufgabeAnlegen(p, { art: 'gutachten', titel: 'Gutachten', von: 'QA', word: 'Mitteilungen/G.docx', empfaenger });
+        const weiter = (schritt, mehr = {}) => D.vermerken(p, { aufgabe: o.id, schritt, von: 'QA', ...mehr });
+        if (buero === 'rueckfrage') await weiter('frage', { text: 'Frage' });
+        if (buero === 'zurueck') await weiter('geloescht', { text: 'Test' });
         if (buero === 'erledigt'){
-          await weiter('proof', {}); await weiter('pdf', { path: 'Mitteilungen/G.pdf' });
-          await weiter('send', { date: '2026-01-02', pdf: 'Mitteilungen/G.pdf', ids: (await D.load(p, o.id)).content.recipients.map(x => x.id) });
+          await weiter('gegenlesen'); await weiter('pdf', { pdf: 'Mitteilungen/G.pdf' });
+          for (const r of o.empfaenger) await weiter('versand', { empfaenger: r.id, datum: '2026-01-02' });
         }
       }
       window.showDirectoryPicker = async () => archiv;
@@ -82,7 +83,7 @@ const PROJEKTE = [
     await page.goto(url); await page.waitForSelector('#btnInfo'); await seed(LISTE);
     const stand = await page.evaluate(async projekte => {
       const a = await (await navigator.storage.getDirectory()).getDirectoryHandle('Mosaik Archivordner'), out = {};
-      for (const [name, b] of projekte) if (b){ const r = await BueroData.scanProject(await a.getDirectoryHandle(name)); out[b] = r.records[0].withdrawn ? 'zurück' : r.records[0].status; }
+      for (const [name, b] of projekte) if (b){ const r = BueroAufgaben.alsDurchlauf((await BueroAufgaben.projektLesen(await a.getDirectoryHandle(name))).aufgaben); out[b] = r[0].withdrawn ? 'zurück' : r[0].status; }
       return out;
     }, PROJEKTE);
     assert.deepEqual(stand, { offen: 'Neu', rueckfrage: 'Rückfrage', erledigt: 'Erledigt', zurueck: 'zurück' });

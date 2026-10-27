@@ -15,7 +15,7 @@
   async function idbGet(name, store, key){ const db = await idb(name, store); try{ return await new Promise((res, rej) => { const r = db.transaction(store).objectStore(store).get(key); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); } finally { db.close(); } }
   async function idbPut(name, store, key, value){ const db = await idb(name, store); try{ await new Promise((res, rej) => { const t = db.transaction(store, 'readwrite'); t.objectStore(store).put(value, key); t.oncomplete = res; t.onerror = () => rej(t.error); }); } finally { db.close(); } }
 
-  /** Archivordner aus dem gemeinsamen Browser-Speicher der Suite (wie Projektzentrale und Büroübersicht). */
+  /** Archivordner aus dem gemeinsamen Browser-Speicher der Suite (wie Projektzentrale und BüroKit). */
   const archivAusSpeicher = async () => { try{ const h = await idbGet('mosaik-suite', 'kv', 'archiv'); return h && typeof h.values === 'function' ? h : null; }catch(e){ return null; } };
   const archivMerken = h => idbPut('mosaik-suite', 'kv', 'archiv', h);
   async function recht(h, modus, fragen){

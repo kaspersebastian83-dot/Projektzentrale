@@ -35,7 +35,7 @@
   /**
    * auftraege:  [{name, lastModified}] – Dateien in „Laboraufträge“
    * ergebnisse: [{name, lastModified, labor}] – Dateien in „Laborergebnisse“ (labor: z. B. 'Eurofins' bei Eurofins-XML)
-   * buero:      Büroübergaben (records aus BueroData.scanProject)
+   * buero:      Gutachten beim Büro (BueroAufgaben.alsDurchlauf: {order:{created}, withdrawn, status, sent})
    * pj:         Inhalt von _Projekt.json
    * abrechnung: [{name, lastModified}] – Dateien in „Abrechnung“; gespeicherte Stände aus BelegKit „<Nr>_Aufwand_<JJJJ-MM-TT>.json“
    */
@@ -55,7 +55,7 @@
     const erledigt = aktiv.find(r => r.status === 'Erledigt');
     const versandt = erledigt ? Object.values(erledigt.sent || {}).map(s => s && gueltig(s.date) ? s.date : '') : [];
     d.versand = spaetestes(versandt);
-    // Ältere Versandangaben nur, wenn es keine digitale Übergabe gibt – sonst gilt allein die Büroübersicht.
+    // Ältere Versandangaben nur, wenn es keine digitale Übergabe gibt – sonst gilt allein BüroKit.
     if (!aktiv.length && pj.verteiler && typeof pj.verteiler === 'object')
       d.versand = spaetestes(Object.values(pj.verteiler).map(v => v && v.an && gueltig(v.versandt) ? v.versandt : ''));
     // Abrechnung: letzter in BelegKit gespeicherter Stand (Datum aus dem Namen). Nur für den Projektstand, nicht für die Durchlaufzeiten.

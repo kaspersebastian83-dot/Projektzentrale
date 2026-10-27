@@ -2,7 +2,18 @@
 
 Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung.
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.27.0** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.28.0** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Neu in 1.28.0 · 27.10.2026
+
+**„Ans Büro“ statt „Übergabe ans Büro“ – das Büro arbeitet in [BüroKit](https://kaspersebastian83-dot.github.io/buerokit/).** Die frühere Büroübergabe mit Entwurf, Änderungen und Retry war zu umständlich. Jetzt:
+
+- **Sachverständiger, ein Schritt:** In der Karte „Ans Büro“ „Gutachten ans Büro übergeben“ aufklappen. Vorgeschlagen sind die neueste Word-Datei aus „Mitteilungen“ und die Empfänger aus den Projektdaten (Auftraggeber und beteiligter Sachverständiger angehakt, wenn eingetragen; Anschriften änderbar). Optional „Fällig bis“ und ein Hinweis. „Ans Büro übergeben“ legt die Aufgabe an – dafür muss oben „Ich bin …“ gewählt sein. Ist schon ein Gutachten beim Büro offen, fragt die Projektzentrale vorher nach.
+- **Büro:** arbeitet in BüroKit (unter „Weitere Apps“) – Tagesliste mit Gegenlesen, PDF und Versand je Empfänger, dazu eigene Büroaufgaben.
+- **Projektzentrale zeigt nur den Stand:** „Gutachten beim Büro · übergeben 27.10. von Ben · noch offen: Gegenlesen · PDF · Versand 1/2“, Fälligkeit, wer es bearbeitet; erledigte Gutachten klein darunter, eigene Büroaufgaben als kurze Liste. **Rückfragen** des Büros stehen oben am Projekt und werden dort mit „Antworten“ beantwortet. Neu gelesen wird beim Zurückkehren ins Fenster.
+- **Gespeichert** je Projekt in `_Buero/aufgaben/<id>.json` (eine Aufgabe) und `_Buero/vermerke/<id>.json` (ein Haken oder eine Antwort); jede Datei wird einmal geschrieben und nie geändert. Das Datenmodul `buero-aufgaben.js` ist mit BüroKit byte-gleich (geprüft in `tests/buero-aufgaben-gleich.cjs`, wenn BüroKit daneben liegt).
+- **Frühere Übergaben** (`_Buero/<Auftrags-UUID>/`, bis 1.27) werden weiter gelesen und wie Aufgaben gezeigt. Die alte Büroübersicht unter `buero/` leitet zu BüroKit weiter.
+- Durchlaufzeiten, Auslastung und Projektstand lesen die Gutachten beim Büro aus denselben Dateien.
 
 ## Neu in 1.17.0 · 24.10.2026
 
@@ -13,8 +24,8 @@ Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektda
 | Ortstermin | `ortstermin` in `_Projekt.json` |
 | Laborauftrag | erste `…_Laborübergabe.xls` in „Laboraufträge“ (Datum aus dem Dateinamen) |
 | Prüfbericht | erste XML/PDF in „Laborergebnisse“ nach dem Laborauftrag (Datum der Ablage); Eurofins wird an der XML erkannt |
-| Übergabe ans Büro | erste nicht zurückgenommene Büroübergabe |
-| Versand | spätestes Versanddatum der ersten erledigten Übergabe; ältere Projekte: „Frühere Versandangaben“ |
+| Übergabe ans Büro | erstes nicht zurückgezogenes Gutachten beim Büro (ab 1.28 „Ans Büro“ / BüroKit; frühere Übergaben zählen mit) |
+| Versand | spätestes Versanddatum des ersten erledigten Gutachtens in BüroKit; ältere Projekte: „Frühere Versandangaben“ |
 
 Fehlt ein Datum, fällt nur dieser Abschnitt für das Projekt heraus; eine unplausible Reihenfolge wird genannt und nicht gezählt. Nur lesen, keine neue Datei. Die Rechnung steht in `durchlauf.js` (getestet in `tests/durchlauf.cjs`).
 
@@ -24,18 +35,18 @@ Fehlt ein Datum, fällt nur dieser Abschnitt für das Projekt heraus; eine unpla
 
 | Spalte | bedeutet |
 |---|---|
-| In Bearbeitung | noch keine offene Büroübergabe (auch: Übergabe zurückgenommen) |
-| Beim Büro | Übergabe offen: Gegenlesen, PDF, Versand |
+| In Bearbeitung | noch kein Gutachten beim Büro offen (auch: zurückgezogen) |
+| Beim Büro | Gutachten beim Büro offen: Gegenlesen, PDF, Versand |
 | Rückfrage | das Büro wartet auf eine Antwort |
 
-- Offen ist ein Projekt, bis eine Büroübergabe „Erledigt“ ist. Gezählt werden Projekte des laufenden und des vorigen Jahres (z. B. 25.xxxx und 26.xxxx).
+- Offen ist ein Projekt, bis ein Gutachten beim Büro „Erledigt“ ist. Gezählt werden Projekte des laufenden und des vorigen Jahres (z. B. 25.xxxx und 26.xxxx).
 - Zuständig: die in der Projektzentrale gewählte Person, sonst das Kürzel im Ordnernamen; sonst „Ohne erkannte Person“. Aktive Personen stehen auch mit 0 in der Tabelle, inaktive nur mit offenen Projekten.
 - Eine Zahl anklicken zeigt die Projekte, ein Klick darauf öffnet das Projekt. Die Zahlen ergänzen sich, solange die Projekte noch eingelesen werden.
-- Nur lesen, keine neue Datei. Dafür liest die Projektzentrale zusätzlich die Büroübergaben (`_Buero`) der Projekte im Zeitraum.
+- Nur lesen, keine neue Datei. Dafür liest die Projektzentrale zusätzlich die Büroaufgaben (`_Buero`) der Projekte im Zeitraum.
 
 ## Neu in 1.13.0 · 23.10.2026
 
-**Büroübersicht mit zuständiger Person.** Jede Übergabe zeigt unter dem Schadenort die zuständige Person: die in der Projektzentrale gewählte („in der Projektzentrale gewählt“), sonst die Person zum Kürzel am Ende des Ordnernamens. Der Schadenort steht ohne Kürzel, auch bei Übergaben, die vor 1.12 angelegt wurden (abgeleitet aus dem gespeicherten Ordnernamen; die Übergabedateien bleiben unverändert).
+**Büroübersicht mit zuständiger Person** (seit 1.28 ersetzt durch BüroKit). Jede Übergabe zeigt unter dem Schadenort die zuständige Person: die in der Projektzentrale gewählte („in der Projektzentrale gewählt“), sonst die Person zum Kürzel am Ende des Ordnernamens. Der Schadenort steht ohne Kürzel, auch bei Übergaben, die vor 1.12 angelegt wurden (abgeleitet aus dem gespeicherten Ordnernamen; die Übergabedateien bleiben unverändert).
 
 - Filter **„Zuständig“**: Alle · Meine Übergaben (Person aus „Ich bin …“ der Projektzentrale, gleicher Browser) · eine Person · ohne erkannte Person. Die Auswahl wird je Browser gemerkt. Die Suche findet auch Namen und Kürzel.
 - Gelesen werden zusätzlich nur `_Spektron-Mitarbeiter.json` und `_Projekt.json` der Projekte mit Übergaben. Fehlt die Mitarbeiterliste, sieht die Büroübersicht aus wie bisher.
@@ -58,7 +69,7 @@ Die Projektansicht zeigt zuerst Projektkopf und vier jederzeit verfügbare Aufga
 
 ## Neu in 1.10.0 · 21.10.2026
 
-[Spektron · Büroübersicht](buero/README.md) ist direkt unter `buero/` erreichbar. Die Projektzentrale übergibt nach bewusstem Klick eine konkrete Word-Datei und vollständige Empfänger. Das Büro dokumentiert Gegenlesen, bewusst gewählte Versand-PDF, Rückfragen und Versand je Empfänger. Papiermappe bleibt; nach Korrektur keine weitere Sachverständigenfreigabe. Gemeinsame Ablage: `<Projekt>/_Buero/<Auftrags-UUID>/auftrag.json` und einzelne `rueckmeldung-<UUID>.json`. Datenformat, Konflikte, Fehlerbehandlung und manueller Netzlaufwerktest: [Büro-Dokumentation](buero/README.md).
+Spektron · Büroübersicht unter `buero/` (seit 1.28 ersetzt durch BüroKit; `buero/` leitet weiter). Die Projektzentrale übergibt nach bewusstem Klick eine konkrete Word-Datei und vollständige Empfänger. Das Büro dokumentiert Gegenlesen, bewusst gewählte Versand-PDF, Rückfragen und Versand je Empfänger. Papiermappe bleibt; nach Korrektur keine weitere Sachverständigenfreigabe. Gemeinsame Ablage: `<Projekt>/_Buero/<Auftrags-UUID>/auftrag.json` und einzelne `rueckmeldung-<UUID>.json`. Abnahme von damals: [docs/buero](docs/buero/abnahme.md).
 
 [Spektron · Datenarchiv](archiv/README.md) (ab 1.22) ist direkt unter `archiv/` erreichbar, in der Projektzentrale über den kleinen Link „Datenarchiv“ unter „Weitere Apps“. Liest die Eurofins-XML aus „Laborergebnisse“ aller Projektordner sowie Nutzung/Brandgut aus `_Projekt.json`: Übersicht, Vergleich je Parameter, PAK-Muster, CSV-Export. Schreibt nur `<Archiv>/_Spektron-Archiv.json` (eigene Zuordnungen für Projekte ohne Angabe), nie Projektdateien.
 
@@ -97,8 +108,8 @@ Die App läuft vollständig im Browser auf dem eigenen Rechner. **Ordner, Dateie
 - **„? Kurzanleitung“** (oder F1): wie Projektzentrale, LabelKit, FotoKit und PlanKit zusammenarbeiten – Einrichtung, Ablauf je Projekt mit Bild, Hinweise, Adressen; druckbar als PDF.
 
 - Listet alle Projektordner (`26.0123 Köln`), neueste zuerst, mit Suche und Jahresfilter.
-- **Projektansicht (ab 1.11):** Projektnummer, Ort, Objekt und Auftraggeber stehen über fünf jederzeit verfügbaren Aufgaben: „Proben & Laborauftrag“, „Fotos & Dokumentation“, „Laborergebnisse prüfen“ (ResultKit, ab 1.26), „Probenplan bearbeiten“ und „Zeiten & Abrechnung“. Dezente App-Farben bleiben; Dateibestand bedeutet keine fachliche Fertigstellung. Anlagen sind weiterhin an ihrer Aufgabe erreichbar. Büroübergabe, Ordner und frühere Versandangaben folgen als aufklappbare Bereiche. Rückfragen, Konflikte, Speicherfehler und offene Versuche bleiben am Projektkopf sichtbar.
-- **Weitere Apps (ab 1.9, Handbuch ab 1.18):** Ganz unten im rechten Fenster (auch ohne gewähltes Projekt) öffnet „Handbuch (AidKit)“ die Abläufe und Regeln der Suite; „Büroübersicht“ die separate Büroarbeit; „SpesenKit“ öffnet die monatliche Spesenabrechnung der Kollegen in einem eigenen Fenster. Kein Projektbezug, darum kein nummerierter Arbeitsschritt und kein `?projekt=` im Link (`../reisekosten-pro/` – die Webadresse trägt noch den früheren Namen „Reisekosten Pro“). SpesenKit speichert nicht im Archivordner, sondern in einem eigenen Ordner je Person (siehe unten). „💬 Rückmeldung“ (ab 1.25) öffnet das Rückmeldeformular (`../rueckmeldung/`) mit `?app=projektzentrale&version=…` und, wenn ein Projekt gewählt ist, `&projekt=<Nummer>` (nur die Nummer, kein Ort).
+- **Projektansicht (ab 1.11):** Projektnummer, Ort, Objekt und Auftraggeber stehen über fünf jederzeit verfügbaren Aufgaben: „Proben & Laborauftrag“, „Fotos & Dokumentation“, „Laborergebnisse prüfen“ (ResultKit, ab 1.26), „Probenplan bearbeiten“ und „Zeiten & Abrechnung“. Dezente App-Farben bleiben; Dateibestand bedeutet keine fachliche Fertigstellung. Anlagen sind weiterhin an ihrer Aufgabe erreichbar. Darunter „Ans Büro“ (ab 1.28: Stand beim Büro, Gutachten übergeben), Ordner und frühere Versandangaben. Rückfragen des Büros und Speicherfehler stehen am Projektkopf.
+- **Weitere Apps (ab 1.9, Handbuch ab 1.18):** Ganz unten im rechten Fenster (auch ohne gewähltes Projekt) öffnet „Handbuch (AidKit)“ die Abläufe und Regeln der Suite; „BüroKit“ (ab 1.28, `../buerokit/`) die Tagesliste des Büros; „SpesenKit“ öffnet die monatliche Spesenabrechnung der Kollegen in einem eigenen Fenster. Kein Projektbezug, darum kein nummerierter Arbeitsschritt und kein `?projekt=` im Link (`../reisekosten-pro/` – die Webadresse trägt noch den früheren Namen „Reisekosten Pro“). SpesenKit speichert nicht im Archivordner, sondern in einem eigenen Ordner je Person (siehe unten). „💬 Rückmeldung“ (ab 1.25) öffnet das Rückmeldeformular (`../rueckmeldung/`) mit `?app=projektzentrale&version=…` und, wenn ein Projekt gewählt ist, `&projekt=<Nummer>` (nur die Nummer, kein Ort).
 - **Leiste in den Projekt-Apps (ab 1.7.1):** LabelKit, FotoKit, ResultKit, PlanKit und BelegKit zeigen oben dieselbe schmale Leiste – Projekt mit Wechsel zu den zuletzt geöffneten, die fünf Arbeitsschritte mit Haken und „Weiter: …“ zum nächsten offenen Schritt. Die Projektzentrale führt dafür die Liste `zuletzt` im gemeinsamen Browser-Speicher; beim Start ist das zuletzt in einer App geöffnete Projekt vorgewählt.
 - Zeigt je Projekt, was schon da ist: Fotos, Bilddokumentation, Probenplan, Probenerfassung (LabelKit `…_Daten.json`), Laborergebnisse.
 - Legt fehlende Standard-Unterordner auf Wunsch an.
@@ -108,7 +119,7 @@ Die App läuft vollständig im Browser auf dem eigenen Rechner. **Ordner, Dateie
   - Steht auf dem Zettel eine andere Projektnummer als im Ordnernamen, ist nichts angehakt und „Übernehmen“ erst nach ausdrücklicher Bestätigung möglich. Hinweise bei unplausiblen Daten (Termin vor Auftragsdatum, Schaden nach Auftrag); kein Datum → Feld bleibt leer.
   - Ordner werden nicht angelegt oder verändert; geschrieben wird nur `_Projekt.json` (mit Dateiname und SHA-256 des Zettels unter `arbeitszettel`). Das PDF wird nur im Browser gelesen.
   - PDF-Bibliothek: pdf.js (Mozilla, Apache-2.0, Legacy-Build) in `vendor/pdfjs/`, wird erst beim ersten Einlesen geladen. Funktioniert in der Online-Version (nicht aus einer lokal geöffneten Datei).
-- **Frühere Versandangaben (ab 1.8 als „Verteiler“):** Nachgeordnete historische Karte – Auftraggeber, Sachverständiger, Versicherungsnehmer, Sanierung: anhaken, wer das Gutachten bekommt, und nach dem Versand das Datum eintragen („heute“). Gespeichert als `verteiler` in `_Projekt.json`. Bei digitalen Büroaufträgen nur noch Ansicht; deren Versand wird ausschließlich in der Büroübersicht geführt.
+- **Frühere Versandangaben (ab 1.8 als „Verteiler“):** Nachgeordnete historische Karte – Auftraggeber, Sachverständiger, Versicherungsnehmer, Sanierung: anhaken, wer das Gutachten bekommt, und nach dem Versand das Datum eintragen („heute“). Gespeichert als `verteiler` in `_Projekt.json`. Ist ein Gutachten beim Büro (auch ein früheres), nur noch Ansicht; der Versand wird dann in BüroKit dokumentiert.
 - **„Fotos bearbeiten“** öffnet FotoKit direkt im Ordner `Fotos` des Projekts, mit vorausgefüllten Projektdaten.
 - **„Plan bearbeiten“** öffnet PlanKit direkt im Ordner `Pläne`: automatisches Speichern als `Probenplan <Projekt>.probenplan`, Bilder ebenfalls dorthin, geprüfte Laborergebnisse aus ResultKit (`Laborergebnisse/_Ergebnisse.json`).
 - **„Abrechnung → BelegKit“ (ab 1.6, bis 1.6.1 „AufwandKit“)** öffnet BelegKit im Projekt: Zeiten, km, Spesen je Kollege, Proben aus LabelKit, Berichtsseiten und Fotos mit den Positionsnummern der Rechnung.
@@ -148,7 +159,7 @@ Ohne Abhängigkeiten, mit Node.js aus dem Repository-Ordner:
 node tests/docx.cjs     # Word-Schreiber: Paket, XML, Maskierung, Tabellen, Bilder
 node tests/anlage.cjs   # Anlage PN 98 / Brandgeruch: Inhalte, Blind-Modus, Quellenvermerk, Dateinamen
 node tests/arbeitszettel.cjs   # Arbeitszettel lesen: volle und knappe Zettel, Reihenfolge, kein Zettel, Datum
-node tests/buero.cjs    # Übergabe, Empfängerstand, Retry, Fehler, parallele Rückmeldungen
+node tests/buero-aufgaben-gleich.cjs   # buero-aufgaben.js byte-gleich mit BüroKit (wenn ../buerokit da ist)
 node tests/sw.cjs       # Service Worker: alle Offline-Dateien vorhanden, pdf.js dabei
 node tests/ordnername.cjs   # Ordnername von hinten lesen: Ort, Kürzel, Hinweise, ohne Mitarbeiterliste
 node tests/durchlauf.cjs    # Durchlaufzeiten: Daten, fehlende/unplausible Angaben, Median, Labore
@@ -160,7 +171,8 @@ Browsertest des ganzen Ablaufs (Archiv → Projekt → Anlage → Datei, Prüfsu
 npm install --no-save playwright && npx playwright install chromium webkit
 node tests/anlage-browser.cjs chromium
 node tests/anlage-browser.cjs webkit
-node tests/projektansicht-browser.cjs           # kompakte Ansicht, Tastatur, Hinweise, Fenstergrößen, nativer Zoom
+node tests/projektansicht-browser.cjs           # kompakte Ansicht, „Ans Büro“, Rückfragen, Tastatur, Fenstergrößen, nativer Zoom
+node tests/auslastung-browser.cjs chromium      # Auslastung je Person: in Bearbeitung, beim Büro, Rückfrage
 node tests/arbeitszettel-browser.cjs chromium   # PDF lesen, Dialog, Speichern, Verteiler
 node tests/zuletzt-browser.cjs chromium         # zuletzt geöffnete Projekte, Vorwahl beim Start
 node tests/zustaendig-browser.cjs chromium      # Mitarbeiterliste, Zuständig, Meine Projekte, unlesbare Liste, Konflikt
@@ -175,6 +187,8 @@ GitHub führt alle Tests bei jedem Pull Request aus (`.github/workflows/tests.ym
 
 - `index.html` – die komplette App
 - `durchlauf.js` – Rechnung der Durchlaufzeiten (ohne Oberfläche, mit Node testbar)
+- `buero-aufgaben.js` – Büroaufgaben je Projekt (`_Buero`), byte-gleich mit BüroKit
+- `buero/` – nur noch Weiterleitung zu BüroKit
 - `vendor/pdfjs/` – pdf.js (Apache-2.0, siehe `LICENSE` dort), nur zum Lesen der Arbeitszettel; wird bei Bedarf geladen
 - `tests/` – automatische Prüfungen (Node, Browser)
 - `sw.js` – Service Worker: offline nutzbar, immer neueste Version wenn online
