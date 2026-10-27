@@ -1,5 +1,6 @@
 
-// Projektzentrale 1.29: Liste in Gruppen mit Stand, „Heute für dich“, „Jetzt dran“ führt zur Aktion, Menü „⋯ Mehr“.
+// Projektzentrale 1.29/1.30: Liste in Gruppen mit Stand, „Heute für dich“, „Jetzt dran“ führt zur Aktion, Menü „⋯ Mehr“;
+// Spektron-Start (hier 26.0100): ältere Projekte zugeklappt unter „Vor Spektron“, mit Spuren oder übernommen wieder oben, Fortschritt.
 // Synthetische Projekte im Testarchiv (gemeinsamer Dateizugriff wie projektansicht-browser.cjs, ohne OPFS).
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),os=require('node:os'),path=require('node:path'),http=require('node:http'),pw=require('playwright');
 const root=path.resolve(__dirname,'..');
@@ -29,6 +30,9 @@ await fs.mkdir(path.join(tmp,E,'Abrechnung'));await w(E,'Abrechnung/26-0101_Aufw
 // F: anderer Kollege, G: alt
 const F=await mk('26.0099 Andersstadt Ben');await w(F,'Laboraufträge/x_Daten.json','{}');
 await mk('21.0007 Früher SK');
+// vor dem Start: ohne Spuren (nur Projektdaten) → „Vor Spektron“; mit Laborauftrag aus LabelKit → normales Projekt (Kollege)
+const V=await mk('26.0050 Altbestand SK');await w(V,'_Projekt.json',JSON.stringify(voll));
+const VS=await mk('26.0090 Altspur Ben');await w(VS,'Laboraufträge/x_Daten.json','{}');
 // H: nur Laborübergabe aus LabelKit (ohne _Daten.json) → beim Labor; I: Büroaufgabe nicht lesbar → kein „abgeschlossen“ aus Teildaten
 const H=await mk('26.0106 Nurlabor SK');await w(H,'_Projekt.json',JSON.stringify(voll));await w(H,'Laboraufträge/26.0106_PAK_9.10.2026_Laborübergabe.xls','x');
 const I=await mk('26.0107 Teilweise SK');await w(I,'_Projekt.json',JSON.stringify({...voll,verteiler:{versicherung:{an:true,versandt:'2026-10-01'}}}));await w(I,'Laboraufträge/x_Daten.json','{}');
@@ -52,6 +56,7 @@ async function context(existing){
    case'write':await fs.writeFile(absolute,arg.text);return true;
   }}catch(e){if(e.code==='ENOENT')return {notfound:true};throw e;}
  });
+ await c.addInitScript(()=>{window.SPEKTRON_START_TEST='26.0100';});
  await c.addInitScript(()=>{
   window.testIO={failWrite:false,failList:false,failRead:false,failAfterClose:false,hideGrant:false};
   const io=async arg=>{const r=await window.__sharedIO(arg);if(r?.notfound)throw new DOMException('Missing','NotFoundError');return r;};
@@ -76,12 +81,17 @@ await page.locator('#btnRescan').click();
 const gruppe=n=>page.locator(`.proj[data-name="${n}"]`).getAttribute('data-gruppe');
 await page.waitForFunction(()=>document.querySelectorAll('.proj[data-gruppe=lesen]').length===0&&document.querySelector('.proj[data-name="26.0103 Haus Nord SK"]')?.dataset.gruppe==='laeuft',null,{timeout:15000});
 // Liste: Gruppen in fester Reihenfolge, je mit kurzem Stand
-assert.deepEqual(await page.locator('#list .group').evaluateAll(g=>g.map(x=>x.dataset.gruppe)),['dich','laeuft','fertig','aelter']);
-assert.deepEqual(await Promise.all(['26.0105 Fiktivstadt SK','26.0104 Kontrollort SK','26.0103 Haus Nord SK','26.0102 Beispielweg SK','26.0101 Musterstadt SK','21.0007 Früher SK'].map(gruppe)),['dich','dich','laeuft','laeuft','fertig','aelter']);
+assert.deepEqual(await page.locator('#list .group').evaluateAll(g=>g.map(x=>x.dataset.gruppe)),['dich','laeuft','fertig','vor']);
+// „Vor Spektron“ zugeklappt ganz unten: keine Zeilen sichtbar, bis man aufklappt
+assert.equal(await page.locator('#vorToggle').getAttribute('aria-expanded'),'false');assert.match(await page.locator('#vorToggle').innerText(),/Vor Spektron · 2/i);
+assert.equal(await page.locator('.proj[data-gruppe=vor]').count(),0);
+await page.locator('#vorToggle').click();await page.locator('.proj[data-gruppe=vor]').first().waitFor();
+assert.deepEqual(await Promise.all(['26.0105 Fiktivstadt SK','26.0104 Kontrollort SK','26.0103 Haus Nord SK','26.0102 Beispielweg SK','26.0101 Musterstadt SK','21.0007 Früher SK','26.0050 Altbestand SK'].map(gruppe)),['dich','dich','laeuft','laeuft','fertig','vor','vor']);
+assert.notEqual(await gruppe('26.0090 Altspur Ben'),'vor','älteres Projekt mit Laborauftrag aus LabelKit gilt als Spektron-Projekt');
+await page.locator('#vorToggle').click();assert.equal(await page.locator('.proj[data-gruppe=vor]').count(),0);
 const stand=n=>page.locator(`.proj[data-name="${n}"] .stand`).textContent();
 assert.equal(await stand('26.0105 Fiktivstadt SK'),'Labor · Ergebnisse da');assert.equal(await stand('26.0104 Kontrollort SK'),'Rückfrage vom Büro');
 assert.equal(await stand('26.0103 Haus Nord SK'),'Beim Büro');assert.equal(await stand('26.0102 Beispielweg SK'),'Beim Labor');assert.equal(await stand('26.0101 Musterstadt SK'),'Versandt und abgerechnet');
-assert.equal(await stand('21.0007 Früher SK'),'','ältere Projekte ohne Stand');
 assert.equal(await gruppe('26.0106 Nurlabor SK'),'laeuft');assert.equal(await stand('26.0106 Nurlabor SK'),'Beim Labor');
 assert.equal(await gruppe('26.0107 Teilweise SK'),'dich');assert.equal(await stand('26.0107 Teilweise SK'),'Büro-Stand unklar');
 // Heute für dich: nur meine Projekte, die mich brauchen; dann was läuft; Projekt eines Kollegen nicht
@@ -90,6 +100,9 @@ assert.equal(await page.locator('.heute h2').innerText(),'Heute für dich, Sebas
 assert.deepEqual(await page.locator('.heute-karte:not(.wartet) .ht b').allTextContents(),['Büro-Stand unklar','Laborergebnisse prüfen','Rückfrage vom Büro']);
 assert.deepEqual(await page.locator('.heute-karte.wartet').evaluateAll(k=>k.map(x=>x.dataset.name)),['26.0106 Nurlabor SK','26.0103 Haus Nord SK','26.0102 Beispielweg SK']);
 assert.equal(await page.locator('.heute-karte[data-name="26.0099 Andersstadt Ben"]').count(),0,'Projekt eines Kollegen nicht');
+// Fortschritt seit dem Start: 26.0101–0107 und zwei ältere mit Spuren (26.0099, 26.0090), eins abgeschlossen; „Vor Spektron“ nicht in „Heute“
+assert.match(await page.locator('.fortschritt').innerText(),/Seit dem Spektron-Start \(ab 26\.0100\): 9 Projekte im Büro, 1 abgeschlossen[\s\S]*davon 2 ältere übernommen/);
+assert.equal(await page.locator('.heute-karte[data-name="26.0050 Altbestand SK"]').count(),0);
 await page.screenshot({path:path.join(out,'heute.png')});
 // Karte öffnet das Projekt; „Jetzt dran“ mit einem blauen Knopf, Stufe 3 aktuell, öffnet ResultKit im Projekt
 await page.locator('.heute-karte[data-name="26.0105 Fiktivstadt SK"]').click();await page.locator('#jetztGo').waitFor();
@@ -118,9 +131,19 @@ await page.screenshot({path:path.join(out,'mehr.png'),clip:{x:840,y:0,width:600,
 await page.keyboard.press('Escape');assert.ok(await page.locator('#mehr').isHidden());
 // Archivordner als Status oben rechts
 assert.equal(await page.locator('#archiveName').innerText(),'Testarchiv');assert.match(await page.locator('#btnArchive').getAttribute('class'),/ok/);
+// Altes Projekt: Suche findet es (Gruppe klappt auf); kein „Jetzt dran“, sondern „In Spektron übernehmen“ → steht oben, Merkmal in _Projekt.json
+await page.fill('#q','Altbestand');await page.locator('.proj[data-name="26.0050 Altbestand SK"]').click();await page.locator('#jetzt.vor').waitFor();
+assert.match(await page.locator('#jetzt').innerText(),/Vor Spektron\s*Projekt aus der Zeit vor Spektron/i);assert.equal(await page.locator('#detail button.primary:visible').count(),0);
+await page.locator('#spektronAn').click();await page.locator('#spektronAus').waitFor();
+assert.equal(JSON.parse(await fs.readFile(path.join(tmp,V,'_Projekt.json'),'utf8')).spektron,true);
+assert.notEqual(await gruppe('26.0050 Altbestand SK'),'vor');assert.equal(await page.locator('#jetzt.vor').count(),0);assert.equal(await page.locator('#jetztGo').count(),1);
+// zurück zu „Vor Spektron“: Merkmal wieder weg
+await page.locator('#spektronAus').click();await page.locator('#jetzt.vor').waitFor();
+assert.ok(!('spektron' in JSON.parse(await fs.readFile(path.join(tmp,V,'_Projekt.json'),'utf8'))));assert.equal(await gruppe('26.0050 Altbestand SK'),'vor');
+await page.fill('#q','');await page.locator('#q').dispatchEvent('input');
 // ohne Kürzel: Hinweis statt „Heute für dich“
 await page.evaluate(()=>localStorage.removeItem('spektron-ich'));await page.selectOption('#ich','');await page.locator('#heuteLink').waitFor({state:'detached'});
 assert.deepEqual(errors,[]);
-console.log('OK Projektzentrale 1.29: Liste in Gruppen mit Stand, Heute für dich (nur meine), Jetzt dran mit einem Knopf, Rückfrage oben, Beim Büro wartet, übersprungene Stufe, Menü „⋯ Mehr“, Archiv-Status');
+console.log('OK Projektzentrale 1.30: Spektron-Start („Vor Spektron“ zugeklappt, Spuren und Übernehmen holen zurück, Fortschritt) · Liste in Gruppen mit Stand, Heute für dich (nur meine), Jetzt dran mit einem Knopf, Rückfrage oben, Beim Büro wartet, übersprungene Stufe, Menü „⋯ Mehr“, Archiv-Status');
 }finally{await browser.close();server.close();}
 })().catch(e=>{console.error(e);console.log(`::error title=Browsertest Heute::${String(e&&e.message||e).replace(/\n/g,'%0A')}`);process.exit(1);});

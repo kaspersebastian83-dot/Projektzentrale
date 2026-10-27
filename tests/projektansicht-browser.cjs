@@ -18,7 +18,7 @@ await fs.writeFile(path.join(tmp,A,'Mitteilungen','Gutachten Z alt.docx'),'Synth
 await fs.writeFile(path.join(tmp,A,'Mitteilungen','~$tachten B.docx'),'lock');await fs.writeFile(path.join(tmp,A,'Mitteilungen','Notiz.txt'),'x');
 const server=http.createServer(async(req,res)=>{try{const u=new URL(req.url,'http://local');if(/^\/(labelkit|Bildumbenenner|resultkit|Probenplan|aufwandkit)\/$/.test(u.pathname)){res.setHeader('Content-Type','text/html');res.end('<!doctype html><title>Fiktives App-Testziel</title>');return;}let file=path.resolve(root,decodeURIComponent(u.pathname).slice(1)||'index.html');if(!file.startsWith(root+path.sep))throw Error();if((await fs.stat(file)).isDirectory())file=path.join(file,'index.html');res.setHeader('Content-Type',({'.html':'text/html; charset=utf-8','.js':'application/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png'})[path.extname(file)]||'application/octet-stream');res.end(await fs.readFile(file));}catch{res.statusCode=404;res.end();}});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port;
-const browser=await pw.chromium.launch(process.env.BROWSER_EXECUTABLE?{executablePath:process.env.BROWSER_EXECUTABLE,args:['--no-sandbox']}:{}),contexts=[];const errors=[];
+const browser=await pw.chromium.launch(process.env.BROWSER_EXECUTABLE?{executablePath:process.env.BROWSER_EXECUTABLE,args:['--no-sandbox']}:{}),contexts=[];const errors=[];require('./spektron-start-test.cjs')(browser);
 try{
 async function context(existing){
  const c=existing||await browser.newContext({viewport:{width:1440,height:1100},timezoneId:'Europe/Berlin',locale:'de-DE',serviceWorkers:'block'});if(!contexts.includes(c))contexts.push(c);

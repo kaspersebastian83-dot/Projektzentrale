@@ -41,7 +41,7 @@ const PROJEKTE = [
   });
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${server.address().port}/`;
-  const browser = await playwright[process.argv[2] || 'chromium'].launch(process.env.BROWSER_EXECUTABLE ? { executablePath: process.env.BROWSER_EXECUTABLE } : {});
+  const browser = await playwright[process.argv[2] || 'chromium'].launch(process.env.BROWSER_EXECUTABLE ? { executablePath: process.env.BROWSER_EXECUTABLE } : {}); require('./spektron-start-test.cjs')(browser);
   try{
     const ctx = await browser.newContext({ viewport: { width: 1400, height: 1000 }, acceptDownloads: true });
     await ctx.route(u => !u.href.startsWith(base), r => r.abort());
