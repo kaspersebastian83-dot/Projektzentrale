@@ -2,7 +2,17 @@
 
 Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung.
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.28.0** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.29.0** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Neu in 1.29.0 · 27.10.2026
+
+**Neu gestaltet: ein klarer Ablauf statt vieler Karten.**
+
+- **Im Projekt:** oben **„Jetzt dran“** – ein Satz und genau ein (blauer) Knopf. Darunter die **sechs Stufen** in Arbeitsreihenfolge: Projekt anlegen · Ortstermin: Proben & Fotos · Labor · Gutachten · Ans Büro → Versand · Abrechnung. Jede Stufe zeigt Zustand (✓ fertig, aktuell, wartet auf Labor/Büro, später, übersprungen) und einen Satz, dazu die Knöpfe ihrer App. Karten und Zeitleiste „Projektstand“ sind darin aufgegangen (gleiche Daten wie die Durchlaufzeiten). Projektdaten bleiben zugeklappt; fehlende Pflichtangaben stehen oben und in Stufe 1.
+- **Liste in Gruppen:** „Braucht dich“ · „Läuft – Labor oder Büro sind dran“ · „Abgeschlossen“ · „Ältere Projekte“ (vor dem Vorjahr, ohne Stand), je Projekt mit kurzem Stand („Labor · Ergebnisse da“, „Rückfrage vom Büro“, „Beim Büro“ …).
+- **Startseite „Heute für dich“** (mit gewähltem Kürzel): die eigenen Projekte, deren nächster Schritt bei dir liegt, darunter was bei Labor oder Büro liegt.
+- **Kopfzeile aufgeräumt:** Archivordner als Status oben rechts (Klick wechselt), ⟳ neu einlesen, **„⋯ Mehr“** mit Mitarbeiter, Auslastung, Durchlaufzeiten, Handbuch, BüroKit, SpesenKit, Rückmeldung, Datenarchiv. „Ich bin“, Suche, „Meine“ und Jahre über der Liste.
+- Die Regeln stehen in `stufen.js` (nur rechnen, getestet in `tests/stufen.cjs`); Oberfläche in `tests/heute-browser.cjs`. Speicher, Dateien und gemeinsame Module unverändert.
 
 ## Neu in 1.28.0 · 27.10.2026
 

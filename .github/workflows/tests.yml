@@ -34,6 +34,7 @@ jobs:
       - run: node tests/archiv.cjs
       - run: node tests/hilfe-links.cjs
       - run: node tests/rueckmeldung-link.cjs
+      - run: node tests/stufen.cjs
 
   browser-tests:
     name: Browser tests (${{ matrix.browser }})
@@ -66,6 +67,9 @@ jobs:
       - name: Compact project view, hand-over to BüroKit and native browser zoom
         if: matrix.browser == 'chromium'
         run: node tests/projektansicht-browser.cjs
+      - name: Project list in groups, „Heute für dich“, „Jetzt dran“ and the „Mehr“ menu
+        if: matrix.browser == 'chromium'
+        run: node tests/heute-browser.cjs
       - name: Project switch after a failed save
         run: node tests/wechsel-browser.cjs ${{ matrix.browser }}
       - name: Independent F3 sessions and explicit recovery (synthetic shared disk)

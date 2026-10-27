@@ -67,7 +67,7 @@ const MA = '_Spektron-Mitarbeiter.json';
     assert.equal(await page.locator('#ich').isDisabled(), true);
 
     // 2) Mitarbeiterliste anlegen, mit Eingabeprüfung
-    await page.click('#btnMa');
+    await page.click('#btnMehr'); await page.click('#btnMa');
     await page.locator('.ma-tab').waitFor();
     const reihe = i => page.locator('.ma-tab tbody tr').nth(i);
     await reihe(0).locator('.maK').fill('Abc'); await reihe(0).locator('.maN').fill('Anna Beispiel'); await reihe(0).locator('.maA').fill('Abc');
@@ -146,7 +146,7 @@ const MA = '_Spektron-Mitarbeiter.json';
     await page.locator('#banner.show.err', { hasText: 'nicht lesbar' }).waitFor();
     assert.equal(await zeile(A).locator('.ort .wer').count(), 1, 'manuelle Zuständigkeit aus _Projekt.json bleibt sichtbar');
     assert.equal((await zeile(B).locator('.ort').textContent()).trim(), 'Musterweg 3 Koeln Dr. Te');
-    await page.click('#btnMa'); await page.locator('#maNo').waitFor();
+    await page.click('#btnMehr'); await page.click('#btnMa'); await page.locator('#maNo').waitFor();
     assert.equal(await page.locator('#maOk').count(), 0);
     await page.click('#maNo');
     assert.equal(await liesDatei('', MA), '{kaputt');
@@ -154,7 +154,7 @@ const MA = '_Spektron-Mitarbeiter.json';
     // 7) Konflikt: ein anderer Rechner ändert die Liste, während der Dialog offen ist
     await schreibeDatei(MA, JSON.stringify(ma));
     await page.click('#btnRescan'); await zeile(C).waitFor();
-    await page.click('#btnMa'); await page.locator('.ma-tab').waitFor();
+    await page.click('#btnMehr'); await page.click('#btnMa'); await page.locator('.ma-tab').waitFor();
     const fremd = JSON.stringify({ ...ma, personen: [...ma.personen, { ordnerKuerzel: 'Neu', name: 'Neue Person', aktiv: true }] });
     await schreibeDatei(MA, fremd);
     await reihe(0).locator('.maN').fill('Anna Geändert');

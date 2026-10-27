@@ -175,8 +175,9 @@ const PROJEKTE = [
     // Projektzentrale: kleiner Link unter „Weitere Apps“
     const pz = await (await browser.newContext()).newPage();
     await pz.goto(base + 'index.html'); await pz.waitForSelector('#btnInfo');
-    const link = pz.locator('.more a.more-link');
-    if (process.env.SHOT) await pz.locator('.more').screenshot({ path: process.env.SHOT + '-link.png' });
+    const link = pz.locator('#mehr .more a.more-link');
+    await pz.click('#btnMehr');   // 1.29: weitere Apps im Menü „⋯ Mehr“
+    if (process.env.SHOT) await pz.locator('#mehr').screenshot({ path: process.env.SHOT + '-link.png' });
     assert.equal(await link.getAttribute('href'), 'archiv/'); assert.equal(await link.innerText(), 'Datenarchiv ↗');
 
     assert.deepEqual(errors, []);
