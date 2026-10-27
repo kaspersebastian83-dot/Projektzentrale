@@ -4,8 +4,9 @@
 <title>Spektron · Datenarchiv</title><link rel="icon" href="../icon.svg"><link rel="stylesheet" href="archiv.css">
 <script defer src="auswertung.js"></script><script defer src="lesen.js"></script><script defer src="archiv.js"></script></head>
 <body>
-<header><div class="kopf"><img src="../icon.svg" width="34" height="34" alt=""><h1>Spektron <span>· Datenarchiv</span></h1><span class="tag">Version 1.1 · liest nur</span><a class="hilfe-link" href="../../aidkit/#app-datenarchiv" target="aidkit" rel="noopener" title="Handbuch: Datenarchiv – worum es geht, Schritt für Schritt, Übungen – öffnet AidKit in einem eigenen Fenster">📘 Handbuch</a></div>
-<p>Messwerte aller Projekte aus den Prüfberichten im Archivordner – zum Vergleichen und Lernen. Bleibt im Büro: nichts verlässt den Archivordner.</p></header>
+<header><div class="kopf"><img src="../icon.svg" width="34" height="34" alt=""><h1>Spektron <span>· Datenarchiv</span></h1><span class="tag">Version 1.2 · liest nur</span><a class="hilfe-link" href="../../aidkit/#app-datenarchiv" target="aidkit" rel="noopener" title="Handbuch: Datenarchiv – worum es geht, Schritt für Schritt, Übungen – öffnet AidKit in einem eigenen Fenster">📘 Handbuch</a></div>
+<p>Messwerte aller Projekte aus den Prüfberichten im Archivordner – zum Vergleichen und Lernen. Bleibt im Büro: nichts verlässt den Archivordner.</p>
+<p class="quelle-hinweis">Gelesen werden die <b>Original-XML</b> der Prüfberichte, nicht der in ResultKit übernommene Stand – einzelne Projekte können deshalb von ResultKit abweichen. <b>Für Gutachten gilt ResultKit.</b></p></header>
 <main>
 <section class="leiste">
   <button id="waehlen">Archivordner wählen …</button><button id="erlauben" hidden>Zugriff erlauben</button>
@@ -27,5 +28,6 @@
 <p><b>Ehrlich gezählt.</b> Werte unter BG und „n. n.“ sind keine Null, sondern zählen als kleinste Werte; fällt eine Kennzahl darauf, steht dort „&lt; BG“. Kennzahlen erst ab 5 Werten. Vorläufige Berichte zählen nicht. Einheiten werden nicht umgerechnet (µg/m², µg/100 cm² und mg/kg bleiben getrennt).</p>
 <p><b>Rolle der Proben:</b> aus der Probenbezeichnung und -beschreibung, wie sie ohnehin geschrieben werden – „Brandraum“, „Brandbereich“ → Brandbereich; „REF“, „Referenz“, „unbelastet“ → Referenz; „Kleber“, „Teer“, „Bitumen“ → Verdachtsquelle; „F-“ vor der alten ID → Freimessung. Unter „Zuordnen“ je Probe korrigierbar; die Korrektur gilt vor der Konvention.</p>
 <p><b>PAK-Muster:</b> normiert nur über die Stoffe, die in allen verglichenen Proben über BG liegen; Werte unter BG werden nicht ersetzt. Die Literaturquotienten (Yunker u. a.) sind für Sedimente und Außenluft hergeleitet und für Brandrückstände nicht validiert – darum eingeklappt und ohne Schwellen.</p>
+<p><b>Eigene Quelle, nicht ResultKit:</b> Das Datenarchiv wertet die Original-XML im Ordner „Laborergebnisse“ aus und führt vorläufige und endgültige Berichte selbst zusammen. Die in ResultKit geprüfte und übernommene Datei <code>_Ergebnisse.json</code> liest es nicht. Abweichen kann es deshalb, wenn ein Bericht schon im Ordner liegt, aber in ResultKit noch nicht übernommen ist, oder wenn dort etwas bewusst anders entschieden wurde. Für das Gutachten und die Apps im Projekt (PlanKit, FotoKit) gilt der Stand aus ResultKit.</p>
 <p><b>Version 1:</b> nur Eurofins-XML. Projekte, die nur PDF-Berichte haben, werden gezählt, aber noch nicht gelesen.</p></details>
 </main></body></html>

@@ -1,6 +1,10 @@
-# Spektron · Datenarchiv, Version 1.1
+# Spektron · Datenarchiv, Version 1.2
 
 Eigene Seite unter `archiv/` (Projektzentrale › Weitere Apps › kleiner Link „Datenarchiv“). Chrome/Edge, gemeinsamer Archivordner aus `mosaik-suite/kv/archiv` wie Projektzentrale und BüroKit. Kein Server, keine externen Dienste, nichts verlässt den Archivordner.
+
+## Neu in 1.2
+
+- Oben ein sichtbarer Hinweis: Das Datenarchiv liest die Original-XML, nicht den in ResultKit übernommenen Stand (`_Ergebnisse.json`) – einzelne Projekte können deshalb abweichen; für Gutachten gilt ResultKit. Ausführlich unter „Was diese Seite tut – und was nicht“.
 
 ## Was gelesen wird
 
