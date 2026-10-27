@@ -45,3 +45,5 @@ table.sim td.z{min-width:64px}details.lit-q{margin-top:18px;border-top:1px solid
 h2.abstand{margin-top:26px}
 .hilfe-link{margin-left:auto;font-size:12px;font-weight:600;color:var(--blau);text-decoration:none;border:1px solid var(--linie);border-radius:999px;padding:3px 10px;background:var(--flaeche);white-space:nowrap}.hilfe-link:hover,.hilfe-link:focus-visible{border-color:var(--akzent);text-decoration:underline}
 @media print{.hilfe-link{display:none}}
+
+.quelle-hinweis{font-size:13px;margin-top:4px;padding:6px 10px;border-left:3px solid #8fb1d0;background:rgba(143,177,208,.12);border-radius:4px}

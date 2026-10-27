@@ -2,7 +2,11 @@
 
 Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung.
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.30.1** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.30.2** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Neu in 1.30.2 · 27.10.2026
+
+- Datenarchiv 1.2: sichtbarer Hinweis, dass es die Original-XML auswertet und nicht den in ResultKit übernommenen Stand; für Gutachten gilt ResultKit.
 
 ## Neu in 1.30.1 · 27.10.2026
 
