@@ -66,7 +66,8 @@
       : { zustand: 'offen', text: f.plan ? 'Probenplan angelegt · Gutachten schreiben, Anlage erstellen' : 'Noch kein Probenplan', aktion: 'plan' };
 
     // 5 Ans Büro → Versand
-    if (b.frage) s.buero = { zustand: 'dran', text: 'Rückfrage vom Büro – bitte antworten', aktion: 'frage' };
+    if (b.unklar) s.buero = { zustand: 'dran', text: 'Büroaufgaben nicht vollständig lesbar – in BüroKit prüfen', aktion: 'buerokit' };
+    else if (b.frage) s.buero = { zustand: 'dran', text: 'Rückfrage vom Büro – bitte antworten', aktion: 'frage' };
     // Ein offenes Gutachten beim Büro geht vor ältere Versandangaben (z. B. Nachtrag nach einem früheren Versand)
     else if (b.offen) s.buero = { zustand: 'wartet', text: `Beim Büro${b.offenText ? ` · noch offen: ${b.offenText}` : ''}`, aktion: 'buerokit' };
     else if (f.versand || b.erledigt) s.buero = { zustand: 'fertig', text: `Versandt${f.versand ? ` ${de(f.versand)}` : ''}` };
@@ -99,12 +100,14 @@
   }
 
   const UEBERSPRUNGEN = { ortstermin: 'Keine Probendaten im Ordner – übersprungen', labor: 'Keine Prüfberichte im Ordner – übersprungen', gutachten: 'Übersprungen' };
+  const b0 = f => f.buero || {};
   const AKTIONEN = {
     az: 'Arbeitszettel einlesen', daten: 'Angaben ergänzen', label: 'Proben erfassen', ergebnis: 'Ergebnisse prüfen',
     plan: 'Probenplan bearbeiten', uebergeben: 'Ans Büro übergeben', frage: 'Antworten', buerokit: 'BüroKit öffnen', beleg: 'Zeiten erfassen',
   };
 
   function jetztDran(s, aktuell, f){
+    if (b0(f).unklar) return { titel: 'Büro-Stand unklar', text: s.buero.text, aktion: 'buerokit', knopf: AKTIONEN.buerokit };
     if (s.buero.aktion === 'frage') return { titel: 'Rückfrage vom Büro', text: 'Das Büro wartet auf deine Antwort.', aktion: 'frage', knopf: AKTIONEN.frage };
     const begonnen = f.proben || f.laborauftrag || f.berichte || f.plan || f.uebergabe || f.versand || (f.buero && (f.buero.offen || f.buero.erledigt));
     if (s.projekt.aktion === 'az' && s.projekt.zustand === 'dran' && !begonnen) return { titel: 'Projekt anlegen', text: 'Arbeitszettel einlesen – Objekt, Auftraggeber und Termine stehen dann in allen Apps.', aktion: 'az', knopf: AKTIONEN.az };
@@ -127,13 +130,14 @@
 
   /** Gruppe in der Liste: 'dich' (nächster Schritt bei dir), 'laeuft' (Labor/Büro sind dran), 'fertig'. */
   function gruppe(s, aktuell){
-    if (s.buero.aktion === 'frage') return 'dich';
+    if (s.buero.aktion === 'frage' || s.buero.zustand === 'dran') return 'dich';
     if (!aktuell) return 'fertig';
     return s[aktuell].zustand === 'wartet' ? 'laeuft' : 'dich';
   }
   /** Kurzer Stand für die Projektliste. */
   function kurz(s, aktuell){
     if (s.buero.aktion === 'frage') return 'Rückfrage vom Büro';
+    if (s.buero.zustand === 'dran' && s.buero.aktion === 'buerokit') return 'Büro-Stand unklar';
     if (!aktuell) return 'Versandt und abgerechnet';
     const name = { ortstermin: 'Ortstermin', labor: 'Labor', gutachten: 'Gutachten', buero: 'Büro', abrechnung: 'Abrechnung' }[aktuell];
     const st = s[aktuell];

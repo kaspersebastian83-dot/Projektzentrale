@@ -62,3 +62,10 @@ console.log('OK stufen: offenes Gutachten vor älterem Versand');
 r = S.berechnen({ pj: false, berichte: 2 });
 assert.equal(zust(r).ortstermin, 'uebersprungen'); assert.equal(r.jetzt.aktion, 'ergebnis');
 console.log('OK stufen: Prüfberichte ohne Probendaten');
+// Büroaufgaben nicht vollständig lesbar: kein „abgeschlossen“ aus Teildaten
+r = S.berechnen({ pj: true, proben: true, versand: '2026-10-01', abrechnung: '2026-10-05', buero: { unklar: true } });
+assert.equal(r.gruppe, 'dich'); assert.equal(r.kurz, 'Büro-Stand unklar'); assert.equal(r.jetzt.aktion, 'buerokit');
+// Laborübergabe ohne Probendaten: beim Labor
+r = S.berechnen({ pj: true, laborauftrag: '2026-10-08' });
+assert.equal(r.gruppe, 'laeuft'); assert.equal(r.kurz, 'Beim Labor');
+console.log('OK stufen: Büro-Stand unklar, Laborübergabe ohne Probendaten');

@@ -29,6 +29,11 @@ await fs.mkdir(path.join(tmp,E,'Abrechnung'));await w(E,'Abrechnung/26-0101_Aufw
 // F: anderer Kollege, G: alt
 const F=await mk('26.0099 Andersstadt Ben');await w(F,'Laboraufträge/x_Daten.json','{}');
 await mk('21.0007 Früher SK');
+// H: nur Laborübergabe aus LabelKit (ohne _Daten.json) → beim Labor; I: Büroaufgabe nicht lesbar → kein „abgeschlossen“ aus Teildaten
+const H=await mk('26.0106 Nurlabor SK');await w(H,'_Projekt.json',JSON.stringify(voll));await w(H,'Laboraufträge/26.0106_PAK_9.10.2026_Laborübergabe.xls','x');
+const I=await mk('26.0107 Teilweise SK');await w(I,'_Projekt.json',JSON.stringify({...voll,verteiler:{versicherung:{an:true,versandt:'2026-10-01'}}}));await w(I,'Laboraufträge/x_Daten.json','{}');
+await fs.mkdir(path.join(tmp,I,'Abrechnung'));await w(I,'Abrechnung/26-0107_Aufwand_2026-10-05.json','{}');
+await fs.mkdir(path.join(tmp,I,'_Buero','aufgaben'),{recursive:true});await w(I,'_Buero/aufgaben/kaputt.json','{nicht lesbar');
 const server=http.createServer(async(req,res)=>{try{const u=new URL(req.url,'http://local');if(/^\/(labelkit|Bildumbenenner|resultkit|Probenplan|aufwandkit)\/$/.test(u.pathname)){res.setHeader('Content-Type','text/html');res.end('<!doctype html><title>Fiktives App-Testziel</title>');return;}let file=path.resolve(root,decodeURIComponent(u.pathname).slice(1)||'index.html');if(!file.startsWith(root+path.sep))throw Error();if((await fs.stat(file)).isDirectory())file=path.join(file,'index.html');res.setHeader('Content-Type',({'.html':'text/html; charset=utf-8','.js':'application/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png'})[path.extname(file)]||'application/octet-stream');res.end(await fs.readFile(file));}catch{res.statusCode=404;res.end();}});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port;
 const browser=await pw.chromium.launch(process.env.BROWSER_EXECUTABLE?{executablePath:process.env.BROWSER_EXECUTABLE,args:['--no-sandbox']}:{}),contexts=[];const errors=[];
@@ -77,11 +82,13 @@ const stand=n=>page.locator(`.proj[data-name="${n}"] .stand`).textContent();
 assert.equal(await stand('26.0105 Fiktivstadt SK'),'Labor · Ergebnisse da');assert.equal(await stand('26.0104 Kontrollort SK'),'Rückfrage vom Büro');
 assert.equal(await stand('26.0103 Haus Nord SK'),'Beim Büro');assert.equal(await stand('26.0102 Beispielweg SK'),'Beim Labor');assert.equal(await stand('26.0101 Musterstadt SK'),'Versandt und abgerechnet');
 assert.equal(await stand('21.0007 Früher SK'),'','ältere Projekte ohne Stand');
+assert.equal(await gruppe('26.0106 Nurlabor SK'),'laeuft');assert.equal(await stand('26.0106 Nurlabor SK'),'Beim Labor');
+assert.equal(await gruppe('26.0107 Teilweise SK'),'dich');assert.equal(await stand('26.0107 Teilweise SK'),'Büro-Stand unklar');
 // Heute für dich: nur meine Projekte, die mich brauchen; dann was läuft; Projekt eines Kollegen nicht
 await page.locator('#heuteLink').click();await page.locator('.heute h2').waitFor();
-assert.equal(await page.locator('.heute h2').innerText(),'Heute für dich, Sebastian');assert.equal(await page.locator('#heuteLink b').innerText(),'2');
-assert.deepEqual(await page.locator('.heute-karte:not(.wartet) .ht b').allTextContents(),['Laborergebnisse prüfen','Rückfrage vom Büro']);
-assert.deepEqual(await page.locator('.heute-karte.wartet').evaluateAll(k=>k.map(x=>x.dataset.name)),['26.0103 Haus Nord SK','26.0102 Beispielweg SK']);
+assert.equal(await page.locator('.heute h2').innerText(),'Heute für dich, Sebastian');assert.equal(await page.locator('#heuteLink b').innerText(),'3');
+assert.deepEqual(await page.locator('.heute-karte:not(.wartet) .ht b').allTextContents(),['Büro-Stand unklar','Laborergebnisse prüfen','Rückfrage vom Büro']);
+assert.deepEqual(await page.locator('.heute-karte.wartet').evaluateAll(k=>k.map(x=>x.dataset.name)),['26.0106 Nurlabor SK','26.0103 Haus Nord SK','26.0102 Beispielweg SK']);
 assert.equal(await page.locator('.heute-karte[data-name="26.0099 Andersstadt Ben"]').count(),0,'Projekt eines Kollegen nicht');
 await page.screenshot({path:path.join(out,'heute.png')});
 // Karte öffnet das Projekt; „Jetzt dran“ mit einem blauen Knopf, Stufe 3 aktuell, öffnet ResultKit im Projekt

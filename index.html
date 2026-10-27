@@ -1484,19 +1484,22 @@ function pjFakten(o){
   return { pflichtFehlt: leer, arbeitszettel: !!(o.arbeitszettel && o.arbeitszettel.datei), versandt };
 }
 /** Stand der Gutachten beim Büro (BüroKit). */
-function bueroFakten(aufgaben){
+function bueroFakten(aufgaben, fehler = []){
+  // Nicht alles lesbar: keinen Stand aus Teildaten ableiten (sonst könnte ein älteres erledigtes Gutachten „abgeschlossen“ vortäuschen)
+  if (fehler.length) return { unklar: true };
   const g = aufgaben.filter(a => a.art === 'gutachten' && !a.geloescht), offen = g.filter(a => !a.erledigt);
   const tag = z => z ? Durchlauf.tag(z) : '';
   return { offen: offen.length > 0, frage: aufgaben.some(a => a.frage && !a.geloescht), erledigt: g.some(a => a.erledigt),
     offenText: offen.length ? BueroAufgaben.offenText(offen[0]) : '', uebergabe: tag(g.map(a => a.erstellt).sort()[0]),
-    versand: tag(g.filter(a => a.erledigt).map(a => a.erledigtAm).sort()[0]) };
+    versand: tag(g.filter(a => a.erledigt).map(a => a.erledigtAm).sort().at(-1)) };   // neuester Versand (z. B. Nachtrag) – die Abrechnung muss danach liegen
 }
 /** Fakten für stufen.js aus dem schnellen Ordnerscan (Liste, „Heute“). */
 function faktenAusScan(p){
   const st = p.st; if (!st || st.err) return null;
   const s = st.subs, pf = st.pjFakten, bf = st.bueroFakten, lab = s.laberg;
   return { pj: st.pj, pflichtFehlt: pf ? pf.pflichtFehlt : (st.pj ? 0 : PJ_PFLICHT.length), arbeitszettel: !!(pf && pf.arbeitszettel),
-    proben: !!(s.labauf && s.labauf.daten.length), fotos: { bilder: s.fotos ? s.fotos.images : 0, begonnen: !!(s.fotos && s.fotos.bu), doku: !!(s.fotos && s.fotos.pdfDoc.length) },
+    proben: !!(s.labauf && (s.labauf.daten.length || (s.labauf.uebergaben || []).length)),
+    laborauftrag: s.labauf && s.labauf.uebergaben ? s.labauf.uebergaben.map(Durchlauf.datumAusName).filter(Boolean).sort()[0] || '' : '', fotos: { bilder: s.fotos ? s.fotos.images : 0, begonnen: !!(s.fotos && s.fotos.bu), doku: !!(s.fotos && s.fotos.pdfDoc.length) },
     berichte: lab ? lab.berichte : 0, ergebnisse: lab ? lab.ergebnisse : null, plan: !!(s.plaene && s.plaene.probenplan),
     buero: bf || null, uebergabe: bf ? bf.uebergabe : '', versand: (bf && bf.versand) || (pf && pf.versandt) || '', abrechnung: st.abrechnung || '' };
 }
@@ -1518,7 +1521,7 @@ async function scanProject(p){
         }
         continue;
       }
-      if (h.name === BueroAufgaben.DIR && auImZeitraum(p)){ const b = await BueroAufgaben.projektLesen(p.handle); st.buero = auBueroPhase({ records: BueroAufgaben.alsDurchlauf(b.aufgaben), errors: b.fehler }); st.bueroFakten = bueroFakten(b.aufgaben); }
+      if (h.name === BueroAufgaben.DIR && auImZeitraum(p)){ const b = await BueroAufgaben.projektLesen(p.handle); st.buero = auBueroPhase({ records: BueroAufgaben.alsDurchlauf(b.aufgaben), errors: b.fehler }); st.bueroFakten = bueroFakten(b.aufgaben, b.fehler); }
       // BelegKit: Datum des letzten gespeicherten Abrechnungsstands (aus dem Dateinamen …_Aufwand_JJJJ-MM-TT.json)
       if (norm(h.name) === norm('Abrechnung')){ for await (const f of h.values()){ const m = f.kind === 'file' && f.name.match(/_Aufwand_(\d{4}-\d{2}-\d{2})(?:_\d+)?\.json$/i); if (m && (!st.abrechnung || m[1] > st.abrechnung)) st.abrechnung = m[1]; } }
       const sub = SUBS.find(s => norm(s[1]) === norm(h.name));
@@ -1532,6 +1535,7 @@ async function scanProject(p){
         // PlanKit legt bei jedem Speichern eine „(vorher …)“-Kopie an; Sicherungen sind keine eigenen Pläne
         if (/\.probenplan$/i.test(f.name)){ if (/ \((vorher|Wiederherstellung|Speicherkandidat|Kopie)\b[^)]*\)\.probenplan$/i.test(f.name)) info.sicherungen++; else info.probenplan++; }
         if (/_Daten\.json$/i.test(f.name)) info.daten.push(f.name);
+        if (/_Laborübergabe\.xls$/i.test(f.name)) (info.uebergaben = info.uebergaben || []).push(f.name);
         if (f.name === '_Bildumbenenner.json') info.bu = true;
       }
       st.subs[sub[0]] = info;
@@ -2091,7 +2095,7 @@ function faktenAusDetail(p){
   const ms = S.ms && S.ms.get(p.name);
   if (ms && ms.daten) for (const k of ['laborauftrag', 'pruefbericht', 'uebergabe', 'versand', 'abrechnung']) if (ms.daten[k]) f[k] = ms.daten[k];
   const ab = S.ab && S.ab.name === p.name && S.ab.r ? S.ab.r : null;
-  if (ab){ f.buero = bueroFakten(ab.aufgaben); f.uebergabe = f.uebergabe || f.buero.uebergabe; }
+  if (ab){ f.buero = bueroFakten(ab.aufgaben, ab.fehler); f.uebergabe = f.uebergabe || f.buero.uebergabe || ''; if (f.buero.versand && (!f.versand || f.buero.versand > f.versand)) f.versand = f.buero.versand; }
   return f;
 }
 /** „Jetzt dran“ und die Stufen neu zeichnen, ohne den Rest der Seite (Eingaben, Cursor) anzufassen. */
