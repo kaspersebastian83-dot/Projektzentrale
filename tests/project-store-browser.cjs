@@ -15,7 +15,7 @@ const server=http.createServer(async(req,res)=>{try{
  res.setHeader('Content-Type',({'.html':'text/html; charset=utf-8','.js':'application/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png'})[path.extname(f)]||'application/octet-stream');res.end(await fs.readFile(f));
 }catch{res.statusCode=404;res.end();}});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port;
-const browser=await pw[browserName].launch();
+const browser=await pw[browserName].launch(); require('./spektron-start-test.cjs')(browser);
 try{
 async function page(source){
  const context=await browser.newContext({viewport:{width:1450,height:1100},serviceWorkers:'block'});contexts.push(context);

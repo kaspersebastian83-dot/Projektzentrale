@@ -2,7 +2,17 @@
 
 Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung.
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.29.0** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.30.0** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Neu in 1.30.0 · 27.10.2026
+
+**Spektron-Start: frisch anfangen, ohne die Altlasten.** Ab Projekt **26.0560** arbeitet das Büro mit Spektron (gilt für alle, steht als `SPEKTRON_START` in `index.html`).
+
+- Ältere Projekte stehen links unten **zugeklappt unter „Vor Spektron“** – ohne „Jetzt dran“, nicht in „Heute für dich“, nicht in der Auslastung. Die Suche und die Jahresfilter finden sie weiter (die Gruppe klappt dann auf).
+- **Kommt von selbst zurück:** Arbeitet eine Spektron-App in einem älteren Projekt – Laborauftrag aus LabelKit, in ResultKit übernommene Ergebnisse, Übergabe ans Büro, Abrechnung aus BelegKit –, gilt es wieder als normales Projekt.
+- **Von Hand:** in der Projektansicht „In Spektron übernehmen“ (Merkmal `spektron: true` in `_Projekt.json`); rückgängig über „zurück zu „Vor Spektron““ im Projektkopf.
+- **„Heute für dich“** zeigt den Fortschritt des Büros seit dem Start („14 Projekte, 9 abgeschlossen“ mit Balken).
+- In die alten Projektordner wird nichts geschrieben, solange niemand ein Projekt übernimmt. Die Durchlaufzeiten zählen wie bisher.
 
 ## Neu in 1.29.0 · 27.10.2026
 

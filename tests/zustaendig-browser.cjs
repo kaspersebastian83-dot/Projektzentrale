@@ -21,7 +21,7 @@ const MA = '_Spektron-Mitarbeiter.json';
     res.end(fs.readFileSync(f));
   });
   await new Promise(r => server.listen(0, '127.0.0.1', r));
-  const browser = await playwright[name].launch();
+  const browser = await playwright[name].launch(); require('./spektron-start-test.cjs')(browser);
   try{
     const page = await (await browser.newContext({ viewport: { width: 1400, height: 900 } })).newPage();
     const errors = [];

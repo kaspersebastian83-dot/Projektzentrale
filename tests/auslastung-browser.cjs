@@ -38,7 +38,7 @@ const PROJEKTE = [
   });
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   const url = `http://127.0.0.1:${server.address().port}/index.html`;
-  const browser = await playwright[process.argv[2] || 'chromium'].launch();
+  const browser = await playwright[process.argv[2] || 'chromium'].launch(); require('./spektron-start-test.cjs')(browser);
   try{
     const page = await (await browser.newContext({ viewport: { width: 1400, height: 900 } })).newPage();
     const errors = [];

@@ -20,7 +20,7 @@ const TYP = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.c
   });
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   const url = `http://127.0.0.1:${server.address().port}/index.html`;
-  const browser = await playwright[name].launch();
+  const browser = await playwright[name].launch(); require('./spektron-start-test.cjs')(browser);
   const page = await (await browser.newContext({ viewport: { width: 1400, height: 1000 } })).newPage();
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });

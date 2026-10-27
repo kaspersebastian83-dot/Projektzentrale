@@ -334,7 +334,19 @@ table.vt button{padding:2px 8px;font-size:12px;margin-left:6px}
 .proj .mitte{min-width:0}
 .proj .stand{display:block;font-size:12px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .proj .stand:empty{display:none}
-.proj[data-gruppe=fertig],.proj[data-gruppe=aelter]{opacity:.78}
+.proj[data-gruppe=fertig],.proj[data-gruppe=vor]{opacity:.78}
+button.group-vor{display:flex;width:calc(100% - 8px);align-items:center;gap:6px;border:0;background:none;padding:4px 0;cursor:pointer;text-align:left;font:inherit;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:22px 4px 6px;border-top:1px solid var(--line);padding-top:12px;border-radius:0}
+button.group-vor::before{content:'▸';font-size:11px}
+button.group-vor[aria-expanded=true]::before{content:'▾'}
+button.group-vor:hover{color:var(--accent)}
+.vor-hinweis{font-size:12px;color:var(--muted);margin:0 4px 8px}
+.jetzt.vor{border-left-color:#b9c7d6;background:var(--panel)}
+.uebernommen-tag{font-size:12px;color:var(--muted);align-self:center}
+.linkbtn{border:0;background:none;padding:0;color:var(--accent);text-decoration:underline;cursor:pointer;font:inherit}
+.fortschritt{margin-top:22px;padding:12px 16px;border:1px solid var(--line);border-radius:10px;background:var(--panel);display:grid;gap:6px}
+.fortschritt span{color:var(--muted);font-size:13px}
+.fortschritt .balken{display:block;height:8px;border-radius:5px;background:var(--line);overflow:hidden}
+.fortschritt .balken i{display:block;height:100%;background:var(--ok,#2e7d4f);border-radius:5px}
 .dot{display:inline-block;width:9px;height:9px;border-radius:50%}
 .dot.g-dich{background:#e0a21c}.dot.g-laeuft{background:#8fb1d0}.dot.g-fertig{background:var(--ok)}
 .heute-link{width:100%;display:flex;justify-content:space-between;align-items:center;margin:4px 0 8px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);font-weight:600}
@@ -914,9 +926,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.29.0';
+const APP_VERSION = '1.30.0';
 const APP_DATE = '2026-10-27';
 const CHANGELOG = [
+  ['1.30.0', '27.10.2026', 'Spektron-Start: Ab Projekt 26.0560 arbeitet das Büro mit Spektron. Ältere Projekte stehen links unten zugeklappt unter „Vor Spektron“ – ohne „Jetzt dran“, nicht in „Heute für dich“ und nicht in der Auslastung (Suche findet sie weiter). Arbeitet eine Spektron-App in einem älteren Projekt (Laborauftrag aus LabelKit, in ResultKit übernommene Ergebnisse, Übergabe ans Büro, Abrechnung aus BelegKit), rückt es von selbst nach oben; sonst „In Spektron übernehmen“ in der Projektansicht (rückgängig im Projektkopf). „Heute für dich“ zeigt den Fortschritt seit dem Start. In die alten Projektordner wird nichts geschrieben.'],
   ['1.29.0', '27.10.2026', 'Neu gestaltet, damit der Ablauf klarer ist. Im Projekt steht oben „Jetzt dran“ mit genau einem Knopf, darunter die sechs Stufen in Arbeitsreihenfolge (Projekt anlegen · Ortstermin: Proben & Fotos · Labor · Gutachten · Ans Büro → Versand · Abrechnung) – je mit Stand und den Knöpfen ihrer App; die Karten und die Zeitleiste „Projektstand“ sind darin aufgegangen. Projektdaten bleiben zugeklappt (fehlende Pflichtangaben stehen oben und in Stufe 1). Liste in Gruppen: „Braucht dich“, „Läuft“ (Labor oder Büro sind dran), „Abgeschlossen“, „Ältere Projekte“ – je mit kurzem Stand. Startseite „Heute für dich“ (mit Kürzel): deine Projekte mit dem nächsten Schritt. Kopfzeile aufgeräumt: Archivordner als Status oben rechts, ⟳ neu einlesen, Mitarbeiter, Auslastung, Durchlaufzeiten und weitere Apps unter „⋯ Mehr“; „Ich bin“, Suche und Filter über der Liste. Speicher und Dateien unverändert.'],
   ['1.28.0', '27.10.2026', 'Übergabe ans Büro vereinfacht: Die Karte heißt jetzt „Ans Büro“. Unter „Gutachten ans Büro übergeben“ sind die neueste Word-Datei aus „Mitteilungen“ und die Empfänger aus den Projektdaten schon vorgeschlagen (Auftraggeber und beteiligter Sachverständiger angehakt); optional „Fällig bis“ und ein Hinweis – dann ein Klick auf „Ans Büro übergeben“ (oben muss „Ich bin …“ gewählt sein). Das Büro arbeitet in der neuen App BüroKit (unter „Weitere Apps“, ersetzt die Büroübersicht): Gegenlesen, PDF, Versand je Empfänger und eigene Büroaufgaben. Die Karte zeigt nur noch den Stand („Gutachten beim Büro · übergeben … · noch offen: …“), erledigte Gutachten und Büroaufgaben des Projekts. Rückfragen des Büros stehen oben am Projekt und werden dort beantwortet. Frühere Übergaben bleiben sichtbar. Durchlaufzeiten, Auslastung und Projektstand lesen denselben Stand.'],
   ['1.27.0', '26.10.2026', 'Projektdaten: Das Schadendatum kann „nicht bekannt“ sein (Knopf neben dem Feld; gespeichert als „unbekannt“, in den Anlagen „nicht bekannt“) – die Pflichtangabe gilt damit als erledigt. Das Schadenereignis ist keine Pflichtangabe mehr. Karte „Laborergebnisse prüfen“: Kommt nach der Übernahme in ResultKit ein neuer Prüfbericht dazu oder ändert sich der Laborauftrag aus LabelKit, steht dort „Übernommen – seit der Übernahme geändert, in ResultKit erneut übernehmen“ statt „vollständig übernommen“; eine Ergebnisdatei, die nicht aus ResultKit stammt oder ein neueres Format hat, gilt als nicht lesbar. Zurück aus LabelKit, PlanKit, FotoKit oder ResultKit werden alle Karten und die Anlagen neu eingelesen (bisher nur bei geänderten Projektdaten). Fehlende Unterordner anlegen: Projektname im Dialog als Text angezeigt. Wiederherstellen einer Projektfassung prüft die Projektnummer jetzt auch bei 2–6-stelligen Nummern richtig.'],
@@ -1159,7 +1172,8 @@ function patchPJ(dir, name, patch, expected){
       projektnummer: p.nr || cur.data.projektnummer || '', schadenort: p.ort || cur.data.schadenort || '',
       geaendert: new Date().toISOString(), geaendertMit: 'Projektzentrale ' + APP_VERSION
     };
-    if ('zustaendig' in patch && patch.zustaendig === null) delete o.zustaendig;   // „wie Ordnername“: manuelle Auswahl entfernen
+    if ('zustaendig' in patch && patch.zustaendig === null) delete o.zustaendig;
+    if ('spektron' in patch && patch.spektron === null) delete o.spektron;   // zurück zu „Vor Spektron“   // „wie Ordnername“: manuelle Auswahl entfernen
     const order = ['format', 'version', 'hinweis', 'projektnummer', 'schadenort', ...PJ_FIELDS.map(f => f[0]), 'geaendert', 'geaendertMit'];
     const sorted = Object.create(null);
     for (const k of order) if (k in o) sorted[k] = o[k];
@@ -1248,8 +1262,28 @@ function maUi(){
 /* ---------- Auslastung ----------
    Offene Projekte je zuständiger Person, aus vorhandenen Daten (keine neue Datei, kein Schreiben):
    offen = noch keine Büroübergabe „Erledigt“. Schritt: in Bearbeitung (keine offene Übergabe), beim Büro, Rückfrage.
-   Gezählt werden Projekte des laufenden und des vorigen Jahres; zurückgenommene Übergaben zählen nicht. */
+   Gezählt werden Projekte des laufenden und des vorigen Jahres ohne „Vor Spektron“; zurückgenommene Übergaben zählen nicht. */
 const AU_SCHRITTE = [['arbeit', 'In Bearbeitung', 'noch keine offene Büroübergabe'], ['buero', 'Beim Büro', 'Übergabe offen: gegenlesen, PDF, Versand'], ['rueckfrage', 'Rückfrage', 'das Büro wartet auf eine Antwort']];
+/* ---------- Spektron-Start ----------
+   Ab Projekt 26.0560 arbeitet das Büro mit Spektron (gilt für alle Rechner). Ältere Projekte stehen unten zugeklappt unter
+   „Vor Spektron“: ohne „Jetzt dran“, nicht in „Heute für dich“ und nicht in der Auslastung. Zurück kommt ein älteres Projekt von
+   selbst, sobald eine Spektron-App darin gearbeitet hat (Laborauftrag aus LabelKit, in ResultKit übernommene Ergebnisse, Übergabe
+   ans Büro, Abrechnung aus BelegKit) – oder per „In Spektron übernehmen“ (Merkmal spektron: true in _Projekt.json).
+   Nichts wird in die alten Projektordner geschrieben, solange niemand übernimmt. */
+const SPEKTRON_START = (() => { const t = window.SPEKTRON_START_TEST; return typeof t === 'string' && /^\d{2}\.\d{2,6}$/.test(t) ? t : '26.0560'; })();   // _TEST: nur für die Browsertests
+const SPEKTRON_START_KEY = (([yy, n]) => (+yy) * 1e6 + (+n))(SPEKTRON_START.split('.'));
+/** Spuren einer Spektron-App im Ordnerscan. */
+function spektronSpur(st){
+  if (!st || st.err) return false;
+  const s = st.subs || {};
+  return !!((s.labauf && (s.labauf.daten.length || (s.labauf.uebergaben || []).length)) || (s.laberg && s.laberg.ergebnisse) || st.bueroDa || st.abrechnung);
+}
+/** Projekt vor dem Spektron-Start ohne Spuren und nicht übernommen? Solange es noch nicht gelesen ist: ja (kein Flackern der Liste). */
+function vorSpektron(p){
+  if (p.key >= SPEKTRON_START_KEY) return false;
+  if (!p.st || p.st.err) return true;
+  return !(p.st.spektron || spektronSpur(p.st));
+}
 function auImZeitraum(p, jetzt = new Date()){ const yy = jetzt.getFullYear() % 100; return +p.yy === yy || +p.yy === (yy + 99) % 100; }
 /** Stand der Büroübergaben eines Projekts: 'fertig' | 'buero' | 'rueckfrage' | 'arbeit' | 'unklar'. */
 function auBueroPhase(r){
@@ -1262,7 +1296,7 @@ function auBueroPhase(r){
 /** Schritt eines Projekts oder null, solange es noch nicht gelesen ist. */
 const auPhase = p => !p.st ? null : p.st.err ? 'unklar' : (p.st.buero || 'arbeit');
 function auZaehlen(){
-  const projekte = S.projects.filter(p => auImZeitraum(p)), zeilen = new Map(), offenLesen = projekte.filter(p => !p.st).length;
+  const projekte = S.projects.filter(p => auImZeitraum(p) && !vorSpektron(p)), zeilen = new Map(), offenLesen = projekte.filter(p => !p.st).length;
   const zeile = (key, name, inaktiv) => { if (!zeilen.has(key)) zeilen.set(key, { key, name, inaktiv, arbeit: [], buero: [], rueckfrage: [], unklar: [] }); return zeilen.get(key); };
   ((S.ma && S.ma.personen) || []).filter(p => p.aktiv !== false).forEach(p => zeile(maNorm(p.ordnerKuerzel), p.name, false));
   for (const p of projekte){
@@ -1293,7 +1327,7 @@ function auZeichnen(){
     if (ps.length) auswahl = `<div class="m" style="margin-top:10px"><b>${esc(z.name)} · ${esc((AU_SCHRITTE.find(x => x[0] === S.au.wahl.s) || ['', 'Nicht sicher lesbar'])[1])}</b> – Projekt anklicken zum Öffnen</div><div class="au-liste" role="list">${ps.slice().sort((a, b) => a.key - b.key).map(p => `<button type="button" role="listitem" data-p="${esc(p.name)}">${esc(p.nr)} · ${esc(p.ort || p.name)}</button>`).join('')}</div>`;
   }
   showDialog(`<h3>Auslastung</h3>
-    <div class="m">Offene Projekte ${vor}.xxxx und ${String(yy).padStart(2, '0')}.xxxx je zuständiger Person. Offen ist ein Projekt, bis eine Büroübergabe „Erledigt“ ist. Eine Zahl anklicken zeigt die Projekte.</div>
+    <div class="m">Offene Projekte ${vor}.xxxx und ${String(yy).padStart(2, '0')}.xxxx je zuständiger Person – ohne Projekte vor dem Spektron-Start (${esc(SPEKTRON_START)}), außer sie wurden übernommen. Offen ist ein Projekt, bis eine Büroübergabe „Erledigt“ ist. Eine Zahl anklicken zeigt die Projekte.</div>
     ${offenLesen ? `<div class="m" role="status">Noch ${offenLesen} von ${gesamt} Projekten werden gelesen – die Zahlen ergänzen sich.</div>` : ''}
     ${!(S.ma && S.ma.personen && S.ma.personen.length) ? '<div class="warn">Ohne Mitarbeiterliste („👥 Mitarbeiter“) stehen alle Projekte unter „Ohne erkannte Person“.</div>' : ''}
     <div style="overflow:auto"><table class="ma-tab au-tab"><thead><tr><th>Person</th>${AU_SCHRITTE.map(([, t, h]) => `<th title="${esc(h)}">${esc(t)}</th>`).join('')}<th>Offen</th></tr></thead><tbody>
@@ -1503,9 +1537,9 @@ function faktenAusScan(p){
     berichte: lab ? lab.berichte : 0, ergebnisse: lab ? lab.ergebnisse : null, plan: !!(s.plaene && s.plaene.probenplan),
     buero: bf || null, uebergabe: bf ? bf.uebergabe : '', versand: (bf && bf.versand) || (pf && pf.versandt) || '', abrechnung: st.abrechnung || '' };
 }
-/** Stufen aus dem Scan; ältere Projekte (vor dem Vorjahr) bekommen keinen Stand – dort fehlen meist die Spuren der Apps. */
+/** Stufen aus dem Scan; Projekte vor dem Spektron-Start bekommen keinen Stand – dort fehlen die Spuren der Apps. */
 function stufenAusScan(p){
-  if (!auImZeitraum(p)) return null;
+  if (vorSpektron(p)) return null;
   const f = faktenAusScan(p);
   return f ? Stufen.berechnen(f) : null;
 }
@@ -1517,11 +1551,11 @@ async function scanProject(p){
         if (h.name === PJ_FILE){
           st.pj = true;
           // Nur für Liste und „Meine Projekte“: manuelle Zuständigkeit; maßgeblich bleibt das frische Lesen beim Öffnen.
-          try{ const o = JSON.parse(await (await h.getFile()).text()); if (o && o.zustaendig && typeof o.zustaendig === 'object') st.zust = o.zustaendig; if (o) st.pjFakten = pjFakten(o); }catch(e){}
+          try{ const o = JSON.parse(await (await h.getFile()).text()); if (o && o.zustaendig && typeof o.zustaendig === 'object') st.zust = o.zustaendig; if (o){ st.pjFakten = pjFakten(o); st.spektron = o.spektron === true; } }catch(e){}
         }
         continue;
       }
-      if (h.name === BueroAufgaben.DIR && auImZeitraum(p)){ const b = await BueroAufgaben.projektLesen(p.handle); st.buero = auBueroPhase({ records: BueroAufgaben.alsDurchlauf(b.aufgaben), errors: b.fehler }); st.bueroFakten = bueroFakten(b.aufgaben, b.fehler); }
+      if (h.name === BueroAufgaben.DIR){ st.bueroDa = true; const b = await BueroAufgaben.projektLesen(p.handle); st.buero = auBueroPhase({ records: BueroAufgaben.alsDurchlauf(b.aufgaben), errors: b.fehler }); st.bueroFakten = bueroFakten(b.aufgaben, b.fehler); }
       // BelegKit: Datum des letzten gespeicherten Abrechnungsstands (aus dem Dateinamen …_Aufwand_JJJJ-MM-TT.json)
       if (norm(h.name) === norm('Abrechnung')){ for await (const f of h.values()){ const m = f.kind === 'file' && f.name.match(/_Aufwand_(\d{4}-\d{2}-\d{2})(?:_\d+)?\.json$/i); if (m && (!st.abrechnung || m[1] > st.abrechnung)) st.abrechnung = m[1]; } }
       const sub = SUBS.find(s => norm(s[1]) === norm(h.name));
@@ -1580,15 +1614,15 @@ function chipsHtml(p){
   return r ? `<span class="dot g-${r.gruppe}" aria-hidden="true"></span>` : '';
 }
 /* Liste in Gruppen: was mich braucht, was bei Labor oder Büro liegt, was fertig ist; ältere Projekte ohne Stand. */
-const LISTE_GRUPPEN = [['dich', 'Braucht dich'], ['laeuft', 'Läuft – Labor oder Büro sind dran'], ['lesen', 'Wird gelesen …'], ['fertig', 'Abgeschlossen'], ['aelter', 'Ältere Projekte']];
+const LISTE_GRUPPEN = [['dich', 'Braucht dich'], ['laeuft', 'Läuft – Labor oder Büro sind dran'], ['lesen', 'Wird gelesen …'], ['fertig', 'Abgeschlossen'], ['vor', 'Vor Spektron']];
 function listGruppe(p){
-  if (!auImZeitraum(p)) return 'aelter';
+  if (vorSpektron(p)) return 'vor';
   if (!p.st) return 'lesen';
   if (p.st.err) return 'dich';
   const r = stufenAusScan(p); return r ? r.gruppe : 'lesen';
 }
 function standKurz(p){
-  if (!p.st || p.st.err || !auImZeitraum(p)) return '';
+  if (!p.st || p.st.err || vorSpektron(p)) return '';
   const r = stufenAusScan(p); return r ? r.kurz : '';
 }
 function ortHtml(p){
@@ -1611,6 +1645,12 @@ function renderList(){
   for (const [g, titel] of LISTE_GRUPPEN){
     const ps = vis.filter(p => listGruppe(p) === g);
     if (!ps.length) continue;
+    if (g === 'vor'){   // zugeklappt; bei Suche, Jahresfilter oder gewähltem alten Projekt offen
+      const auf = !!(S.vorOffen || S.q.trim() || S.year || (S.sel && ps.includes(S.sel)));
+      html += `<button type="button" class="group group-vor" data-gruppe="vor" id="vorToggle" aria-expanded="${auf}" title="Projekte vor dem Spektron-Start (bis ${esc(vorherNr())}) – ${auf ? 'zuklappen' : 'aufklappen'}">${esc(titel)} · ${ps.length}</button>`
+        + (auf ? `<div class="vor-hinweis">Angelegt vor ${esc(SPEKTRON_START)} – ohne „Jetzt dran“. Arbeitet eine Spektron-App darin, rückt das Projekt nach oben.</div>` + ps.map(rowHtml).join('') : '');
+      continue;
+    }
     html += `<div class="group" data-gruppe="${g}">${esc(titel)} · ${ps.length}</div>` + ps.map(rowHtml).join('');
   }
   if (!S.projects.length) html += `<div class="empty"><p>In „${esc(S.archive.name)}“ wurden keine Projektordner gefunden. Erwartet werden Ordnernamen wie <code>26.0123 Köln</code>.</p></div>`;
@@ -1620,7 +1660,10 @@ function renderList(){
   $('list').innerHTML = html;
   $('list').querySelectorAll('.proj').forEach(el => el.onclick = () => selectProject(S.projects.find(p => p.name === el.dataset.name)));
   if ($('heuteLink')) $('heuteLink').onclick = zeigeHeute;
+  if ($('vorToggle')) $('vorToggle').onclick = () => { S.vorOffen = $('vorToggle').getAttribute('aria-expanded') !== 'true'; renderList(); };
 }
+/** Letzte Nummer vor dem Start, z. B. 26.0559. */
+function vorherNr(){ const [yy, n] = SPEKTRON_START.split('.'); return +n > 0 ? `${yy}.${String(+n - 1).padStart(n.length, '0')}` : SPEKTRON_START; }
 /** Zeile aktualisieren; wechselt das Projekt die Gruppe (z. B. Labor fertig), wird die Liste kurz danach neu sortiert. */
 function updateRow(p){
   const el = [...$('list').querySelectorAll('.proj')].find(e => e.dataset.name === p.name);
@@ -1631,10 +1674,29 @@ function updateRow(p){
 /* ---------- Heute für dich ----------
    Startseite ohne gewähltes Projekt: meine Projekte (zuständig laut Ordnername oder Projektdaten), deren nächster Schritt bei
    mir liegt – je mit dem Schritt. Darunter, was gerade bei Labor oder Büro liegt. Nur Projekte aus diesem und dem Vorjahr. */
+/** Seit dem Spektron-Start im ganzen Büro: Projekte und davon abgeschlossene (übernommene ältere zählen mit). */
+function spektronFortschritt(){
+  const r = { projekte: 0, fertig: 0, lesen: 0, uebernommen: 0 };
+  for (const p of S.projects){
+    if (vorSpektron(p)) continue;
+    r.projekte++; if (p.key < SPEKTRON_START_KEY) r.uebernommen++;
+    if (!p.st){ r.lesen++; continue; }
+    const st = stufenAusScan(p); if (st && st.gruppe === 'fertig') r.fertig++;
+  }
+  return r;
+}
+function fortschrittHtml(){
+  const f = spektronFortschritt();
+  if (!f.projekte) return `<div class="fortschritt"><b>Spektron-Start: ab Projekt ${esc(SPEKTRON_START)}</b><span>Das nächste neue Projekt ist das erste – frisch anfangen. Ältere Projekte stehen links unten unter „Vor Spektron“.</span></div>`;
+  const pct = Math.round(100 * f.fertig / f.projekte);
+  return `<div class="fortschritt"><b>Seit dem Spektron-Start (ab ${esc(SPEKTRON_START)}): ${f.projekte} Projekt${f.projekte === 1 ? '' : 'e'} im Büro, ${f.fertig} abgeschlossen</b>
+    <span class="balken" role="img" aria-label="${f.fertig} von ${f.projekte} abgeschlossen"><i style="width:${pct}%"></i></span>
+    <span>${f.uebernommen ? `davon ${f.uebernommen} ältere übernommen · ` : ''}${f.lesen ? `${f.lesen} werden noch gelesen …` : 'Ältere Projekte links unten unter „Vor Spektron“.'}</span></div>`;
+}
 function heuteProjekte(){
   const ich = maNorm(lsGet(ICH_KEY)), r = { dich: [], laeuft: [], fertig: 0, lesen: 0 };
   for (const p of S.projects){
-    if (!auImZeitraum(p) || maNorm(zustFuer(p).kuerzel) !== ich) continue;
+    if (vorSpektron(p) || maNorm(zustFuer(p).kuerzel) !== ich) continue;
     if (!p.st){ r.lesen++; continue; }
     const st = stufenAusScan(p); if (!st) continue;
     if (st.gruppe === 'dich') r.dich.push([p, st]); else if (st.gruppe === 'laeuft') r.laeuft.push([p, st]); else r.fertig++;
@@ -1663,6 +1725,7 @@ function heuteHtml(){
     ${h.dich.map(karte).join('')}
     ${h.laeuft.length ? `<h3>Läuft – Labor oder Büro sind dran</h3>${h.laeuft.map(karte).join('')}` : ''}
     ${h.fertig ? `<p class="m">${h.fertig} abgeschlossene${h.fertig === 1 ? 's Projekt' : ' Projekte'} – links unter „Abgeschlossen“.</p>` : ''}
+    ${fortschrittHtml()}
     <p class="m heute-fuss">Alle Projekte links · Mitarbeiter, Auslastung, Durchlaufzeiten und weitere Apps oben unter <b>⋯ Mehr</b>.</p>
   </div>`;
 }
@@ -1991,7 +2054,7 @@ function renderDetail(){
   $('detail').innerHTML = `<div class="pz">
     <h2><span class="nr">${esc(p.nr)}</span> ${esc(p.ort)}</h2>
     <p class="project-summary">${esc([d.objekt,d.auftraggeber,/^\d{4}-\d{2}-\d{2}$/.test(d.ortstermin||'')?'Ortstermin '+deDatum(d.ortstermin):''].filter(Boolean).join(' · ')||'Objekt und Auftraggeber noch nicht eingetragen')}</p>
-    <div class="kopfzeile">${zustHtml(p, zustaendigVon(p, pj.error ? undefined : d), ro)}<button type="button" class="pflichtFehlt" id="pflichtFehlt" hidden></button></div>
+    <div class="kopfzeile">${zustHtml(p, zustaendigVon(p, pj.error ? undefined : d), ro)}<button type="button" class="pflichtFehlt" id="pflichtFehlt" hidden></button>${p.key < SPEKTRON_START_KEY && d.spektron === true && !ro ? `<span class="uebernommen-tag">In Spektron übernommen${spektronSpur(p.st) ? '' : ' · <button type="button" class="linkbtn" id="spektronAus" title="Wieder unter „Vor Spektron“ einordnen">zurück zu „Vor Spektron“</button>'}</span>` : ''}</div>
     <div id="pjAttention" role="status"></div><div id="bueroAttention" role="status"></div>
     <div class="jetzt" id="jetzt" role="status" aria-live="polite"></div>
     <ol class="stufen" id="stufen" aria-label="Stufen des Projekts">
@@ -2073,6 +2136,7 @@ function renderDetail(){
   if (fokus && $(fokus.id)){ const el = $(fokus.id); el.focus({preventScroll:true}); try{ if (fokus.a != null) el.setSelectionRange(fokus.a, fokus.b); }catch(e){} }
   if (Object.keys(S.pjDirty).length){ $('pjSave').className = 'save'; $('pjSave').textContent = 'Änderungen werden gespeichert …'; }
   if ($('zust')) $('zust').onchange = e => zustaendigSetzen(p, e.target.value);
+  if ($('spektronAus')) $('spektronAus').onclick = () => spektronSetzen(p, false);
   if ($('mkSubs')) $('mkSubs').onclick = () => makeSubs(p);
   bueroZeigen(p);
   showPJAttention();
@@ -2119,6 +2183,16 @@ function stufenZeichnen(p){
   if (ueb) ueb.hidden = beimBuero;
   // Rückfrage: die Frage mit Antwortfeld steht schon oben – „Jetzt dran“ verweist nur darauf
   const frageOben = j.aktion === 'frage' && $('bueroAttention') && $('bueroAttention').querySelector('[data-ab-antwort]');
+  // Vor dem Spektron-Start: kein „Jetzt dran“, nur das Angebot, das Projekt zu übernehmen
+  if (vorSpektron(p)){
+    const vkey = 'vor';
+    if (box.dataset.key === vkey) return;
+    box.dataset.key = vkey; box.className = 'jetzt vor';
+    box.innerHTML = `<div class="t"><small>Vor Spektron</small><b>Projekt aus der Zeit vor Spektron</b><span>Angelegt vor dem Spektron-Start (${esc(SPEKTRON_START)}) – es steht links unten unter „Vor Spektron“ und braucht hier keinen Schritt. Läuft es noch? Dann übernehmen – oder einfach in einer App weiterarbeiten, dann rückt es von selbst nach oben.</span></div>`
+      + `<button type="button" id="spektronAn">In Spektron übernehmen</button>`;
+    $('spektronAn').onclick = () => spektronSetzen(p, true);
+    return;
+  }
   const key = JSON.stringify([j, !!frageOben]);
   if (box.dataset.key === key) return;
   if (frageOben){ box.dataset.key = key; box.className = 'jetzt'; box.innerHTML = ''; return; }
@@ -2413,6 +2487,22 @@ function zustHtml(p, zu, ro){
   opts.push(`<option value="__keine"${zu.manuell && !zu.kuerzel ? ' selected' : ''}>keine Angabe</option>`);
   const hinweis = zu.manuell ? (p.kuerzel && !gleich(zu.kuerzel, p.kuerzel) ? `Ordnername: ${p.kuerzel}` : '') : p.hinweis;
   return `<div class="zust"><label>Zuständig <select id="zust" ${ro ? 'disabled' : ''}>${opts.join('')}</select></label>${hinweis ? `<span class="m${zu.manuell ? '' : ' warn'}" id="zustHinweis">${esc(hinweis)}</span>` : ''}</div>`;
+}
+/** Älteres Projekt in Spektron übernehmen (an) oder wieder unter „Vor Spektron“ einordnen (aus): Merkmal in _Projekt.json. */
+async function spektronSetzen(p, an){
+  await flushPJ();
+  S.pjWriting = S.pjWriting.then(async () => {
+    try{
+      const cur = await readPJ(p.handle);
+      if (cur.error) throw new Error(cur.error);
+      const o = await patchPJ(p.handle, p.name, { spektron: an ? true : null }, cur.data);
+      if (p.st){ p.st.spektron = o.spektron === true; p.st.pj = true; }
+      if (S.sel === p){ S.pj = { data: o, exists: true }; renderDetail(); }
+      renderList();
+      banner('ok', an ? `${esc(p.nr)} ist jetzt ein Spektron-Projekt und steht oben in der Liste.` : `${esc(p.nr)} steht wieder unter „Vor Spektron“.`);
+    }catch(e){ banner('err', 'Nicht gespeichert: ' + esc(e.message)); if (S.sel === p) renderDetail(); }
+  });
+  return S.pjWriting;
 }
 async function zustaendigSetzen(p, wahl){
   const jetzt = new Date().toISOString(), von = lsGet(ICH_KEY);
