@@ -2327,7 +2327,7 @@ function renderDetail(){
             ${ro ? '' : `<div class="azrow"><button id="azBtn" title="Liest Objekt, Versicherung, Schaden-Nr., Termine und Beteiligte aus dem PDF des Büro-Systems – vor dem Speichern wird jeder Wert angezeigt">📄 Arbeitszettel einlesen …</button>
               <span class="m">${d.arbeitszettel && d.arbeitszettel.datei ? `Zuletzt: ${esc(d.arbeitszettel.datei)}` : 'PDF wählen oder auf diese Karte ziehen'}</span><input type="file" id="azFile" accept="application/pdf,.pdf" hidden></div>`}
             <div class="form">${PJ_GRUPPEN.map(([g, ks]) => (g ? `<div class="grp">${esc(g)}</div>` : '') + ks.map(feld).join('')).join('')}</div>
-            <div class="save m" title="${esc(PJ_FILE)} im Projektordner – gilt für alle Apps">${pj.exists ? (d.geaendert ? `Zuletzt gespeichert ${esc(new Date(d.geaendert).toLocaleString('de-DE'))}${d.geaendertMit ? ' mit ' + esc(d.geaendertMit) : ''}` : '') : 'Noch keine Projektdaten – wird beim ersten Eintrag angelegt.'} · gilt für alle Apps</div>
+            <div class="save m" title="${esc(PJ_FILE)} im Projektordner (bei Spektron-Projekten in „${esc(SO.ORDNER)}“) – gilt für alle Apps">${pj.exists ? (d.geaendert ? `Zuletzt gespeichert ${esc(new Date(d.geaendert).toLocaleString('de-DE'))}${d.geaendertMit ? ' mit ' + esc(d.geaendertMit) : ''}` : '') : 'Noch keine Projektdaten – wird beim ersten Eintrag angelegt.'} · gilt für alle Apps</div>
           </div>
         </details>
       </li>
