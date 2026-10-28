@@ -934,9 +934,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.32.1';
+const APP_VERSION = '1.33.0';
 const APP_DATE = '2026-10-28';
 const CHANGELOG = [
+  ['1.33.0', '28.10.2026', 'Vorbereitung „Spektron-Ordner“, Teil 3: Büroaufgaben (gemeinsam mit BüroKit 1.3) werden über spektron-ordner.js gelesen und geschrieben – künftig in „_Spektron/Buero“ statt „_Buero“. Die Projektliste und die Durchlaufzeiten finden sie an beiden Orten. Bis zum Umzug ändert sich nichts.'],
   ['1.32.1', '28.10.2026', 'Gemeinsames Modul spektron-ordner.js: Unterordner werden zuerst direkt mit ihrem Namen gesucht (wie überall sonst in den Apps), erst dann ohne Groß-/Kleinschreibung. Keine sichtbare Änderung.'],
   ['1.32.0', '28.10.2026', 'Vorbereitung „Spektron-Ordner“: Die App-Daten eines Projekts ziehen später in den Unterordner „_Spektron“ (Fotos, Pläne, Laborberichte, Anlagen und CSV bleiben, wo sie sind). Die Projektzentrale findet Projektdaten, Probenerfassung, Fotobearbeitung, Plan, Laborergebnisse und Abrechnungsstände jetzt an beiden Orten. Neu unter „⋯ Mehr“: „Spektron-Ordner (Vorschau)“ zeigt, was umziehen würde – es wird noch nichts verschoben. Sonst ändert sich nichts.'],
   ['1.31.0', '28.10.2026', 'Übergabe ans Büro mit allem, was das Büro für Versand und Rechnung braucht: Unter „Ans Büro“ stehen jetzt die Anlagen zum Anhaken (Bilddokumentation in „Fotos“, Anlagen in „Mitteilungen“, Pläne, Prüfberichte – Dateien mit „Anlage“ oder „Bilddokumentation“ im Namen sind vorgeschlagen) plus ein Feld für weitere Anlagen, und ob es einen Abrechnungsstand aus BelegKit gibt (sonst Knopf zu BelegKit). Das Büro sieht Anlagen und Abrechnung in BüroKit 1.1 und hakt nach dem Versand „Rechnung“ ab. Stufe 6 „Abrechnung“: wartet nach dem Versand auf die Rechnung des Büros und ist fertig, sobald das Büro „Rechnung“ abgehakt hat; fehlt der Abrechnungsstand, bist du dran. Frühere Übergaben wie bisher.'],
@@ -1432,6 +1433,7 @@ async function dlLesen(p){
   if (spektronDa){   // Projektdaten und BelegKit-Stände am neuen Ort (spektron-ordner.js)
     const pj = await SO.ort(p.handle, 'projekt');
     if (pj.wo === 'neu'){ r.pj = {}; if (pj.dir) for await (const f of pj.dir.values()) if (f.kind === 'file' && f.name === PJ_FILE) r.pj = JSON.parse(await (await f.getFile()).text()) || {}; }
+    if (!r.buero.length){ const bu = await SO.ort(p.handle, 'buero'); if (bu.wo === 'neu' && bu.dir){ const b = await BueroAufgaben.projektLesen(p.handle); if (b.fehler.length) throw Error('Büroaufgaben nicht vollständig lesbar'); r.buero = BueroAufgaben.alsDurchlauf(b.aufgaben); } }
     const bk = await SO.ort(p.handle, 'belegkit');
     if (bk.wo === 'neu'){ r.abrechnung = []; if (bk.dir) for await (const f of bk.dir.values()) if (f.kind === 'file' && aufwand.test(f.name)) r.abrechnung.push({ name: f.name, lastModified: (await f.getFile()).lastModified }); }
   }
@@ -1637,6 +1639,7 @@ async function spektronUeberlagern(p, st){
   if ((r = await neu('plankit'))){ const pl = st.subs.plaene || (st.subs.plaene = leer('plaene')); pl.probenplan = 0; pl.sicherungen = 0;
     for (const n of await dateien(r.dir, /\.probenplan$/i)){ if (/ \((vorher|Wiederherstellung|Speicherkandidat|Kopie)\b[^)]*\)\.probenplan$/i.test(n)) pl.sicherungen++; else pl.probenplan++; } }
   if ((r = await neu('resultkit'))) st.ergebnisDir = r.dir;
+  if (!st.bueroDa && (r = await neu('buero'))){ st.bueroDa = true; const b = await BueroAufgaben.projektLesen(p.handle); st.buero = auBueroPhase({ records: BueroAufgaben.alsDurchlauf(b.aufgaben), errors: b.fehler }); st.bueroFakten = bueroFakten(b.aufgaben, b.fehler); }   // nur „_Spektron/Buero“ (kein „_Buero“): buero-aufgaben.js liest den richtigen Ort
   if ((r = await neu('belegkit'))){ st.abrechnung = ''; for (const n of await dateien(r.dir, /_Aufwand_\d{4}-\d{2}-\d{2}(?:_\d+)?\.json$/i)){ const m = n.match(/_Aufwand_(\d{4}-\d{2}-\d{2})/i); if (m[1] > st.abrechnung) st.abrechnung = m[1]; } if (!st.abrechnung) delete st.abrechnung; }
 }
 async function scanProject(p){

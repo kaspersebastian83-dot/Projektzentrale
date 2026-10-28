@@ -3,6 +3,7 @@
 
      <Archiv>/<JJ.Nummer Ort Kürzel>/_Buero/aufgaben/<id>.json   eine Aufgabe (Gutachten oder eigene Aufgabe)
      <Archiv>/<JJ.Nummer Ort Kürzel>/_Buero/vermerke/<id>.json   ein Haken (gegengelesen, PDF, versandt, Rechnung, Rückfrage …)
+   Künftig liegt „_Buero“ als „_Spektron/Buero“ im Projektordner – welcher Ort gilt, entscheidet spektron-ordner.js (bueroDir).
 
    Jede Datei wird einmal neu geschrieben und nie geändert; zwei Kollegen können also nichts gegenseitig überschreiben.
    Der Stand eines Schritts ist einfach der neueste Vermerk dazu (Zeit, dann Kennung) – Haken setzen und wieder
@@ -35,6 +36,12 @@ const nr = name => (PROJEKT.exec(nfc(name)) || [])[1] || '';
 async function unter(dir, name, anlegen){
   try{ return await dir.getDirectoryHandle(name, anlegen ? { create: true } : undefined); }
   catch(e){ if (!anlegen && fehlt(e)) return null; throw e; }
+}
+/** Ordner der Büroaufgaben: bisher „<Projekt>/_Buero“, künftig „<Projekt>/_Spektron/Buero“ (spektron-ordner.js, falls geladen). */
+async function bueroDir(projektDir, anlegen){
+  const SO = root.SpektronOrdner;
+  if (!SO) return unter(projektDir, DIR, anlegen);
+  return (await SO.ort(projektDir, 'buero', { anlegen: !!anlegen })).dir;
 }
 async function jsonLesen(dir, name){
   const f = await (await dir.getFileHandle(name)).getFile();
@@ -166,7 +173,7 @@ function zustand(projekt, aufgabe, alleVermerke){
 async function projektLesen(projektDir){
   const name = nfc(projektDir.name), fehler = [], aufgaben = [], vermerke = [];
   const projekt = { name, nr: nr(name) };
-  const b = await unter(projektDir, DIR, false);
+  const b = await bueroDir(projektDir, false);
   if (!b) return { projekt, aufgaben, fehler };
   for await (const h of b.values()){
     if (h.kind !== 'directory') continue;
@@ -195,7 +202,7 @@ async function archivLesen(archiv, fortschritt){
   for (const p of projekte){
     if (fortschritt) fortschritt(++i, projekte.length);
     try{
-      if (!(await unter(p, DIR, false))) continue;
+      if (!(await bueroDir(p, false))) continue;
       const r = await projektLesen(p);
       aufgaben.push(...r.aufgaben); fehler.push(...r.fehler);
     }catch(e){ fehler.push(`${p.name}: ${e.message}`); }
@@ -222,7 +229,7 @@ async function aufgabeAnlegen(projektDir, a){
     projekt: { name, nr: nr(name) }, art: a.art, titel: text(a.titel, 300).trim() || (a.art === 'gutachten' ? 'Gutachten' : ''),
     ...(a.fuer ? { fuer: text(a.fuer, 40).trim() } : {}), ...(a.faellig ? { faellig: a.faellig } : {}), ...(a.hinweis && a.hinweis.trim() ? { hinweis: text(a.hinweis).trim() } : {}),
     ...(a.word ? { word: text(a.word, 400) } : {}), ...(empfaenger.length ? { empfaenger } : {}), ...(anlagen.length ? { anlagen } : {}) };
-  await neuSchreiben(await unter(await unter(projektDir, DIR, true), AUFGABEN, true), o.id + '.json', o);
+  await neuSchreiben(await unter(await bueroDir(projektDir, true), AUFGABEN, true), o.id + '.json', o);
   return o;
 }
 /** Haken setzen oder wegnehmen. v: {aufgabe, schritt, wert?, von, empfaenger?, text?, pdf?, stand?, datum?}
@@ -238,7 +245,7 @@ async function vermerken(projektDir, v){
   const o = { format: FORMAT, version: VERSION, typ: 'vermerk', id: uid(), aufgabe: v.aufgabe, zeit: new Date().toISOString(), von: text(v.von, 40).trim(),
     schritt: v.schritt, wert: v.wert !== false, ...(v.empfaenger ? { empfaenger: text(v.empfaenger, 80) } : {}), ...(v.text ? { text: text(v.text).trim() } : {}),
     ...(v.pdf ? { pdf: text(v.pdf, 400) } : {}), ...(v.stand ? { stand: text(v.stand, 400) } : {}), ...(v.datum ? { datum: v.datum } : {}) };
-  await neuSchreiben(await unter(await unter(projektDir, DIR, true), VERMERKE, true), o.id + '.json', o);
+  await neuSchreiben(await unter(await bueroDir(projektDir, true), VERMERKE, true), o.id + '.json', o);
   return o;
 }
 
