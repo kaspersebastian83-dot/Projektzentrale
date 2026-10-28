@@ -433,6 +433,7 @@ summary.stufe-kopf::-webkit-details-marker{display:none}
 @media (max-width:860px){ .appbar{gap:8px;padding:0 10px} .appbar .brand small{display:none} .hbadge.help{padding:4px 7px} #btnHelp{font-size:0} #btnHelp b{font-size:11px;margin:0} .hstatus{max-width:110px} }
 </style>
 <script src="spektron-ordner.js"></script>
+<script src="spektron-umzug.js"></script>
 <script src="project-store.js"></script>
 <script src="durchlauf.js"></script>
 <script src="buero-aufgaben.js"></script>
@@ -457,7 +458,7 @@ summary.stufe-kopf::-webkit-details-marker{display:none}
         <div class="mh">Büro</div>
         <button id="btnMa" disabled title="Mitarbeiterliste: Kürzel am Ende der Projektordner und die zugehörigen Namen">👥 Mitarbeiter</button>
         <button id="btnAusl" disabled title="Offene Projekte je Person: in Bearbeitung, beim Büro, Rückfrage">📊 Auslastung</button>
-        <button id="btnUmzug" disabled title="Vorschau: welche App-Dateien in den Ordner „_Spektron“ des Projekts umziehen – es wird nichts verschoben">🗂 Spektron-Ordner (Vorschau)</button>
+        <button id="btnUmzug" disabled title="App-Dateien in den Ordner „_Spektron“ jedes Projekts umziehen – erst Vorschau, dann bewusst ausführen">🗂 Spektron-Ordner einrichten</button>
         <div id="mehrApps"></div>
       </div>
     </div>
@@ -934,9 +935,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.33.0';
+const APP_VERSION = '1.34.0';
 const APP_DATE = '2026-10-28';
 const CHANGELOG = [
+  ['1.34.0', '28.10.2026', 'Spektron-Ordner einrichten: Unter „⋯ Mehr“ zieht die Projektzentrale die App-Dateien aller Spektron-Projekte (ab 26.0560 und übernommene) in den Ordner „_Spektron“ – erst Vorschau, dann bewusst bestätigt. Jede Datei wird kopiert, zurückgelesen und verglichen, in „_Spektron/_Umzug.json“ vermerkt und erst dann am früheren Ort gelöscht; alles steht in „_Spektron-Umzug.log“ im Archivordner. Fotos, Pläne, Laborberichte, Anlagen und CSV bleiben, wo sie sind. Liegt eine Datei an beiden Orten mit verschiedenem Inhalt (eine noch offene ältere App), bleibt beides und die Projektansicht zeigt es mit „Umzug erneut ausführen“. „In Spektron übernehmen“ zieht das Projekt sofort um. Neue Projekte ab jetzt direkt in „_Spektron“ (gemeinsames Modul, alle Apps).'],
   ['1.33.0', '28.10.2026', 'Vorbereitung „Spektron-Ordner“, Teil 3: Büroaufgaben (gemeinsam mit BüroKit 1.3) werden über spektron-ordner.js gelesen und geschrieben – künftig in „_Spektron/Buero“ statt „_Buero“. Die Projektliste und die Durchlaufzeiten finden sie an beiden Orten. Bis zum Umzug ändert sich nichts.'],
   ['1.32.1', '28.10.2026', 'Gemeinsames Modul spektron-ordner.js: Unterordner werden zuerst direkt mit ihrem Namen gesucht (wie überall sonst in den Apps), erst dann ohne Groß-/Kleinschreibung. Keine sichtbare Änderung.'],
   ['1.32.0', '28.10.2026', 'Vorbereitung „Spektron-Ordner“: Die App-Daten eines Projekts ziehen später in den Unterordner „_Spektron“ (Fotos, Pläne, Laborberichte, Anlagen und CSV bleiben, wo sie sind). Die Projektzentrale findet Projektdaten, Probenerfassung, Fotobearbeitung, Plan, Laborergebnisse und Abrechnungsstände jetzt an beiden Orten. Neu unter „⋯ Mehr“: „Spektron-Ordner (Vorschau)“ zeigt, was umziehen würde – es wird noch nichts verschoben. Sonst ändert sich nichts.'],
@@ -1343,35 +1345,134 @@ function auZaehlen(){
   liste.sort((a, b) => (!a.key) - (!b.key) || a.name.localeCompare(b.name, 'de'));
   return { liste, gesamt: projekte.length, offenLesen };
 }
-/* ---------- Spektron-Ordner: Vorschau des Umzugs (nur lesen) ----------
-   Zeigt je Spektron-Projekt (ab 26.0560 oder mit „_Spektron“-Ordner), welche App-Dateien am früheren Ort liegen und wohin
-   sie beim Umzug gehören (SpektronOrdner.umzugListe). Es wird nichts angelegt, verschoben oder gelöscht. */
+/* ---------- Spektron-Ordner: Umzug ----------
+   Stufe 1 (Vorschau, nur lesen): je Spektron-Projekt (ab 26.0560 oder mit „_Spektron“), welche App-Dateien am früheren Ort
+   liegen und wohin sie gehören. Stufe 2 (bewusst bestätigt): spektron-umzug.js kopiert, prüft, vermerkt, löscht – je Datei
+   protokolliert in <Archiv>/_Spektron-Umzug.log. Fotos, Pläne, Laborberichte, Anlagen und CSV werden nie angefasst. */
+const UM = window.SpektronUmzug;
+async function umzugKandidaten(fehler){
+  const k = [];
+  for (const p of S.projects){
+    try{
+      if (await SO.istSpektronProjekt(p.handle)){ k.push(p); continue; }
+      // Ältere Projekte, die in der Liste als Spektron-Projekt stehen (von Hand übernommen oder von einer App bearbeitet): mitnehmen – sie bekommen ihren „_Spektron“-Ordner
+      if (p.key < SPEKTRON_START_KEY){ if (!p.st){ p.scanning = true; p.st = await scanProject(p); p.scanning = false; } if (!p.st.err && !vorSpektron(p)) k.push(Object.assign(p, { spektronAnlegen: true })); }
+    }catch(e){ fehler.push(p.name); }
+  }
+  return k;
+}
+/** Vorschau für ein älteres Projekt ohne „_Spektron“ (umzugListe liefert dort nichts): dieselbe Liste wie nach dem Anlegen. */
+async function umzugListeOhneOrdner(p){
+  const liste = [];
+  for (const id of Object.keys(SO.BEREICHE)){
+    const b = SO.BEREICHE[id], dir = await SO.unter(p.handle, b.alt, false); if (!dir) continue;
+    const eintraege = []; for await (const h of dir.values()) if (b.passt(h.name, h.kind)) eintraege.push({ name: h.name, art: h.kind });
+    if (eintraege.length) liste.push({ bereich: id, app: b.app, von: b.alt.join('/'), nach: [SO.ORDNER].concat(b.neu).join('/'), eintraege });
+  }
+  return liste;
+}
+function umzugErgebnisHtml(erg){
+  const zeilen = [];
+  for (const r of erg){
+    for (const b of r.bereiche){
+      const t = [b.kopiert ? `${b.kopiert} kopiert` : '', b.geloescht ? `${b.geloescht} am alten Ort gelöscht` : '', b.uebersprungen ? `${b.uebersprungen} schon vorhanden` : ''].filter(Boolean).join(', ') || '–';
+      zeilen.push(`<tr><td>${esc(r.projekt)}</td><td>${esc(b.app)}</td><td><code>${esc(b.von)}</code> → <code>${esc(b.nach)}</code></td><td>${esc(t)}</td></tr>`);
+      for (const k of b.konflikte) zeilen.push(`<tr class="warn"><td></td><td colspan="3">⚠ ${esc(k.datei)}: liegt an beiden Orten mit verschiedenem Inhalt${k.hinweis ? ` (${esc(k.hinweis)})` : k.altNeuer ? ' – die Datei am früheren Ort ist neuer (Nachzügler einer noch offenen App?)' : ' – die Datei in _Spektron ist neuer'}. Beide bleiben; bitte prüfen, dann den Umzug erneut ausführen.</td></tr>`);
+      for (const f of b.fehler) zeilen.push(`<tr class="warn"><td></td><td colspan="3">✕ ${esc(f)}</td></tr>`);
+    }
+    for (const f of r.fehler) zeilen.push(`<tr class="warn"><td>${esc(r.projekt)}</td><td colspan="3">✕ ${esc(f)}</td></tr>`);
+  }
+  return zeilen.length ? `<div style="overflow:auto;max-height:55vh"><table class="ma-tab"><thead><tr><th>Projekt</th><th>App</th><th>Von → nach</th><th>Ergebnis</th></tr></thead><tbody>${zeilen.join('')}</tbody></table></div>` : '<div class="m">Nichts umzuziehen – alle App-Dateien liegen schon in „_Spektron“.</div>';
+}
 async function umzugVorschau(){
   if (!S.archive) return;
-  const kandidaten = [];   // ab 26.0560 oder mit „_Spektron“ – direkt geprüft, unabhängig vom Ordnerscan im Hintergrund
   const zeile = (p, x) => `<tr><td>${esc(p.name)}</td><td>${esc(x.app)}</td><td><code>${esc(x.von || '(Projektordner)')}</code> → <code>${esc(x.nach)}</code></td><td>${x.eintraege.map(e => esc(e.name) + (e.art === 'directory' ? '/' : '')).join('<br>')}</td></tr>`;
-  const zeichnen = (ergebnis, offen, fehler) => {
-    const n = ergebnis.reduce((a, r) => a + r.liste.reduce((b, x) => b + x.eintraege.length, 0), 0);
-    showDialog(`<h3>Spektron-Ordner – Vorschau</h3>
-      <div class="m">Künftig liegt alles, was ohne App nicht nutzbar ist, im Ordner <code>${esc(SO.ORDNER)}</code> des Projekts. Fotos, Pläne, Laborberichte, Anlagen und Abrechnungen (CSV) bleiben, wo sie sind.
-      Gilt für Projekte ab ${esc(SO.AB)} und von Hand übernommene. <b>Dies ist nur eine Vorschau – es wird nichts verschoben.</b></div>
+  const kopf = `<h3>Spektron-Ordner einrichten</h3>
+      <div class="m">Alles, was ohne App nicht nutzbar ist, zieht in den Ordner <code>${esc(SO.ORDNER)}</code> des Projekts. Fotos, Pläne, Laborberichte, Anlagen und Abrechnungen (CSV) bleiben, wo sie sind.
+      Gilt für Projekte ab ${esc(SO.AB)} und von Hand übernommene. Jede Datei wird kopiert, zurückgelesen und verglichen, bevor das Original gelöscht wird; alles steht in <code>_Spektron-Umzug.log</code> im Archivordner.</div>`;
+  const zeichnen = (ergebnis, offen, fehler, kandidaten) => {
+    const n = ergebnis.reduce((a, r) => a + r.liste.reduce((b, x) => b + x.eintraege.length, 0), 0), fertig = !offen;
+    showDialog(`${kopf}
       ${offen ? `<div class="m" role="status">Noch ${offen} von ${kandidaten.length} Projekten werden gelesen …</div>` : ''}
-      ${!offen ? `<div class="m">${kandidaten.length} Spektron-Projekt${kandidaten.length === 1 ? '' : 'e'} · ${n} Eintr${n === 1 ? 'ag' : 'äge'} würde${n === 1 ? '' : 'n'} umziehen.</div>` : ''}
-      ${ergebnis.some(r => r.liste.length) ? `<div style="overflow:auto;max-height:55vh"><table class="ma-tab"><thead><tr><th>Projekt</th><th>App</th><th>Von → nach</th><th>Einträge</th></tr></thead><tbody>
-        ${ergebnis.map(r => r.liste.map(x => zeile(r.p, x)).join('')).join('')}</tbody></table></div>` : (offen ? '' : '<div class="m">Nichts umzuziehen.</div>')}
+      ${fertig ? `<div class="m"><b>Vorschau:</b> ${kandidaten.length} Spektron-Projekt${kandidaten.length === 1 ? '' : 'e'} · ${n} Eintr${n === 1 ? 'ag' : 'äge'} würde${n === 1 ? '' : 'n'} umziehen. Es wurde noch nichts verschoben.</div>` : ''}
+      ${ergebnis.some(r => r.liste.length) ? `<div style="overflow:auto;max-height:45vh"><table class="ma-tab"><thead><tr><th>Projekt</th><th>App</th><th>Von → nach</th><th>Einträge</th></tr></thead><tbody>
+        ${ergebnis.map(r => r.liste.map(x => zeile(r.p, x)).join('')).join('')}</tbody></table></div>` : (fertig ? '<div class="m">Nichts umzuziehen – alle App-Dateien liegen schon in „_Spektron“.</div>' : '')}
       ${fehler.length ? `<div class="warn">Nicht lesbar: ${fehler.map(esc).join(', ')}</div>` : ''}
-      <div class="btns"><button id="umzugZu" class="primary">Schließen</button></div>`);
+      ${fertig && n ? `<div class="warn" style="margin-top:10px"><label><input type="checkbox" id="umzugOk"> Alle Kollegen haben ihre Spektron-Apps geschlossen (sonst können noch offene Tabs an den alten Ort schreiben – das wird erkannt und gemeldet, ist aber Nacharbeit).</label></div>` : ''}
+      <div class="btns"><button id="umzugZu">${fertig && n ? 'Abbrechen' : 'Schließen'}</button>${fertig && n ? `<button id="umzugLos" class="primary" disabled>Jetzt umziehen (${kandidaten.length} Projekt${kandidaten.length === 1 ? '' : 'e'})</button>` : ''}</div>`);
     $('umzugZu').onclick = closeDialog;
+    if ($('umzugOk')){ $('umzugOk').onchange = () => { $('umzugLos').disabled = !$('umzugOk').checked; }; $('umzugLos').onclick = () => umzugAusfuehren(kandidaten); }
   };
   const ergebnis = [], fehler = [];
-  showDialog('<h3>Spektron-Ordner – Vorschau</h3><div class="m" role="status">Projekte werden gelesen …</div><div class="btns"><button id="umzugZu" class="primary">Schließen</button></div>');
+  showDialog(`${kopf}<div class="m" role="status">Projekte werden gelesen …</div><div class="btns"><button id="umzugZu" class="primary">Schließen</button></div>`);
   $('umzugZu').onclick = closeDialog;
-  for (const p of S.projects){ try{ if (await SO.istSpektronProjekt(p.handle)) kandidaten.push(p); }catch(e){ fehler.push(p.name); } if (!$('umzugZu')) return; }
-  zeichnen(ergebnis, kandidaten.length, fehler);
+  const kandidaten = await umzugKandidaten(fehler); if (!$('umzugZu')) return;
+  zeichnen(ergebnis, kandidaten.length, fehler, kandidaten);
   for (const p of kandidaten){
-    try{ ergebnis.push({ p, liste: await SO.umzugListe(p.handle) }); }catch(e){ fehler.push(p.name); }
-    if ($('umzugZu')) zeichnen(ergebnis, kandidaten.length - ergebnis.length - fehler.length, fehler); else return;   // Dialog geschlossen
+    try{ ergebnis.push({ p, liste: p.spektronAnlegen ? await umzugListeOhneOrdner(p) : await SO.umzugListe(p.handle) }); }catch(e){ fehler.push(p.name); }
+    if ($('umzugZu')) zeichnen(ergebnis, kandidaten.length - ergebnis.length - fehler.length, fehler, kandidaten); else return;   // Dialog geschlossen
   }
+}
+/** Stufe 2: alle Kandidaten umziehen. Läuft zu Ende, auch wenn der Dialog geschlossen wird; danach Ordner neu einlesen. */
+async function umzugAusfuehren(kandidaten){
+  if (S.umzugLaeuft) return; S.umzugLaeuft = true;
+  await flushPJ();
+  const log = await UM.logSchreiber(S.archive), erg = [], von = lsGet(ICH_KEY) || '';
+  const stand = text => { if ($('umzugStand')) $('umzugStand').textContent = text; };
+  showDialog(`<h3>Spektron-Ordner einrichten</h3><div class="m" role="status" id="umzugStand">Umzug läuft …</div><div class="m">Bitte dieses Fenster nicht schließen, bis der Umzug fertig ist.</div>`);
+  try{
+    for (const [i, p] of kandidaten.entries()){
+      stand(`Projekt ${i + 1} von ${kandidaten.length}: ${p.name} …`);
+      try{ if (p.spektronAnlegen) await SO.spektronDir(p.handle, true); erg.push(await UM.projektUmziehen(p.handle, { von, log: log.zeile, sichern: log.speichern, fortschritt: t => stand(`Projekt ${i + 1} von ${kandidaten.length}: ${t}`) })); }
+      catch(e){ erg.push({ projekt: p.name, bereiche: [], fehler: [e.message] }); }
+      await log.speichern();
+      p.st = null;   // Ordnerscan erneuern
+    }
+  }finally{ S.umzugLaeuft = false; }
+  const konflikte = erg.reduce((a, r) => a + r.bereiche.reduce((b, x) => b + x.konflikte.length, 0), 0), fehler = erg.reduce((a, r) => a + r.fehler.length + r.bereiche.reduce((b, x) => b + x.fehler.length, 0), 0);
+  const kopiert = erg.reduce((a, r) => a + r.bereiche.reduce((b, x) => b + x.kopiert, 0), 0), geloescht = erg.reduce((a, r) => a + r.bereiche.reduce((b, x) => b + x.geloescht, 0), 0);
+  showDialog(`<h3>Spektron-Ordner eingerichtet</h3>
+    <div class="m">${erg.length} Projekt${erg.length === 1 ? '' : 'e'} · ${kopiert} Datei${kopiert === 1 ? '' : 'en'} kopiert · ${geloescht} am früheren Ort gelöscht${konflikte ? ` · <b>${konflikte} Konflikt${konflikte === 1 ? '' : 'e'}</b>` : ''}${fehler ? ` · <b>${fehler} Fehler</b>` : ''}. Protokoll: <code>_Spektron-Umzug.log</code> im Archivordner.</div>
+    ${konflikte || fehler ? '<div class="warn">Bei Konflikten und Fehlern wurde nichts gelöscht. Bitte die Zeilen prüfen und den Umzug danach erneut ausführen – er holt nur noch nach, was fehlt.</div>' : ''}
+    ${log.fehler ? `<div class="warn">${esc(log.fehler)} – der Umzug selbst ist davon nicht betroffen.</div>` : ''}
+    ${umzugErgebnisHtml(erg)}
+    <div class="btns"><button id="umzugZu" class="primary">Schließen</button></div>`);
+  $('umzugZu').onclick = closeDialog;
+  S.dl = null; S.ms = null; scanAll(S.scanToken); if (S.sel) selectProject(S.sel);
+}
+/** Ein einzelnes Projekt umziehen (beim Übernehmen in Spektron, oder Nachzügler nachholen). */
+async function umzugEinzeln(p){
+  if (S.umzugLaeuft) return null; S.umzugLaeuft = true;
+  try{
+    const log = await UM.logSchreiber(S.archive);
+    const r = await UM.projektUmziehen(p.handle, { von: lsGet(ICH_KEY) || '', log: log.zeile, sichern: log.speichern });
+    await log.speichern(); p.st = null; if (log.fehler) r.fehler.push(log.fehler + ' – der Umzug selbst ist davon nicht betroffen.');
+    return r;
+  }finally{ S.umzugLaeuft = false; }
+}
+async function nachzueglerZeigen(p){
+  const el = $('umzugAttention'); if (!el) return;
+  const liste = await nachzuegler(p);
+  if (S.sel !== p || !$('umzugAttention')) return;
+  const e2 = $('umzugAttention');
+  if (!liste.length){ e2.style.display = 'none'; e2.innerHTML = ''; return; }
+  e2.style.display = '';
+  e2.innerHTML = `<b>App-Dateien an zwei Orten:</b> ${liste.map(x => esc(x.app)).join(', ')} – im Ordner „${esc(SO.ORDNER)}“ <i>und</i> am früheren Ort${liste.some(x => x.umgezogen) ? ' (nach dem Umzug noch dort geschrieben, z. B. von einer noch offenen älteren App-Version)' : ''}. Es gilt ${liste.every(x => x.umgezogen) ? 'der neue Ort' : 'der frühere Ort'}; nichts wird automatisch gelöscht.
+    <div class="btns" style="margin-top:6px"><button type="button" id="umzugNach">Umzug für dieses Projekt erneut ausführen</button></div>`;
+  $('umzugNach').onclick = async () => {
+    $('umzugNach').disabled = true;
+    const r = await umzugEinzeln(p);
+    showDialog(`<h3>Umzug ${esc(p.name)}</h3>${r ? umzugErgebnisHtml([r]) : '<div class="m">Es läuft gerade ein Umzug.</div>'}<div class="btns"><button id="umzugZu" class="primary">Schließen</button></div>`);
+    $('umzugZu').onclick = closeDialog;
+    const st = await scanProject(p), pj = await readPJ(await pjDir(p));
+    if (S.sel === p){ p.st = st; S.pj = pj; renderDetail(); }
+  };
+}
+/** Nachzügler: Bereiche, die an beiden Orten liegen (alte App-Version schrieb nach dem Umzug an den früheren Ort). */
+async function nachzuegler(p){
+  const aus = [];
+  try{ if (!(await SO.istSpektronProjekt(p.handle))) return aus; for (const b of Object.keys(SO.BEREICHE)){ const o = await SO.ort(p.handle, b); if (o.konflikt) aus.push({ bereich: b, app: SO.BEREICHE[b].app, umgezogen: o.umgezogen }); } }catch(e){}
+  return aus;
 }
 function auDialog(){
   if (!S.archive) return;
@@ -1845,9 +1946,9 @@ async function selectProject(p){
   if ($('heuteLink')) $('heuteLink').classList.remove('active');
   $('list').querySelectorAll('.proj').forEach(el => { el.classList.toggle('active', el.dataset.name === p.name); el.setAttribute('aria-pressed', String(el.dataset.name === p.name)); });
   if (!p.st){ p.scanning = true; p.st = await scanProject(p); p.scanning = false; updateRow(p); }
-  S.pjDirH = await pjDir(p);   // Ordner der Projektdaten (für „Gespeicherte Fassungen“)
-  S.pj = await readPJ(S.pjDirH);
-  if (S.sel !== p) return;
+  const dirH = await pjDir(p), pj = await readPJ(dirH);   // Ordner der Projektdaten (für „Gespeicherte Fassungen“)
+  if (S.sel !== p) return;   // inzwischen ein anderes Projekt gewählt: dessen Daten nicht überschreiben
+  S.pjDirH = dirH; S.pj = pj;
   renderDetail();
   meilensteineLaden(p);
 }
@@ -2208,8 +2309,8 @@ function renderDetail(){
   $('detail').innerHTML = `<div class="pz">
     <h2><span class="nr">${esc(p.nr)}</span> ${esc(p.ort)}</h2>
     <p class="project-summary">${esc([d.objekt,d.auftraggeber,/^\d{4}-\d{2}-\d{2}$/.test(d.ortstermin||'')?'Ortstermin '+deDatum(d.ortstermin):''].filter(Boolean).join(' · ')||'Objekt und Auftraggeber noch nicht eingetragen')}</p>
-    <div class="kopfzeile">${zustHtml(p, zustaendigVon(p, pj.error ? undefined : d), ro)}<button type="button" class="pflichtFehlt" id="pflichtFehlt" hidden></button>${p.key < SPEKTRON_START_KEY && d.spektron === true && !ro ? `<span class="uebernommen-tag">In Spektron übernommen${spektronSpur(p.st) ? '' : ' · <button type="button" class="linkbtn" id="spektronAus" title="Wieder unter „Vor Spektron“ einordnen">zurück zu „Vor Spektron“</button>'}</span>` : ''}</div>
-    <div id="pjAttention" role="status"></div><div id="bueroAttention" role="status"></div>
+    <div class="kopfzeile">${zustHtml(p, zustaendigVon(p, pj.error ? undefined : d), ro)}<button type="button" class="pflichtFehlt" id="pflichtFehlt" hidden></button>${p.key < SPEKTRON_START_KEY && d.spektron === true && !ro ? `<span class="uebernommen-tag">In Spektron übernommen${spektronSpur(p.st) ? '' : ' · <button type="button" class="linkbtn" id="spektronAus" title="Wieder unter „Vor Spektron“ einordnen">zurück zu „Vor Spektron“</button>'}</span>` : ''}${p.key < SPEKTRON_START_KEY && !vorSpektron(p) && p.st && !p.st.spektronDa && !ro ? ` <button type="button" class="linkbtn" id="spektronOrdner" title="Die App-Dateien dieses älteren Projekts in den Ordner „${esc(SO.ORDNER)}“ umziehen – wie bei Projekten ab ${esc(SO.AB)}">Ordner „${esc(SO.ORDNER)}“ anlegen</button>` : ''}</div>
+    <div id="pjAttention" role="status"></div><div id="umzugAttention" role="status" style="display:none;margin:10px 0;padding:10px;border-left:3px solid var(--warn);background:var(--panel2)"></div><div id="bueroAttention" role="status"></div>
     <div class="jetzt" id="jetzt" role="status" aria-live="polite"></div>
     <ol class="stufen" id="stufen" aria-label="Stufen des Projekts">
       <li class="stufe" data-stufe="projekt">
@@ -2226,7 +2327,7 @@ function renderDetail(){
             ${ro ? '' : `<div class="azrow"><button id="azBtn" title="Liest Objekt, Versicherung, Schaden-Nr., Termine und Beteiligte aus dem PDF des Büro-Systems – vor dem Speichern wird jeder Wert angezeigt">📄 Arbeitszettel einlesen …</button>
               <span class="m">${d.arbeitszettel && d.arbeitszettel.datei ? `Zuletzt: ${esc(d.arbeitszettel.datei)}` : 'PDF wählen oder auf diese Karte ziehen'}</span><input type="file" id="azFile" accept="application/pdf,.pdf" hidden></div>`}
             <div class="form">${PJ_GRUPPEN.map(([g, ks]) => (g ? `<div class="grp">${esc(g)}</div>` : '') + ks.map(feld).join('')).join('')}</div>
-            <div class="save m" title="${esc(PJ_FILE)} im Projektordner – gilt für alle Apps">${pj.exists ? (d.geaendert ? `Zuletzt gespeichert ${esc(new Date(d.geaendert).toLocaleString('de-DE'))}${d.geaendertMit ? ' mit ' + esc(d.geaendertMit) : ''}` : '') : 'Noch keine Projektdaten – wird beim ersten Eintrag angelegt.'} · gilt für alle Apps</div>
+            <div class="save m" title="${esc(PJ_FILE)} im Projektordner (bei Spektron-Projekten in „${esc(SO.ORDNER)}“) – gilt für alle Apps">${pj.exists ? (d.geaendert ? `Zuletzt gespeichert ${esc(new Date(d.geaendert).toLocaleString('de-DE'))}${d.geaendertMit ? ' mit ' + esc(d.geaendertMit) : ''}` : '') : 'Noch keine Projektdaten – wird beim ersten Eintrag angelegt.'} · gilt für alle Apps</div>
           </div>
         </details>
       </li>
@@ -2291,6 +2392,7 @@ function renderDetail(){
   if (Object.keys(S.pjDirty).length){ $('pjSave').className = 'save'; $('pjSave').textContent = 'Änderungen werden gespeichert …'; }
   if ($('zust')) $('zust').onchange = e => zustaendigSetzen(p, e.target.value);
   if ($('spektronAus')) $('spektronAus').onclick = () => spektronSetzen(p, false);
+  if ($('spektronOrdner')) $('spektronOrdner').onclick = () => spektronSetzen(p, true);
   if ($('mkSubs')) $('mkSubs').onclick = () => makeSubs(p);
   bueroZeigen(p);
   showPJAttention();
@@ -2301,6 +2403,7 @@ function renderDetail(){
   stufenZeichnen(p);
   if(same)$('detail').scrollTop=scroll;
   if (p.st && !p.st.err) anlStatus(p);
+  nachzueglerZeigen(p);
 }
 /** Fakten der geöffneten Projektseite: Ordnerscan, dazu frisch Projektdaten (auch ungespeicherte Eingaben), Projektstand
     (Daten wie die Durchlaufzeiten) und der Stand beim Büro. */
@@ -2651,9 +2754,16 @@ async function spektronSetzen(p, an){
       if (cur.error) throw new Error(cur.error);
       const o = await patchPJ(await pjDir(p, true), p.name, { spektron: an ? true : null }, cur.data);
       if (p.st){ p.st.spektron = o.spektron === true; p.st.pj = true; }
-      if (S.sel === p){ S.pj = { data: o, exists: true }; renderDetail(); }
+      let umzug = '';
+      if (an){   // übernommenes Projekt bekommt seinen „_Spektron“-Ordner und zieht sofort um (nur eigene App-Dateien)
+        try{ await SO.spektronDir(p.handle, true); const r = await umzugEinzeln(p); if (r){ const k = r.bereiche.reduce((a, b) => a + b.kopiert, 0), f = r.fehler.length + r.bereiche.reduce((a, b) => a + b.fehler.length + b.konflikte.length, 0); umzug = ` App-Dateien in „${SO.ORDNER}“ verschoben (${k})${f ? ` – ${f} Hinweis${f === 1 ? '' : 'e'}, siehe Projektansicht` : ''}.`; } }
+        catch(e){ umzug = ` Umzug in „${SO.ORDNER}“ nicht möglich: ${esc(e.message)}`; }
+        const st = await scanProject(p), pj = S.sel === p ? await readPJ(await pjDir(p)) : null;
+        if (S.sel === p){ p.st = st; S.pj = pj; } else p.st = null;
+      }
+      if (S.sel === p){ if (!an) S.pj = { data: o, exists: true }; renderDetail(); }
       renderList();
-      banner('ok', an ? `${esc(p.nr)} ist jetzt ein Spektron-Projekt und steht oben in der Liste.` : `${esc(p.nr)} steht wieder unter „Vor Spektron“.`);
+      banner('ok', an ? `${esc(p.nr)} ist jetzt ein Spektron-Projekt und steht oben in der Liste.${umzug}` : `${esc(p.nr)} steht wieder unter „Vor Spektron“.${p.st && p.st.spektronDa ? ` Die App-Dateien bleiben im Ordner „${SO.ORDNER}“.` : ''}`);
     }catch(e){ banner('err', 'Nicht gespeichert: ' + esc(e.message)); if (S.sel === p) renderDetail(); }
   });
   return S.pjWriting;

@@ -54,6 +54,7 @@ async function context(existing){
    case'list':return (await fs.readdir(absolute,{withFileTypes:true})).map(x=>({name:x.name,kind:x.isDirectory()?'directory':'file'}));
    case'read':{const buf=await fs.readFile(absolute);return {text:buf.toString(),size:buf.length,mtime:(await fs.stat(absolute)).mtimeMs};}
    case'write':await fs.writeFile(absolute,arg.text);return true;
+   case'remove':{const st=await fs.stat(absolute);if(st.isDirectory())await fs.rmdir(absolute);else await fs.unlink(absolute);return true;}
   }}catch(e){if(e.code==='ENOENT')return {notfound:true};throw e;}
  });
  await c.addInitScript(()=>{window.SPEKTRON_START_TEST='26.0100';});
@@ -61,8 +62,8 @@ async function context(existing){
   window.testIO={failWrite:false,failList:false,failRead:false,failAfterClose:false,hideGrant:false};
   const io=async arg=>{const r=await window.__sharedIO(arg);if(r?.notfound)throw new DOMException('Missing','NotFoundError');return r;};
   class Handle{constructor(rel,kind){this.rel=rel;this.kind=kind;this.name=rel.split('/').at(-1)||'Testarchiv';}async queryPermission(){return window.testIO.hideGrant?'denied':'granted';}async requestPermission(){return this.queryPermission();}async isSameEntry(h){return h.rel===this.rel;}}
-  class FileHandle extends Handle{constructor(rel){super(rel,'file');}async getFile(){const r=await io({op:'read',rel:this.rel,fail:window.testIO.failRead&&this.name.startsWith('rueckmeldung-')?'read':null});return {name:this.name,size:r.size,lastModified:/\.docx?$/i.test(this.name)?r.mtime:1,text:async()=>r.text,arrayBuffer:async()=>new TextEncoder().encode(r.text).buffer};}async createWritable(){if(window.testIO.failWrite)throw Error('SYNTHETIC write');let text;const rel=this.rel;return{write:async value=>{text=value;},abort:async()=>{},close:async()=>{await io({op:'write',rel,text});if(window.testIO.failAfterClose){window.testIO.failRead=true;window.testIO.failAfterClose=false;}}};}}
-  class DirectoryHandle extends Handle{constructor(rel){super(rel,'directory');}child(n){return(this.rel?this.rel+'/':'')+n;}async getDirectoryHandle(n,opts={}){const rel=this.child(n);await io({op:'dir',rel,create:opts.create});return new DirectoryHandle(rel);}async getFileHandle(n,opts={}){const rel=this.child(n);await io({op:'file',rel,create:opts.create});return new FileHandle(rel);}async *values(){if(window.testIO.pauseList&&this.name==='_Buero')await new Promise(resolve=>(window.testIO.resumeLists??=[]).push(resolve));for(const h of await io({op:'list',rel:this.rel,fail:window.testIO.failList&&this.name==='_Buero'?'list':null}))yield h.kind==='directory'?new DirectoryHandle(this.child(h.name)):new FileHandle(this.child(h.name));}async resolve(h){const prefix=this.rel?this.rel+'/':'';return h.rel.startsWith(prefix)?h.rel.slice(prefix.length).split('/'):null;}}
+  class FileHandle extends Handle{constructor(rel){super(rel,'file');}async getFile(){const r=await io({op:'read',rel:this.rel,fail:window.testIO.failRead&&this.name.startsWith('rueckmeldung-')?'read':null});return {name:this.name,size:r.size,lastModified:/\.docx?$/i.test(this.name)?r.mtime:1,text:async()=>r.text,arrayBuffer:async()=>new TextEncoder().encode(r.text).buffer};}async createWritable(){if(window.testIO.failWrite)throw Error('SYNTHETIC write');let text;const rel=this.rel;return{write:async value=>{const v=value&&typeof value==='object'&&value.type==='write'?value.data:value;text=typeof v==='string'?v:new TextDecoder().decode(v);},abort:async()=>{},close:async()=>{await io({op:'write',rel,text});if(window.testIO.failAfterClose){window.testIO.failRead=true;window.testIO.failAfterClose=false;}}};}}
+  class DirectoryHandle extends Handle{constructor(rel){super(rel,'directory');}child(n){return(this.rel?this.rel+'/':'')+n;}async getDirectoryHandle(n,opts={}){const rel=this.child(n);await io({op:'dir',rel,create:opts.create});return new DirectoryHandle(rel);}async getFileHandle(n,opts={}){const rel=this.child(n);await io({op:'file',rel,create:opts.create});return new FileHandle(rel);}async removeEntry(n){const r=await io({op:'remove',rel:this.child(n)});if(r&&r.notfound)throw Object.assign(Error('missing'),{name:'NotFoundError'});}async *values(){if(window.testIO.pauseList&&this.name==='_Buero')await new Promise(resolve=>(window.testIO.resumeLists??=[]).push(resolve));for(const h of await io({op:'list',rel:this.rel,fail:window.testIO.failList&&this.name==='_Buero'?'list':null}))yield h.kind==='directory'?new DirectoryHandle(this.child(h.name)):new FileHandle(this.child(h.name));}async resolve(h){const prefix=this.rel?this.rel+'/':'';return h.rel.startsWith(prefix)?h.rel.slice(prefix.length).split('/'):null;}}
   window.SharedDirectoryHandle=DirectoryHandle;
   window.showDirectoryPicker=async()=>new DirectoryHandle('');
   window.showOpenFilePicker=async()=>[new FileHandle(window.testPick||'24.0012 Fiktivstadt/Mitteilungen/Gutachten B.docx')];
@@ -135,11 +136,13 @@ assert.equal(await page.locator('#archiveName').innerText(),'Testarchiv');assert
 await page.fill('#q','Altbestand');await page.locator('.proj[data-name="26.0050 Altbestand SK"]').click();await page.locator('#jetzt.vor').waitFor();
 assert.match(await page.locator('#jetzt').innerText(),/Vor Spektron\s*Projekt aus der Zeit vor Spektron/i);assert.equal(await page.locator('#detail button.primary:visible').count(),0);
 await page.locator('#spektronAn').click();await page.locator('#spektronAus').waitFor();
-assert.equal(JSON.parse(await fs.readFile(path.join(tmp,V,'_Projekt.json'),'utf8')).spektron,true);
+// Übernehmen legt „_Spektron“ an und zieht die App-Dateien sofort um – _Projekt.json liegt danach dort
+const pjV=async()=>JSON.parse(await fs.readFile(path.join(tmp,V,'_Spektron','_Projekt.json'),'utf8'));
+assert.equal((await pjV()).spektron,true);assert.ok(!await fs.stat(path.join(tmp,V,'_Projekt.json')).catch(()=>null),'am alten Ort gelöscht');
 assert.notEqual(await gruppe('26.0050 Altbestand SK'),'vor');assert.equal(await page.locator('#jetzt.vor').count(),0);assert.equal(await page.locator('#jetztGo').count(),1);
 // zurück zu „Vor Spektron“: Merkmal wieder weg
 await page.locator('#spektronAus').click();await page.locator('#jetzt.vor').waitFor();
-assert.ok(!('spektron' in JSON.parse(await fs.readFile(path.join(tmp,V,'_Projekt.json'),'utf8'))));assert.equal(await gruppe('26.0050 Altbestand SK'),'vor');
+assert.ok(!('spektron' in await pjV()));assert.equal(await gruppe('26.0050 Altbestand SK'),'vor');
 await page.fill('#q','');await page.locator('#q').dispatchEvent('input');
 // ohne Kürzel: Hinweis statt „Heute für dich“
 await page.evaluate(()=>localStorage.removeItem('spektron-ich'));await page.selectOption('#ich','');await page.locator('#heuteLink').waitFor({state:'detached'});
