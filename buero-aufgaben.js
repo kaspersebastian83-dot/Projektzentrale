@@ -2,20 +2,22 @@
    Aufgaben des Büros je Projekt, ohne zentrale Gesamtdatei und ohne Server:
 
      <Archiv>/<JJ.Nummer Ort Kürzel>/_Buero/aufgaben/<id>.json   eine Aufgabe (Gutachten oder eigene Aufgabe)
-     <Archiv>/<JJ.Nummer Ort Kürzel>/_Buero/vermerke/<id>.json   ein Haken (gegengelesen, PDF, versandt, Rückfrage …)
+     <Archiv>/<JJ.Nummer Ort Kürzel>/_Buero/vermerke/<id>.json   ein Haken (gegengelesen, PDF, versandt, Rechnung, Rückfrage …)
 
    Jede Datei wird einmal neu geschrieben und nie geändert; zwei Kollegen können also nichts gegenseitig überschreiben.
    Der Stand eines Schritts ist einfach der neueste Vermerk dazu (Zeit, dann Kennung) – Haken setzen und wieder
-   wegnehmen geht ohne Begründung. Ältere Büroübergaben der Projektzentrale (bis 1.27, „_Buero/<Auftrags-UUID>/“) werden
+   wegnehmen geht ohne Begründung. „Rechnung“ ist ein eigener Haken neben dem Versand: „erledigt“ heißt weiterhin
+   „versandt“ (Durchlaufzeiten bleiben gleich), „abgeschlossen“ heißt versandt und abgerechnet. Ältere Büroübergaben der Projektzentrale (bis 1.27, „_Buero/<Auftrags-UUID>/“) werden
    gelesen und wie Aufgaben gezeigt; neue Haken dazu landen ebenfalls in „vermerke“.
    Läuft im Browser (window.BueroAufgaben) und in Node (module.exports, für Tests). */
 (function(root){
 'use strict';
 const FORMAT = 'spektron-buerokit', VERSION = 1, DIR = '_Buero', AUFGABEN = 'aufgaben', VERMERKE = 'vermerke', ALT = 'spektron-buero';
 const MAX_DATEI = 256 * 1024, MAX_TEXT = 2000;
-/** Schritte eines Gutachtens; Versand je Empfänger. */
-const SCHRITTE = [['gegenlesen', 'Gegenlesen'], ['pdf', 'PDF'], ['versand', 'Versand']];
-const VERMERK_ARTEN = ['gegenlesen', 'pdf', 'versand', 'erledigt', 'uebernommen', 'frage', 'antwort', 'faellig', 'geloescht'];
+/** Schritte eines Gutachtens; Versand je Empfänger. Rechnung nur bei Übergaben über BüroKit (nicht bei früheren). */
+const SCHRITTE = [['gegenlesen', 'Gegenlesen'], ['pdf', 'PDF'], ['versand', 'Versand'], ['rechnung', 'Rechnung']];
+const VERMERK_ARTEN = ['gegenlesen', 'pdf', 'versand', 'rechnung', 'erledigt', 'uebernommen', 'frage', 'antwort', 'faellig', 'geloescht'];
+const MAX_ANLAGEN = 60;
 /** Empfängergruppen (gleiche Kennungen wie die früheren Büroübergaben) mit dem Feld in _Projekt.json. */
 const GRUPPEN = [['versicherung', 'Auftraggeber', 'auftraggeber'], ['sachverstaendiger', 'Empfangende Sachverständige', 'sachverstaendigerBeteiligt'],
   ['versicherungsnehmer', 'Versicherungsnehmer', 'versicherungsnehmer'], ['sanierung', 'Sanierung', 'sanierung']];
@@ -62,19 +64,25 @@ function empfaengerPruefen(liste){
     .map(r => ({ id: r.id, gruppe: text(r.gruppe || r.group, 40), label: text(r.label, 120), details: text(r.details) }))
     .filter(r => r.details.trim() || r.label.trim());
 }
+/** Anlagen: Pfade im Projektordner („Fotos/Bilddokumentation.pdf“) oder kurze Texte („Laborberichte Eurofins“). */
+function anlagenPruefen(liste){
+  if (!Array.isArray(liste)) return [];
+  const da = new Set();
+  return liste.map(x => text(x, 400).trim()).filter(x => x && !da.has(x) && da.add(x)).slice(0, MAX_ANLAGEN);
+}
 function aufgabePruefen(o, dateiId, projektName){
   if (!o || o.format !== FORMAT || o.version !== VERSION || o.typ !== 'aufgabe' || o.id !== dateiId || !ID.test(o.id)) throw Error('Unbekanntes oder beschädigtes Aufgabenformat.');
   if (!gueltigeZeit(o.erstellt)) throw Error('Aufgabe ohne gültigen Zeitpunkt.');
   if (!o.projekt || nfc(o.projekt.name) !== nfc(projektName)) throw Error(`Aufgabe gehört zu „${text(o.projekt && o.projekt.name, 200)}“, liegt aber in „${projektName}“ – nicht berücksichtigt.`);
   if (!['gutachten', 'eigene'].includes(o.art)) throw Error('Unbekannte Aufgabenart.');
   return { id: o.id, art: o.art, titel: text(o.titel, 300) || (o.art === 'gutachten' ? 'Gutachten' : 'Aufgabe'), erstellt: o.erstellt, von: text(o.von, 40),
-    fuer: text(o.fuer, 40), faellig: gueltigesDatum(o.faellig) ? o.faellig : '', hinweis: text(o.hinweis), word: text(o.word, 400), empfaenger: empfaengerPruefen(o.empfaenger), alt: false };
+    fuer: text(o.fuer, 40), faellig: gueltigesDatum(o.faellig) ? o.faellig : '', hinweis: text(o.hinweis), word: text(o.word, 400), empfaenger: empfaengerPruefen(o.empfaenger), anlagen: anlagenPruefen(o.anlagen), alt: false };
 }
 function vermerkPruefen(o, dateiId){
   if (!o || o.format !== FORMAT || o.version !== VERSION || o.typ !== 'vermerk' || o.id !== dateiId || !ID.test(o.id)) throw Error('Unbekanntes oder beschädigtes Vermerkformat.');
   if (!gueltigeZeit(o.zeit) || typeof o.aufgabe !== 'string' || !ID.test(o.aufgabe) || !VERMERK_ARTEN.includes(o.schritt)) throw Error('Unvollständiger Vermerk.');
   return { id: o.id, aufgabe: o.aufgabe, zeit: o.zeit, von: text(o.von, 40), schritt: o.schritt, wert: o.wert !== false,
-    empfaenger: text(o.empfaenger, 80), text: text(o.text), pdf: text(o.pdf, 400), datum: gueltigesDatum(o.datum) ? o.datum : '' };
+    empfaenger: text(o.empfaenger, 80), text: text(o.text), pdf: text(o.pdf, 400), stand: text(o.stand, 400), datum: gueltigesDatum(o.datum) ? o.datum : '' };
 }
 
 /* ---------- frühere Büroübergaben (Projektzentrale bis 1.27) ---------- */
@@ -85,7 +93,7 @@ async function altLesen(dir, id, projektName, fehler){
     const c = o.content;
     if (!c.project || nfc(c.project.name) !== nfc(projektName)) throw Error(`gehört zu „${text(c.project && c.project.name, 200)}“`);
     const aufgabe = { id, art: 'gutachten', titel: 'Gutachten', erstellt: gueltigeZeit(o.created) ? o.created : new Date(0).toISOString(), von: text(c.who, 40), fuer: '', faellig: '',
-      hinweis: text(c.note), word: text(c.word, 400), empfaenger: empfaengerPruefen(c.recipients), alt: true };
+      hinweis: text(c.note), word: text(c.word, 400), empfaenger: empfaengerPruefen(c.recipients), anlagen: [], alt: true };
     const vermerke = [], ereignisse = [];
     for await (const h of dir.values()){
       if (h.kind !== 'file' || !/^rueckmeldung-[0-9a-zA-Z-]+\.json$/.test(h.name)) continue;
@@ -97,7 +105,7 @@ async function altLesen(dir, id, projektName, fehler){
     // unabhängig davon, in welcher Reihenfolge das Dateisystem die Dateien liefert.
     ereignisse.sort((a, b) => String(a.at).localeCompare(String(b.at)) || String(a.id).localeCompare(String(b.id)));
     for (const e of ereignisse){
-      const v = (schritt, mehr = {}) => vermerke.push({ id: e.id + (mehr.empfaenger ? ':' + mehr.empfaenger : ''), aufgabe: id, zeit: e.at, von: text(e.actor, 40), schritt, wert: true, empfaenger: '', text: '', pdf: '', datum: '', ...mehr });
+      const v = (schritt, mehr = {}) => vermerke.push({ id: e.id + (mehr.empfaenger ? ':' + mehr.empfaenger : ''), aufgabe: id, zeit: e.at, von: text(e.actor, 40), schritt, wert: true, empfaenger: '', text: '', pdf: '', stand: '', datum: '', ...mehr });
       const p = e.payload;
       switch (e.type){
         case 'claim': v('uebernommen'); break;
@@ -124,12 +132,13 @@ async function altLesen(dir, id, projektName, fehler){
 
 /* ---------- Stand berechnen ---------- */
 const reihenfolge = (a, b) => a.zeit.localeCompare(b.zeit) || a.id.localeCompare(b.id);
-/** Stand einer Aufgabe aus ihren Vermerken. Jeder Schritt (Versand: je Empfänger) = neuester Vermerk dazu. */
+/** Stand einer Aufgabe aus ihren Vermerken. Jeder Schritt (Versand: je Empfänger) = neuester Vermerk dazu.
+    erledigt = versandt (wie bisher); abgeschlossen = versandt und – bei Übergaben über BüroKit – abgerechnet. */
 function zustand(projekt, aufgabe, alleVermerke){
   const verlauf = alleVermerke.filter(v => v.aufgabe === aufgabe.id).sort(reihenfolge);
   const letzter = new Map();
   for (const v of verlauf) letzter.set(v.schritt + (v.schritt === 'versand' ? ':' + v.empfaenger : ''), v);
-  const haken = k => { const v = letzter.get(k); return v && v.wert ? { von: v.von, zeit: v.zeit, pdf: v.pdf, datum: v.datum } : null; };
+  const haken = k => { const v = letzter.get(k); return v && v.wert ? { von: v.von, zeit: v.zeit, pdf: v.pdf, stand: v.stand, datum: v.datum } : null; };
   const versand = {};
   for (const r of aufgabe.empfaenger){ const h = haken('versand:' + r.id); if (h) versand[r.id] = h; }
   // Rückfrage: offen, wenn die letzte Frage/Antwort eine Frage ist
@@ -144,8 +153,11 @@ function zustand(projekt, aufgabe, alleVermerke){
   const geloescht = !!(letzter.get('geloescht') || {}).wert;
   const relevant = verlauf.filter(v => v.schritt !== 'frage' && v.schritt !== 'antwort' && v.schritt !== 'faellig');
   const erledigtAm = erledigt ? (ausdruecklich && ausdruecklich.wert ? ausdruecklich.zeit : (relevant[relevant.length - 1] || {}).zeit || aufgabe.erstellt) : '';
+  const rechnungNoetig = aufgabe.art === 'gutachten' && !aufgabe.alt, rechnung = rechnungNoetig ? haken('rechnung') : null;
+  const abgeschlossen = !geloescht && erledigt && (!rechnungNoetig || !!rechnung);
+  const abgeschlossenAm = abgeschlossen ? [erledigtAm, rechnung ? rechnung.zeit : ''].sort().pop() : '';
   const status = geloescht ? 'Zurückgezogen' : erledigt ? 'Erledigt' : frage ? 'Rückfrage' : (gegenlesen || pdf || Object.keys(versand).length || uebernommen) ? 'In Bearbeitung' : 'Neu';
-  return { ...aufgabe, projekt, faellig, gegenlesen, pdf, versand, uebernommen, frage, erledigt, erledigtAm, geloescht, status, verlauf };
+  return { ...aufgabe, projekt, faellig, gegenlesen, pdf, versand, uebernommen, frage, erledigt, erledigtAm, rechnungNoetig, rechnung, abgeschlossen, abgeschlossenAm, geloescht, status, verlauf };
 }
 
 /* ---------- lesen ---------- */
@@ -194,7 +206,7 @@ async function archivLesen(archiv, fortschritt){
 function projektPruefen(projektDir){
   if (!nr(projektDir.name)) throw Error(`„${projektDir.name}“ ist kein Projektordner (z. B. „26.0123 Köln“).`);
 }
-/** Neue Aufgabe anlegen. a: {art, titel, von, fuer?, faellig?, hinweis?, word?, empfaenger?: [{gruppe, label, details}]} */
+/** Neue Aufgabe anlegen. a: {art, titel, von, fuer?, faellig?, hinweis?, word?, empfaenger?: [{gruppe, label, details}], anlagen?: [Pfad oder Text]} */
 async function aufgabeAnlegen(projektDir, a){
   projektPruefen(projektDir);
   if (!['gutachten', 'eigene'].includes(a.art)) throw Error('Unbekannte Aufgabenart.');
@@ -203,15 +215,17 @@ async function aufgabeAnlegen(projektDir, a){
   if (a.faellig && !gueltigesDatum(a.faellig)) throw Error('Ungültiges Fälligkeitsdatum.');
   const empfaenger = (a.empfaenger || []).map(r => ({ id: uid(), gruppe: text(r.gruppe, 40), label: text(r.label, 120), details: text(r.details).trim() })).filter(r => r.details);
   if (a.art === 'gutachten' && !empfaenger.length) throw Error('Mindestens einen Empfänger mit Anschrift oder E-Mail angeben.');
+  const anlagen = anlagenPruefen(a.anlagen);
   const name = nfc(projektDir.name);
   const o = { format: FORMAT, version: VERSION, typ: 'aufgabe', id: uid(), erstellt: new Date().toISOString(), von: text(a.von, 40).trim(),
     projekt: { name, nr: nr(name) }, art: a.art, titel: text(a.titel, 300).trim() || (a.art === 'gutachten' ? 'Gutachten' : ''),
     ...(a.fuer ? { fuer: text(a.fuer, 40).trim() } : {}), ...(a.faellig ? { faellig: a.faellig } : {}), ...(a.hinweis && a.hinweis.trim() ? { hinweis: text(a.hinweis).trim() } : {}),
-    ...(a.word ? { word: text(a.word, 400) } : {}), ...(empfaenger.length ? { empfaenger } : {}) };
+    ...(a.word ? { word: text(a.word, 400) } : {}), ...(empfaenger.length ? { empfaenger } : {}), ...(anlagen.length ? { anlagen } : {}) };
   await neuSchreiben(await unter(await unter(projektDir, DIR, true), AUFGABEN, true), o.id + '.json', o);
   return o;
 }
-/** Haken setzen oder wegnehmen. v: {aufgabe, schritt, wert?, von, empfaenger?, text?, pdf?, datum?} */
+/** Haken setzen oder wegnehmen. v: {aufgabe, schritt, wert?, von, empfaenger?, text?, pdf?, stand?, datum?}
+    stand: beim Haken „Rechnung“ der BelegKit-Stand, nach dem abgerechnet wurde („Abrechnung/26.0123_Aufwand_2026-10-28.json“). */
 async function vermerken(projektDir, v){
   projektPruefen(projektDir);
   if (!VERMERK_ARTEN.includes(v.schritt)) throw Error('Unbekannter Schritt.');
@@ -222,7 +236,7 @@ async function vermerken(projektDir, v){
   if (v.datum && !gueltigesDatum(v.datum)) throw Error('Ungültiges Datum.');
   const o = { format: FORMAT, version: VERSION, typ: 'vermerk', id: uid(), aufgabe: v.aufgabe, zeit: new Date().toISOString(), von: text(v.von, 40).trim(),
     schritt: v.schritt, wert: v.wert !== false, ...(v.empfaenger ? { empfaenger: text(v.empfaenger, 80) } : {}), ...(v.text ? { text: text(v.text).trim() } : {}),
-    ...(v.pdf ? { pdf: text(v.pdf, 400) } : {}), ...(v.datum ? { datum: v.datum } : {}) };
+    ...(v.pdf ? { pdf: text(v.pdf, 400) } : {}), ...(v.stand ? { stand: text(v.stand, 400) } : {}), ...(v.datum ? { datum: v.datum } : {}) };
   await neuSchreiben(await unter(await unter(projektDir, DIR, true), VERMERKE, true), o.id + '.json', o);
   return o;
 }
@@ -238,13 +252,14 @@ function alsDurchlauf(aufgaben){
   return aufgaben.filter(a => a.art === 'gutachten').map(a => ({ order: { created: a.erstellt }, withdrawn: a.geloescht, status: a.geloescht ? 'Zurückgezogen' : a.status,
     sent: Object.fromEntries(Object.entries(a.versand).map(([k, v]) => [k, { date: v.datum || String(v.zeit).slice(0, 10) }])) }));
 }
-/** Offene Schritte als kurzer Text („Gegenlesen · PDF · Versand 1/3“). */
+/** Offene Schritte als kurzer Text („Gegenlesen · PDF · Versand 1/3 · Rechnung“). */
 function offenText(a){
   if (a.geloescht) return 'zurückgezogen';
-  if (a.erledigt) return 'erledigt';
+  const rechnung = a.rechnungNoetig && !a.rechnung && 'Rechnung';
+  if (a.erledigt) return rechnung || 'erledigt';
   if (a.art !== 'gutachten') return 'offen';
   const n = a.empfaenger.length, v = Object.keys(a.versand).length;
-  return [!a.gegenlesen && 'Gegenlesen', !a.pdf && 'PDF', v < n && (v ? `Versand ${v}/${n}` : 'Versand')].filter(Boolean).join(' · ') || 'erledigt';
+  return [!a.gegenlesen && 'Gegenlesen', !a.pdf && 'PDF', v < n && (v ? `Versand ${v}/${n}` : 'Versand'), rechnung].filter(Boolean).join(' · ') || 'erledigt';
 }
 
 const api = { FORMAT, VERSION, DIR, SCHRITTE, GRUPPEN, projektLesen, archivLesen, aufgabeAnlegen, vermerken, zustand, empfaengerVorschlag, alsDurchlauf, offenText, gueltigesDatum };

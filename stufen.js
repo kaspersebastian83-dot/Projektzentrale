@@ -29,7 +29,7 @@
    *   fotos: { bilder, begonnen, doku },
    *   berichte: Anzahl Prüfberichte, ergebnisse: null | { vollstaendig, veraltet, offen, fehler }, pruefbericht: Datum,
    *   plan: Probenplan vorhanden,
-   *   buero: { offen, frage, erledigt } | null (unbekannt), uebergabe: Datum, versand: Datum,
+   *   buero: { offen, frage, erledigt, rechnungOffen, rechnung: Datum, rechnungVon } | null (unbekannt), uebergabe: Datum, versand: Datum,
    *   abrechnung: Datum des letzten BelegKit-Stands
    * }
    */
@@ -73,9 +73,15 @@
     else if (f.versand || b.erledigt) s.buero = { zustand: 'fertig', text: `Versandt${f.versand ? ` ${de(f.versand)}` : ''}` };
     else s.buero = { zustand: 'offen', text: 'Noch nicht übergeben', aktion: 'uebergeben' };
 
-    // 6 Abrechnung – fertig, wenn nach dem Versand ein BelegKit-Stand gespeichert wurde
+    // 6 Abrechnung – mit BüroKit (ab 1.1): fertig, wenn das Büro „Rechnung“ abgehakt hat. Das Büro rechnet nach dem
+    // BelegKit-Stand ab; fehlt er, ist der Sachverständige dran. Ohne Rechnungsschritt (frühere Übergaben, Versand
+    // außerhalb BüroKit) wie bisher: fertig, wenn nach dem Versand ein BelegKit-Stand gespeichert wurde.
     const versandt = s.buero.zustand === 'fertig';
-    s.abrechnung = f.abrechnung && versandt && (!f.versand || f.abrechnung >= f.versand)
+    if (versandt && b.rechnungOffen) s.abrechnung = f.abrechnung
+      ? { zustand: 'wartet', text: `Rechnung beim Büro · Abrechnungsstand vom ${de(f.abrechnung)}`, aktion: 'buerokit' }
+      : { zustand: 'dran', text: 'Das Büro braucht für die Rechnung den Abrechnungsstand – in BelegKit „Stand speichern“', aktion: 'beleg' };
+    else if (versandt && b.rechnung) s.abrechnung = { zustand: 'fertig', text: `Abgerechnet ${de(b.rechnung)}${b.rechnungVon ? ` (${b.rechnungVon})` : ''}` };
+    else s.abrechnung = f.abrechnung && versandt && (!f.versand || f.abrechnung >= f.versand)
       ? { zustand: 'fertig', text: `Abgerechnet · Stand ${de(f.abrechnung)}` }
       : { zustand: 'offen', text: f.abrechnung ? `Abrechnungsstand vom ${de(f.abrechnung)}${versandt ? ' – nach dem Versand abschließen' : ''}` : 'Noch keine Zeiten erfasst', aktion: 'beleg' };
 
@@ -123,6 +129,7 @@
       return { titel: 'Labor läuft', text: st.text, aktion: 'ergebnis', knopf: 'ResultKit öffnen', wartet: true };
     }
     if (aktuell === 'buero') return { titel: 'Beim Büro', text: f.buero && f.buero.offenText ? `Noch offen: ${f.buero.offenText}` : 'Das Büro arbeitet das Gutachten in BüroKit ab.', aktion: 'buerokit', knopf: AKTIONEN.buerokit, wartet: true };
+    if (aktuell === 'abrechnung') return { titel: 'Rechnung beim Büro', text: st.text, aktion: 'buerokit', knopf: AKTIONEN.buerokit, wartet: true };
     return { titel: st.text, text: '', aktion: st.aktion, knopf: AKTIONEN[st.aktion] || '', wartet: true };
   }
   const TITEL = {
@@ -145,7 +152,7 @@
     const st = s[aktuell];
     if (aktuell === 'labor') return st.zustand === 'wartet' ? 'Beim Labor' : 'Labor · Ergebnisse da';
     if (aktuell === 'buero') return st.zustand === 'wartet' ? 'Beim Büro' : 'Ans Büro übergeben';
-    if (aktuell === 'abrechnung') return 'Versandt · Abrechnung offen';
+    if (aktuell === 'abrechnung') return st.zustand === 'wartet' ? 'Versandt · Rechnung beim Büro' : 'Versandt · Abrechnung offen';
     if (aktuell === 'ortstermin') return 'Proben erfassen';
     return name + (aktuell === 'gutachten' ? ' schreiben' : '');
   }

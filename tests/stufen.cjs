@@ -77,3 +77,14 @@ assert.equal(r.aktuell, 'buero'); assert.equal(r.kurz, 'Beim Büro');
 r = S.berechnen({ pj: true, proben: true, plan: true, uebergabe: '2026-10-27', buero: { offen: true } });
 assert.equal(r.stufen.find(s => s.key === 'labor').text, 'Keine Prüfberichte im Ordner – übersprungen');
 console.log('OK stufen: Labor-Zwischenstand bleibt sichtbar, wenn das Gutachten schon beim Büro ist');
+// Rechnung über BüroKit (ab 1.1): Stand vor dem Versand genügt – das Büro rechnet danach ab
+r = S.berechnen({ ...labFertig, uebergabe: '2026-10-28', versand: '2026-10-29', buero: { erledigt: true, rechnungOffen: true }, abrechnung: '2026-10-27' });
+assert.equal(r.aktuell, 'abrechnung'); assert.equal(r.stufen[5].zustand, 'wartet'); assert.equal(r.gruppe, 'laeuft');
+assert.equal(r.jetzt.aktion, 'buerokit'); assert.equal(r.kurz, 'Versandt · Rechnung beim Büro');
+// … ohne Stand ist der Sachverständige dran
+r = S.berechnen({ ...labFertig, uebergabe: '2026-10-28', versand: '2026-10-29', buero: { erledigt: true, rechnungOffen: true } });
+assert.equal(r.stufen[5].zustand, 'dran'); assert.equal(r.jetzt.aktion, 'beleg'); assert.equal(r.gruppe, 'dich');
+// Büro hat „Rechnung“ abgehakt → fertig, auch wenn der Stand vor dem Versand lag
+r = S.berechnen({ ...labFertig, uebergabe: '2026-10-28', versand: '2026-10-29', buero: { erledigt: true, rechnung: '2026-10-30', rechnungVon: 'Nad' }, abrechnung: '2026-10-27' });
+assert.equal(r.aktuell, null); assert.equal(r.gruppe, 'fertig'); assert.equal(r.stufen[5].text, 'Abgerechnet 30.10. (Nad)');
+console.log('OK stufen: Rechnung beim Büro (BüroKit) – wartet, fehlender Stand ist dran, Haken „Rechnung“ schließt ab');

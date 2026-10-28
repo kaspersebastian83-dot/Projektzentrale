@@ -298,6 +298,12 @@ table.vt button{padding:2px 8px;font-size:12px;margin-left:6px}
 #bueroPanel .ab-empf>div.aus textarea{opacity:.55}
 #bueroPanel .ab-zwei{display:grid;grid-template-columns:minmax(0,180px) minmax(0,1fr);gap:12px}
 #bueroPanel .ab-los{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+#bueroPanel .ab-anl{display:grid;gap:3px;margin:4px 0 6px}
+#bueroPanel .ab-anl label{display:flex;gap:7px;align-items:baseline;flex-direction:row;color:var(--text);font-size:13px}
+#bueroPanel .ab-anl label small{color:var(--muted)}
+#bueroPanel input[data-ab-anl-text]{width:100%}
+#bueroPanel .ab-abr{font-size:13px;padding:6px 9px;border-radius:7px;border:1px solid var(--line)}
+#bueroPanel .ab-abr.warn{border-color:#d9a441;background:rgba(217,164,65,.12)}
 @media(max-width:760px){#bueroPanel .ab-empf,#bueroPanel .ab-zwei{grid-template-columns:1fr}}
 #bueroAttention:empty{display:none}
 #bueroAttention .ab-frage{margin:6px 0;padding:6px 9px;border-left:3px solid var(--err);background:var(--panel2);overflow-wrap:anywhere}
@@ -926,9 +932,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.30.3';
-const APP_DATE = '2026-10-27';
+const APP_VERSION = '1.31.0';
+const APP_DATE = '2026-10-28';
 const CHANGELOG = [
+  ['1.31.0', '28.10.2026', 'Übergabe ans Büro mit allem, was das Büro für Versand und Rechnung braucht: Unter „Ans Büro“ stehen jetzt die Anlagen zum Anhaken (Bilddokumentation in „Fotos“, Anlagen in „Mitteilungen“, Pläne, Prüfberichte – Dateien mit „Anlage“ oder „Bilddokumentation“ im Namen sind vorgeschlagen) plus ein Feld für weitere Anlagen, und ob es einen Abrechnungsstand aus BelegKit gibt (sonst Knopf zu BelegKit). Das Büro sieht Anlagen und Abrechnung in BüroKit 1.1 und hakt nach dem Versand „Rechnung“ ab. Stufe 6 „Abrechnung“: wartet nach dem Versand auf die Rechnung des Büros und ist fertig, sobald das Büro „Rechnung“ abgehakt hat; fehlt der Abrechnungsstand, bist du dran. Frühere Übergaben wie bisher.'],
   ['1.30.3', '27.10.2026', 'Stufe Labor: Ging das Gutachten ans Büro, während das Labor nur einen Zwischenstand hatte, stand dort „Keine Prüfberichte im Ordner – übersprungen“. Jetzt steht der eigene Stand, z. B. „Zwischenstand übernommen · 1 offen beim Labor – nicht abgeschlossen“.'],
   ['1.30.2', '27.10.2026', 'Datenarchiv 1.2: oben ein sichtbarer Hinweis, dass es die Original-XML liest und nicht den in ResultKit übernommenen Stand – für Gutachten gilt ResultKit.'],
   ['1.30.1', '27.10.2026', 'Frühere Büroübergaben (bis 1.27) mit mehreren neuen Fassungen: Die Änderungen werden in zeitlicher Reihenfolge gelesen – vorher konnte eine ältere Word-Datei als aktuelle erscheinen (gemeinsames Modul wie BüroKit 1.0.1).'],
@@ -1526,9 +1533,12 @@ function bueroFakten(aufgaben, fehler = []){
   if (fehler.length) return { unklar: true };
   const g = aufgaben.filter(a => a.art === 'gutachten' && !a.geloescht), offen = g.filter(a => !a.erledigt);
   const tag = z => z ? Durchlauf.tag(z) : '';
+  const abgerechnet = g.filter(a => a.rechnung).sort((a, b) => String(a.rechnung.zeit).localeCompare(String(b.rechnung.zeit))).pop();
   return { offen: offen.length > 0, frage: aufgaben.some(a => a.frage && !a.geloescht), erledigt: g.some(a => a.erledigt),
     offenText: offen.length ? BueroAufgaben.offenText(offen[0]) : '', uebergabe: tag(g.map(a => a.erstellt).sort()[0]),
-    versand: tag(g.filter(a => a.erledigt).map(a => a.erledigtAm).sort().at(-1)) };   // neuester Versand (z. B. Nachtrag) – die Abrechnung muss danach liegen
+    versand: tag(g.filter(a => a.erledigt).map(a => a.erledigtAm).sort().at(-1)),   // neuester Versand (z. B. Nachtrag) – die Abrechnung muss danach liegen
+    rechnungOffen: g.some(a => a.erledigt && a.rechnungNoetig && !a.rechnung),   // BüroKit 1.1: versandt, Rechnung noch nicht abgehakt
+    rechnung: abgerechnet ? tag(abgerechnet.rechnung.zeit) : '', rechnungVon: abgerechnet ? abgerechnet.rechnung.von : '' };
 }
 /** Fakten für stufen.js aus dem schnellen Ordnerscan (Liste, „Heute“). */
 function faktenAusScan(p){
@@ -1776,12 +1786,12 @@ const abZeit = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLoca
 const abFaellig = iso => iso ? deDatum(iso).slice(0, 6) : '';
 const abOffen = a => a.art === 'gutachten' && !a.erledigt && !a.geloescht;
 function abEntwurf(p){
-  if (!AB_ENTWURF.has(p.name)) AB_ENTWURF.set(p.name, { word: null, rows: BueroAufgaben.GRUPPEN.map(() => ({})), faellig: '', hinweis: '', antwort: {}, offen: null });
+  if (!AB_ENTWURF.has(p.name)) AB_ENTWURF.set(p.name, { word: null, rows: BueroAufgaben.GRUPPEN.map(() => ({})), faellig: '', hinweis: '', anl: {}, anlText: '', antwort: {}, offen: null });
   return AB_ENTWURF.get(p.name);
 }
 /** Stand des gewählten Projekts: r = {aufgaben, fehler} aus BueroAufgaben.projektLesen, word = Word-Dateien in „Mitteilungen“. */
 function abStand(p){
-  if (!S.ab || S.ab.name !== p.name) S.ab = { name: p.name, r: null, fehler: '', word: null, msg: '', msgErr: false, frageMsg: null, busy: false, lauf: 0 };
+  if (!S.ab || S.ab.name !== p.name) S.ab = { name: p.name, r: null, fehler: '', word: null, anl: null, abr: undefined, msg: '', msgErr: false, frageMsg: null, busy: false, lauf: 0 };
   return S.ab;
 }
 /** Empfänger-Vorschlag aus den Projektdaten (auch gerade getippte, noch nicht gespeicherte Angaben). */
@@ -1800,6 +1810,28 @@ async function abWordLesen(p){
   }
   return liste.sort((a, b) => b.t - a.t || b.name.localeCompare(a.name, 'de', { numeric: true }));   // neueste zuerst
 }
+/** Mögliche Anlagen: Dateien in Mitteilungen, Fotos (PDF), Pläne und Laborergebnisse (PDF). Vorgeschlagen (angehakt) sind
+    Dateien mit „Anlage“ oder „Bilddokumentation“ im Namen und PDFs in „Fotos“ – angehakt wird nur, was mitgehen soll. */
+const AB_ANL_ORDNER = [['Mitteilungen', /\.(docx?|pdf)$/i], ['Fotos', /\.pdf$/i], ['Pläne', /\.(pdf|docx?)$/i], ['Laborergebnisse', /\.pdf$/i]];
+async function abAnlagenLesen(p){
+  const liste = [];
+  for (const [ordner, muster] of AB_ANL_ORDNER){
+    let dir; try{ dir = await p.handle.getDirectoryHandle(ordner); }catch(e){ continue; }
+    const hier = [];
+    for await (const f of dir.values()) if (f.kind === 'file' && !/^(~\$|\.)/.test(f.name) && muster.test(f.name)) hier.push({ name: f.name, rel: dir.name + '/' + f.name, ordner: dir.name,
+      vorschlag: /anlage|bilddoku/i.test(f.name) || (ordner === 'Fotos') });
+    liste.push(...hier.sort((a, b) => a.name.localeCompare(b.name, 'de', { numeric: true })));
+  }
+  return liste;
+}
+/** Neuester BelegKit-Stand (nur Name und Datum) – das Büro rechnet danach ab. null: keiner, undefined: nicht lesbar. */
+async function abAbrechnungLesen(p){
+  let dir; try{ dir = await p.handle.getDirectoryHandle('Abrechnung'); }catch(e){ return null; }
+  let best = null;
+  for await (const f of dir.values()){ const m = f.kind === 'file' && /_Aufwand_(\d{4}-\d{2}-\d{2})(?:_(\d+))?\.json$/i.exec(f.name);
+    if (m && (!best || m[1] > best.datum || (m[1] === best.datum && +(m[2] || 1) > best.n))) best = { datei: f.name, datum: m[1], n: +(m[2] || 1) }; }
+  return best;
+}
 /** Gewählte Word-Datei: ausdrücklich gewählt (auch „keine“), sonst die neueste. */
 function abWordWahl(st, d){
   const liste = st.word || [];
@@ -1812,8 +1844,10 @@ async function bueroLesen(p){
   let r = null, fehler = '', word = st.word;
   try{ r = await BueroAufgaben.projektLesen(p.handle); }catch(e){ fehler = e.message || String(e); }
   try{ word = await abWordLesen(p); }catch(e){ word = word || []; }
+  let anl = st.anl, abr; try{ anl = await abAnlagenLesen(p); }catch(e){ anl = anl || []; }
+  try{ abr = await abAbrechnungLesen(p); }catch(e){ abr = undefined; }
   if (S.ab !== st || lauf !== st.lauf) return;
-  if (r) st.r = r; st.fehler = fehler; st.word = word;   // Lesefehler: bekannter Stand bleibt sichtbar, mit Hinweis
+  if (r) st.r = r; st.fehler = fehler; st.word = word; st.anl = anl; st.abr = abr;   // Lesefehler: bekannter Stand bleibt sichtbar, mit Hinweis
   bueroZeigen(p);
 }
 function abStandHtml(st){
@@ -1822,13 +1856,15 @@ function abStandHtml(st){
   if (!st.r) return zeilen.join('') || '<div class="ab-zeile ab-klein">Wird gelesen …</div>';
   const alle = st.r.aufgaben.filter(a => !a.geloescht);
   const offen = alle.filter(abOffen);
-  const fertig = alle.filter(a => a.art === 'gutachten' && a.erledigt).sort((a, b) => String(b.erledigtAm).localeCompare(String(a.erledigtAm))).slice(0, 2);
+  const fertig = alle.filter(a => a.art === 'gutachten' && a.abgeschlossen).sort((a, b) => String(b.abgeschlossenAm).localeCompare(String(a.abgeschlossenAm))).slice(0, 2);
+  const zurRechnung = alle.filter(a => a.art === 'gutachten' && a.erledigt && !a.abgeschlossen);
   const eigene = alle.filter(a => a.art === 'eigene' && !a.erledigt);
   for (const a of offen) zeilen.push(`<div class="ab-zeile" data-ab-aufgabe="${esc(a.id)}"${a.word ? ` title="Word-Datei: ${esc(a.word)}"` : ''}><b>Gutachten beim Büro</b> · übergeben ${esc(abTag(a.erstellt))}${a.von ? ' von ' + esc(a.von) : ''} · noch offen: ${esc(BueroAufgaben.offenText(a))}`
     + `${a.faellig ? ' · fällig ' + esc(abFaellig(a.faellig)) : ''}${a.uebernommen ? ' · in Arbeit' + (a.uebernommen.von ? ' bei ' + esc(a.uebernommen.von) : '') : ''}${a.frage ? ' · <span class="warn">Rückfrage offen</span>' : ''}</div>`);
+  for (const a of zurRechnung) zeilen.push(`<div class="ab-zeile" data-ab-rechnung="${esc(a.id)}"><b>Gutachten versandt</b> ${esc(abDatum(a.erledigtAm))} · Rechnung beim Büro noch offen${st.abr === null ? ' · <span class="warn">kein Abrechnungsstand – in BelegKit „Stand speichern“</span>' : ''}</div>`);
   if (eigene.length) zeilen.push(`<div class="ab-zeile" data-ab-eigene>Büro-Aufgaben: ${eigene.map(a => esc(a.titel) + (a.faellig ? ` (fällig ${esc(abFaellig(a.faellig))})` : '')).join(', ')}</div>`);
-  for (const a of fertig) zeilen.push(`<div class="ab-zeile ab-klein" data-ab-erledigt>Gutachten erledigt am ${esc(abDatum(a.erledigtAm))}</div>`);
-  if (!offen.length && !eigene.length && !fertig.length) zeilen.push('<div class="ab-zeile ab-klein">Noch nichts beim Büro.</div>');
+  for (const a of fertig) zeilen.push(`<div class="ab-zeile ab-klein" data-ab-erledigt>Gutachten erledigt am ${esc(abDatum(a.erledigtAm))}${a.rechnung ? ` · abgerechnet ${esc(abDatum(a.rechnung.zeit))}${a.rechnung.von ? ' (' + esc(a.rechnung.von) + ')' : ''}` : ''}</div>`);
+  if (!offen.length && !zurRechnung.length && !eigene.length && !fertig.length) zeilen.push('<div class="ab-zeile ab-klein">Noch nichts beim Büro.</div>');
   if (st.r.fehler.length) zeilen.push(`<div class="ab-zeile warn">Nicht alles lesbar: ${st.r.fehler.map(esc).join(' · ')}</div>`);
   return zeilen.join('');
 }
@@ -1842,6 +1878,9 @@ function abGeruest(p, d){
       <div class="ab-felder">
         <label>Word-Datei (Ordner „Mitteilungen“)<select data-ab-word><option value="">– keine Word-Datei –</option></select></label>
         <div><div class="ab-klein">Empfänger – anhaken, wer das Gutachten bekommt</div><div class="ab-empf">${rows}</div></div>
+        <div><div class="ab-klein">Anlagen – anhaken, was mit dem Gutachten mitgeht</div><div class="ab-anl" data-ab-anl></div>
+          <input type="text" data-ab-anl-text maxlength="400" aria-label="Weitere Anlagen" placeholder="Weitere Anlagen, z. B. Laborberichte Eurofins (mehrere mit ; trennen)"></div>
+        <div class="ab-abr" data-ab-abr></div>
         <div class="ab-zwei"><label>Fällig bis (optional)<input type="date" data-ab-faellig></label><label>Hinweis fürs Büro (optional)<textarea data-ab-hinweis rows="2"></textarea></label></div>
         <div class="ab-los"><button class="primary" data-ab-los>Ans Büro übergeben</button><span class="ab-klein" data-ab-ich></span></div>
       </div>
@@ -1853,6 +1892,9 @@ function abVerdrahten(p, panel, d){
   q('[data-ab-word]').onchange = e => { d.word = e.target.value; };
   q('[data-ab-faellig]').value = d.faellig; q('[data-ab-faellig]').oninput = e => { d.faellig = e.target.value; };
   q('[data-ab-hinweis]').value = d.hinweis; q('[data-ab-hinweis]').oninput = e => { d.hinweis = e.target.value; };
+  q('[data-ab-anl-text]').value = d.anlText; q('[data-ab-anl-text]').oninput = e => { d.anlText = e.target.value; };
+  q('[data-ab-anl]').addEventListener('change', e => { const el = e.target.closest('[data-ab-anl-rel]'); if (el) d.anl[el.dataset.abAnlRel] = el.checked; });
+  q('[data-ab-abr]').addEventListener('click', e => { if (e.target.closest('[data-ab-beleg]')){ e.preventDefault(); stufeAktion(p, 'beleg'); } });
   panel.querySelectorAll('[data-ab-an]').forEach(el => el.onchange = () => { d.rows[+el.dataset.abAn].an = el.checked; el.closest('[data-ab-row]').classList.toggle('aus', !el.checked); });
   panel.querySelectorAll('[data-ab-details]').forEach(el => el.oninput = () => { d.rows[+el.dataset.abDetails].details = el.value; });
   q('[data-ab-los]').onclick = () => abUebergeben(p);
@@ -1881,6 +1923,21 @@ function bueroZeigen(p){
   const key = JSON.stringify(opts);
   if (sel.dataset.key !== key){ sel.innerHTML = '<option value="">– keine Word-Datei –</option>' + opts.map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join(''); sel.dataset.key = key; }
   if (sel.value !== wahl) sel.value = wahl;
+  // Anlagen: ohne die gewählte Word-Datei (das ist das Gutachten selbst)
+  const anlEl = q('[data-ab-anl]'), anl = (st.anl || []).filter(x => x.rel !== wahl);
+  const anlKey = JSON.stringify([anl.map(x => x.rel), ro]);
+  if (anlEl.dataset.key !== anlKey){
+    anlEl.innerHTML = st.anl === null ? '<span class="ab-klein">Wird gelesen …</span>' : anl.length ? anl.map(x => `<label><input type="checkbox" data-ab-anl-rel="${esc(x.rel)}"${ro ? ' disabled' : ''}> ${esc(x.name)} <small>${esc(x.ordner)}</small></label>`).join('')
+      : '<span class="ab-klein">Keine Dateien in Mitteilungen, Fotos (PDF), Pläne oder Laborergebnisse (PDF) – Anlagen ggf. unten eintragen.</span>';
+    anlEl.dataset.key = anlKey;
+  }
+  anlEl.querySelectorAll('[data-ab-anl-rel]').forEach(el => { const x = anl.find(y => y.rel === el.dataset.abAnlRel); el.checked = d.anl[x.rel] === undefined ? x.vorschlag : d.anl[x.rel]; });
+  q('[data-ab-anl-text]').readOnly = ro;
+  const abrEl = q('[data-ab-abr]');
+  const abrHtml = st.abr === undefined && !st.r ? '' : st.abr ? `✓ Abrechnungsstand aus BelegKit vom ${esc(deDatum(st.abr.datum))} – danach schreibt das Büro die Rechnung. Neue Zeiten? Vorher in BelegKit neu „Stand speichern“.`
+    : st.abr === null ? `⚠ Noch kein Abrechnungsstand. Das Büro braucht ihn für die Rechnung: <button type="button" class="linkbtn" data-ab-beleg>BelegKit öffnen</button> → Zeiten prüfen → „💾 Stand speichern“.`
+    : 'Abrechnung nicht lesbar.';
+  if (abrEl.dataset.html !== abrHtml){ abrEl.innerHTML = abrHtml; abrEl.dataset.html = abrHtml; abrEl.classList.toggle('warn', st.abr !== undefined && !st.abr); abrEl.hidden = !abrHtml; }
   // Empfänger: Vorschlag aus den Projektdaten, solange nicht selbst geändert
   const vorschlag = abVorschlag();
   vorschlag.forEach((v, i) => {
@@ -1938,7 +1995,10 @@ async function abUebergeben(p){
   try{
     const r = await BueroAufgaben.projektLesen(p.handle);
     if (r.aufgaben.some(abOffen) && !confirm('Es ist schon ein Gutachten beim Büro offen. Trotzdem ein weiteres übergeben?')){ st.busy = false; zeigen(); return; }
-    await BueroAufgaben.aufgabeAnlegen(p.handle, { art: 'gutachten', titel: 'Gutachten', von, word: abWordWahl(st, d), faellig: d.faellig || '', hinweis: d.hinweis, empfaenger });
+    const word = abWordWahl(st, d);
+    const anlagen = [...(st.anl || []).filter(x => x.rel !== word && (d.anl[x.rel] === undefined ? x.vorschlag : d.anl[x.rel])).map(x => x.rel),
+      ...String(d.anlText || '').split(/[;\n]/).map(x => x.trim()).filter(Boolean)];
+    await BueroAufgaben.aufgabeAnlegen(p.handle, { art: 'gutachten', titel: 'Gutachten', von, word, faellig: d.faellig || '', hinweis: d.hinweis, empfaenger, anlagen });
     ok = true;
     AB_ENTWURF.delete(p.name);
     st.msg = '✓ Ans Büro übergeben – erscheint jetzt in BüroKit'; st.msgErr = false;
