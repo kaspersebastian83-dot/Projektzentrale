@@ -2,7 +2,13 @@
 
 Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung.
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.30.3** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.31.0** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Neu in 1.31.0 · 28.10.2026
+
+- **„Ans Büro“ mit Anlagen und Abrechnung:** Anlagen zum Anhaken (Mitteilungen, PDFs in Fotos, Pläne, PDFs in Laborergebnisse; Dateien mit „Anlage“/„Bilddokumentation“ im Namen und PDFs in Fotos vorgeschlagen) plus Freitext für weitere Anlagen. Darunter, ob es einen BelegKit-Stand gibt – sonst Knopf zu BelegKit („Stand speichern“). Gespeichert als `anlagen` in der Aufgabe.
+- **Rechnung beim Büro:** Das Büro hakt in BüroKit 1.1 nach dem Versand „Rechnung“ ab (nach dem neuesten BelegKit-Stand). Stufe 6 „Abrechnung“ wartet nach dem Versand auf das Büro und ist fertig, sobald „Rechnung“ abgehakt ist; ohne Stand bist du dran. Frühere Übergaben (ohne Rechnungsschritt) wie bisher. „erledigt“ bleibt „versandt“ – Durchlaufzeiten und Auslastung unverändert.
+- `buero-aufgaben.js` byte-gleich mit BüroKit 1.1.0.
 
 ## Neu in 1.30.3 · 27.10.2026
 

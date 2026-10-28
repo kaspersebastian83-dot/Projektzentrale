@@ -205,7 +205,7 @@ if(!before){
  const auf=JSON.parse(await fs.readFile(path.join(tmp,B,'_Buero','aufgaben',aufgaben[0]),'utf8')),bId=auf.id;
  assert.equal(auf.format,'spektron-buerokit');assert.equal(auf.art,'gutachten');assert.equal(auf.von,'SK');assert.equal(auf.word,'Mitteilungen/Gutachten B.docx');assert.equal(auf.faellig,'2026-11-03');assert.equal(auf.hinweis,'Bitte zuerst an die Versicherung.');assert.equal(auf.projekt.name,B);
  assert.deepEqual(auf.empfaenger.map(({gruppe,label,details})=>({gruppe,label,details})),[{gruppe:'versicherung',label:'Auftraggeber',details:'Bestätigter Empfänger B'}]);
- await page.locator(`[data-ab-aufgabe="${bId}"]`).filter({hasText:/^Gutachten beim Büro · übergeben \d\d\.\d\d\. von SK · noch offen: Gegenlesen · PDF · Versand · fällig 03\.11\.$/}).waitFor();
+ await page.locator(`[data-ab-aufgabe="${bId}"]`).filter({hasText:/^Gutachten beim Büro · übergeben \d\d\.\d\d\. von SK · noch offen: Gegenlesen · PDF · Versand · Rechnung · fällig 03\.11\.$/}).waitFor();
  assert.ok(!await page.locator('[data-ab-form]').evaluate(e=>e.open),'nach der Übergabe zu');assert.equal(await page.locator('[data-ab-hinweis]').inputValue(),'','Formular frisch');
  assert.ok(await page.locator('#vtBox .vtAn').first().isDisabled(),'jetzt gilt der Versand in BüroKit');
  await page.waitForFunction(()=>/Gutachten übergeben \d\d\.\d\d\./.test(document.querySelector('[data-stufe=gutachten] [data-stext]').textContent),null,{timeout:10000});
@@ -214,7 +214,7 @@ if(!before){
  const buero=(f,...a)=>page.evaluate(async([f,a])=>{const p=await new SharedDirectoryHandle('').getDirectoryHandle('26.9999 Kontrollort');return BueroAufgaben[f](p,...a);},[f,a]);
  await buero('vermerken',{aufgabe:bId,schritt:'uebernommen',von:'Nad'});await buero('vermerken',{aufgabe:bId,schritt:'gegenlesen',von:'Nad'});
  await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
- await page.locator(`[data-ab-aufgabe="${bId}"]`).filter({hasText:'noch offen: PDF · Versand · fällig 03.11. · in Arbeit bei Nad'}).waitFor();
+ await page.locator(`[data-ab-aufgabe="${bId}"]`).filter({hasText:'noch offen: PDF · Versand · Rechnung · fällig 03.11. · in Arbeit bei Nad'}).waitFor();
  // Rückfrage beantworten: ein Vermerk „antwort“ mit Kürzel, danach ist sie weg
  await buero('vermerken',{aufgabe:bId,schritt:'frage',von:'Nad',text:'Welche Fassung soll raus?'});
  await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await page.locator('#bueroAttention').filter({hasText:'Welche Fassung soll raus?'}).waitFor();
@@ -236,9 +236,13 @@ if(!before){
  await buero('vermerken',{aufgabe:bId,schritt:'pdf',von:'Nad',pdf:'Mitteilungen/Gutachten B.pdf'});
  for(const r of auf.empfaenger)await buero('vermerken',{aufgabe:bId,schritt:'versand',von:'Nad',empfaenger:r.id,datum:'2026-10-27'});
  await buero('aufgabeAnlegen',{art:'eigene',titel:'Laborrechnung prüfen',von:'Nad',faellig:'2026-10-30'});
- await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await page.locator('[data-ab-erledigt]').waitFor();
+ // versandt: noch nicht fertig – Rechnung beim Büro (BüroKit 1.1); nach dem Haken „Rechnung“ erledigt und abgerechnet
+ await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await page.locator('[data-ab-rechnung]').waitFor();
  assert.equal(await page.locator('#bueroPanel [data-ab-aufgabe]').count(),0);
- assert.match(await page.locator('[data-ab-erledigt]').innerText(),/^Gutachten erledigt am \d\d\.\d\d\.\d{4}$/);
+ assert.match(await page.locator('[data-ab-rechnung]').innerText(),/^Gutachten versandt \d\d\.\d\d\.\d{4} · Rechnung beim Büro noch offen/);
+ await buero('vermerken',{aufgabe:bId,schritt:'rechnung',von:'Nad'});
+ await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await page.locator('[data-ab-erledigt]').waitFor();
+ assert.match(await page.locator('[data-ab-erledigt]').innerText(),/^Gutachten erledigt am \d\d\.\d\d\.\d{4} · abgerechnet \d\d\.\d\d\.\d{4} \(Nad\)$/);
  assert.equal(await page.locator('[data-ab-eigene]').innerText(),'Büro-Aufgaben: Laborrechnung prüfen (fällig 30.10.)');
  assert.ok(!await page.locator('[data-ab-form]').evaluate(e=>e.open),'versandt: Formular zu');assert.ok(await page.locator('#goUebergabe').isVisible(),'kein Gutachten mehr offen: Übergabe (Nachtrag) wieder möglich');
  assert.match(await stext('buero'),/^Versandt \d\d\.\d\d\.$/);
