@@ -1203,7 +1203,15 @@ const S = { archive: null, ma: null, projects: [], others: [], sel: null, year: 
 /* ---------- Spektron-Ordner (spektron-ordner.js, byte-gleich in allen Projekt-Apps) ----------
    Wo liegen die App-Daten eines Projekts? Künftig in „<Projekt>/_Spektron/…“. Solange ein Projekt keinen „_Spektron“-Ordner hat
    und UMSTELLUNG aus ist, liefert SpektronOrdner.ort() überall den bisherigen Ort – also genau das bisherige Verhalten. */
-const SO = window.SpektronOrdner;
+/* Falls spektron-ordner.js nicht geladen wurde (z. B. veralteter Offline-Zwischenspeicher): überall der bisherige Ort. */
+const SO_ALT = { projekt: [], fotokit: ['Fotos'], fotokitPruefsummen: ['Fotos'], labelkit: ['Laboraufträge'], labelkitAblage: ['Feldprotokolle'],
+  resultkit: ['Laborergebnisse'], plankit: ['Pläne'], belegkit: ['Abrechnung'], buero: ['_Buero'], anlagenProtokoll: ['Mitteilungen'] };
+const SO = window.SpektronOrdner || { ORDNER: '_Spektron', AB: '26.0560', projektKey: () => null, istSpektronProjekt: async () => false, umzugListe: async () => [],
+  async ort(projDir, bereich, o){ let d = projDir; const pfad = SO_ALT[bereich] || [];
+    for (const teil of pfad){ let h = null; for await (const x of d.values()) if (x.kind === 'directory' && x.name.normalize('NFC').toLowerCase() === teil.toLowerCase()){ h = x; break; }
+      if (!h && !(o && o.anlegen)) return { dir: null, wo: 'alt', pfad: pfad.join('/'), konflikt: false, umgezogen: false, bereich };
+      d = h ? await d.getDirectoryHandle(h.name) : await d.getDirectoryHandle(teil, { create: true }); }
+    return { dir: d, wo: 'alt', pfad: pfad.join('/'), konflikt: false, umgezogen: false, bereich }; } };
 /** Ordner der Projektdaten (_Projekt.json, _Projekt_Sicherungen). anlegen: zum Schreiben (legt den Ordner an, falls nötig). */
 async function pjDir(p, anlegen){ return (await SO.ort(p.handle, 'projekt', { anlegen: !!anlegen })).dir; }
 
@@ -1338,7 +1346,7 @@ function auZaehlen(){
    sie beim Umzug gehören (SpektronOrdner.umzugListe). Es wird nichts angelegt, verschoben oder gelöscht. */
 async function umzugVorschau(){
   if (!S.archive) return;
-  const kandidaten = S.projects.filter(p => (SO.projektKey(p.name) ?? -1) >= SO.projektKey(SO.AB) || (p.st && p.st.spektronDa));
+  const kandidaten = [];   // ab 26.0560 oder mit „_Spektron“ – direkt geprüft, unabhängig vom Ordnerscan im Hintergrund
   const zeile = (p, x) => `<tr><td>${esc(p.name)}</td><td>${esc(x.app)}</td><td><code>${esc(x.von || '(Projektordner)')}</code> → <code>${esc(x.nach)}</code></td><td>${x.eintraege.map(e => esc(e.name) + (e.art === 'directory' ? '/' : '')).join('<br>')}</td></tr>`;
   const zeichnen = (ergebnis, offen, fehler) => {
     const n = ergebnis.reduce((a, r) => a + r.liste.reduce((b, x) => b + x.eintraege.length, 0), 0);
@@ -1354,6 +1362,9 @@ async function umzugVorschau(){
     $('umzugZu').onclick = closeDialog;
   };
   const ergebnis = [], fehler = [];
+  showDialog('<h3>Spektron-Ordner – Vorschau</h3><div class="m" role="status">Projekte werden gelesen …</div><div class="btns"><button id="umzugZu" class="primary">Schließen</button></div>');
+  $('umzugZu').onclick = closeDialog;
+  for (const p of S.projects){ try{ if (await SO.istSpektronProjekt(p.handle)) kandidaten.push(p); }catch(e){ fehler.push(p.name); } if (!$('umzugZu')) return; }
   zeichnen(ergebnis, kandidaten.length, fehler);
   for (const p of kandidaten){
     try{ ergebnis.push({ p, liste: await SO.umzugListe(p.handle) }); }catch(e){ fehler.push(p.name); }
@@ -1547,7 +1558,7 @@ async function listProjects(){
     Dateistand wie in ResultKit (und FotoKit/PlanKit): XML/PDF in „Laborergebnisse“ und die neueste LabelKit-Datei in „Laboraufträge“ –
     weicht er vom übernommenen ab, wurde danach etwas geändert. */
 const standKennung = dateien => [...dateien].sort((a, b) => a.name.localeCompare(b.name)).map(d => `${d.name}|${d.size}|${d.t}`).join('\n');
-async function laborStand(dir, auftraege, auftraegePfad, ergebnisDir){
+async function laborStand(dir, auftraege, ergebnisDir){
   const namen = new Set(), berichtDateien = []; let ergebnisse = null, uebernommen = '';
   const ergebnisDatei = [];
   for await (const f of dir.values()){
@@ -1566,7 +1577,7 @@ async function laborStand(dir, auftraege, auftraegePfad, ergebnisDir){
   if (ergebnisse && !ergebnisse.fehler) try{
     const stand = [];
     for (const f of berichtDateien){ const d = await f.getFile(); stand.push({ name: f.name, size: d.size, t: d.lastModified }); }
-    if (auftraege){ let neu = null; for await (const h of auftraege.values()) if (h.kind === 'file' && /_Daten\.json$/i.test(h.name)){ const d = await h.getFile(); if (!neu || d.lastModified > neu.t) neu = { name: (auftraegePfad || 'Laboraufträge') + '/' + h.name, size: d.size, t: d.lastModified }; } if (neu) stand.push(neu); }
+    if (auftraege){ let neu = null; for await (const h of auftraege.values()) if (h.kind === 'file' && /_Daten\.json$/i.test(h.name)){ const d = await h.getFile(); if (!neu || d.lastModified > neu.t) neu = { name: 'Laboraufträge/' + h.name, size: d.size, t: d.lastModified }   /* feste Kennung wie in ResultKit – bleibt nach dem Umzug nach „_Spektron“ gleich */; } if (neu) stand.push(neu); }
     ergebnisse.veraltet = standKennung(stand) !== uebernommen;
   }catch(e){ /* Dateistand nicht lesbar: Karte wie bisher nach der Ergebnisdatei */ }
   return { berichte: namen.size, ergebnisse };
@@ -1662,7 +1673,7 @@ async function scanProject(p){
     if (st.spektronDa) await spektronUeberlagern(p, st);
     // nach der Schleife: der Stand braucht auch „Laboraufträge“ (LabelKit-Datei, ggf. am neuen Ort)
     const la = st.subs.labauf;
-    if (st.subs.laberg) Object.assign(st.subs.laberg, await laborStand(st.subs.laberg.handle, la && (la.datenDir || la.handle), la && la.datenPfad, st.ergebnisDir));   // Pfad nur am neuen Ort – sonst wie ResultKit „Laboraufträge/…“
+    if (st.subs.laberg) Object.assign(st.subs.laberg, await laborStand(st.subs.laberg.handle, la && (la.datenDir || la.handle), st.ergebnisDir));
   }catch(e){ st.err = e.message; }
   return st;
 }
