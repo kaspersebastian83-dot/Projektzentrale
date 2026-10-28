@@ -151,7 +151,8 @@ function zustand(projekt, aufgabe, alleVermerke){
   const schritteFertig = aufgabe.art === 'gutachten' && !!gegenlesen && !!pdf && aufgabe.empfaenger.every(r => versand[r.id]);
   const erledigt = ausdruecklich ? ausdruecklich.wert : schritteFertig;
   const geloescht = !!(letzter.get('geloescht') || {}).wert;
-  const relevant = verlauf.filter(v => v.schritt !== 'frage' && v.schritt !== 'antwort' && v.schritt !== 'faellig');
+  // „erledigt“ heißt versandt: der spätere Rechnungs-Haken verschiebt den Erledigt-Zeitpunkt nicht (Durchlaufzeiten bleiben gleich)
+  const relevant = verlauf.filter(v => v.schritt !== 'frage' && v.schritt !== 'antwort' && v.schritt !== 'faellig' && v.schritt !== 'rechnung');
   const erledigtAm = erledigt ? (ausdruecklich && ausdruecklich.wert ? ausdruecklich.zeit : (relevant[relevant.length - 1] || {}).zeit || aufgabe.erstellt) : '';
   const rechnungNoetig = aufgabe.art === 'gutachten' && !aufgabe.alt, rechnung = rechnungNoetig ? haken('rechnung') : null;
   const abgeschlossen = !geloescht && erledigt && (!rechnungNoetig || !!rechnung);
