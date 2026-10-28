@@ -8,9 +8,9 @@
    This worker therefore only ever touches caches with its own prefix and only answers requests inside its own scope. */
 const SCOPE = self.registration.scope;
 const PREFIX = 'projektzentrale:' + SCOPE + ':';
-const CACHE = PREFIX + 'v24';
+const CACHE = PREFIX + 'v25';
 const LEGACY = [];
-const ASSETS = ['./', './index.html', './project-store.js', './durchlauf.js', './buero-aufgaben.js', './stufen.js', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png',
+const ASSETS = ['./', './index.html', './spektron-ordner.js', './project-store.js', './durchlauf.js', './buero-aufgaben.js', './stufen.js', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png',
   './buero/', './buero/index.html',   // nur noch Weiterleitung zu BüroKit
   './archiv/', './archiv/index.html', './archiv/auswertung.js', './archiv/lesen.js', './archiv/archiv.js', './archiv/archiv.css',
   './vendor/pdfjs/pdf.min.js', './vendor/pdfjs/pdf.worker.min.js']   // pdf.js für „Arbeitszettel einlesen“ – auch offline
