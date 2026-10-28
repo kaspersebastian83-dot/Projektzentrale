@@ -53,10 +53,16 @@
       if (/\.xml$/i.test(h.name)){ const f = await h.getFile(); b.xml.push({ h, name: h.name, size: f.size, t: f.lastModified }); }
       else if (/\.pdf$/i.test(h.name)) b.pdf++;
     } };
+    let spektronDa = false;
     for await (const h of dir.values()){
       if (h.kind === 'file' && h.name === PJ){ const f = await h.getFile(); b.pj = { h, size: f.size, t: f.lastModified }; }
       else if (h.kind === 'directory' && norm(h.name) === 'laborergebnisse') await labor(h, 0);
+      else if (h.kind === 'directory' && norm(h.name) === 'spektron') spektronDa = true;
     }
+    // Projektdaten am neuen Ort „_Spektron“ (spektron-ordner.js entscheidet, welcher Ort gilt)
+    const SO = root.SpektronOrdner;
+    if (spektronDa && SO){ const r = await SO.ort(dir, 'projekt');
+      if (r.wo === 'neu'){ b.pj = null; if (r.dir) for await (const h of r.dir.values()) if (h.kind === 'file' && h.name === PJ){ const f = await h.getFile(); b.pj = { h, size: f.size, t: f.lastModified }; } } }
     b.xml.sort((x, y) => x.name.localeCompare(y.name));
     b.sig = JSON.stringify(['v2', b.pj && [b.pj.size, b.pj.t], b.xml.map(x => [x.name, x.size, x.t]), b.pdf]);
     return b;

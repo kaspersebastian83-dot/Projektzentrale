@@ -432,6 +432,7 @@ summary.stufe-kopf::-webkit-details-marker{display:none}
 .appbar .brand{min-width:0;overflow:hidden}
 @media (max-width:860px){ .appbar{gap:8px;padding:0 10px} .appbar .brand small{display:none} .hbadge.help{padding:4px 7px} #btnHelp{font-size:0} #btnHelp b{font-size:11px;margin:0} .hstatus{max-width:110px} }
 </style>
+<script src="spektron-ordner.js"></script>
 <script src="project-store.js"></script>
 <script src="durchlauf.js"></script>
 <script src="buero-aufgaben.js"></script>
@@ -456,6 +457,7 @@ summary.stufe-kopf::-webkit-details-marker{display:none}
         <div class="mh">Büro</div>
         <button id="btnMa" disabled title="Mitarbeiterliste: Kürzel am Ende der Projektordner und die zugehörigen Namen">👥 Mitarbeiter</button>
         <button id="btnAusl" disabled title="Offene Projekte je Person: in Bearbeitung, beim Büro, Rückfrage">📊 Auslastung</button>
+        <button id="btnUmzug" disabled title="Vorschau: welche App-Dateien in den Ordner „_Spektron“ des Projekts umziehen – es wird nichts verschoben">🗂 Spektron-Ordner (Vorschau)</button>
         <div id="mehrApps"></div>
       </div>
     </div>
@@ -932,9 +934,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.31.0';
+const APP_VERSION = '1.32.0';
 const APP_DATE = '2026-10-28';
 const CHANGELOG = [
+  ['1.32.0', '28.10.2026', 'Vorbereitung „Spektron-Ordner“: Die App-Daten eines Projekts ziehen später in den Unterordner „_Spektron“ (Fotos, Pläne, Laborberichte, Anlagen und CSV bleiben, wo sie sind). Die Projektzentrale findet Projektdaten, Probenerfassung, Fotobearbeitung, Plan, Laborergebnisse und Abrechnungsstände jetzt an beiden Orten. Neu unter „⋯ Mehr“: „Spektron-Ordner (Vorschau)“ zeigt, was umziehen würde – es wird noch nichts verschoben. Sonst ändert sich nichts.'],
   ['1.31.0', '28.10.2026', 'Übergabe ans Büro mit allem, was das Büro für Versand und Rechnung braucht: Unter „Ans Büro“ stehen jetzt die Anlagen zum Anhaken (Bilddokumentation in „Fotos“, Anlagen in „Mitteilungen“, Pläne, Prüfberichte – Dateien mit „Anlage“ oder „Bilddokumentation“ im Namen sind vorgeschlagen) plus ein Feld für weitere Anlagen, und ob es einen Abrechnungsstand aus BelegKit gibt (sonst Knopf zu BelegKit). Das Büro sieht Anlagen und Abrechnung in BüroKit 1.1 und hakt nach dem Versand „Rechnung“ ab. Stufe 6 „Abrechnung“: wartet nach dem Versand auf die Rechnung des Büros und ist fertig, sobald das Büro „Rechnung“ abgehakt hat; fehlt der Abrechnungsstand, bist du dran. Frühere Übergaben wie bisher.'],
   ['1.30.3', '27.10.2026', 'Stufe Labor: Ging das Gutachten ans Büro, während das Labor nur einen Zwischenstand hatte, stand dort „Keine Prüfberichte im Ordner – übersprungen“. Jetzt steht der eigene Stand, z. B. „Zwischenstand übernommen · 1 offen beim Labor – nicht abgeschlossen“.'],
   ['1.30.2', '27.10.2026', 'Datenarchiv 1.2: oben ein sichtbarer Hinweis, dass es die Original-XML liest und nicht den in ResultKit übernommenen Stand – für Gutachten gilt ResultKit.'],
@@ -1164,6 +1167,7 @@ const PJ_OPTIONEN = {
     ['Fahrzeug', 'Fahrzeug'], ['Lager/gemischt', 'Lager/gemischt'], ['unbekannt', 'unbekannt']],
 };
 async function readPJ(dir){
+  if (!dir) return { data: {}, exists: false };   // Projektdaten-Ordner gibt es noch nicht (neuer Ort, noch nichts gespeichert)
   try{
     const s = await ProjectStore.read(dir);
     return {data:s.data, exists:s.exists};
@@ -1192,8 +1196,24 @@ function patchPJ(dir, name, patch, expected){
   }, {data:expected,keys:Object.keys(patch)});
 }
 
+
 /* ---------- state ---------- */
 const S = { archive: null, ma: null, projects: [], others: [], sel: null, year: '', q: '', scanToken: 0, pj: null, pjDirty: {}, pjTimer: null, pjWriting: Promise.resolve() };
+
+/* ---------- Spektron-Ordner (spektron-ordner.js, byte-gleich in allen Projekt-Apps) ----------
+   Wo liegen die App-Daten eines Projekts? Künftig in „<Projekt>/_Spektron/…“. Solange ein Projekt keinen „_Spektron“-Ordner hat
+   und UMSTELLUNG aus ist, liefert SpektronOrdner.ort() überall den bisherigen Ort – also genau das bisherige Verhalten. */
+/* Falls spektron-ordner.js nicht geladen wurde (z. B. veralteter Offline-Zwischenspeicher): überall der bisherige Ort. */
+const SO_ALT = { projekt: [], fotokit: ['Fotos'], fotokitPruefsummen: ['Fotos'], labelkit: ['Laboraufträge'], labelkitAblage: ['Feldprotokolle'],
+  resultkit: ['Laborergebnisse'], plankit: ['Pläne'], belegkit: ['Abrechnung'], buero: ['_Buero'], anlagenProtokoll: ['Mitteilungen'] };
+const SO = window.SpektronOrdner || { ORDNER: '_Spektron', AB: '26.0560', projektKey: () => null, istSpektronProjekt: async () => false, umzugListe: async () => [],
+  async ort(projDir, bereich, o){ let d = projDir; const pfad = SO_ALT[bereich] || [];
+    for (const teil of pfad){ let h = null; for await (const x of d.values()) if (x.kind === 'directory' && x.name.normalize('NFC').toLowerCase() === teil.toLowerCase()){ h = x; break; }
+      if (!h && !(o && o.anlegen)) return { dir: null, wo: 'alt', pfad: pfad.join('/'), konflikt: false, umgezogen: false, bereich };
+      d = h ? await d.getDirectoryHandle(h.name) : await d.getDirectoryHandle(teil, { create: true }); }
+    return { dir: d, wo: 'alt', pfad: pfad.join('/'), konflikt: false, umgezogen: false, bereich }; } };
+/** Ordner der Projektdaten (_Projekt.json, _Projekt_Sicherungen). anlegen: zum Schreiben (legt den Ordner an, falls nötig). */
+async function pjDir(p, anlegen){ return (await SO.ort(p.handle, 'projekt', { anlegen: !!anlegen })).dir; }
 
 /* ---------- archive folder ---------- */
 const supported = 'showDirectoryPicker' in window;
@@ -1263,6 +1283,7 @@ function maUi(){
   const ich = lsGet(ICH_KEY), pers = (S.ma && S.ma.personen) || [];
   $('btnMa').disabled = !S.archive;
   $('btnAusl').disabled = !S.archive;
+  $('btnUmzug').disabled = !S.archive;
   $('ich').innerHTML = '<option value="">Ich bin …</option>' + pers.filter(p => p.aktiv !== false || maNorm(p.ordnerKuerzel) === maNorm(ich))
     .map(p => `<option value="${esc(p.ordnerKuerzel)}"${maNorm(p.ordnerKuerzel) === maNorm(ich) ? ' selected' : ''}>${esc(p.name)} (${esc(p.ordnerKuerzel)})</option>`).join('');
   $('ich').disabled = !pers.length;
@@ -1320,6 +1341,36 @@ function auZaehlen(){
   liste.sort((a, b) => (!a.key) - (!b.key) || a.name.localeCompare(b.name, 'de'));
   return { liste, gesamt: projekte.length, offenLesen };
 }
+/* ---------- Spektron-Ordner: Vorschau des Umzugs (nur lesen) ----------
+   Zeigt je Spektron-Projekt (ab 26.0560 oder mit „_Spektron“-Ordner), welche App-Dateien am früheren Ort liegen und wohin
+   sie beim Umzug gehören (SpektronOrdner.umzugListe). Es wird nichts angelegt, verschoben oder gelöscht. */
+async function umzugVorschau(){
+  if (!S.archive) return;
+  const kandidaten = [];   // ab 26.0560 oder mit „_Spektron“ – direkt geprüft, unabhängig vom Ordnerscan im Hintergrund
+  const zeile = (p, x) => `<tr><td>${esc(p.name)}</td><td>${esc(x.app)}</td><td><code>${esc(x.von || '(Projektordner)')}</code> → <code>${esc(x.nach)}</code></td><td>${x.eintraege.map(e => esc(e.name) + (e.art === 'directory' ? '/' : '')).join('<br>')}</td></tr>`;
+  const zeichnen = (ergebnis, offen, fehler) => {
+    const n = ergebnis.reduce((a, r) => a + r.liste.reduce((b, x) => b + x.eintraege.length, 0), 0);
+    showDialog(`<h3>Spektron-Ordner – Vorschau</h3>
+      <div class="m">Künftig liegt alles, was ohne App nicht nutzbar ist, im Ordner <code>${esc(SO.ORDNER)}</code> des Projekts. Fotos, Pläne, Laborberichte, Anlagen und Abrechnungen (CSV) bleiben, wo sie sind.
+      Gilt für Projekte ab ${esc(SO.AB)} und von Hand übernommene. <b>Dies ist nur eine Vorschau – es wird nichts verschoben.</b></div>
+      ${offen ? `<div class="m" role="status">Noch ${offen} von ${kandidaten.length} Projekten werden gelesen …</div>` : ''}
+      ${!offen ? `<div class="m">${kandidaten.length} Spektron-Projekt${kandidaten.length === 1 ? '' : 'e'} · ${n} Eintr${n === 1 ? 'ag' : 'äge'} würde${n === 1 ? '' : 'n'} umziehen.</div>` : ''}
+      ${ergebnis.some(r => r.liste.length) ? `<div style="overflow:auto;max-height:55vh"><table class="ma-tab"><thead><tr><th>Projekt</th><th>App</th><th>Von → nach</th><th>Einträge</th></tr></thead><tbody>
+        ${ergebnis.map(r => r.liste.map(x => zeile(r.p, x)).join('')).join('')}</tbody></table></div>` : (offen ? '' : '<div class="m">Nichts umzuziehen.</div>')}
+      ${fehler.length ? `<div class="warn">Nicht lesbar: ${fehler.map(esc).join(', ')}</div>` : ''}
+      <div class="btns"><button id="umzugZu" class="primary">Schließen</button></div>`);
+    $('umzugZu').onclick = closeDialog;
+  };
+  const ergebnis = [], fehler = [];
+  showDialog('<h3>Spektron-Ordner – Vorschau</h3><div class="m" role="status">Projekte werden gelesen …</div><div class="btns"><button id="umzugZu" class="primary">Schließen</button></div>');
+  $('umzugZu').onclick = closeDialog;
+  for (const p of S.projects){ try{ if (await SO.istSpektronProjekt(p.handle)) kandidaten.push(p); }catch(e){ fehler.push(p.name); } if (!$('umzugZu')) return; }
+  zeichnen(ergebnis, kandidaten.length, fehler);
+  for (const p of kandidaten){
+    try{ ergebnis.push({ p, liste: await SO.umzugListe(p.handle) }); }catch(e){ fehler.push(p.name); }
+    if ($('umzugZu')) zeichnen(ergebnis, kandidaten.length - ergebnis.length - fehler.length, fehler); else return;   // Dialog geschlossen
+  }
+}
 function auDialog(){
   if (!S.archive) return;
   S.au = { wahl: null };
@@ -1360,11 +1411,13 @@ function auZeichnen(){
    des laufenden und vorigen Jahres. Keine Eingabe, keine neue Datei. Gelesenes bleibt bis „Neu einlesen“ gemerkt. */
 async function dlLesen(p){
   const r = { pj: {}, auftraege: [], ergebnisse: [], buero: [], abrechnung: [] };
+  const aufwand = /_Aufwand_\d{4}-\d{2}-\d{2}(?:_\d+)?\.json$/i; let spektronDa = false;
   for await (const h of p.handle.values()){
+    if (h.kind === 'directory' && norm(h.name) === norm(SO.ORDNER)){ spektronDa = true; continue; }
     // Eine unlesbare Projektdatei oder beschädigte Büroübergaben: Projekt nicht mitzählen (Zeile „nicht lesbar“), statt mit Teildaten zu rechnen.
     if (h.kind === 'file'){ if (h.name === PJ_FILE) r.pj = JSON.parse(await (await h.getFile()).text()) || {}; continue; }
     if (h.name === BueroAufgaben.DIR){ const b = await BueroAufgaben.projektLesen(p.handle); if (b.fehler.length) throw Error('Büroaufgaben nicht vollständig lesbar'); r.buero = BueroAufgaben.alsDurchlauf(b.aufgaben); continue; }
-    if (norm(h.name) === norm('Abrechnung')){ for await (const f of h.values()) if (f.kind === 'file' && /_Aufwand_\d{4}-\d{2}-\d{2}(?:_\d+)?\.json$/i.test(f.name)) r.abrechnung.push({ name: f.name, lastModified: (await f.getFile()).lastModified }); continue; }
+    if (norm(h.name) === norm('Abrechnung')){ for await (const f of h.values()) if (f.kind === 'file' && aufwand.test(f.name)) r.abrechnung.push({ name: f.name, lastModified: (await f.getFile()).lastModified }); continue; }
     const sub = SUBS.find(x => norm(x[1]) === norm(h.name)), key = sub && sub[0];
     if (key !== 'labauf' && key !== 'laberg') continue;
     for await (const f of h.values()){
@@ -1374,6 +1427,12 @@ async function dlLesen(p){
       if (key === 'laberg' && /\.xml$/i.test(f.name)) try{ if (/<(\w+:)?AnalyticalReport\b/.test(await file.slice(0, 4000).text())) e.labor = 'Eurofins'; }catch(_){}
       (key === 'labauf' ? r.auftraege : r.ergebnisse).push(e);
     }
+  }
+  if (spektronDa){   // Projektdaten und BelegKit-Stände am neuen Ort (spektron-ordner.js)
+    const pj = await SO.ort(p.handle, 'projekt');
+    if (pj.wo === 'neu'){ r.pj = {}; if (pj.dir) for await (const f of pj.dir.values()) if (f.kind === 'file' && f.name === PJ_FILE) r.pj = JSON.parse(await (await f.getFile()).text()) || {}; }
+    const bk = await SO.ort(p.handle, 'belegkit');
+    if (bk.wo === 'neu'){ r.abrechnung = []; if (bk.dir) for await (const f of bk.dir.values()) if (f.kind === 'file' && aufwand.test(f.name)) r.abrechnung.push({ name: f.name, lastModified: (await f.getFile()).lastModified }); }
   }
   return Durchlauf.projekt(r);
 }
@@ -1499,23 +1558,26 @@ async function listProjects(){
     Dateistand wie in ResultKit (und FotoKit/PlanKit): XML/PDF in „Laborergebnisse“ und die neueste LabelKit-Datei in „Laboraufträge“ –
     weicht er vom übernommenen ab, wurde danach etwas geändert. */
 const standKennung = dateien => [...dateien].sort((a, b) => a.name.localeCompare(b.name)).map(d => `${d.name}|${d.size}|${d.t}`).join('\n');
-async function laborStand(dir, auftraege){
+async function laborStand(dir, auftraege, ergebnisDir){
   const namen = new Set(), berichtDateien = []; let ergebnisse = null, uebernommen = '';
+  const ergebnisDatei = [];
   for await (const f of dir.values()){
     if (f.kind !== 'file') continue;
     if (/\.(xml|pdf)$/i.test(f.name)){ namen.add(f.name.replace(/\.(xml|pdf)$/i, '').normalize('NFC').toLowerCase()); berichtDateien.push(f); }
-    if (f.name === '_Ergebnisse.json'){
-      try{
-        const o = JSON.parse(await (await f.getFile()).text());
-        if (!o || o.format !== 'spektron-ergebnisse' || o.version !== 1) throw Error('keine ResultKit-Ergebnisdatei in Version 1');
-        ergebnisse = { vollstaendig: !!o.vollstaendig, offen: Array.isArray(o.offen) ? o.offen.length : 0 }; uebernommen = typeof o.stand === 'string' ? o.stand : '';
-      }catch(e){ ergebnisse = { vollstaendig: false, offen: 0, fehler: true }; }
-    }
+    if (!ergebnisDir && f.name === '_Ergebnisse.json') ergebnisDatei.push(f);
+  }
+  if (ergebnisDir) for await (const f of ergebnisDir.values()) if (f.kind === 'file' && f.name === '_Ergebnisse.json') ergebnisDatei.push(f);   // ResultKit am neuen Ort
+  for (const f of ergebnisDatei){
+    try{
+      const o = JSON.parse(await (await f.getFile()).text());
+      if (!o || o.format !== 'spektron-ergebnisse' || o.version !== 1) throw Error('keine ResultKit-Ergebnisdatei in Version 1');
+      ergebnisse = { vollstaendig: !!o.vollstaendig, offen: Array.isArray(o.offen) ? o.offen.length : 0 }; uebernommen = typeof o.stand === 'string' ? o.stand : '';
+    }catch(e){ ergebnisse = { vollstaendig: false, offen: 0, fehler: true }; }
   }
   if (ergebnisse && !ergebnisse.fehler) try{
     const stand = [];
     for (const f of berichtDateien){ const d = await f.getFile(); stand.push({ name: f.name, size: d.size, t: d.lastModified }); }
-    if (auftraege){ let neu = null; for await (const h of auftraege.values()) if (h.kind === 'file' && /_Daten\.json$/i.test(h.name)){ const d = await h.getFile(); if (!neu || d.lastModified > neu.t) neu = { name: 'Laboraufträge/' + h.name, size: d.size, t: d.lastModified }; } if (neu) stand.push(neu); }
+    if (auftraege){ let neu = null; for await (const h of auftraege.values()) if (h.kind === 'file' && /_Daten\.json$/i.test(h.name)){ const d = await h.getFile(); if (!neu || d.lastModified > neu.t) neu = { name: 'Laboraufträge/' + h.name, size: d.size, t: d.lastModified }   /* feste Kennung wie in ResultKit – bleibt nach dem Umzug nach „_Spektron“ gleich */; } if (neu) stand.push(neu); }
     ergebnisse.veraltet = standKennung(stand) !== uebernommen;
   }catch(e){ /* Dateistand nicht lesbar: Karte wie bisher nach der Ergebnisdatei */ }
   return { berichte: namen.size, ergebnisse };
@@ -1556,6 +1618,26 @@ function stufenAusScan(p){
   const f = faktenAusScan(p);
   return f ? Stufen.berechnen(f) : null;
 }
+/** _Projekt.json im Scan (nur Liste und „Meine Projekte“): manuelle Zuständigkeit, Pflichtangaben, Merkmal „spektron“. */
+async function pjAusScan(st, h){
+  try{ const o = JSON.parse(await (await h.getFile()).text()); if (o && o.zustaendig && typeof o.zustaendig === 'object') st.zust = o.zustaendig; if (o){ st.pjFakten = pjFakten(o); st.spektron = o.spektron === true; } }catch(e){}
+}
+/** Projekt mit „_Spektron“-Ordner: was laut SpektronOrdner.ort() am neuen Ort liegt, von dort lesen und den Scan des
+    früheren Orts dafür ersetzen. Ohne „_Spektron“ wird diese Funktion nicht aufgerufen (dann gilt überall der frühere Ort). */
+async function spektronUeberlagern(p, st){
+  const neu = async b => { const r = await SO.ort(p.handle, b); return r.wo === 'neu' && r.dir ? r : null; };
+  const leer = key => ({ handle: null, ohneOrdner: true, name: (SUBS.find(s => s[0] === key) || [key, key])[1], files: 0, images: 0, pdfDoc: [], probenplan: 0, sicherungen: 0, daten: [], bu: false, berichte: 0, ergebnisse: null });
+  const dateien = async (dir, re) => { const n = []; for await (const f of dir.values()) if (f.kind === 'file' && re.test(f.name)) n.push(f.name); return n; };
+  let r;
+  if ((r = await neu('projekt'))){ st.pj = false; delete st.zust; delete st.pjFakten; delete st.spektron;
+    for await (const h of r.dir.values()) if (h.kind === 'file' && h.name === PJ_FILE){ st.pj = true; await pjAusScan(st, h); } }
+  if ((r = await neu('fotokit')) && st.subs.fotos) st.subs.fotos.bu = (await dateien(r.dir, /^_Bildumbenenner\.json$/)).length > 0;
+  if ((r = await neu('labelkit'))){ const la = st.subs.labauf || (st.subs.labauf = leer('labauf')); la.daten = await dateien(r.dir, /_Daten\.json$/i); la.datenDir = r.dir; la.datenPfad = r.pfad; }
+  if ((r = await neu('plankit'))){ const pl = st.subs.plaene || (st.subs.plaene = leer('plaene')); pl.probenplan = 0; pl.sicherungen = 0;
+    for (const n of await dateien(r.dir, /\.probenplan$/i)){ if (/ \((vorher|Wiederherstellung|Speicherkandidat|Kopie)\b[^)]*\)\.probenplan$/i.test(n)) pl.sicherungen++; else pl.probenplan++; } }
+  if ((r = await neu('resultkit'))) st.ergebnisDir = r.dir;
+  if ((r = await neu('belegkit'))){ st.abrechnung = ''; for (const n of await dateien(r.dir, /_Aufwand_\d{4}-\d{2}-\d{2}(?:_\d+)?\.json$/i)){ const m = n.match(/_Aufwand_(\d{4}-\d{2}-\d{2})/i); if (m[1] > st.abrechnung) st.abrechnung = m[1]; } if (!st.abrechnung) delete st.abrechnung; }
+}
 async function scanProject(p){
   const st = { subs: {}, extra: [], pj: false, err: '' };
   try{
@@ -1564,10 +1646,11 @@ async function scanProject(p){
         if (h.name === PJ_FILE){
           st.pj = true;
           // Nur für Liste und „Meine Projekte“: manuelle Zuständigkeit; maßgeblich bleibt das frische Lesen beim Öffnen.
-          try{ const o = JSON.parse(await (await h.getFile()).text()); if (o && o.zustaendig && typeof o.zustaendig === 'object') st.zust = o.zustaendig; if (o){ st.pjFakten = pjFakten(o); st.spektron = o.spektron === true; } }catch(e){}
+          await pjAusScan(st, h);
         }
         continue;
       }
+      if (norm(h.name) === norm(SO.ORDNER)){ st.spektronDa = true; continue; }   // App-Daten am neuen Ort: nach der Schleife (spektronUeberlagern)
       if (h.name === BueroAufgaben.DIR){ st.bueroDa = true; const b = await BueroAufgaben.projektLesen(p.handle); st.buero = auBueroPhase({ records: BueroAufgaben.alsDurchlauf(b.aufgaben), errors: b.fehler }); st.bueroFakten = bueroFakten(b.aufgaben, b.fehler); }
       // BelegKit: Datum des letzten gespeicherten Abrechnungsstands (aus dem Dateinamen …_Aufwand_JJJJ-MM-TT.json)
       if (norm(h.name) === norm('Abrechnung')){ for await (const f of h.values()){ const m = f.kind === 'file' && f.name.match(/_Aufwand_(\d{4}-\d{2}-\d{2})(?:_\d+)?\.json$/i); if (m && (!st.abrechnung || m[1] > st.abrechnung)) st.abrechnung = m[1]; } }
@@ -1587,8 +1670,10 @@ async function scanProject(p){
       }
       st.subs[sub[0]] = info;
     }
-    // nach der Schleife: der Stand braucht auch „Laboraufträge“
-    if (st.subs.laberg) Object.assign(st.subs.laberg, await laborStand(st.subs.laberg.handle, st.subs.labauf && st.subs.labauf.handle));
+    if (st.spektronDa) await spektronUeberlagern(p, st);
+    // nach der Schleife: der Stand braucht auch „Laboraufträge“ (LabelKit-Datei, ggf. am neuen Ort)
+    const la = st.subs.labauf;
+    if (st.subs.laberg) Object.assign(st.subs.laberg, await laborStand(st.subs.laberg.handle, la && (la.datenDir || la.handle), st.ergebnisDir));
   }catch(e){ st.err = e.message; }
   return st;
 }
@@ -1756,7 +1841,8 @@ async function selectProject(p){
   if ($('heuteLink')) $('heuteLink').classList.remove('active');
   $('list').querySelectorAll('.proj').forEach(el => { el.classList.toggle('active', el.dataset.name === p.name); el.setAttribute('aria-pressed', String(el.dataset.name === p.name)); });
   if (!p.st){ p.scanning = true; p.st = await scanProject(p); p.scanning = false; updateRow(p); }
-  S.pj = await readPJ(p.handle);
+  S.pjDirH = await pjDir(p);   // Ordner der Projektdaten (für „Gespeicherte Fassungen“)
+  S.pj = await readPJ(S.pjDirH);
   if (S.sel !== p) return;
   renderDetail();
   meilensteineLaden(p);
@@ -1826,7 +1912,7 @@ async function abAnlagenLesen(p){
 }
 /** Neuester BelegKit-Stand (nur Name und Datum) – das Büro rechnet danach ab. null: keiner, undefined: nicht lesbar. */
 async function abAbrechnungLesen(p){
-  let dir; try{ dir = await p.handle.getDirectoryHandle('Abrechnung'); }catch(e){ return null; }
+  const dir = (await SO.ort(p.handle, 'belegkit')).dir; if (!dir) return null;   // früher immer „Abrechnung“, künftig ggf. „_Spektron/BelegKit“
   let best = null;
   for await (const f of dir.values()){ const m = f.kind === 'file' && /_Aufwand_(\d{4}-\d{2}-\d{2})(?:_(\d+))?\.json$/i.exec(f.name);
     if (m && (!best || m[1] > best.datum || (m[1] === best.datum && +(m[2] || 1) > best.n))) best = { datei: f.name, datum: m[1], n: +(m[2] || 1) }; }
@@ -2029,6 +2115,7 @@ function folderRows(p){
   return SUBS.map(([key, , label]) => {
     const i = s[key];
     if (!i) return `<tr><td>${esc(label)}</td><td class="miss">fehlt</td></tr>`;
+    if (i.ohneOrdner) return `<tr><td>${esc(label)}</td><td><span class="miss">fehlt</span>${key === 'labauf' && i.daten.length ? ` · <span class="ok">Probenerfassung: ${i.daten.map(esc).join(', ')}</span>` : ''}${key === 'plaene' && i.probenplan ? ' · <span class="ok">Probenplan</span>' : ''}</td></tr>`;
     let t = `${i.files} Datei${i.files === 1 ? '' : 'en'}`;
     if (key === 'fotos'){
       t = `${i.images} Bild${i.images === 1 ? '' : 'er'}` + (i.bu ? ' · Fotobearbeitung begonnen' : '') +
@@ -2203,9 +2290,9 @@ function renderDetail(){
   if ($('mkSubs')) $('mkSubs').onclick = () => makeSubs(p);
   bueroZeigen(p);
   showPJAttention();
-  S.pjRecoveryRefresh = ProjectStore.recoveryButton($('pjRecovery'), p.handle, p.name, {
+  S.pjRecoveryRefresh = ProjectStore.recoveryButton($('pjRecovery'), S.pjDirH || p.handle, p.name, {
     before: async () => { await flushPJ(); if(S.sel !== p || Object.keys(S.pjDirty).length) throw Error('Bitte offene Eingaben zuerst speichern oder das Projekt bewusst neu öffnen.'); },
-    after: async () => { if(S.sel === p){ S.pj=await readPJ(p.handle); S.pjStatus=null; renderDetail(); } }
+    after: async () => { if(S.sel === p){ S.pj=await readPJ(await pjDir(p)); S.pjStatus=null; renderDetail(); } }
   });
   stufenZeichnen(p);
   if(same)$('detail').scrollTop=scroll;
@@ -2307,7 +2394,7 @@ function flushPJ(){
   for (const k of Object.keys(patch)) patch[k] = patch[k].trim();
   S.pjWriting = S.pjWriting.then(async () => {
     try{
-      const o = await patchPJ(p.handle, p.name, patch, S.pj?.data);
+      const o = await patchPJ(await pjDir(p, true), p.name, patch, S.pj?.data);
       if (S.sel === p){
         S.pj = { data: o, exists: true };S.pjStatus={name:p.name,kind:'ok'};showPJAttention();S.pjRecoveryRefresh?.();
         const el = $('pjSave'); if (el){ el.className = 'save ok'; el.textContent = `✓ Gespeichert ${new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`; el.title = `in ${PJ_FILE} im Projektordner`; }
@@ -2504,7 +2591,7 @@ async function arbeitszettelEinlesen(p, file){
     closeDialog();
     await S.pjWriting;
     try{
-      const o = await patchPJ(p.handle, p.name, patch, d);
+      const o = await patchPJ(await pjDir(p, true), p.name, patch, d);
       if (S.sel === p){ S.pj = { data: o, exists: true }; S.pjOpen[p.name] = true; renderDetail(); }
       if (p.st) p.st.pj = true;
       const n = Object.keys(patch).length - 1;
@@ -2556,9 +2643,9 @@ async function spektronSetzen(p, an){
   await flushPJ();
   S.pjWriting = S.pjWriting.then(async () => {
     try{
-      const cur = await readPJ(p.handle);
+      const cur = await readPJ(await pjDir(p));
       if (cur.error) throw new Error(cur.error);
-      const o = await patchPJ(p.handle, p.name, { spektron: an ? true : null }, cur.data);
+      const o = await patchPJ(await pjDir(p, true), p.name, { spektron: an ? true : null }, cur.data);
       if (p.st){ p.st.spektron = o.spektron === true; p.st.pj = true; }
       if (S.sel === p){ S.pj = { data: o, exists: true }; renderDetail(); }
       renderList();
@@ -2576,9 +2663,9 @@ async function zustaendigSetzen(p, wahl){
   await flushPJ();
   S.pjWriting = S.pjWriting.then(async () => {
     try{
-      const cur = await readPJ(p.handle);
+      const cur = await readPJ(await pjDir(p));
       if (cur.error) throw new Error(cur.error);
-      const o = await patchPJ(p.handle, p.name, { zustaendig: wert }, cur.data);
+      const o = await patchPJ(await pjDir(p, true), p.name, { zustaendig: wert }, cur.data);
       if (p.st){ if (o.zustaendig) p.st.zust = o.zustaendig; else delete p.st.zust; }
       if (S.sel === p){ S.pj = { data: o, exists: true }; renderDetail(); }
       if (meineAktiv()) renderList(); else updateRow(p);
@@ -2591,11 +2678,11 @@ async function verteilerSetzen(p, k, aenderung){
   await S.pjWriting;
   S.pjWriting = S.pjWriting.then(async () => {
     try{
-      const cur = await readPJ(p.handle);
+      const cur = await readPJ(await pjDir(p));
       const v = Object.assign({}, cur.data.verteiler && typeof cur.data.verteiler === 'object' ? cur.data.verteiler : {});
       v[k] = Object.assign({}, v[k] || {}, aenderung);
       // Versandvermerke auch bei bewusster Abwahl erhalten.
-      const o = await patchPJ(p.handle, p.name, { verteiler: v }, cur.data);
+      const o = await patchPJ(await pjDir(p, true), p.name, { verteiler: v }, cur.data);
       if (S.sel === p){ S.pj = { data: o, exists: true }; renderDetail(); }
     }catch(e){ banner('err', 'Verteiler nicht gespeichert: ' + esc(e.message)); }
   });
@@ -2664,7 +2751,7 @@ const heuteIso = () => { const d = new Date(), z = n => String(n).padStart(2, '0
 async function neuesteDaten(p){
   const la = p.st && p.st.subs.labauf; if (!la || !la.daten.length) return null;
   let best = null;
-  for (const n of la.daten){ try{ const f = await (await la.handle.getFileHandle(n)).getFile(); if (!best || f.lastModified > best.lastModified) best = f; }catch(e){} }
+  for (const n of la.daten){ try{ const f = await (await (la.datenDir || la.handle).getFileHandle(n)).getFile(); if (!best || f.lastModified > best.lastModified) best = f; }catch(e){} }
   return best;
 }
 async function anlOrdner(p, erstellen){
@@ -2721,7 +2808,7 @@ async function anlDialog(p){
     <p style="margin:12px 0 6px"><label><input type="checkbox" id="aPn98" ${a.chk.pn98Moeglich ? 'checked' : 'disabled'}> Probenahmeprotokolle nach LAGA PN 98 (${a.chk.feld ? `${a.chk.feld} Feldprotokoll${a.chk.feld === 1 ? '' : 'e'} mit Scan` + (a.chk.pn98 ? ` + ${a.chk.pn98} am Bildschirm` : '') : a.chk.pn98})</label><br>
       <label><input type="checkbox" id="aBrand" ${a.chk.brandMoeglich ? 'checked' : 'disabled'}> Sensorische Prüfung auf Brandgeruch (${a.chk.brand} Proben${a.chk.brand && a.chk.blind ? ', in LabelKit noch verdeckt' : ''})</label></p>
     ${a.chk.hinweise.map(h => `<div class="warn">${esc(h)}</div>`).join('')}
-    <p style="margin-top:10px">Quelle: <code>${esc(p.st.subs.labauf.name)}/${esc(a.f.name)}</code><br>Ziel: <code>${esc(ANL_ORDNER)}/<span id="aName"></span></code></p>
+    <p style="margin-top:10px">Quelle: <code>${esc(p.st.subs.labauf.datenPfad || p.st.subs.labauf.name)}/${esc(a.f.name)}</code><br>Ziel: <code>${esc(ANL_ORDNER)}/<span id="aName"></span></code></p>
     <p>In Word an der gewünschten Stelle: <b>Einfügen › Objekt › Text aus Datei</b>.</p>
     <p>Werte werden unverändert übernommen, leere Felder bleiben leer. Am Ende steht ein Quellenvermerk mit Prüfsumme der Projektdatei.${a.chk.feld ? ' Scans der Feldbögen (JPEG/PNG) werden gegen ihre Prüfsumme geprüft und verkleinert angehängt; PDF-Scans werden mit Prüfsumme genannt.' : ''}</p></div>
     <div class="btns"><button id="aNo">Abbrechen</button><button class="primary" id="aYes">Erstellen</button></div>`);
@@ -2785,14 +2872,15 @@ async function anlBildVerkleinern(blob){
 async function anlErstellen(p, o){
   const a = S.anl;
   if (!window.crypto || !crypto.subtle) throw new Error('Dieser Browser kann keine Prüfsummen berechnen – bitte Chrome oder Edge verwenden.');
-  const quelle = await (await p.st.subs.labauf.handle.getFileHandle(a.f.name)).getFile();   // frisch: falls LabelKit inzwischen gespeichert hat
+  const la = p.st.subs.labauf, laPfad = la.datenPfad || la.name;
+  const quelle = await (await (la.datenDir || la.handle).getFileHandle(a.f.name)).getFile();   // frisch: falls LabelKit inzwischen gespeichert hat
   const buf = await quelle.arrayBuffer(), sha = await sha256Hex(buf);
   const daten = JSON.parse(new TextDecoder().decode(buf));
   const jetzt = new Date().toISOString();
   const scans = o.pn98 ? await anlScansPruefen(p, ANLAGE.feldPn98(daten)) : {};
   const r = ANLAGE.pn98Brand(daten, { projektNr: p.nr, ort: p.ort, titel: o.titel, pn98: o.pn98, brand: o.brand, erstellt: jetzt, scans,
     anwendung: 'Projektzentrale ' + APP_VERSION,
-    quelle: { pfad: p.st.subs.labauf.name + '/' + quelle.name, geaendert: new Date(quelle.lastModified).toISOString(), version: daten.version, sha256: sha } });
+    quelle: { pfad: laPfad + '/' + quelle.name, geaendert: new Date(quelle.lastModified).toISOString(), version: daten.version, sha256: sha } });
   const bytes = DOCX.build({ title: `${o.titel}: ${r.teile.join(' und ')} – Projekt ${p.nr}`, author: 'Projektzentrale ' + APP_VERSION, application: 'Projektzentrale ' + APP_VERSION, created: jetzt, blocks: r.blocks });
   const dir = await anlOrdner(p, true);
   const namen = []; for await (const h of dir.values()) namen.push(h.name);
@@ -2804,9 +2892,10 @@ async function anlErstellen(p, o){
   const shaDocx = await sha256Hex(bytes);
   if (await sha256Hex(await (await fh.getFile()).arrayBuffer()) !== shaDocx) throw new Error(`„${name}“ wurde nicht vollständig geschrieben – bitte erneut erstellen.`);
   try{
-    const ph = await dir.getFileHandle(ANL_PROTOKOLL, { create: true }), alt = await ph.getFile();
+    const pdir = (await SO.ort(p.handle, 'anlagenProtokoll', { anlegen: true })).dir || dir;   // bisher „Mitteilungen“, künftig „_Spektron/Protokolle“
+    const ph = await pdir.getFileHandle(ANL_PROTOKOLL, { create: true }), alt = await ph.getFile();
     const kopf = alt.size ? '' : 'Anlagen-Protokoll (Projektzentrale) – je Zeile: Zeit (UTC) | Anlage | SHA-256 der Anlage | Quelle | SHA-256 der Quelle | Programm\r\n';
-    const zeile = [jetzt, name, shaDocx, p.st.subs.labauf.name + '/' + quelle.name, sha, 'Projektzentrale ' + APP_VERSION].join(' | ') + '\r\n';
+    const zeile = [jetzt, name, shaDocx, laPfad + '/' + quelle.name, sha, 'Projektzentrale ' + APP_VERSION].join(' | ') + '\r\n';
     const pw = await ph.createWritable({ keepExistingData: true }); await pw.write({ type: 'write', position: alt.size, data: kopf + zeile }); await pw.close();
   }catch(e){ /* Protokoll ist Zusatz – die Anlage selbst trägt den Quellenvermerk */ }
   const nFeld = r.mitPn98 ? r.pruefung.feld : 0, abw = Object.values(scans).flat().filter(x => x.status === 'abweichend' || x.status === 'fehlt').length;
@@ -2958,6 +3047,7 @@ document.addEventListener('keydown', e => { if (e.key === 'F1'){ e.preventDefaul
 $('btnUpd').onclick = async () => { await flushPJ(); location.reload(); };
 $('btnArchive').onclick = pickArchive;
 $('btnRescan').onclick = async () => { await flushPJ(); S.projects.forEach(p => p.st = null); S.dl = null; S.ms = null; await maLaden(); await listProjects(); maWarnung(); };
+$('btnUmzug').onclick = () => umzugVorschau();
 $('btnAusl').onclick = async () => { await maLaden(); renderList(); if (S.sel) renderDetail(); auDialog(); };
 document.addEventListener('click', e => { if (e.target.closest && e.target.closest('#goDurch')){ e.preventDefault(); mehrZu(); dlDialog(); } });
 /* Menü „⋯ Mehr“: Büro-Werkzeuge und weitere Apps – selten gebraucht, darum nicht in der Leiste */
@@ -2975,7 +3065,7 @@ $('dlgBack').addEventListener('click', e => { if (e.target === $('dlgBack')) clo
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('dlgBack').classList.contains('show')) closeDialog(); });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushPJ(); });
 window.addEventListener('beforeunload', e => { if (Object.keys(S.pjDirty).length){ flushPJ(); e.preventDefault(); e.returnValue = ''; } });
-window.addEventListener('focus', () => { S.pjRecoveryRefresh?.(); const p = S.sel; if (p && !Object.keys(S.pjDirty).length) readPJ(p.handle).then(pj => {   // pick up changes from Bildumbenenner / coworkers
+window.addEventListener('focus', () => { S.pjRecoveryRefresh?.(); const p = S.sel; if (p && !Object.keys(S.pjDirty).length) pjDir(p).then(readPJ).then(pj => {   // pick up changes from Bildumbenenner / coworkers
   // inzwischen ein anderes Projekt gewählt? Dann gehören Daten und Ordnerstand nicht zu ihm
   if (S.sel !== p || Object.keys(S.pjDirty).length) return;
   if (JSON.stringify(pj.data) === JSON.stringify(S.pj && S.pj.data)){
