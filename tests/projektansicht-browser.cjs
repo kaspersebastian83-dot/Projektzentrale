@@ -184,7 +184,7 @@ if(!before){
  await page.locator(`.proj[data-name="${B}"]`).click();await page.locator('#bueroPanel[data-projekt="26.9999 Kontrollort"] [data-ab-stand]').filter({hasText:'Noch nichts beim Büro'}).waitFor();
  await page.locator('#vtBox > summary').click();
  assert.ok(await page.locator('#vtBox .vtAn').first().isEnabled());await page.locator('#vtBox .vtAn').first().check();await page.waitForFunction(()=>document.querySelector('#vtBox .vtAn')?.checked);
- assert.ok(!await fs.stat(path.join(tmp,B,'_Buero')).catch(()=>null));
+ assert.ok(!await fs.stat(path.join(tmp,B,'_Spektron','Buero')).catch(()=>null));
  assert.ok(!await page.locator('[data-ab-form]').evaluate(e=>e.open),'Formular zu: gerade sind die Prüfberichte dran');
  await page.locator('#goUebergabe').click();assert.ok(await page.locator('[data-ab-form]').evaluate(e=>e.open),'„Ans Büro übergeben“ in Stufe 5 öffnet das Formular');
  assert.equal(await page.locator('[data-ab-word]').inputValue(),'Mitteilungen/Gutachten B.docx');
@@ -193,16 +193,16 @@ if(!before){
  await page.evaluate(()=>localStorage.removeItem('spektron-ich'));
  await page.locator('[data-ab-hinweis]').fill('Bitte zuerst an die Versicherung.');await page.locator('[data-ab-faellig]').fill('2026-11-03');
  await page.locator('[data-ab-los]').click();await page.locator('#bueroPanel .ab-msg.err').filter({hasText:'„Ich bin …“'}).waitFor();
- assert.ok(!await fs.stat(path.join(tmp,B,'_Buero')).catch(()=>null));
+ assert.ok(!await fs.stat(path.join(tmp,B,'_Spektron','Buero')).catch(()=>null));
  // Fehler des Datenmoduls stehen in der Karte, Eingaben bleiben
  await page.evaluate(()=>localStorage.setItem('spektron-ich','SK'));
  await page.locator('[data-ab-los]').click();await page.locator('#bueroPanel .ab-msg.err').filter({hasText:'Mindestens einen Empfänger'}).waitFor();
  assert.equal(await page.locator('[data-ab-hinweis]').inputValue(),'Bitte zuerst an die Versicherung.');assert.equal(await page.locator('[data-ab-faellig]').inputValue(),'2026-11-03');
- // Übergabe in einem Schritt: genau eine Datei in „_Buero/aufgaben“
+ // Übergabe in einem Schritt: genau eine Datei in „_Spektron/Buero/aufgaben“ (Projekt ab 26.0560 → seit der Umstellung gleich im Spektron-Ordner)
  await page.locator('[data-ab-an="0"]').check();await page.locator('[data-ab-details="0"]').fill('Bestätigter Empfänger B');
  await page.locator('[data-ab-los]').click();await page.locator('#bueroPanel [data-ab-msg]').filter({hasText:'✓ Ans Büro übergeben – erscheint jetzt in BüroKit'}).waitFor();
- const aufgaben=await fs.readdir(path.join(tmp,B,'_Buero','aufgaben'));assert.equal(aufgaben.length,1);assert.deepEqual(await fs.readdir(path.join(tmp,B,'_Buero')),['aufgaben']);
- const auf=JSON.parse(await fs.readFile(path.join(tmp,B,'_Buero','aufgaben',aufgaben[0]),'utf8')),bId=auf.id;
+ const aufgaben=await fs.readdir(path.join(tmp,B,'_Spektron','Buero','aufgaben'));assert.equal(aufgaben.length,1);assert.deepEqual(await fs.readdir(path.join(tmp,B,'_Spektron','Buero')),['aufgaben']);
+ const auf=JSON.parse(await fs.readFile(path.join(tmp,B,'_Spektron','Buero','aufgaben',aufgaben[0]),'utf8')),bId=auf.id;
  assert.equal(auf.format,'spektron-buerokit');assert.equal(auf.art,'gutachten');assert.equal(auf.von,'SK');assert.equal(auf.word,'Mitteilungen/Gutachten B.docx');assert.equal(auf.faellig,'2026-11-03');assert.equal(auf.hinweis,'Bitte zuerst an die Versicherung.');assert.equal(auf.projekt.name,B);
  assert.deepEqual(auf.empfaenger.map(({gruppe,label,details})=>({gruppe,label,details})),[{gruppe:'versicherung',label:'Auftraggeber',details:'Bestätigter Empfänger B'}]);
  await page.locator(`[data-ab-aufgabe="${bId}"]`).filter({hasText:/^Gutachten beim Büro · übergeben \d\d\.\d\d\. von SK · noch offen: Gegenlesen · PDF · Versand · Rechnung · fällig 03\.11\.$/}).waitFor();
@@ -222,15 +222,15 @@ if(!before){
  await page.locator(`[data-ab-antwort="${bId}"]`).fill('Die neueste.');
  await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await page.waitForTimeout(400);assert.equal(await page.locator(`[data-ab-antwort="${bId}"]`).inputValue(),'Die neueste.','Antwort-Entwurf bleibt beim Neulesen');
  await page.locator(`[data-ab-antworten="${bId}"]`).click();await page.waitForFunction(()=>!document.querySelector('#bueroAttention').textContent.includes('Welche Fassung'));
- const vermerke=[];for(const n of await fs.readdir(path.join(tmp,B,'_Buero','vermerke')))vermerke.push(JSON.parse(await fs.readFile(path.join(tmp,B,'_Buero','vermerke',n),'utf8')));
+ const vermerke=[];for(const n of await fs.readdir(path.join(tmp,B,'_Spektron','Buero','vermerke')))vermerke.push(JSON.parse(await fs.readFile(path.join(tmp,B,'_Spektron','Buero','vermerke',n),'utf8')));
  const antwort=vermerke.filter(v=>v.schritt==='antwort');assert.equal(antwort.length,1);assert.equal(antwort[0].text,'Die neueste.');assert.equal(antwort[0].von,'SK');assert.equal(antwort[0].aufgabe,bId);
  // Ein zweites Gutachten nur nach Rückfrage
  await page.locator('[data-ab-summary]').click();await page.locator('[data-ab-an="0"]').check();await page.locator('[data-ab-details="0"]').fill('Ergänzungsempfänger B');
  page.once('dialog',d=>d.dismiss());await page.locator('[data-ab-los]').click();await page.waitForTimeout(500);
- assert.equal((await fs.readdir(path.join(tmp,B,'_Buero','aufgaben'))).length,1,'abgebrochen: nichts geschrieben');
+ assert.equal((await fs.readdir(path.join(tmp,B,'_Spektron','Buero','aufgaben'))).length,1,'abgebrochen: nichts geschrieben');
  let frage='';page.once('dialog',d=>{frage=d.message();d.accept();});await page.locator('[data-ab-los]').click();await page.waitForFunction(()=>document.querySelectorAll('#bueroPanel [data-ab-aufgabe]').length===2);
  assert.equal(frage,'Es ist schon ein Gutachten beim Büro offen. Trotzdem ein weiteres übergeben?');
- const zweite=(await fs.readdir(path.join(tmp,B,'_Buero','aufgaben'))).map(n=>n.slice(0,-5)).find(n=>n!==bId);
+ const zweite=(await fs.readdir(path.join(tmp,B,'_Spektron','Buero','aufgaben'))).map(n=>n.slice(0,-5)).find(n=>n!==bId);
  // Zurückgezogen: ausgeblendet · erledigt: klein „Gutachten erledigt am …“ · eigene Büroaufgabe als kurze Liste
  await buero('vermerken',{aufgabe:zweite,schritt:'geloescht',von:'Nad'});
  await buero('vermerken',{aufgabe:bId,schritt:'pdf',von:'Nad',pdf:'Mitteilungen/Gutachten B.pdf'});
