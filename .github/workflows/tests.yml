@@ -23,6 +23,9 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 24
+      - run: node tests/spektron-ordner.cjs
+        env:
+          SPEKTRON_ORDNER_PFLICHT: '1'
       - run: node tests/docx.cjs
       - run: node tests/anlage.cjs
       - run: node tests/arbeitszettel.cjs
