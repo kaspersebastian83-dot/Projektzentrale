@@ -934,9 +934,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.32.0';
+const APP_VERSION = '1.32.1';
 const APP_DATE = '2026-10-28';
 const CHANGELOG = [
+  ['1.32.1', '28.10.2026', 'Gemeinsames Modul spektron-ordner.js: Unterordner werden zuerst direkt mit ihrem Namen gesucht (wie überall sonst in den Apps), erst dann ohne Groß-/Kleinschreibung. Keine sichtbare Änderung.'],
   ['1.32.0', '28.10.2026', 'Vorbereitung „Spektron-Ordner“: Die App-Daten eines Projekts ziehen später in den Unterordner „_Spektron“ (Fotos, Pläne, Laborberichte, Anlagen und CSV bleiben, wo sie sind). Die Projektzentrale findet Projektdaten, Probenerfassung, Fotobearbeitung, Plan, Laborergebnisse und Abrechnungsstände jetzt an beiden Orten. Neu unter „⋯ Mehr“: „Spektron-Ordner (Vorschau)“ zeigt, was umziehen würde – es wird noch nichts verschoben. Sonst ändert sich nichts.'],
   ['1.31.0', '28.10.2026', 'Übergabe ans Büro mit allem, was das Büro für Versand und Rechnung braucht: Unter „Ans Büro“ stehen jetzt die Anlagen zum Anhaken (Bilddokumentation in „Fotos“, Anlagen in „Mitteilungen“, Pläne, Prüfberichte – Dateien mit „Anlage“ oder „Bilddokumentation“ im Namen sind vorgeschlagen) plus ein Feld für weitere Anlagen, und ob es einen Abrechnungsstand aus BelegKit gibt (sonst Knopf zu BelegKit). Das Büro sieht Anlagen und Abrechnung in BüroKit 1.1 und hakt nach dem Versand „Rechnung“ ab. Stufe 6 „Abrechnung“: wartet nach dem Versand auf die Rechnung des Büros und ist fertig, sobald das Büro „Rechnung“ abgehakt hat; fehlt der Abrechnungsstand, bist du dran. Frühere Übergaben wie bisher.'],
   ['1.30.3', '27.10.2026', 'Stufe Labor: Ging das Gutachten ans Büro, während das Labor nur einen Zwischenstand hatte, stand dort „Keine Prüfberichte im Ordner – übersprungen“. Jetzt steht der eigene Stand, z. B. „Zwischenstand übernommen · 1 offen beim Labor – nicht abgeschlossen“.'],
