@@ -935,9 +935,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.34.0';
+const APP_VERSION = '1.34.1';
 const APP_DATE = '2026-10-28';
 const CHANGELOG = [
+  ['1.34.1', '29.10.2026', 'Umzug sicherer (Prüfbericht vom 29.10.): fremde JSON in „Abrechnung“ bleiben liegen; vor jedem Löschen wird auch die Kopie am neuen Ort geprüft – fehlt sie oder ist sie anders, bleibt das Original; Dateien werden in Datumsreihenfolge kopiert, damit die neueste LabelKit-Tagesdatei die neueste bleibt; eine belegte Sperre hält den Umzug nicht mehr auf (nach 20 s übersprungen und gemeldet). Mitarbeiterliste: ein Lesefehler gilt nicht mehr als „Datei fehlt“ und überschreibt die Liste nie.'],
   ['1.34.0', '28.10.2026', 'Spektron-Ordner einrichten: Unter „⋯ Mehr“ zieht die Projektzentrale die App-Dateien aller Spektron-Projekte (ab 26.0560 und übernommene) in den Ordner „_Spektron“ – erst Vorschau, dann bewusst bestätigt. Jede Datei wird kopiert, zurückgelesen und verglichen, in „_Spektron/_Umzug.json“ vermerkt und erst dann am früheren Ort gelöscht; alles steht in „_Spektron-Umzug.log“ im Archivordner. Fotos, Pläne, Laborberichte, Anlagen und CSV bleiben, wo sie sind. Liegt eine Datei an beiden Orten mit verschiedenem Inhalt (eine noch offene ältere App), bleibt beides und die Projektansicht zeigt es mit „Umzug erneut ausführen“. „In Spektron übernehmen“ zieht das Projekt sofort um. Neue Projekte ab jetzt direkt in „_Spektron“ (gemeinsames Modul, alle Apps).'],
   ['1.33.0', '28.10.2026', 'Vorbereitung „Spektron-Ordner“, Teil 3: Büroaufgaben (gemeinsam mit BüroKit 1.3) werden über spektron-ordner.js gelesen und geschrieben – künftig in „_Spektron/Buero“ statt „_Buero“. Die Projektliste und die Durchlaufzeiten finden sie an beiden Orten. Bis zum Umzug ändert sich nichts.'],
   ['1.32.1', '28.10.2026', 'Gemeinsames Modul spektron-ordner.js: Unterordner werden zuerst direkt mit ihrem Namen gesucht (wie überall sonst in den Apps), erst dann ohne Groß-/Kleinschreibung. Keine sichtbare Änderung.'],
@@ -1069,7 +1070,11 @@ const MA_KUERZEL_RE = /^[A-Za-zÄÖÜäöüß][A-Za-zÄÖÜäöüß. ]{0,11}$/, 
 const maGueltig = p => !!p && typeof p.ordnerKuerzel === 'string' && !!p.ordnerKuerzel.trim() && typeof p.name === 'string';
 async function maLesen(archive){
   let fh;
-  try{ fh = await archive.getFileHandle(MA_FILE); }catch(e){ return { fehlt: true, personen: null, roh: null, text: null }; }
+  try{ fh = await archive.getFileHandle(MA_FILE); }
+  catch(e){   // nur „gibt es nicht“ heißt fehlt – Zugriffs- oder Netzfehler dürfen nie zum Überschreiben der echten Liste führen
+    if (e && e.name === 'NotFoundError') return { fehlt: true, personen: null, roh: null, text: null };
+    return { error: (e && e.message) || String(e), personen: null, roh: null, text: null };
+  }
   try{
     const text = await (await fh.getFile()).text(), o = JSON.parse(text);
     if (!o || o.format !== 'spektron-mitarbeiter' || !Array.isArray(o.personen)) throw new Error('unbekanntes Format');
