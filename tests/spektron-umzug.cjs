@@ -234,12 +234,12 @@ const ok = async (t, fn) => { hooks.beimLoeschen = null; hooks.beimSchreiben = n
   });
   // ---- Audit 29.10.2026 (F01, F02, F03, F16) ----
   await ok('Audit F01: fremde JSON in „Abrechnung“ bleiben liegen; nur BelegKit-Dateien ziehen um', async () => {
-    const f = await fixture(N, { 'Abrechnung/Aufwand_SK.json': '{"z":1}', 'Abrechnung/_Abrechnung.json': '{"b":1}', 'Abrechnung/26-0560_Aufwand_2026-10-28.json': '{"s":1}', 'Abrechnung/26-0560_Aufwand_2026-10-28.csv': 'a;b', 'Abrechnung/External-export.json': '{"format":"synthetic-external-export"}', 'Abrechnung/Rechnung.json': '{}' });
+    const f = await fixture(N, { 'Abrechnung/Aufwand_SK.json': '{"z":1}', 'Abrechnung/_Abrechnung.json': '{"b":1}', 'Abrechnung/26-0560_Aufwand_2026-10-28.json': '{"s":1}', 'Abrechnung/26-0560_Aufwand_2026-10-28.csv': 'a;b', 'Abrechnung/External-export.json': '{"format":"synthetic-external-export"}', 'Abrechnung/Rechnung.json': '{}', 'Abrechnung/Aufwand_Notizen.json': '{}', 'Abrechnung/aufwand_sk.json': '{}' });
     const r = await U.projektUmziehen(f.projekt, {}); const bk = r.bereiche.find(b => b.bereich === 'belegkit');
     assert.deepEqual(bk.fehler, []); assert.equal(bk.geloescht, 3);
     const a = await alle(f.dir);
     for (const n of ['Aufwand_SK.json', '_Abrechnung.json', '26-0560_Aufwand_2026-10-28.json']){ assert.ok(a['_Spektron/BelegKit/' + n], n + ' umgezogen'); assert.equal(a['Abrechnung/' + n], undefined); }
-    for (const n of ['External-export.json', 'Rechnung.json', '26-0560_Aufwand_2026-10-28.csv']){ assert.ok(a['Abrechnung/' + n], n + ' bleibt'); assert.equal(a['_Spektron/BelegKit/' + n], undefined); }
+    for (const n of ['External-export.json', 'Rechnung.json', '26-0560_Aufwand_2026-10-28.csv', 'Aufwand_Notizen.json', 'aufwand_sk.json']){ assert.ok(a['Abrechnung/' + n], n + ' bleibt'); assert.equal(a['_Spektron/BelegKit/' + n], undefined); }
   });
 
   await ok('Audit F02: Kopie verschwindet nach dem Vermerk → Original wird nicht gelöscht, Konflikt gemeldet', async () => {
@@ -266,6 +266,22 @@ const ok = async (t, fn) => { hooks.beimLoeschen = null; hooks.beimSchreiben = n
     assert.equal(await neueste(path.join(f.dir, '_Spektron/LabelKit')), neu, 'nachher dieselbe Datei');
     const tAlt = (await fs.stat(path.join(f.dir, '_Spektron/LabelKit', alt))).mtimeMs, tNeu = (await fs.stat(path.join(f.dir, '_Spektron/LabelKit', neu))).mtimeMs;
     assert.ok(tNeu > tAlt, 'Kopie der jüngeren Datei ist auch jünger');
+  });
+
+  await ok('Audit F03/Codex: Laufwerk ohne feinere Zeitauflösung → Bereich nicht vermerkt, Kopien zurückgenommen, nichts gelöscht', async () => {
+    const neu = '26.0560_01.10.2026_Daten.json', alt = '26.0560_30.09.2026_Daten.json';
+    const f = await fixture(N, { ['Laboraufträge/' + neu]: '{"proben":["NEU"]}', ['Laboraufträge/' + alt]: '{"proben":["ALT"]}' });
+    await fs.utimes(path.join(f.dir, 'Laboraufträge', alt), new Date('2026-09-30T10:00:00Z'), new Date('2026-09-30T10:00:00Z'));
+    await fs.utimes(path.join(f.dir, 'Laboraufträge', neu), new Date('2026-10-01T10:00:00Z'), new Date('2026-10-01T10:00:00Z'));
+    const Orig = Datei.prototype.getFile;
+    Datei.prototype.getFile = async function(){ const r = await Orig.call(this); return this.p.includes(path.sep + '_Spektron' + path.sep) ? { ...r, lastModified: 1000 } : r; };   // alle Kopien: derselbe Zeitstempel
+    try{
+      const r = await U.projektUmziehen(f.projekt, { zeitstempelWarten: 300 }); const lk = r.bereiche.find(b => b.bereich === 'labelkit');
+      assert.equal(lk.fehler.length, 1); assert.match(lk.fehler[0], /Zeitstempel/); assert.equal(lk.geloescht, 0);
+      assert.ok(await ex(path.join(f.dir, 'Laboraufträge', neu)) && await ex(path.join(f.dir, 'Laboraufträge', alt)), 'Originale bleiben');
+      assert.equal(await ex(path.join(f.dir, '_Spektron/LabelKit')), false, 'Kopien zurückgenommen');
+      assert.equal((await S.ort(f.projekt, 'labelkit')).wo, 'alt');
+    } finally { Datei.prototype.getFile = Orig; }
   });
 
   await ok('Audit F16: belegte App-Sperre → Bereich nach Wartezeit übersprungen und gemeldet, Rest zieht um, nichts hängt', async () => {

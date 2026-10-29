@@ -118,12 +118,12 @@ async function vermerkSchreiben(sp, o){
 
 /**
  * Ein Projekt umziehen. optionen: { von (Kürzel), trocken (nur planen), log(zeile), sichern() (Log nach jedem Bereich schreiben), fortschritt(text),
- *   sperreWarten (ms, Standard 20000) }.
+ *   sperreWarten (ms, Standard 20000), zeitstempelWarten (ms, Standard 4000) }.
  * Ergebnis: { projekt, bereiche: [{bereich, app, von, nach, eintraege, kopiert, geloescht, uebersprungen, konflikte:[...], fehler:[...]}], fehler:[...] }
  */
 async function projektUmziehen(projektDir, optionen){
   const o = optionen || {}, S = SO(), log = o.log || (() => {}), sichern = o.sichern || (async () => {}), fortschritt = o.fortschritt || (() => {});
-  const warten = o.sperreWarten == null ? WARTEN : o.sperreWarten;
+  const warten = o.sperreWarten == null ? WARTEN : o.sperreWarten, zeitWarten = o.zeitstempelWarten == null ? 4000 : o.zeitstempelWarten;
   const name = nfc(projektDir.name), namen = { roh: String(projektDir.name), nfc: name }, nr = projektNr(name), ergebnis = { projekt: name, bereiche: [], fehler: [] };
   if (!S) throw Error('spektron-ordner.js ist nicht geladen.');
   if (!(await S.istSpektronProjekt(projektDir))){ ergebnis.fehler.push('Kein Spektron-Projekt (Nummer unter ' + S.AB + ' und kein „_Spektron“-Ordner).'); return ergebnis; }
@@ -174,9 +174,15 @@ async function projektUmziehen(projektDir, optionen){
                 r.uebersprungen++; geprueft.push({ f, bytes, zielDir, zielName }); log([jetzt(), name, l.bereich, rel, 'schon identisch am neuen Ort', ''].join(' | ')); continue;
               }
               let h = await schreiben(zielDir, zielName, bytes), zurueck = await lesen(h);
-              // Ist das Original jünger als das vorige, muss es auch die Kopie sein (gleicher Zeitstempel → kurz warten, neu schreiben)
+              // Ist das Original jünger als das vorige, muss es auch die Kopie sein (gleicher Zeitstempel → warten, neu schreiben).
+              // Reicht auch für Laufwerke mit grober Zeitauflösung (FAT: 2 s); klappt es nicht, ist das ein Fehler: Bereich wird
+              // nicht vermerkt, Kopien zurückgenommen, nichts gelöscht.
               if (bytesGleich(zurueck, bytes) && f.zeit > letzteQuelle){
-                for (let i = 0; i < 5 && (await h.getFile()).lastModified <= letzteKopie; i++){ await pause(25 * (i + 1)); h = await schreiben(zielDir, zielName, bytes); zurueck = await lesen(h); if (!bytesGleich(zurueck, bytes)) break; }
+                const bis = Date.now() + zeitWarten;
+                for (let w = 50; (await h.getFile()).lastModified <= letzteKopie; w = Math.min(w * 2, 1000)){
+                  if (Date.now() >= bis){ angelegt.push({ zielDir, zielName, bytes, rel }); throw Error('Kopie bekommt keinen neueren Zeitstempel als die vorige (Laufwerk mit grober Zeitauflösung?) – Reihenfolge „neueste Datei“ wäre nicht sicher'); }
+                  await pause(w); h = await schreiben(zielDir, zielName, bytes); zurueck = await lesen(h); if (!bytesGleich(zurueck, bytes)) break;
+                }
               }
               if (!bytesGleich(zurueck, bytes)){
                 // Nur die eigene, unvollständige Kopie (leer) entfernen. Steht etwas anderes drin, hat eine App gleichzeitig
