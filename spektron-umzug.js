@@ -19,7 +19,11 @@
        dieselben wie die Apps („mosaik:projekt:<Name>“, „plankit:project:<Name>“, „belegkit:zeiten:<Nr>:<Kürzel>“). Die anderen
        Apps kennen keine Sperre – darum vor dem Umzug alle Spektron-Tabs schließen; was trotzdem dazwischen schreibt, wird
        durch den Vergleich vor dem Löschen erkannt und behalten (auch am neuen Ort: eine fremde Datei wird nie entfernt).
-       Sperren gelten nur im selben Browserprofil – den Umzug führt eine Person an einem Rechner aus.
+       Sperren gelten nur im selben Browserprofil – den Umzug führt eine Person an einem Rechner aus. Auf eine belegte Sperre
+       wird höchstens 20 s gewartet; dann wird der Bereich (bzw. das Projekt) übersprungen und gemeldet, nichts hängt.
+     • Vor jedem Löschen wird auch die Kopie am neuen Ort noch einmal gelesen: fehlt sie oder ist sie anders, bleibt das Original.
+     • Dateien eines Bereichs werden in der Reihenfolge ihres Änderungsdatums kopiert (älteste zuerst), damit „neueste Datei“
+       (z. B. die LabelKit-Tagesdateien) auch nach dem Umzug dieselbe ist – die Kopien bekommen ja neue Zeitstempel.
    Läuft im Browser (globalThis.SpektronUmzug) und in Node (module.exports, Tests). */
 (function(root){
 'use strict';
@@ -44,16 +48,31 @@ async function schreiben(dir, name, bytes){
   catch(e){ try{ if (w) await w.abort(); }catch(_){} try{ if (!(await lesen(h)).length) await dir.removeEntry(h.name); }catch(_){} throw e; }
   return h;
 }
-function locked(name, fn){ return root.navigator && root.navigator.locks ? root.navigator.locks.request(name, fn) : fn(); }
+const WARTEN = 20000;   // ms: so lange höchstens auf eine Sperre warten
+/** Sperre holen, aber nie endlos warten: ist sie nach `warten` ms noch belegt, Fehler (belegt: true) – fn läuft dann nicht. */
+function locked(name, fn, warten){
+  const L = api._locks || (root.navigator && root.navigator.locks);
+  if (!L) return fn();
+  const ms = warten == null ? WARTEN : warten, opt = {};
+  let uhr = null, gestartet = false;
+  if (ms > 0 && typeof AbortController !== 'undefined'){ const ac = new AbortController(); opt.signal = ac.signal; uhr = setTimeout(() => ac.abort(), ms); }
+  return L.request(name, opt, () => { gestartet = true; clearTimeout(uhr); return fn(); }).catch(e => {
+    clearTimeout(uhr);
+    if (!gestartet && e && (e.name === 'TimeoutError' || e.name === 'AbortError'))
+      throw Object.assign(Error('„' + name + '“ ist belegt – eine Spektron-App arbeitet gerade an diesem Projekt. Übersprungen; bitte die App schließen und den Umzug erneut ausführen.'), { belegt: true });
+    throw e;
+  });
+}
 /** Sperren der Apps je Bereich – wie in project-store.js, PlanKit und time-store.js. */
-function sperre(bereich, projektName, projektNr, datei, fn){
+function sperre(bereich, projektName, projektNr, datei, fn, warten){
   // Projektnamen wie die Apps (roher Ordnername) und zusätzlich NFC-normalisiert, falls beides vorkommt
-  const beide = (praefix, f) => { const a = praefix + projektName.roh, b = praefix + projektName.nfc; return a === b ? locked(a, f) : locked(a, () => locked(b, f)); };
+  const beide = (praefix, f) => { const a = praefix + projektName.roh, b = praefix + projektName.nfc; return a === b ? locked(a, f, warten) : locked(a, () => locked(b, f, warten), warten); };
   if (bereich === 'projekt') return beide('mosaik:projekt:', fn);
   if (bereich === 'plankit') return beide('plankit:project:', fn);
-  if (bereich === 'belegkit' && datei){ const m = /^Aufwand_([^.]+)\.json$/i.exec(datei); if (m) return locked('belegkit:zeiten:' + projektNr + ':' + m[1].toUpperCase(), fn); }
+  if (bereich === 'belegkit' && datei){ const m = /^Aufwand_([^.]+)\.json$/i.exec(datei); if (m) return locked('belegkit:zeiten:' + projektNr + ':' + m[1].toUpperCase(), fn, warten); }
   return fn();
 }
+const pause = ms => new Promise(r => setTimeout(r, ms));
 const projektNr = name => (/^(\d{2}\.\d{2,6})(?:[\s_-]|$)/.exec(nfc(name)) || [])[1] || '';
 
 /** Alle Dateien unter einem Eintrag (Datei oder Ordner) als [{pfad:[...], handle}] – rekursiv, über die Handles selbst
@@ -98,17 +117,19 @@ async function vermerkSchreiben(sp, o){
 }
 
 /**
- * Ein Projekt umziehen. optionen: { von (Kürzel), trocken (nur planen), log(zeile), sichern() (Log nach jedem Bereich schreiben), fortschritt(text) }.
+ * Ein Projekt umziehen. optionen: { von (Kürzel), trocken (nur planen), log(zeile), sichern() (Log nach jedem Bereich schreiben), fortschritt(text),
+ *   sperreWarten (ms, Standard 20000) }.
  * Ergebnis: { projekt, bereiche: [{bereich, app, von, nach, eintraege, kopiert, geloescht, uebersprungen, konflikte:[...], fehler:[...]}], fehler:[...] }
  */
 async function projektUmziehen(projektDir, optionen){
   const o = optionen || {}, S = SO(), log = o.log || (() => {}), sichern = o.sichern || (async () => {}), fortschritt = o.fortschritt || (() => {});
+  const warten = o.sperreWarten == null ? WARTEN : o.sperreWarten;
   const name = nfc(projektDir.name), namen = { roh: String(projektDir.name), nfc: name }, nr = projektNr(name), ergebnis = { projekt: name, bereiche: [], fehler: [] };
   if (!S) throw Error('spektron-ordner.js ist nicht geladen.');
   if (!(await S.istSpektronProjekt(projektDir))){ ergebnis.fehler.push('Kein Spektron-Projekt (Nummer unter ' + S.AB + ' und kein „_Spektron“-Ordner).'); return ergebnis; }
   const liste = await S.umzugListe(projektDir);
   if (o.trocken){ for (const l of liste) ergebnis.bereiche.push({ bereich: l.bereich, app: l.app, von: l.von || '(Projektordner)', nach: l.nach, eintraege: l.eintraege.map(e => e.name + (e.art === 'directory' ? '/' : '')), kopiert: 0, geloescht: 0, uebersprungen: 0, konflikte: [], fehler: [] }); return ergebnis; }
-  await locked('spektron:umzug:' + name, async () => {
+  try{ await locked('spektron:umzug:' + name, async () => {
     let sp, vermerk;
     try{
       sp = await S.spektronDir(projektDir, false);            // erst prüfen, ob ein vorhandener Vermerk lesbar ist – vorher nichts anlegen
@@ -129,6 +150,10 @@ async function projektUmziehen(projektDir, optionen){
           // 1. alle Dateien sammeln, kopieren und prüfen – nichts löschen
           const dateien = [];
           for (const e of l.eintraege) await dateienVon(altDir, e.name, [], dateien);
+          // älteste zuerst kopieren: die Kopien bekommen neue Zeitstempel in Kopierreihenfolge – so bleibt „neueste Datei“ dieselbe
+          for (const f of dateien){ try{ f.zeit = (await f.handle.getFile()).lastModified; }catch(e){ f.zeit = 0; } }
+          dateien.sort((a, b) => a.zeit - b.zeit);
+          let letzteQuelle = -Infinity, letzteKopie = -Infinity;
           const geprueft = [], angelegt = [];   // angelegt: in diesem Lauf neu geschriebene Kopien (für die Rücknahme)
           for (const f of dateien){
             const rel = f.pfad.join('/'); fortschritt(name + ': ' + l.von + '/' + rel);
@@ -146,9 +171,13 @@ async function projektUmziehen(projektDir, optionen){
                   r.konflikte.push({ datei: rel, alt: new Date(alt.lastModified).toISOString(), neu: new Date(neu.lastModified).toISOString(), altNeuer: alt.lastModified > neu.lastModified });
                   log([jetzt(), name, l.bereich, rel, 'KONFLIKT – beide bleiben', ''].join(' | ')); continue;
                 }
-                r.uebersprungen++; geprueft.push({ f, bytes }); log([jetzt(), name, l.bereich, rel, 'schon identisch am neuen Ort', ''].join(' | ')); continue;
+                r.uebersprungen++; geprueft.push({ f, bytes, zielDir, zielName }); log([jetzt(), name, l.bereich, rel, 'schon identisch am neuen Ort', ''].join(' | ')); continue;
               }
-              const h = await schreiben(zielDir, zielName, bytes), zurueck = await lesen(h);
+              let h = await schreiben(zielDir, zielName, bytes), zurueck = await lesen(h);
+              // Ist das Original jünger als das vorige, muss es auch die Kopie sein (gleicher Zeitstempel → kurz warten, neu schreiben)
+              if (bytesGleich(zurueck, bytes) && f.zeit > letzteQuelle){
+                for (let i = 0; i < 5 && (await h.getFile()).lastModified <= letzteKopie; i++){ await pause(25 * (i + 1)); h = await schreiben(zielDir, zielName, bytes); zurueck = await lesen(h); if (!bytesGleich(zurueck, bytes)) break; }
+              }
               if (!bytesGleich(zurueck, bytes)){
                 // Nur die eigene, unvollständige Kopie (leer) entfernen. Steht etwas anderes drin, hat eine App gleichzeitig
                 // geschrieben – das bleibt und wird als Konflikt gemeldet.
@@ -157,7 +186,8 @@ async function projektUmziehen(projektDir, optionen){
                 log([jetzt(), name, l.bereich, rel, 'KONFLIKT – am neuen Ort gleichzeitig geschrieben, beide bleiben', ''].join(' | ')); continue;
               }
               log([jetzt(), name, l.bereich, rel, 'kopiert ' + bytes.length + ' B', await sha256(bytes)].join(' | '));
-              r.kopiert++; geprueft.push({ f, bytes }); angelegt.push({ zielDir, zielName, bytes, rel });
+              r.kopiert++; geprueft.push({ f, bytes, zielDir, zielName }); angelegt.push({ zielDir, zielName, bytes, rel });
+              letzteQuelle = Math.max(letzteQuelle, f.zeit); try{ letzteKopie = Math.max(letzteKopie, (await h.getFile()).lastModified); }catch(_){}
             }catch(e){ r.fehler.push(rel + ': ' + e.message); log([jetzt(), name, l.bereich, rel, 'FEHLER – ' + e.message, ''].join(' | ')); }
           }
           // 2. vermerken – ab jetzt gilt der neue Ort für diesen Bereich. Beim ersten Mal nur, wenn alles fehlerfrei kopiert ist
@@ -183,30 +213,37 @@ async function projektUmziehen(projektDir, optionen){
             }
           }
           if (!vermerk.bereiche[l.bereich]){ log([jetzt(), name, l.bereich, '', 'NICHT vermerkt – nichts gelöscht (' + r.fehler.length + ' Fehler, ' + r.konflikte.length + ' Konflikte)', ''].join(' | ')); return; }
-          // 3. löschen – nur geprüfte Dateien, nur wenn das Original seit dem Kopieren unverändert ist
-          for (const { f, bytes } of geprueft){
+          // 3. löschen – nur geprüfte Dateien, nur wenn das Original seit dem Kopieren unverändert ist UND die Kopie am neuen Ort
+          //    noch da ist und genau diese Bytes enthält (sonst wäre das Original die letzte Fassung)
+          for (const { f, bytes, zielDir, zielName } of geprueft){
             const rel = f.pfad.join('/');
             try{
               await sperre(l.bereich === 'belegkit' ? 'belegkit' : '', namen, nr, f.pfad[f.pfad.length - 1], async () => {
                 const d = await unterordner(altDir, f.pfad.slice(0, -1), false);
                 const noch = d && await kind(d, f.pfad[f.pfad.length - 1]);
                 if (!noch) return;
+                let kopie = null; try{ kopie = await kind(zielDir, zielName); }catch(_){}
+                let kopieOk = false; try{ kopieOk = !!kopie && kopie.kind === 'file' && bytesGleich(await lesen(kopie), bytes); }catch(_){}
+                if (!kopieOk){ const hinweis = kopie ? 'Kopie am neuen Ort inzwischen geändert – Original bleibt' : 'Kopie am neuen Ort fehlt – Original bleibt'; r.konflikte.push({ datei: rel, alt: '', neu: '', altNeuer: false, hinweis }); log([jetzt(), name, l.bereich, rel, 'KONFLIKT – ' + hinweis, ''].join(' | ')); return; }
                 if (!bytesGleich(await lesen(noch), bytes)){ r.konflikte.push({ datei: rel, alt: '', neu: '', altNeuer: true, hinweis: 'am früheren Ort inzwischen geändert' }); log([jetzt(), name, l.bereich, rel, 'KONFLIKT – am früheren Ort inzwischen geändert, nicht gelöscht', ''].join(' | ')); return; }
                 await d.removeEntry(noch.name); r.geloescht++;
                 log([jetzt(), name, l.bereich, rel, 'gelöscht am früheren Ort', ''].join(' | '));
-              });
+              }, warten);
             }catch(e){ r.fehler.push(rel + ': nicht gelöscht (' + e.message + ')'); log([jetzt(), name, l.bereich, rel, 'FEHLER – nicht gelöscht (' + e.message + ')', ''].join(' | ')); }
           }
           // 4. leer gewordene Ordner der Einträge entfernen (z. B. _Projekt_Sicherungen, _FotoKit_Fassungen, aufgaben/, <UUID>/)
           for (const e of l.eintraege) if (e.art === 'directory') await leereOrdnerEntfernen(altDir, e.name);
-        });
+        }, warten);
         // Ein reiner App-Ordner, der leer wurde (nur „_Buero“ – alle anderen alten Orte sind Büro-Ordner)
         if (l.bereich === 'buero') await leereOrdnerEntfernen(projektDir, b.alt[0]);
       }catch(e){ r.fehler.push(e.message); log([jetzt(), name, l.bereich, '', 'FEHLER – ' + e.message, ''].join(' | ')); }
       await sichern();   // Log nach jedem Bereich auf die Platte – auch bei Absturz steht der bisherige Verlauf da
     }
     log([jetzt(), name, '', '', 'Umzug beendet', ''].join(' | ')); await sichern();
-  });
+  }, warten); }catch(e){
+    if (!e || !e.belegt) throw e;
+    ergebnis.fehler.push('Das Projekt wird gerade schon umgezogen (anderer Tab) – übersprungen.'); log([jetzt(), name, '', '', 'ÜBERSPRUNGEN – ' + e.message, ''].join(' | ')); await sichern();
+  }
   return ergebnis;
 }
 
@@ -223,14 +260,14 @@ async function logSchreiber(archivDir){
         const kopf = alt.size ? '' : 'Spektron-Umzug – je Zeile: Zeit (UTC) | Projekt | Bereich | Datei | Vorgang | SHA-256\r\n';
         const ws = await h.createWritable({ keepExistingData: true });
         await ws.write({ type: 'write', position: alt.size, data: kopf + zeilen.join('\r\n') + '\r\n' }); await ws.close();
-      });
+      }, 5000);
       zeilen.length = 0; return null;
     }catch(e){ w.fehler = 'Protokoll „' + NAME + '“ nicht geschrieben: ' + e.message; return w.fehler; }   // Zeilen bleiben für den nächsten Versuch
   };
   return w;
 }
 
-const api = { projektUmziehen, logSchreiber, sha256 };
+const api = { projektUmziehen, logSchreiber, sha256, _locks: null };   // _locks: nur für Tests (Ersatz für navigator.locks)
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 root.SpektronUmzug = api;
 })(typeof window !== 'undefined' ? window : globalThis);

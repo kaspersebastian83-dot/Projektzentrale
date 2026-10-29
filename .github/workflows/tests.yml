@@ -26,6 +26,7 @@ jobs:
       # Vorlage des gemeinsamen Moduls: hier nur die Ortsregel prüfen (die anderen Apps vergleichen byte-genau hiermit)
       - run: node tests/spektron-ordner.cjs
       - run: node tests/spektron-umzug.cjs
+      - run: node tests/mitarbeiter.cjs
       - run: node tests/docx.cjs
       - run: node tests/anlage.cjs
       - run: node tests/arbeitszettel.cjs

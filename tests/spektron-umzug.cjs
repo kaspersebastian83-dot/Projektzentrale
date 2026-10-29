@@ -35,6 +35,7 @@ async function fixture(name = N, dateien = FIX){
 }
 const ex = async p => { try{ await fs.access(p); return true; }catch{ return false; } };
 async function alle(d, pre = ''){ const r = {}; for (const e of await fs.readdir(d, { withFileTypes: true })){ const p = path.join(d, e.name); if (e.isDirectory()) Object.assign(r, await alle(p, pre + e.name + '/')); else r[pre + e.name] = (await fs.readFile(p)).toString(); } return r; }
+let fertig = false; process.on('exit', () => { if (!fertig){ console.error('FEHLER: Test nicht bis zum Ende gelaufen (hängendes Promise?)'); process.exitCode = 1; } });
 const ok = async (t, fn) => { hooks.beimLoeschen = null; hooks.beimSchreiben = null; await fn(); console.log('OK ' + t); };
 
 (async () => {
@@ -231,4 +232,62 @@ const ok = async (t, fn) => { hooks.beimLoeschen = null; hooks.beimSchreiben = n
     for (const z of t.split(/\r\n/).slice(1).filter(Boolean)) assert.match(z, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z \| /, z);
     const kaputt = await U.logSchreiber(new Ordner(path.join(f.tmp, 'gibt-es-nicht'))); kaputt.zeile('x'); assert.match(await kaputt.speichern(), /nicht geschrieben/); assert.ok(kaputt.fehler);
   });
+  // ---- Audit 29.10.2026 (F01, F02, F03, F16) ----
+  await ok('Audit F01: fremde JSON in „Abrechnung“ bleiben liegen; nur BelegKit-Dateien ziehen um', async () => {
+    const f = await fixture(N, { 'Abrechnung/Aufwand_SK.json': '{"z":1}', 'Abrechnung/_Abrechnung.json': '{"b":1}', 'Abrechnung/26-0560_Aufwand_2026-10-28.json': '{"s":1}', 'Abrechnung/26-0560_Aufwand_2026-10-28.csv': 'a;b', 'Abrechnung/External-export.json': '{"format":"synthetic-external-export"}', 'Abrechnung/Rechnung.json': '{}' });
+    const r = await U.projektUmziehen(f.projekt, {}); const bk = r.bereiche.find(b => b.bereich === 'belegkit');
+    assert.deepEqual(bk.fehler, []); assert.equal(bk.geloescht, 3);
+    const a = await alle(f.dir);
+    for (const n of ['Aufwand_SK.json', '_Abrechnung.json', '26-0560_Aufwand_2026-10-28.json']){ assert.ok(a['_Spektron/BelegKit/' + n], n + ' umgezogen'); assert.equal(a['Abrechnung/' + n], undefined); }
+    for (const n of ['External-export.json', 'Rechnung.json', '26-0560_Aufwand_2026-10-28.csv']){ assert.ok(a['Abrechnung/' + n], n + ' bleibt'); assert.equal(a['_Spektron/BelegKit/' + n], undefined); }
+  });
+
+  await ok('Audit F02: Kopie verschwindet nach dem Vermerk → Original wird nicht gelöscht, Konflikt gemeldet', async () => {
+    const f = await fixture(N, { '_Projekt.json': '{"objekt":"Synthetisch"}' });
+    let einmal = true; hooks.beimSchreiben = async p => { if (einmal && p.endsWith(path.join('_Spektron', '_Umzug.json'))){ einmal = false; await fs.unlink(path.join(f.dir, '_Spektron/_Projekt.json')); } };
+    const r = await U.projektUmziehen(f.projekt, {}); const pj = r.bereiche.find(b => b.bereich === 'projekt');
+    assert.equal(pj.geloescht, 0); assert.equal(pj.konflikte.length, 1); assert.match(pj.konflikte[0].hinweis, /fehlt/);
+    assert.equal((await fs.readFile(path.join(f.dir, '_Projekt.json'))).toString(), '{"objekt":"Synthetisch"}', 'Original bleibt');
+    // auch: Kopie inzwischen anders → Original bleibt
+    const g = await fixture(N, { '_Projekt.json': '{"objekt":"A"}' });
+    einmal = true; hooks.beimSchreiben = async p => { if (einmal && p.endsWith(path.join('_Spektron', '_Umzug.json'))){ einmal = false; await fs.writeFile(path.join(g.dir, '_Spektron/_Projekt.json'), '{"objekt":"anders"}'); } };
+    const r2 = await U.projektUmziehen(g.projekt, {}); const p2 = r2.bereiche.find(b => b.bereich === 'projekt');
+    assert.equal(p2.geloescht, 0); assert.match(p2.konflikte[0].hinweis, /geändert/); assert.ok(await ex(path.join(g.dir, '_Projekt.json')));
+  });
+
+  await ok('Audit F03: neueste LabelKit-Tagesdatei bleibt nach dem Umzug die neueste (Kopie in Datumsreihenfolge)', async () => {
+    const neu = '26.0560_01.10.2026_Daten.json', alt = '26.0560_30.09.2026_Daten.json';   // Namensreihenfolge ≠ Datumsreihenfolge
+    const f = await fixture(N, { ['Laboraufträge/' + neu]: '{"proben":["NEU"]}', ['Laboraufträge/' + alt]: '{"proben":["ALT"]}', 'Fotos/_Bildumbenenner.json': '{}', 'Fotos/_FotoKit_Fassungen/a.json': '{}', 'Fotos/_FotoKit_Fassungen/b.json': '{}' });
+    await fs.utimes(path.join(f.dir, 'Laboraufträge', alt), new Date('2026-09-30T10:00:00Z'), new Date('2026-09-30T10:00:00Z'));
+    await fs.utimes(path.join(f.dir, 'Laboraufträge', neu), new Date('2026-10-01T10:00:00Z'), new Date('2026-10-01T10:00:00Z'));
+    const neueste = async d => { let best = null; for (const n of await fs.readdir(d)){ if (!/_Daten\.json$/.test(n)) continue; const t = (await fs.stat(path.join(d, n))).mtimeMs; if (!best || t > best.t) best = { n, t }; } return best && best.n; };
+    assert.equal(await neueste(path.join(f.dir, 'Laboraufträge')), neu, 'vorher');
+    const r = await U.projektUmziehen(f.projekt, {}); assert.deepEqual(r.bereiche.find(b => b.bereich === 'labelkit').fehler, []);
+    assert.equal(await neueste(path.join(f.dir, '_Spektron/LabelKit')), neu, 'nachher dieselbe Datei');
+    const tAlt = (await fs.stat(path.join(f.dir, '_Spektron/LabelKit', alt))).mtimeMs, tNeu = (await fs.stat(path.join(f.dir, '_Spektron/LabelKit', neu))).mtimeMs;
+    assert.ok(tNeu > tAlt, 'Kopie der jüngeren Datei ist auch jünger');
+  });
+
+  await ok('Audit F16: belegte App-Sperre → Bereich nach Wartezeit übersprungen und gemeldet, Rest zieht um, nichts hängt', async () => {
+    class Sperren{ constructor(){ this.belegt = new Map(); }
+      async request(name, opt, fn){ if (typeof opt === 'function'){ fn = opt; opt = {}; }
+        while (this.belegt.has(name)){ if (opt.signal && opt.signal.aborted) throw opt.signal.reason;
+          await Promise.race([this.belegt.get(name), new Promise((_, rej) => opt.signal && opt.signal.addEventListener('abort', () => rej(opt.signal.reason), { once: true }))]); }
+        let frei; this.belegt.set(name, new Promise(r => frei = r)); try{ return await fn(); } finally { this.belegt.delete(name); frei(); } } }
+    const L = new Sperren(); L.belegt.set('mosaik:projekt:' + N, new Promise(() => {}));   // eine App hält die Projektdaten-Sperre für immer
+    U._locks = L;
+    try{
+      const f = await fixture(N, { '_Projekt.json': '{"a":1}', 'Pläne/Probenplan x.probenplan': '{"v":1}' });
+      const t0 = Date.now(), r = await U.projektUmziehen(f.projekt, { sperreWarten: 300 });
+      assert.ok(Date.now() - t0 < 5000, 'kehrt zurück');
+      const pj = r.bereiche.find(b => b.bereich === 'projekt'); assert.match(pj.fehler.join(' '), /belegt/); assert.equal(pj.geloescht, 0);
+      assert.ok(await ex(path.join(f.dir, '_Projekt.json')), 'Projektdaten bleiben am alten Ort'); assert.equal(await ex(path.join(f.dir, '_Spektron/_Projekt.json')), false);
+      assert.equal((await S.ort(f.projekt, 'projekt')).wo, 'alt', 'alter Ort gilt weiter');
+      const pk = r.bereiche.find(b => b.bereich === 'plankit'); assert.deepEqual(pk.fehler, []); assert.equal(pk.geloescht, 1);
+      // Projekt-Sperre selbst belegt (zweiter Tab zieht gerade um) → übersprungen statt hängen
+      const g = await fixture(N, { '_Projekt.json': '{"a":1}' }); L.belegt.set('spektron:umzug:' + N, new Promise(() => {}));
+      const r2 = await U.projektUmziehen(g.projekt, { sperreWarten: 200 }); assert.match(r2.fehler.join(' '), /übersprungen/); assert.ok(await ex(path.join(g.dir, '_Projekt.json')));
+    } finally { U._locks = null; }
+  });
+  fertig = true;
 })().catch(e => { console.error(e); process.exit(1); });
