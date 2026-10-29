@@ -100,24 +100,43 @@
      Eine kaputte oder fremde Datei wird nie überschrieben. */
   async function tagsLesen(archiv){
     let f; try{ f = await (await archiv.getFileHandle(TAGS)).getFile(); }catch(e){ if (e && e.name === 'NotFoundError') return { roh: null, projekte: {} }; throw e; }
-    const o = JSON.parse((await f.text()).replace(/^﻿/, ''));
+    const text = await f.text();
+    if (!text.trim()) return { roh: null, projekte: {}, text };   // leer (z. B. abgebrochenes erstes Anlegen) = noch keine Zuordnungen
+    const o = JSON.parse(text.replace(/^﻿/, ''));
     if (!o || o.format !== 'spektron-archiv' || !o.projekte || typeof o.projekte !== 'object' || Array.isArray(o.projekte)) throw Error(TAGS + ': unbekanntes Format – wird nicht überschrieben.');
-    return { roh: o, projekte: o.projekte };
+    return { roh: o, projekte: o.projekte, text };
   }
   let schreibKette = Promise.resolve();
+  /** Ein Feld eines Projekts setzen. Liest die Datei frisch, ändert nur dieses Projekt und prüft direkt vor dem Schreiben, ob
+      inzwischen jemand anderes (anderer Tab, anderer Rechner) geschrieben hat – dann wird neu gelesen und die Änderung erneut
+      angewendet (bis zu drei Versuche), statt dessen Stand zu überschreiben. Im selben Browserprofil zusätzlich eine Web-Lock-Sperre. */
   function tagSetzen(archiv, projekt, feld, wert){
-    schreibKette = schreibKette.catch(() => {}).then(async () => {
+    const lauf = async () => {
       if (!await recht(archiv, 'readwrite', true)) throw Error('Kein Schreibrecht für den Archivordner.');
-      const t = await tagsLesen(archiv), p = Object.assign({}, t.projekte[projekt]);
-      if (feld.startsWith('probe:')){ const r = Object.assign({}, p.rollen), id = feld.slice(6); if (wert) r[id] = wert; else delete r[id]; if (Object.keys(r).length) p.rollen = r; else delete p.rollen; }
-      else if (wert) p[feld] = wert; else delete p[feld];
-      const projekte = Object.assign({}, t.projekte);
-      if (Object.keys(p).some(k => k !== 'geaendert')){ p.geaendert = new Date().toISOString(); projekte[projekt] = p; } else delete projekte[projekt];
-      const o = Object.assign({}, t.roh || {}, { format: 'spektron-archiv', version: 1, hinweis: 'Zuordnungen des Datenarchivs (Projektzentrale › Datenarchiv): Nutzung/Brandgut nur für Projekte ohne Angabe in _Projekt.json; rollen = korrigierte Rolle einzelner Proben (keine = Konvention aus der Probenbezeichnung).', projekte });
-      const w = await (await archiv.getFileHandle(TAGS, { create: true })).createWritable();
-      try{ await w.write(JSON.stringify(o, null, 2) + '\n'); await w.close(); }catch(e){ try{ await w.abort(); }catch(_){} throw e; }
-      return projekte;
-    });
+      for (let versuch = 1; ; versuch++){
+        const t = await tagsLesen(archiv), p = Object.assign({}, t.projekte[projekt]);
+        if (feld.startsWith('probe:')){ const r = Object.assign({}, p.rollen), id = feld.slice(6); if (wert) r[id] = wert; else delete r[id]; if (Object.keys(r).length) p.rollen = r; else delete p.rollen; }
+        else if (wert) p[feld] = wert; else delete p[feld];
+        const projekte = Object.assign({}, t.projekte);
+        if (Object.keys(p).some(k => k !== 'geaendert')){ p.geaendert = new Date().toISOString(); projekte[projekt] = p; } else delete projekte[projekt];
+        const o = Object.assign({}, t.roh || {}, { format: 'spektron-archiv', version: 1, hinweis: 'Zuordnungen des Datenarchivs (Projektzentrale › Datenarchiv): Nutzung/Brandgut nur für Projekte ohne Angabe in _Projekt.json; rollen = korrigierte Rolle einzelner Proben (keine = Konvention aus der Probenbezeichnung).', projekte });
+        const text = JSON.stringify(o, null, 2) + '\n';
+        const h = await archiv.getFileHandle(TAGS, { create: true }), w = await h.createWritable();
+        try{
+          const jetzt = await (await h.getFile()).text();          // „create“ legt eine leere Datei an – leer = es gab noch keine
+          if (jetzt !== (t.text || '')){
+            await w.abort().catch(() => {});
+            if (versuch < 3) continue;
+            throw Error('Die Archivzuordnungen werden gerade an einem anderen Rechner geändert – bitte gleich noch einmal setzen.');
+          }
+          await w.write(text); await w.close();
+        }catch(e){ try{ await w.abort(); }catch(_){} throw e; }
+        if ((await tagsLesen(archiv)).text !== text) throw Error('Die Archivzuordnungen wurden gleichzeitig an einem anderen Rechner geändert – bitte neu einlesen und prüfen.');
+        return projekte;
+      }
+    };
+    const gesperrt = () => root.navigator && root.navigator.locks ? root.navigator.locks.request('spektron:archiv-tags', lauf) : lauf();
+    schreibKette = schreibKette.catch(() => {}).then(gesperrt);
     return schreibKette;
   }
 
