@@ -171,7 +171,7 @@ function zustand(projekt, aufgabe, alleVermerke){
 /* ---------- lesen ---------- */
 /** Alle Aufgaben eines Projektordners: {aufgaben, fehler}. Fehlerhafte Einzeldateien werden genannt, der Rest gezeigt. */
 async function projektLesen(projektDir){
-  const name = nfc(projektDir.name), fehler = [], aufgaben = [], vermerke = [];
+  const name = String(projektDir.name), fehler = [], aufgaben = [], vermerke = [];
   const projekt = { name, nr: nr(name) };
   const b = await bueroDir(projektDir, false);
   if (!b) return { projekt, aufgaben, fehler };
@@ -207,7 +207,7 @@ async function archivLesen(archiv, fortschritt){
       aufgaben.push(...r.aufgaben); fehler.push(...r.fehler);
     }catch(e){ fehler.push(`${p.name}: ${e.message}`); }
   }
-  return { aufgaben, fehler, projekte: projekte.map(p => nfc(p.name)).sort((a, b) => b.localeCompare(a, 'de', { numeric: true })) };
+  return { aufgaben, fehler, projekte: projekte.map(p => p.name).sort((a, b) => b.localeCompare(a, 'de', { numeric: true })) };
 }
 
 /* ---------- schreiben ---------- */

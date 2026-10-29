@@ -935,9 +935,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.34.0';
-const APP_DATE = '2026-10-28';
+const APP_VERSION = '1.35.0';
+const APP_DATE = '2026-10-29';
 const CHANGELOG = [
+  ['1.35.0', '29.10.2026', 'Sicherer Umzug: nur bekannte BelegKit-Dateien, Kopien vor dem Löschen erneut prüfen, LabelKit-Zeitstände erhalten. Belegte Projektsperren werden gemeldet. Lesefehler der Mitarbeiterliste blockieren das Speichern; Büroaufgaben behalten die echte Ordnerschreibweise. Archivzuordnungen prüfen den Dateistand vor dem Schreiben.'],
   ['1.34.0', '28.10.2026', 'Spektron-Ordner einrichten: Unter „⋯ Mehr“ zieht die Projektzentrale die App-Dateien aller Spektron-Projekte (ab 26.0560 und übernommene) in den Ordner „_Spektron“ – erst Vorschau, dann bewusst bestätigt. Jede Datei wird kopiert, zurückgelesen und verglichen, in „_Spektron/_Umzug.json“ vermerkt und erst dann am früheren Ort gelöscht; alles steht in „_Spektron-Umzug.log“ im Archivordner. Fotos, Pläne, Laborberichte, Anlagen und CSV bleiben, wo sie sind. Liegt eine Datei an beiden Orten mit verschiedenem Inhalt (eine noch offene ältere App), bleibt beides und die Projektansicht zeigt es mit „Umzug erneut ausführen“. „In Spektron übernehmen“ zieht das Projekt sofort um. Neue Projekte ab jetzt direkt in „_Spektron“ (gemeinsames Modul, alle Apps).'],
   ['1.33.0', '28.10.2026', 'Vorbereitung „Spektron-Ordner“, Teil 3: Büroaufgaben (gemeinsam mit BüroKit 1.3) werden über spektron-ordner.js gelesen und geschrieben – künftig in „_Spektron/Buero“ statt „_Buero“. Die Projektliste und die Durchlaufzeiten finden sie an beiden Orten. Bis zum Umzug ändert sich nichts.'],
   ['1.32.1', '28.10.2026', 'Gemeinsames Modul spektron-ordner.js: Unterordner werden zuerst direkt mit ihrem Namen gesucht (wie überall sonst in den Apps), erst dann ohne Groß-/Kleinschreibung. Keine sichtbare Änderung.'],
@@ -1069,7 +1070,10 @@ const MA_KUERZEL_RE = /^[A-Za-zÄÖÜäöüß][A-Za-zÄÖÜäöüß. ]{0,11}$/, 
 const maGueltig = p => !!p && typeof p.ordnerKuerzel === 'string' && !!p.ordnerKuerzel.trim() && typeof p.name === 'string';
 async function maLesen(archive){
   let fh;
-  try{ fh = await archive.getFileHandle(MA_FILE); }catch(e){ return { fehlt: true, personen: null, roh: null, text: null }; }
+  try{ fh = await archive.getFileHandle(MA_FILE); }catch(e){
+    if (e.name === 'NotFoundError') return { fehlt: true, personen: null, roh: null, text: null };
+    return { error: e.message, personen: null, roh: null, text: null };
+  }
   try{
     const text = await (await fh.getFile()).text(), o = JSON.parse(text);
     if (!o || o.format !== 'spektron-mitarbeiter' || !Array.isArray(o.personen)) throw new Error('unbekanntes Format');
@@ -1398,7 +1402,7 @@ async function umzugVorschau(){
       ${ergebnis.some(r => r.liste.length) ? `<div style="overflow:auto;max-height:45vh"><table class="ma-tab"><thead><tr><th>Projekt</th><th>App</th><th>Von → nach</th><th>Einträge</th></tr></thead><tbody>
         ${ergebnis.map(r => r.liste.map(x => zeile(r.p, x)).join('')).join('')}</tbody></table></div>` : (fertig ? '<div class="m">Nichts umzuziehen – alle App-Dateien liegen schon in „_Spektron“.</div>' : '')}
       ${fehler.length ? `<div class="warn">Nicht lesbar: ${fehler.map(esc).join(', ')}</div>` : ''}
-      ${fertig && n ? `<div class="warn" style="margin-top:10px"><label><input type="checkbox" id="umzugOk"> Alle Kollegen haben ihre Spektron-Apps geschlossen (sonst können noch offene Tabs an den alten Ort schreiben – das wird erkannt und gemeldet, ist aber Nacharbeit).</label></div>` : ''}
+      ${fertig && n ? `<div class="warn" style="margin-top:10px"><label><input type="checkbox" id="umzugOk"> Alle Kollegen haben ihre Spektron-Apps auf allen Rechnern und in allen RDP-Profilen geschlossen. Nur eine Person führt den Umzug aus. Browsersperren gelten ausschließlich im selben Browserprofil; gleichzeitige Schreibvorgänge über SMB können nicht sicher ausgeschlossen werden.</label></div>` : ''}
       <div class="btns"><button id="umzugZu">${fertig && n ? 'Abbrechen' : 'Schließen'}</button>${fertig && n ? `<button id="umzugLos" class="primary" disabled>Jetzt umziehen (${kandidaten.length} Projekt${kandidaten.length === 1 ? '' : 'e'})</button>` : ''}</div>`);
     $('umzugZu').onclick = closeDialog;
     if ($('umzugOk')){ $('umzugOk').onchange = () => { $('umzugLos').disabled = !$('umzugOk').checked; }; $('umzugLos').onclick = () => umzugAusfuehren(kandidaten); }
@@ -1681,7 +1685,7 @@ async function laborStand(dir, auftraege, ergebnisDir){
   if (ergebnisse && !ergebnisse.fehler) try{
     const stand = [];
     for (const f of berichtDateien){ const d = await f.getFile(); stand.push({ name: f.name, size: d.size, t: d.lastModified }); }
-    if (auftraege){ let neu = null; for await (const h of auftraege.values()) if (h.kind === 'file' && /_Daten\.json$/i.test(h.name)){ const d = await h.getFile(); if (!neu || d.lastModified > neu.t) neu = { name: 'Laboraufträge/' + h.name, size: d.size, t: d.lastModified }   /* feste Kennung wie in ResultKit – bleibt nach dem Umzug nach „_Spektron“ gleich */; } if (neu) stand.push(neu); }
+    if (auftraege){ let neu = null; for await (const h of auftraege.values()) if (h.kind === 'file' && /_Daten\.json$/i.test(h.name)){ const d = await SO.dateiLesen(auftraege, h); if (!neu || d.lastModified > neu.t) neu = { name: 'Laboraufträge/' + h.name, size: d.size, t: d.lastModified }   /* feste Kennung wie in ResultKit – bleibt nach dem Umzug nach „_Spektron“ gleich */; } if (neu) stand.push(neu); }
     ergebnisse.veraltet = standKennung(stand) !== uebernommen;
   }catch(e){ /* Dateistand nicht lesbar: Karte wie bisher nach der Ergebnisdatei */ }
   return { berichte: namen.size, ergebnisse };
@@ -2865,7 +2869,7 @@ const heuteIso = () => { const d = new Date(), z = n => String(n).padStart(2, '0
 async function neuesteDaten(p){
   const la = p.st && p.st.subs.labauf; if (!la || !la.daten.length) return null;
   let best = null;
-  for (const n of la.daten){ try{ const f = await (await (la.datenDir || la.handle).getFileHandle(n)).getFile(); if (!best || f.lastModified > best.lastModified) best = f; }catch(e){} }
+  for (const n of la.daten){ try{ const d = la.datenDir || la.handle, f = await SO.dateiLesen(d, await d.getFileHandle(n)); if (!best || f.lastModified > best.lastModified) best = f; }catch(e){} }
   return best;
 }
 async function anlOrdner(p, erstellen){

@@ -24,6 +24,7 @@ jobs:
         with:
           node-version: 24
       # Vorlage des gemeinsamen Moduls: hier nur die Ortsregel prüfen (die anderen Apps vergleichen byte-genau hiermit)
+      - run: node tests/audit-safety.cjs
       - run: node tests/spektron-ordner.cjs
       - run: node tests/spektron-umzug.cjs
       - run: node tests/docx.cjs

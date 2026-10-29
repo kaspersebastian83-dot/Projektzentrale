@@ -100,13 +100,13 @@
      Eine kaputte oder fremde Datei wird nie überschrieben. */
   async function tagsLesen(archiv){
     let f; try{ f = await (await archiv.getFileHandle(TAGS)).getFile(); }catch(e){ if (e && e.name === 'NotFoundError') return { roh: null, projekte: {} }; throw e; }
-    const o = JSON.parse((await f.text()).replace(/^﻿/, ''));
+    const text=await f.text(),o = JSON.parse(text.replace(/^﻿/, ''));
     if (!o || o.format !== 'spektron-archiv' || !o.projekte || typeof o.projekte !== 'object' || Array.isArray(o.projekte)) throw Error(TAGS + ': unbekanntes Format – wird nicht überschrieben.');
-    return { roh: o, projekte: o.projekte };
+    return { roh: o, projekte: o.projekte, text };
   }
   let schreibKette = Promise.resolve();
   function tagSetzen(archiv, projekt, feld, wert){
-    schreibKette = schreibKette.catch(() => {}).then(async () => {
+    schreibKette = schreibKette.catch(() => {}).then(() => {const run=async()=>{
       if (!await recht(archiv, 'readwrite', true)) throw Error('Kein Schreibrecht für den Archivordner.');
       const t = await tagsLesen(archiv), p = Object.assign({}, t.projekte[projekt]);
       if (feld.startsWith('probe:')){ const r = Object.assign({}, p.rollen), id = feld.slice(6); if (wert) r[id] = wert; else delete r[id]; if (Object.keys(r).length) p.rollen = r; else delete p.rollen; }
@@ -115,9 +115,9 @@
       if (Object.keys(p).some(k => k !== 'geaendert')){ p.geaendert = new Date().toISOString(); projekte[projekt] = p; } else delete projekte[projekt];
       const o = Object.assign({}, t.roh || {}, { format: 'spektron-archiv', version: 1, hinweis: 'Zuordnungen des Datenarchivs (Projektzentrale › Datenarchiv): Nutzung/Brandgut nur für Projekte ohne Angabe in _Projekt.json; rollen = korrigierte Rolle einzelner Proben (keine = Konvention aus der Probenbezeichnung).', projekte });
       const w = await (await archiv.getFileHandle(TAGS, { create: true })).createWritable();
-      try{ await w.write(JSON.stringify(o, null, 2) + '\n'); await w.close(); }catch(e){ try{ await w.abort(); }catch(_){} throw e; }
+      try{ const latest=await(await(await archiv.getFileHandle(TAGS)).getFile()).text();if(latest!==(t.text??''))throw Error('Archivzuordnungen inzwischen geändert – bitte neu einlesen.');const text=JSON.stringify(o,null,2)+'\n';await w.write(text); await w.close();if((await tagsLesen(archiv)).text!==text)throw Error('Archivzuordnungen konnten nicht bestätigt werden.'); }catch(e){ try{ await w.abort(); }catch(_){} throw e; }
       return projekte;
-    });
+    };return root.navigator?.locks?root.navigator.locks.request("spektron:archiv-tags",run):run();});
     return schreibKette;
   }
 

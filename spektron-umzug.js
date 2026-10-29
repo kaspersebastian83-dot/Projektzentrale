@@ -44,7 +44,12 @@ async function schreiben(dir, name, bytes){
   catch(e){ try{ if (w) await w.abort(); }catch(_){} try{ if (!(await lesen(h)).length) await dir.removeEntry(h.name); }catch(_){} throw e; }
   return h;
 }
-function locked(name, fn){ return root.navigator && root.navigator.locks ? root.navigator.locks.request(name, fn) : fn(); }
+function locked(name, fn){
+  return root.navigator && root.navigator.locks ? root.navigator.locks.request(name, { ifAvailable: true }, lock => {
+    if (!lock) throw Error('Projekt ist in einer anderen App beschäftigt – bitte die App schließen und den Umzug erneut starten.');
+    return fn();
+  }) : fn();
+}
 /** Sperren der Apps je Bereich – wie in project-store.js, PlanKit und time-store.js. */
 function sperre(bereich, projektName, projektNr, datei, fn){
   // Projektnamen wie die Apps (roher Ordnername) und zusätzlich NFC-normalisiert, falls beides vorkommt
@@ -133,7 +138,7 @@ async function projektUmziehen(projektDir, optionen){
           for (const f of dateien){
             const rel = f.pfad.join('/'); fortschritt(name + ': ' + l.von + '/' + rel);
             try{
-              const bytes = await lesen(f.handle);
+              const quelle = await f.handle.getFile(), bytes = new Uint8Array(await quelle.arrayBuffer());
               const zielDir = await unterordner(neuDir, f.pfad.slice(0, -1), true), zielName = f.pfad[f.pfad.length - 1];
               let vorhanden = await kind(zielDir, zielName);
               if (vorhanden && vorhanden.kind !== 'file') throw Error('am neuen Ort liegt ein Ordner gleichen Namens');
@@ -146,7 +151,7 @@ async function projektUmziehen(projektDir, optionen){
                   r.konflikte.push({ datei: rel, alt: new Date(alt.lastModified).toISOString(), neu: new Date(neu.lastModified).toISOString(), altNeuer: alt.lastModified > neu.lastModified });
                   log([jetzt(), name, l.bereich, rel, 'KONFLIKT – beide bleiben', ''].join(' | ')); continue;
                 }
-                r.uebersprungen++; geprueft.push({ f, bytes }); log([jetzt(), name, l.bereich, rel, 'schon identisch am neuen Ort', ''].join(' | ')); continue;
+                r.uebersprungen++; geprueft.push({ f, bytes, zielDir, zielName, quelleT: quelle.lastModified }); log([jetzt(), name, l.bereich, rel, 'schon identisch am neuen Ort', ''].join(' | ')); continue;
               }
               const h = await schreiben(zielDir, zielName, bytes), zurueck = await lesen(h);
               if (!bytesGleich(zurueck, bytes)){
@@ -157,7 +162,7 @@ async function projektUmziehen(projektDir, optionen){
                 log([jetzt(), name, l.bereich, rel, 'KONFLIKT – am neuen Ort gleichzeitig geschrieben, beide bleiben', ''].join(' | ')); continue;
               }
               log([jetzt(), name, l.bereich, rel, 'kopiert ' + bytes.length + ' B', await sha256(bytes)].join(' | '));
-              r.kopiert++; geprueft.push({ f, bytes }); angelegt.push({ zielDir, zielName, bytes, rel });
+              r.kopiert++; geprueft.push({ f, bytes, zielDir, zielName, quelleT: quelle.lastModified }); angelegt.push({ zielDir, zielName, bytes, rel });
             }catch(e){ r.fehler.push(rel + ': ' + e.message); log([jetzt(), name, l.bereich, rel, 'FEHLER – ' + e.message, ''].join(' | ')); }
           }
           // 2. vermerken – ab jetzt gilt der neue Ort für diesen Bereich. Beim ersten Mal nur, wenn alles fehlerfrei kopiert ist
@@ -178,13 +183,33 @@ async function projektUmziehen(projektDir, optionen){
             } else {
               vermerk = await vermerkLesen(sp);   // frisch (innerhalb der Projekt-Sperre)
               vermerk.bereiche[l.bereich] = { am: zeit, von: o.von || '', dateien: r.kopiert + r.uebersprungen };
+              if (l.bereich === 'labelkit'){
+                const staende = [];
+                for (const g of geprueft){
+                  const kopie = await (await g.zielDir.getFileHandle(g.zielName)).getFile();
+                  if (!bytesGleich(new Uint8Array(await kopie.arrayBuffer()), g.bytes)) throw Error('Zieldatei vor dem Vermerken geändert – Originale bleiben.');
+                  staende.push({ name: g.zielName, t: g.quelleT, kopieT: kopie.lastModified, bytes: g.bytes.length, sha256: await sha256(g.bytes) });
+                }
+                vermerk.bereiche[l.bereich].staende = staende;
+              }
               await vermerkSchreiben(sp, vermerk);
               log([jetzt(), name, l.bereich, '', 'vermerkt (' + (r.kopiert + r.uebersprungen) + ' Dateien) – neuer Ort gilt', ''].join(' | '));
             }
           }
           if (!vermerk.bereiche[l.bereich]){ log([jetzt(), name, l.bereich, '', 'NICHT vermerkt – nichts gelöscht (' + r.fehler.length + ' Fehler, ' + r.konflikte.length + ' Konflikte)', ''].join(' | ')); return; }
+          if(schonVermerkt&&l.bereich==='labelkit'&&angelegt.length){
+            vermerk=await vermerkLesen(sp);
+            const area=vermerk.bereiche.labelkit,staende=Array.isArray(area.staende)?area.staende:[];
+            for(const a of angelegt){
+              const g=geprueft.find(g=>g.zielDir===a.zielDir&&g.zielName===a.zielName);
+              const kopie=await(await a.zielDir.getFileHandle(a.zielName)).getFile();
+              if(!bytesGleich(new Uint8Array(await kopie.arrayBuffer()),a.bytes))throw Error('Nachzügler am neuen Ort geändert – Original bleibt.');
+              if(!staende.some(s=>s.name===a.zielName))staende.push({name:a.zielName,t:g.quelleT,kopieT:kopie.lastModified,bytes:a.bytes.length,sha256:await sha256(a.bytes)});
+            }
+            area.staende=staende;await vermerkSchreiben(sp,vermerk);
+          }
           // 3. löschen – nur geprüfte Dateien, nur wenn das Original seit dem Kopieren unverändert ist
-          for (const { f, bytes } of geprueft){
+          for (const { f, bytes, zielDir, zielName } of geprueft){
             const rel = f.pfad.join('/');
             try{
               await sperre(l.bereich === 'belegkit' ? 'belegkit' : '', namen, nr, f.pfad[f.pfad.length - 1], async () => {
@@ -192,6 +217,11 @@ async function projektUmziehen(projektDir, optionen){
                 const noch = d && await kind(d, f.pfad[f.pfad.length - 1]);
                 if (!noch) return;
                 if (!bytesGleich(await lesen(noch), bytes)){ r.konflikte.push({ datei: rel, alt: '', neu: '', altNeuer: true, hinweis: 'am früheren Ort inzwischen geändert' }); log([jetzt(), name, l.bereich, rel, 'KONFLIKT – am früheren Ort inzwischen geändert, nicht gelöscht', ''].join(' | ')); return; }
+                const ziel = await kind(zielDir, zielName);
+                if (!ziel || ziel.kind !== 'file' || !bytesGleich(await lesen(ziel), bytes)){
+                  r.konflikte.push({ datei: rel, alt: '', neu: '', altNeuer: false, hinweis: 'geprüfte Kopie am neuen Ort fehlt oder wurde geändert – Original bleibt' });
+                  return;
+                }
                 await d.removeEntry(noch.name); r.geloescht++;
                 log([jetzt(), name, l.bereich, rel, 'gelöscht am früheren Ort', ''].join(' | '));
               });
@@ -206,7 +236,7 @@ async function projektUmziehen(projektDir, optionen){
       await sichern();   // Log nach jedem Bereich auf die Platte – auch bei Absturz steht der bisherige Verlauf da
     }
     log([jetzt(), name, '', '', 'Umzug beendet', ''].join(' | ')); await sichern();
-  });
+  }).catch(e => { ergebnis.fehler.push(e.message); log([jetzt(), name, '', '', 'ABBRUCH – ' + e.message, ''].join(' | ')); });
   return ergebnis;
 }
 

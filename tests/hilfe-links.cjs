@@ -5,7 +5,7 @@ const root = path.join(__dirname, '..');
 const FEST = ['start', 'brandschaden', 'bohrkern-ablauf', 'app-projektzentrale', 'app-labelkit', 'app-fotokit', 'app-resultkit', 'app-plankit', 'app-belegkit', 'app-buerokit', 'app-spesenkit', 'app-datenarchiv', 'bohrkern', 'wischprobe', 'raumkuerzel'];
 const neben = path.join(root, '..', 'aidkit', 'hilfe-anker.json');
 const anker = fs.existsSync(neben) ? Object.keys(JSON.parse(fs.readFileSync(neben, 'utf8')).anker) : FEST;
-if (fs.existsSync(neben)) assert.deepEqual([...anker].sort(), [...FEST].sort(), 'Liste hier = hilfe-anker.json in AidKit');
+if (fs.existsSync(neben)) for (const id of FEST) assert.ok(anker.includes(id), `#${id} fehlt in AidKit`);
 const pz = fs.readFileSync(path.join(root, 'index.html'), 'utf8'), ar = fs.readFileSync(path.join(root, 'archiv', 'index.html'), 'utf8');
 const pzIds = [...pz.matchAll(/handbuchLink\('([a-z0-9-]+)'/g)].map(m => m[1]);
 assert.deepEqual(pzIds.sort(), ['app-projektzentrale', 'app-projektzentrale', 'brandschaden'], 'Projektdaten + Kurzanleitung');

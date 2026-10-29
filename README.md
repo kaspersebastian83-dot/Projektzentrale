@@ -1,5 +1,9 @@
 # Projektzentrale
 
+## 1.35.0 · 29.10.2026
+
+Sicherer Umzug: nur bekannte BelegKit-Dateien, Kopien vor dem Löschen erneut prüfen, LabelKit-Zeitstände erhalten. Belegte Projektsperren werden gemeldet. Lesefehler der Mitarbeiterliste blockieren das Speichern; Büroaufgaben behalten die echte Ordnerschreibweise. Archivzuordnungen prüfen den Dateistand vor dem Schreiben.
+
 Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung.
 
 **App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.31.0** (Änderungen: Klick auf die Versionsnummer in der App)
