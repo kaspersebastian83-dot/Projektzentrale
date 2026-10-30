@@ -938,9 +938,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.36.1';
+const APP_VERSION = '1.37.0';
 const APP_DATE = '2026-10-30';
 const CHANGELOG = [
+  ['1.37.0', '30.10.2026', 'Neues Feld „Versicherer“ in den Projektdaten (unter „Auftraggeber“). Der Arbeitszettel trägt die Spalte VERSICHERUNG jetzt in beide Felder ein; ändert man später den Auftraggeber (z. B. Makler oder VN), bleibt der Versicherer richtig. BerichtKit übernimmt ihn fürs Deckblatt, statt ihn aus dem Auftraggeber zu erraten. Bestehende Projekte: Feld leer, alles wie bisher.'],
   ['1.36.1', '30.10.2026', 'Anlage PN 98 / Brandgeruch: Der Hinweis „Die Projektdatei trägt die Projektnummer …“ kam auch, wenn in LabelKit der ganze Ordnername als Projektnummer stand (z. B. „26.0512 Stegerwaldstraße Leverkusen“ zum Ordner 26.0512). Verglichen wird jetzt nur noch die Nummer selbst; der Hinweis kommt nur noch bei einer wirklich anderen Nummer.'],
   ['1.36.0', '30.10.2026', 'Neuer Knopf „Asbestbericht“ in Stufe 4 (Gutachten): öffnet BerichtKit mit dem Projekt – der Asbest-Untersuchungsbericht entsteht als Word-Datei in „Mitteilungen“ aus Projektdaten, LabelKit-Proben, ResultKit-Ergebnissen und FotoKit-Fotos. Gemeinsamer Ordner-Baustein: neuer Bereich „BerichtKit“ (Angaben zum Bericht in „_Spektron/BerichtKit“), den der Spektron-Umzug mitnimmt; Kurzanleitung und Adressen ergänzt.'],
   ['1.35.0', '29.10.2026', 'Prüfbericht vom 29.10., Teil 2: Datenarchiv – setzen zwei Rechner gleichzeitig Nutzung, Brandgut oder Probenrolle, ging bisher eine Änderung verloren; jetzt wird vor dem Schreiben geprüft, ob sich „_Spektron-Archiv.json“ inzwischen geändert hat (dann Meldung, bitte erneut setzen). Büroaufgaben behalten die echte Schreibweise des Projektordners (Umlaute), damit BüroKit jedes gelistete Projekt auch öffnen kann (gemeinsam mit BüroKit 1.5). Der Umzug-Dialog sagt deutlicher, dass alle Rechner und RDP-Sitzungen die Apps geschlossen haben müssen.'],
@@ -1160,7 +1161,8 @@ const PJ_FIELDS = [
   // key, label, type, wide, placeholder
   ['objekt',            'Objekt / Adresse',                 'text', true,  'z. B. EFH, Musterstr. 1, 50667 Köln'],
   ['nutzung',           'Nutzung (für die VdS-Einordnung)', 'select', false, ''],
-  ['auftraggeber',      'Auftraggeber / Versicherung',      'text', false, ''],
+  ['auftraggeber',      'Auftraggeber',                     'text', false, ''],
+  ['versicherer',       'Versicherer',                      'text', false, 'nur bei Versicherungsschäden'],
   ['schadennummer',     'Schaden-Nr. des Auftraggebers',    'text', false, ''],
   ['schadenereignis',   'Schadenereignis',                  'text', true,  'z. B. Brand im Erdgeschoss (Küche)'],
   ['brandgut',          'Brandgut (optional)',              'select', false, ''],
@@ -2255,7 +2257,7 @@ function arbeitsstand(p){
     plan:{present:!!pl?.probenplan,text:pl?.probenplan?'Probenplan vorhanden':pl?'Kein Probenplan gefunden':'Ordner fehlt'},beleg:{text:'Jederzeit verfügbar'}};
 }
 /* Projektdaten in drei Gruppen; Projektnummer und Schadenort stehen im Kopf (aus dem Ordnernamen). */
-const PJ_GRUPPEN = [['Objekt und Auftrag', ['objekt', 'nutzung', 'auftraggeber', 'schadennummer', 'auftragsdatum']], ['Schaden und Termine', ['schadenereignis', 'brandgut', 'schadendatum', 'ortstermin', 'sachverstaendiger']],
+const PJ_GRUPPEN = [['Objekt und Auftrag', ['objekt', 'nutzung', 'auftraggeber', 'versicherer', 'schadennummer', 'auftragsdatum']], ['Schaden und Termine', ['schadenereignis', 'brandgut', 'schadendatum', 'ortstermin', 'sachverstaendiger']],
   ['Beteiligte', ['versicherungsnehmer', 'sachverstaendigerBeteiligt', 'sanierung', 'kontakte']], ['', ['notizen']]];
 function ordnerKurz(p){
   const s = p.st.subs, da = SUBS.filter(([k]) => s[k]).length, dateien = SUBS.reduce((n, [k]) => n + (s[k] ? s[k].files : 0), 0);
@@ -2613,6 +2615,7 @@ function azFelder(z){
   const f = {}, hinweise = [];
   f.objekt = z.risko;
   f.auftraggeber = z.versicherung;
+  f.versicherer = z.versicherung;   // eigenes Feld: bleibt richtig, wenn der Auftraggeber später geändert wird (BerichtKit-Deckblatt)
   f.schadennummer = z.schadennummer;
   f.versicherungsnehmer = z.versicherungsnehmer;
   f.sachverstaendigerBeteiligt = z.sachverstaendiger;
@@ -2654,7 +2657,7 @@ async function azTextstuecke(buf){
 }
 window.MosaikArbeitszettel = { azLeser, azFelder, azTextstuecke };   // für Tests und Fehlersuche (nur lesen, schreibt nichts)
 const AZ_FELDER = [   // Reihenfolge im Dialog
-  ['objekt', 'Objekt (RISKO)'], ['auftraggeber', 'Auftraggeber / Versicherung'], ['schadennummer', 'Schaden-Nr.'], ['auftragsdatum', 'Auftragsdatum'],
+  ['objekt', 'Objekt (RISKO)'], ['auftraggeber', 'Auftraggeber'], ['versicherer', 'Versicherer'], ['schadennummer', 'Schaden-Nr.'], ['auftragsdatum', 'Auftragsdatum'],
   ['versicherungsnehmer', 'Versicherungsnehmer'], ['sachverstaendigerBeteiligt', 'Beteiligter Sachverständiger'], ['sanierung', 'Sanierung'],
   ['kontakte', 'Ansprechpartner'], ['schadendatum', 'Schadendatum'], ['ortstermin', 'Ortstermin'], ['sachverstaendiger', 'Sachverständiger'],
   ['arbeitsauftrag', 'Arbeitsauftrag → Notizen']

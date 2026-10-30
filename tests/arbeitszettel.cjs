@@ -14,6 +14,7 @@ assert.equal(z.projektnummer, '26.0142');
 assert.deepEqual(r.f, {
   objekt: 'Beispiel Wohnbau GmbH, Hauptstraße 12, 99999 Teststadt',
   auftraggeber: 'Muster Versicherung AG, Versicherungsplatz 1, 99997 Beispielstadt',
+  versicherer: 'Muster Versicherung AG, Versicherungsplatz 1, 99997 Beispielstadt',
   schadennummer: 'XY2026-0001234',
   versicherungsnehmer: 'Eigentümergemeinschaft Hauptstraße 12 und 14, Verwalterweg 3, 99998 Musterhausen',
   sachverstaendigerBeteiligt: 'Gutachterbüro Probe GmbH, Prüfweg 5, 99996 Probstadt, 0999-12345 od. 12346',
@@ -30,6 +31,7 @@ z = azLeser(lies('knapp')); r = azFelder(z);
 assert.equal(z.projektnummer, '26.0999');
 assert.equal(r.f.objekt, 'Feldweg 1, 99990 Irgendwo');
 assert.equal(r.f.auftraggeber, 'Andere Versicherung AG, 99989 Berlin');
+assert.equal(r.f.versicherer, 'Andere Versicherung AG, 99989 Berlin');
 for (const k of ['versicherungsnehmer', 'sachverstaendigerBeteiligt', 'sanierung', 'schadendatum', 'arbeitsauftrag']) assert.equal(r.f[k], '', k);
 assert.equal(r.f.sachverstaendiger, 'Erika Muster');
 assert.equal(r.f.kontakte, 'Regulierer: Hr. Kurz 0999000111');
