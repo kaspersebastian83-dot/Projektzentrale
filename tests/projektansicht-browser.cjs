@@ -109,10 +109,13 @@ if(!before){
  assert.equal(await page.locator('[data-ab-kit]').getAttribute('href'),'../buerokit/');assert.equal(await page.locator('[data-ab-kit]').getAttribute('target'),'buerokit');
  assert.equal(await page.locator('#goBuero').getAttribute('href'),'../buerokit/');assert.equal(await page.locator('#goBuero').getAttribute('target'),'buerokit');
  assert.match(await page.locator('#goBuero').innerText(),/BüroKit\s*Aufgaben des Büros: Gutachten gegenlesen, PDF, Versand/);
- // Übergabeformular vorbelegt: neueste Word-Datei aus „Mitteilungen“, Auftraggeber und beteiligter Sachverständiger angehakt
+ // Übergabeformular vorbelegt: Auftraggeber und beteiligter Sachverständiger angehakt. Word-Dateien mit Datum und Uhrzeit;
+ // 1.39: „Gutachten B.docx“ ist nicht als Mitteilung erkennbar → keine Vorwahl, „bitte die Mitteilung wählen“
  await page.locator('[data-ab-summary]').click();
- assert.deepEqual(await page.locator('[data-ab-word] option').allTextContents(),['– keine Word-Datei –','Gutachten B.docx','Gutachten Z alt.docx']);
- assert.equal(await page.locator('[data-ab-word]').inputValue(),'Mitteilungen/Gutachten B.docx');
+ {const o=await page.locator('[data-ab-word] option').allTextContents();assert.deepEqual(o.slice(0,2),['– bitte die Mitteilung wählen –','– keine Word-Datei –']);
+  assert.match(o[2],/^Gutachten B\.docx · \d\d\.\d\d\.\d{4} \d\d:\d\d$/);assert.equal(o[3],'Gutachten Z alt.docx · 02.01.2026 01:00');assert.equal(o.length,4);}
+ assert.equal(await page.locator('[data-ab-word]').inputValue(),'?');
+ assert.match(await page.locator('[data-ab-word-hinweis]').innerText(),/^Bitte die Mitteilung auswählen/);
  assert.deepEqual(await page.locator('[data-ab-an]').evaluateAll(es=>es.map(e=>e.checked)),[true,true,false,false]);
  assert.deepEqual(await page.locator('[data-ab-details]').evaluateAll(es=>es.map(e=>e.value)),['Beispiel AG, Abteilung West','Dr. Muster, Beispielinstitut','Fiktive Person','']);
  // Halb ausgefüllt: bleibt beim Neuzeichnen (Projektdaten von außen geändert) und beim Projektwechsel; Cursor bleibt
@@ -187,7 +190,7 @@ if(!before){
  assert.ok(!await fs.stat(path.join(tmp,B,'_Spektron','Buero')).catch(()=>null));
  assert.ok(!await page.locator('[data-ab-form]').evaluate(e=>e.open),'Formular zu: gerade sind die Prüfberichte dran');
  await page.locator('#goUebergabe').click();assert.ok(await page.locator('[data-ab-form]').evaluate(e=>e.open),'„Ans Büro übergeben“ in Stufe 5 öffnet das Formular');
- assert.equal(await page.locator('[data-ab-word]').inputValue(),'Mitteilungen/Gutachten B.docx');
+ assert.equal(await page.locator('[data-ab-word]').inputValue(),'?','keine Mitteilung erkennbar → selbst wählen');await page.locator('[data-ab-word]').selectOption('Mitteilungen/Gutachten B.docx');
  assert.deepEqual(await page.locator('[data-ab-an]').evaluateAll(es=>es.map(e=>e.checked)),[false,false,false,false],'nichts eingetragen → nichts angehakt');
  // Ohne „Ich bin …“ wird nichts geschrieben
  await page.evaluate(()=>localStorage.removeItem('spektron-ich'));
@@ -227,12 +230,13 @@ if(!before){
  await page.locator(`[data-ab-antworten="${bId}"]`).click();await page.waitForFunction(()=>!document.querySelector('#bueroAttention').textContent.includes('Welche Fassung'));
  const vermerke=[];for(const n of await fs.readdir(path.join(tmp,B,'_Spektron','Buero','vermerke')))vermerke.push(JSON.parse(await fs.readFile(path.join(tmp,B,'_Spektron','Buero','vermerke',n),'utf8')));
  const antwort=vermerke.filter(v=>v.schritt==='antwort');assert.equal(antwort.length,1);assert.equal(antwort[0].text,'Die neueste.');assert.equal(antwort[0].von,'SK');assert.equal(antwort[0].aufgabe,bId);
- // Ein zweites Gutachten nur nach Rückfrage
+ // Ein zweites Gutachten: 1.39 kein natives confirm mehr – der Hinweis steht im Formular, ein Klick reicht
  await page.locator('[data-ab-summary]').click();await page.locator('[data-ab-an="0"]').check();await page.locator('[data-ab-details="0"]').fill('Ergänzungsempfänger B');
- page.once('dialog',d=>d.dismiss());await page.locator('[data-ab-los]').click();await page.waitForTimeout(500);
- assert.equal((await fs.readdir(path.join(tmp,B,'_Spektron','Buero','aufgaben'))).length,1,'abgebrochen: nichts geschrieben');
- let frage='';page.once('dialog',d=>{frage=d.message();d.accept();});await page.locator('[data-ab-los]').click();await page.locator('#dialog h3').filter({hasText:'Word-Datei nicht geprüft'}).waitFor();await page.locator('#dYes').click();await page.waitForFunction(()=>document.querySelectorAll('#bueroPanel [data-ab-aufgabe]').length===2);
- assert.equal(frage,'Es ist schon ein Gutachten beim Büro offen. Trotzdem ein weiteres übergeben?');
+ await page.locator('[data-ab-word]').selectOption('Mitteilungen/Gutachten B.docx');
+ assert.match(await page.locator('[data-ab-weitere]').innerText(),/^Beim Büro ist schon ein Gutachten offen \(Gutachten B\.docx, übergeben \d\d\.\d\d\.\d{4}\) – das wird eine weitere Übergabe \(z\. B\. Nachtrag\)\.$/);
+ let nativ=0;const zaehle=d=>{nativ++;d.dismiss();};page.on('dialog',zaehle);
+ await page.locator('[data-ab-los]').click();await page.locator('#dialog h3').filter({hasText:'Word-Datei nicht geprüft'}).waitFor();await page.locator('#dYes').click();await page.waitForFunction(()=>document.querySelectorAll('#bueroPanel [data-ab-aufgabe]').length===2);
+ page.off('dialog',zaehle);assert.equal(nativ,0,'kein natives confirm');
  const zweite=(await fs.readdir(path.join(tmp,B,'_Spektron','Buero','aufgaben'))).map(n=>n.slice(0,-5)).find(n=>n!==bId);
  // Zurückgezogen: ausgeblendet · erledigt: klein „Gutachten erledigt am …“ · eigene Büroaufgabe als kurze Liste
  await buero('vermerken',{aufgabe:zweite,schritt:'geloescht',von:'Nad'});
@@ -261,6 +265,6 @@ if(!before){
  await z.evaluate(()=>document.fonts.ready);assert.equal(await z.evaluate(()=>devicePixelRatio),1.5,'native browser zoom, not CSS scaling');assert.ok(await z.evaluate(()=>innerWidth<=700));
  assert.ok(await z.locator('#bueroAttention [data-ab-antworten]').isVisible());const alertBounds=await z.locator('#bueroAttention').boundingBox();assert.ok(alertBounds.y+alertBounds.height<=await z.evaluate(()=>innerHeight),'question is inside the visible zoomed viewport: '+JSON.stringify({alertBounds,height:await z.evaluate(()=>innerHeight)}));assert.ok(await z.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await z.locator('#detail').evaluate(e=>e.scrollTop=0);const cdp=await zc.newCDPSession(z);const screen=await cdp.send('Page.captureScreenshot',{format:'png',fromSurface:true});await fs.writeFile(path.join(out,'nachher-browserzoom-150.png'),Buffer.from(screen.data,'base64'));
 }
-assert.deepEqual(errors,[]);console.log('OK Projektansicht: '+(before?'Vorher-Screenshots':'Maus/Tastatur, fünf Fragmentlinks, Ans Büro: frühere Übergabe, vorbelegtes Formular (neueste Word-Datei, Empfänger), Entwurf bleibt beim Neuzeichnen und Projektwechsel, Übergabe = eine Aufgabendatei, Kürzel nötig, Fehler in der Karte, offene Schritte, Rückfrage oben beantworten, zweite Übergabe nur nach Rückfrage, zurückgezogen/erledigt/eigene Aufgaben, frühere Versandangaben, Speicherfehler, Desktop/klein/echter 150%-Browserzoom'));
+assert.deepEqual(errors,[]);console.log('OK Projektansicht: '+(before?'Vorher-Screenshots':'Maus/Tastatur, fünf Fragmentlinks, Ans Büro: frühere Übergabe, vorbelegtes Formular (Word-Dateien mit Datum, ohne erkennbare Mitteilung keine Vorwahl, Empfänger), Entwurf bleibt beim Neuzeichnen und Projektwechsel, Übergabe = eine Aufgabendatei, Kürzel nötig, Fehler in der Karte, offene Schritte, Rückfrage oben beantworten, zweite Übergabe ohne Rückfrage (Hinweis im Formular), zurückgezogen/erledigt/eigene Aufgaben, frühere Versandangaben, Speicherfehler, Desktop/klein/echter 150%-Browserzoom'));
 }finally{for(const c of contexts)await c.close();await browser.close();server.closeAllConnections();await new Promise(r=>server.close(r));await fs.rm(tmp,{recursive:true,force:true});}
 })().catch(e=>{console.error(e);if(process.env.GITHUB_ACTIONS)console.log('::error title=projektansicht-browser::'+String(e&&e.stack||e).slice(0,1500).replace(/%/g,'%25').replace(/\r/g,'%0D').replace(/\n/g,'%0A'));process.exitCode=1;});

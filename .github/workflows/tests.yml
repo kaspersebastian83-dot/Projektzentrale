@@ -48,6 +48,7 @@ jobs:
       - run: node tests/rueckmeldung-link.cjs
       - run: node tests/stufen.cjs
       - run: node tests/word-luecken.cjs
+      - run: node tests/word-wahl.cjs
 
   browser-tests:
     name: Browser tests (${{ matrix.browser }})
