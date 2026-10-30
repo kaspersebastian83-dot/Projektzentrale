@@ -12,13 +12,13 @@ const MT = '1._Mitteilung_26.0600.docx', fixture = n => fs.readFile(path.join(__
   const in_ = (...t) => path.join(tmp, P, ...t);
   for (const sub of ['Mitteilungen', 'Laborergebnisse', 'Fotos', 'Laboraufträge', path.join('_Spektron', 'BerichtKit')]) await fs.mkdir(in_(sub), { recursive: true });
   await fs.mkdir(path.join(tmp, Q, 'Mitteilungen'), { recursive: true });
-  // R: Mitteilung, danach Anlagen (PlanKit Probenahme, PN 98, eine nur über das Anlagen-Protokoll erkennbare)
+  // R (Zeiten in UTC – Anzeige in Europe/Berlin = +1 h, unabhängig von der Zeitzone des Runners): Mitteilung, danach Anlagen (PlanKit Probenahme, PN 98, eine nur über das Anlagen-Protokoll erkennbare)
   const leg = async (proj, name, iso, inhalt) => { const f = path.join(tmp, proj, 'Mitteilungen', name); await fs.mkdir(path.dirname(f), { recursive: true });
     await fs.writeFile(f, inhalt || await fixture('1._Mitteilung_fertig.docx')); const d = new Date(iso); await fs.utimes(f, d, d); };
-  await leg(R, '1._Mitteilung_26.0602.docx', '2026-10-30T10:00:00');
-  await leg(R, '26.0602_Anlage_Probenahme_2026-10-30.docx', '2026-10-30T12:00:00', 'Synthetic placeholder');
-  await leg(R, '26.0602_Anlage_PN98_2026-10-30.docx', '2026-10-30T12:30:00', 'Synthetic placeholder');
-  await leg(R, 'Anhang Messung.docx', '2026-10-30T13:00:00', 'Synthetic placeholder');
+  await leg(R, '1._Mitteilung_26.0602.docx', '2026-10-30T09:00:00Z');
+  await leg(R, '26.0602_Anlage_Probenahme_2026-10-30.docx', '2026-10-30T11:00:00Z', 'Synthetic placeholder');
+  await leg(R, '26.0602_Anlage_PN98_2026-10-30.docx', '2026-10-30T11:30:00Z', 'Synthetic placeholder');
+  await leg(R, 'Anhang Messung.docx', '2026-10-30T12:00:00Z', 'Synthetic placeholder');
   await fs.mkdir(path.join(tmp, R, '_Spektron', 'Protokolle'), { recursive: true });
   await fs.writeFile(path.join(tmp, R, '_Spektron', 'Protokolle', '_Anlagen-Protokoll.txt'), 'Anlagen-Protokoll (PlanKit) – je Zeile: Zeit (UTC) | Datei | SHA-256 | Quelle | SHA-256 Quelle | Programm\r\n'
     + '2026-10-30T12:00:00.000Z | 26.0602_Anlage_Probenahme_2026-10-30.docx | aa | Pläne/x.probenplan | bb | PlanKit 1.49.0\r\n2026-10-30T13:00:00.000Z | Anhang Messung.docx | cc | Pläne/x.probenplan | dd | PlanKit 1.49.0\r\n');
