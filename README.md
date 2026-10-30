@@ -2,7 +2,11 @@
 
 Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung.
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.36.1** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.37.0** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Neu in 1.37.0 · 30.10.2026
+
+- **Neues Feld „Versicherer“** (`versicherer` in `_Projekt.json`) unter „Auftraggeber“. Der Arbeitszettel trägt die Spalte VERSICHERUNG in beide Felder ein. Ändert man den Auftraggeber später (Makler, VN), bleibt der Versicherer stehen. BerichtKit nimmt ihn fürs Deckblatt, statt ihn aus dem Auftraggeber abzuleiten. Bestehende Projekte: Feld leer, Verhalten wie bisher.
 
 ## Neu in 1.36.1 · 30.10.2026
 
@@ -192,7 +196,7 @@ Die App läuft vollständig im Browser auf dem eigenen Rechner. **Ordner, Dateie
 | Absprung | `../labelkit/?projekt=<Ordnername>` (LabelKit) · `../Bildumbenenner/?projekt=<Ordnername>` (FotoKit) · `../Probenplan/?projekt=<Ordnername>` (PlanKit, mit `&aktion=anlage` direkt zur Anlage) · `../berichtkit/#projekt=<Ordnername>` (BerichtKit) · `../aufwandkit/?projekt=<Ordnername>` (BelegKit) · `../reisekosten-pro/` (SpesenKit, ohne Projekt) |
 | Offline-Speicher | Jede App verwaltet nur Caches mit eigenem Präfix (`projektzentrale:`, `bildumbenenner:`, `probenplan:`, `aufwandkit:`, `reisekosten-pro:`; LabelKit hat keinen Service Worker). |
 
-Felder in `_Projekt.json`: `projektnummer`, `schadenort`, `objekt`, `nutzung` (`Wohnen` | `Büro` | `Öffentlich` | `Gesundheit & Labor` | `Gewerbe/Industrie` | `Landwirtschaft`; PlanKit: Gewerbe/Industrie und Landwirtschaft → VdS-Referenz Industrie, sonst Wohn-/Büroräume), `brandgut` (optional), `auftraggeber`, `schadennummer`, `schadenereignis`, `schadendatum`, `ortstermin`, `auftragsdatum` (Daten `JJJJ-MM-TT`), `sachverstaendiger`, `versicherungsnehmer`, `sachverstaendigerBeteiligt`, `sanierung`, `kontakte`, `notizen`, `zustaendig` (`{ kuerzel, gesetzt: "manuell", am, von }`, fehlt = wie Ordnername), `verteiler` (`{ versicherung|sachverstaendiger|versicherungsnehmer|sanierung: { an: true, versandt: "JJJJ-MM-TT" } }`), `arbeitszettel` (`{ datei, sha256, titel, eingelesen }`), `geaendert`, `geaendertMit`.
+Felder in `_Projekt.json`: `projektnummer`, `schadenort`, `objekt`, `nutzung` (`Wohnen` | `Büro` | `Öffentlich` | `Gesundheit & Labor` | `Gewerbe/Industrie` | `Landwirtschaft`; PlanKit: Gewerbe/Industrie und Landwirtschaft → VdS-Referenz Industrie, sonst Wohn-/Büroräume), `brandgut` (optional), `auftraggeber`, `versicherer` (ab 1.37), `schadennummer`, `schadenereignis`, `schadendatum`, `ortstermin`, `auftragsdatum` (Daten `JJJJ-MM-TT`), `sachverstaendiger`, `versicherungsnehmer`, `sachverstaendigerBeteiligt`, `sanierung`, `kontakte`, `notizen`, `zustaendig` (`{ kuerzel, gesetzt: "manuell", am, von }`, fehlt = wie Ordnername), `verteiler` (`{ versicherung|sachverstaendiger|versicherungsnehmer|sanierung: { an: true, versandt: "JJJJ-MM-TT" } }`), `arbeitszettel` (`{ datei, sha256, titel, eingelesen }`), `geaendert`, `geaendertMit`.
 
 ## Neue Version veröffentlichen
 

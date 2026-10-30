@@ -66,7 +66,7 @@ const TYP = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.c
   await page.locator('#azOk').waitFor();
   assert.equal(await page.locator('#az_objekt').isChecked(), false, 'vorhandener Wert wird nicht ungefragt überschrieben');
   assert.match(await page.locator('tr[data-k=objekt] .st').textContent(), /überschreibt: Schon eingetragen/);
-  for (const k of ['auftraggeber', 'schadennummer', 'versicherungsnehmer', 'sachverstaendigerBeteiligt', 'sanierung', 'kontakte', 'schadendatum', 'ortstermin', 'auftragsdatum', 'sachverstaendiger', 'arbeitsauftrag'])
+  for (const k of ['auftraggeber', 'versicherer', 'schadennummer', 'versicherungsnehmer', 'sachverstaendigerBeteiligt', 'sanierung', 'kontakte', 'schadendatum', 'ortstermin', 'auftragsdatum', 'sachverstaendiger', 'arbeitsauftrag'])
     assert.equal(await page.locator('#az_' + k).isChecked(), true, k);
   assert.equal(await page.locator('.azwarn').count(), 0);
   assert.equal(await page.locator('#azOk').isEnabled(), true);
@@ -76,6 +76,8 @@ const TYP = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.c
   assert.equal(pj.objekt, 'Schon eingetragen');
   assert.equal(pj.fremdesFeld, 'bleibt');
   assert.equal(pj.auftraggeber, 'Muster Versicherung AG, Versicherungsplatz 1, 99997 Beispielstadt');
+  assert.equal(pj.versicherer, 'Muster Versicherung AG, Versicherungsplatz 1, 99997 Beispielstadt');
+  assert.equal(await page.locator('#pj_versicherer').inputValue(), pj.versicherer);
   assert.equal(pj.ortstermin, '2026-10-15');
   assert.equal(pj.sachverstaendiger, 'Dr. S. Kasper');
   assert.equal(pj.notizen, 'Arbeitsauftrag: Bitte Rußproben im EG nehmen.');
@@ -87,6 +89,7 @@ const TYP = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.c
   await page.locator('#azFile').setInputFiles(path.join(__dirname, 'fixtures', 'arbeitszettel-voll.pdf'));
   await page.locator('#azOk').waitFor();
   assert.equal(await page.locator('#az_auftraggeber').count(), 0, 'gleicher Wert: nichts anzuhaken');
+  assert.equal(await page.locator('#az_versicherer').count(), 0, 'gleicher Wert: nichts anzuhaken');
   assert.equal(await page.locator('#az_arbeitsauftrag').count(), 0, 'Arbeitsauftrag schon in den Notizen');
   await page.locator('#azAbbr').click();
 
