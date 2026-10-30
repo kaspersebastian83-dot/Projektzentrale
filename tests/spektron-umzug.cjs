@@ -26,7 +26,7 @@ const FIX = {
   ['Pläne/Probenplan ' + N + '.probenplan']: '{"v":1}', 'Pläne/Plan EG.png': 'PNG', ['Pläne/Probenplan ' + N + ' (vorher 2026-10-28 10-00-00-000 abc).probenplan']: '{"v":0}',
   'Abrechnung/Aufwand_DRKA.json': '{"format":"aufwandkit-zeiten"}', 'Abrechnung/_Abrechnung.json': '{}', 'Abrechnung/26.0560_Aufwand_2026-10-28.json': '{"quellen":[]}', 'Abrechnung/26.0560_Aufwand_2026-10-28.csv': 'a;b', 'Abrechnung/_BelegKit_Sicherungen/x.json': '{}',
   '_Buero/aufgaben/a1.json': '{"typ":"aufgabe"}', '_Buero/vermerke/v1.json': '{"typ":"vermerk"}', '_Buero/0f0e0d0c-1111-4222-8333-944455556666/auftrag.json': '{"alt":1}',
-  'Mitteilungen/_Anlagen-Protokoll.txt': 'p', 'Mitteilungen/Gutachten.docx': 'DOCX', 'Emails/mail.msg': 'MSG'
+  'Mitteilungen/_Anlagen-Protokoll.txt': 'p', 'Mitteilungen/_BerichtKit.json': '{"format":"spektron-bericht"}', 'Mitteilungen/Gutachten.docx': 'DOCX', 'Emails/mail.msg': 'MSG'
 };
 async function fixture(name = N, dateien = FIX){
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'spektron-umzug-')), dir = path.join(tmp, name);
@@ -53,6 +53,7 @@ const ok = async (t, fn) => { hooks.beimLoeschen = null; hooks.beimSchreiben = n
       '_Spektron/BelegKit/Aufwand_DRKA.json': FIX['Abrechnung/Aufwand_DRKA.json'], '_Spektron/BelegKit/_Abrechnung.json': '{}', '_Spektron/BelegKit/26.0560_Aufwand_2026-10-28.json': '{"quellen":[]}', '_Spektron/BelegKit/_BelegKit_Sicherungen/x.json': '{}',
       '_Spektron/Buero/aufgaben/a1.json': FIX['_Buero/aufgaben/a1.json'], '_Spektron/Buero/vermerke/v1.json': FIX['_Buero/vermerke/v1.json'], '_Spektron/Buero/0f0e0d0c-1111-4222-8333-944455556666/auftrag.json': '{"alt":1}',
       '_Spektron/Protokolle/_Anlagen-Protokoll.txt': 'p',
+      '_Spektron/BerichtKit/_BerichtKit.json': '{"format":"spektron-bericht"}',
       // bleibt, wo es ist
       'Fotos/IMG_1.jpg': 'JPEGDATA', 'Fotos/_aussortiert/IMG_2.jpg': 'JPEG2', 'Laboraufträge/26.0560_PAK_Laborübergabe.xls': 'XLS', 'Feldprotokolle/scan.pdf': 'PDF',
       'Laborergebnisse/AR-26-1.xml': '<x/>', 'Laborergebnisse/AR-26-1.pdf': 'PDF', 'Pläne/Plan EG.png': 'PNG', 'Abrechnung/26.0560_Aufwand_2026-10-28.csv': 'a;b',
