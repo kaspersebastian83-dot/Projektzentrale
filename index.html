@@ -935,9 +935,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.35.0';
-const APP_DATE = '2026-10-29';
+const APP_VERSION = '1.36.0';
+const APP_DATE = '2026-10-30';
 const CHANGELOG = [
+  ['1.36.0', '30.10.2026', 'Neuer Knopf „Asbestbericht“ in Stufe 4 (Gutachten): öffnet BerichtKit mit dem Projekt – der Asbest-Untersuchungsbericht entsteht als Word-Datei in „Mitteilungen“ aus Projektdaten, LabelKit-Proben, ResultKit-Ergebnissen und FotoKit-Fotos. Gemeinsamer Ordner-Baustein: neuer Bereich „BerichtKit“ (Angaben zum Bericht in „_Spektron/BerichtKit“), den der Spektron-Umzug mitnimmt; Kurzanleitung und Adressen ergänzt.'],
   ['1.35.0', '29.10.2026', 'Prüfbericht vom 29.10., Teil 2: Datenarchiv – setzen zwei Rechner gleichzeitig Nutzung, Brandgut oder Probenrolle, ging bisher eine Änderung verloren; jetzt wird vor dem Schreiben geprüft, ob sich „_Spektron-Archiv.json“ inzwischen geändert hat (dann Meldung, bitte erneut setzen). Büroaufgaben behalten die echte Schreibweise des Projektordners (Umlaute), damit BüroKit jedes gelistete Projekt auch öffnen kann (gemeinsam mit BüroKit 1.5). Der Umzug-Dialog sagt deutlicher, dass alle Rechner und RDP-Sitzungen die Apps geschlossen haben müssen.'],
   ['1.34.1', '29.10.2026', 'Umzug sicherer (Prüfbericht vom 29.10.): fremde JSON in „Abrechnung“ bleiben liegen; vor jedem Löschen wird auch die Kopie am neuen Ort geprüft – fehlt sie oder ist sie anders, bleibt das Original; Dateien werden in Datumsreihenfolge kopiert, damit die neueste LabelKit-Tagesdatei die neueste bleibt; eine belegte Sperre hält den Umzug nicht mehr auf (nach 20 s übersprungen und gemeldet). Mitarbeiterliste: ein Lesefehler gilt nicht mehr als „Datei fehlt“ und überschreibt die Liste nie.'],
   ['1.34.0', '28.10.2026', 'Spektron-Ordner einrichten: Unter „⋯ Mehr“ zieht die Projektzentrale die App-Dateien aller Spektron-Projekte (ab 26.0560 und übernommene) in den Ordner „_Spektron“ – erst Vorschau, dann bewusst bestätigt. Jede Datei wird kopiert, zurückgelesen und verglichen, in „_Spektron/_Umzug.json“ vermerkt und erst dann am früheren Ort gelöscht; alles steht in „_Spektron-Umzug.log“ im Archivordner. Fotos, Pläne, Laborberichte, Anlagen und CSV bleiben, wo sie sind. Liegt eine Datei an beiden Orten mit verschiedenem Inhalt (eine noch offene ältere App), bleibt beides und die Projektansicht zeigt es mit „Umzug erneut ausführen“. „In Spektron übernehmen“ zieht das Projekt sofort um. Neue Projekte ab jetzt direkt in „_Spektron“ (gemeinsames Modul, alle Apps).'],
@@ -1129,6 +1130,7 @@ const BILDUMBENENNER_URL = '../Bildumbenenner/';
 const PROBENPLAN_URL = '../Probenplan/';
 const LABELKIT_URL = '../labelkit/';
 const AUFWANDKIT_URL = '../aufwandkit/';
+const BERICHTKIT_URL = '../berichtkit/';   // BerichtKit: Asbest-Untersuchungsbericht (Mitteilung) als Word-Datei – Ordner „Mitteilungen“
 const RESULTKIT_URL = '../resultkit/';   // ResultKit: Laborergebnisse prüfen – Laborauftrag gegen Prüfberichte, Import, „_Ergebnisse.json“ für PlanKit/FotoKit
 const BUEROKIT_URL = '../buerokit/';   // BüroKit: Tagesliste des Büros – Gutachten gegenlesen, PDF, Versand; eigene Büroaufgaben
 const AIDKIT_URL = '../aidkit/';   // AidKit: Handbuch der Suite – Abläufe und Regeln, ohne Projektbezug
@@ -1215,7 +1217,7 @@ const S = { archive: null, ma: null, projects: [], others: [], sel: null, year: 
    und UMSTELLUNG aus ist, liefert SpektronOrdner.ort() überall den bisherigen Ort – also genau das bisherige Verhalten. */
 /* Falls spektron-ordner.js nicht geladen wurde (z. B. veralteter Offline-Zwischenspeicher): überall der bisherige Ort. */
 const SO_ALT = { projekt: [], fotokit: ['Fotos'], fotokitPruefsummen: ['Fotos'], labelkit: ['Laboraufträge'], labelkitAblage: ['Feldprotokolle'],
-  resultkit: ['Laborergebnisse'], plankit: ['Pläne'], belegkit: ['Abrechnung'], buero: ['_Buero'], anlagenProtokoll: ['Mitteilungen'] };
+  resultkit: ['Laborergebnisse'], plankit: ['Pläne'], belegkit: ['Abrechnung'], buero: ['_Buero'], anlagenProtokoll: ['Mitteilungen'], berichtkit: ['Mitteilungen'] };
 const SO = window.SpektronOrdner || { ORDNER: '_Spektron', AB: '26.0560', projektKey: () => null, istSpektronProjekt: async () => false, umzugListe: async () => [],
   async ort(projDir, bereich, o){ let d = projDir; const pfad = SO_ALT[bereich] || [];
     for (const teil of pfad){ let h = null; for await (const x of d.values()) if (x.kind === 'directory' && x.name.normalize('NFC').toLowerCase() === teil.toLowerCase()){ h = x; break; }
@@ -2339,7 +2341,7 @@ function renderDetail(){
       </li>
       ${stufe('ortstermin', 2, '', knopf('goLabel', 'Proben & Etiketten', 'label', 'LabelKit: Proben erfassen, Etiketten drucken, Laborauftrag – speichert im Ordner „Laboraufträge“') + knopf('goFotos', 'Fotos', 'fotos', 'FotoKit: Fotos benennen und beschriften, Bilddokumentation – Ordner „Fotos“'))}
       ${stufe('labor', 3, '', knopf('goErgebnis', 'Ergebnisse prüfen', 'ergebnis', 'ResultKit: was beim Labor ist, was zurück ist und was fehlt; Prüfberichte importieren und für PlanKit und FotoKit übernehmen – Ordner „Laborergebnisse“'))}
-      ${stufe('gutachten', 4, '', knopf('goPlan', 'Probenplan', 'plan', 'PlanKit: Probenplan zeichnen – Ordner „Pläne“') + (stand.plan.present ? knopf('anlPlan', 'Anlage Probenahme …', 'anlage', 'Öffnet PlanKit gleich im Export „Word · Anlage Probenahme“: Lagepläne, Probenverzeichnis, Fotos, Laborwerte') : ''),
+      ${stufe('gutachten', 4, '', knopf('goPlan', 'Probenplan', 'plan', 'PlanKit: Probenplan zeichnen – Ordner „Pläne“') + knopf('goBericht', 'Asbestbericht', 'bericht', 'BerichtKit: Asbest-Untersuchungsbericht als Word-Datei aus Projektdaten, Proben, Laborergebnissen und Fotos – Ordner „Mitteilungen“') + (stand.plan.present ? knopf('anlPlan', 'Anlage Probenahme …', 'anlage', 'Öffnet PlanKit gleich im Export „Word · Anlage Probenahme“: Lagepläne, Probenverzeichnis, Fotos, Laborwerte') : ''),
         '<div class="stufe-body"><div class="att" id="anl"></div></div>')}
       ${stufe('buero', 5, '', knopf('goUebergabe', 'Ans Büro übergeben', 'uebergeben', 'Gutachten mit Word-Datei und Empfängern ans Büro übergeben – das Büro arbeitet in BüroKit'),
         '<div class="stufe-body"><section id="bueroPanel"></section></div>')}
@@ -2479,6 +2481,7 @@ function stufeAktion(p, aktion){
     case 'ergebnis': openApp(p, RESULTKIT_URL, 'resultkit'); return;
     case 'plan': openPlanKit(p); return;
     case 'anlage': openPlanKit(p, 'anlage'); return;
+    case 'bericht': openApp(p, BERICHTKIT_URL, 'berichtkit'); return;
     case 'beleg': openApp(p, AUFWANDKIT_URL, 'aufwandkit'); return;
     case 'buerokit': window.open(BUEROKIT_URL, 'buerokit', 'noopener'); return;
     case 'uebergeben': { const panel = $('bueroPanel'), form = panel && panel.querySelector('[data-ab-form]'); if (!form) return;
@@ -3094,8 +3097,8 @@ function helpDiagram(){
   </svg>`;
 }
 function helpHtml(){
-  return `<p><b>Spektron</b> heißen unsere Büro-Apps zusammen: Projektzentrale, LabelKit, FotoKit, ResultKit, PlanKit, BelegKit und SpesenKit, dazu das Handbuch AidKit.</p>
-  <p><b>Alle Arbeit startet hier in der Projektzentrale:</b> Sie öffnet LabelKit, FotoKit, ResultKit, PlanKit und BelegKit direkt im richtigen Projektordner, gespeichert wird dort automatisch.</p>
+  return `<p><b>Spektron</b> heißen unsere Büro-Apps zusammen: Projektzentrale, LabelKit, FotoKit, ResultKit, PlanKit, BerichtKit, BelegKit und SpesenKit, dazu das Handbuch AidKit.</p>
+  <p><b>Alle Arbeit startet hier in der Projektzentrale:</b> Sie öffnet LabelKit, FotoKit, ResultKit, PlanKit, BerichtKit und BelegKit direkt im richtigen Projektordner, gespeichert wird dort automatisch.</p>
   <h4>Einmalig einrichten</h4>
   <ol>
     <li>Auf dem Terminalserver <b>Google Chrome oder Microsoft Edge</b> öffnen (Firefox kann keine Ordner beschreiben).</li>
@@ -3116,6 +3119,7 @@ function helpHtml(){
     <li><b>④ PlanKit – „Probenplan bearbeiten“:</b> Grundriss aus „Pläne“ wählen. Unter „Proben übernehmen …“ die <b>Probenerfassung aus LabelKit</b> übernehmen und die Proben auf den Plan ziehen. Sind die Ergebnisse in ResultKit übernommen: wieder „Proben übernehmen …“, den Prüfbericht wählen und <b>„Alle Konflikte: Aktualisieren“</b> – die Messwerte hängen dann an den Proben.</li>
     <li><b>Auswerten:</b> PlanKit „Ergebnisse“ → Ergebniskarte exportieren. FotoKit „Ergebnistabelle …“ → Tabelle für Word.</li>
     <li><b>⑤ BelegKit – „Zeiten &amp; Abrechnung“:</b> Jede Person trägt ihre Ortstermine (Stunden, km, Spesen, Übernachtung) und Auswertungsstunden selbst ein. Proben aus LabelKit, Berichtsseiten und Fotos werden gezählt; „Abrechnung“ zeigt alle Positionen mit Nummern zum Übertragen ins Rechnungsprogramm.</li>
+    <li><b>Asbestbericht – BerichtKit:</b> In der Stufe „Gutachten“ <b>„Asbestbericht“</b>. BerichtKit setzt den Untersuchungsbericht aus Projektdaten, LabelKit-Proben, den in ResultKit übernommenen Ergebnissen und den FotoKit-Fotos (mit Probe-Nr.) zusammen. Fehlende Angaben sind in der Vorschau gelb markiert. „Word-Bericht speichern“ legt die Datei in „Mitteilungen“ ab.</li>
     <li><b>Anlage Probenahme:</b> In der Stufe „Gutachten“ „Anlage Probenahme …“ (sobald ein Plan da ist) – PlanKit öffnet den Export mit „Word · Anlage Probenahme“ (Lagepläne, Probenverzeichnis, Ausschnitte, Fotos, Laborwerte).</li>
     <li><b>Anlagen PN 98 / Brandgeruch:</b> In der Stufe „Gutachten“ „Anlage PN 98 / Brandgeruch · Erstellen …“ (sobald LabelKit PN 98-Protokolle oder Brandgeruch-Proben enthält). Die Datei liegt danach in „Mitteilungen“ – in Word an der gewünschten Stelle <b>Einfügen › Objekt › Text aus Datei</b>.</li>
   </ol>
@@ -3139,6 +3143,7 @@ function helpHtml(){
     <tr><td>FotoKit</td><td>Fotos benennen, Bilddokumentation, Ergebnistabelle</td><td>kaspersebastian83-dot.github.io/Bildumbenenner</td></tr>
     <tr><td>ResultKit</td><td>Laborergebnisse: was beim Labor ist, was zurück ist, was fehlt; Prüfberichte importieren und übernehmen</td><td>kaspersebastian83-dot.github.io/resultkit</td></tr>
     <tr><td>PlanKit</td><td>Probenplan, Ergebniskarte</td><td>kaspersebastian83-dot.github.io/Probenplan</td></tr>
+    <tr><td>BerichtKit</td><td>Asbest-Untersuchungsbericht als Word-Datei (Mitteilung)</td><td>kaspersebastian83-dot.github.io/berichtkit</td></tr>
     <tr><td>SpesenKit</td><td>Spesenabrechnung für den Monat (ohne Projektbezug)</td><td>kaspersebastian83-dot.github.io/reisekosten-pro</td></tr>
     <tr><td>AidKit</td><td>Handbuch: Abläufe Schritt für Schritt, gemeinsame Regeln</td><td>kaspersebastian83-dot.github.io/aidkit</td></tr>
   </table>
