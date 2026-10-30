@@ -47,6 +47,7 @@ jobs:
       - run: node tests/hilfe-links.cjs
       - run: node tests/rueckmeldung-link.cjs
       - run: node tests/stufen.cjs
+      - run: node tests/word-luecken.cjs
 
   browser-tests:
     name: Browser tests (${{ matrix.browser }})
@@ -79,6 +80,9 @@ jobs:
       - name: Compact project view, hand-over to BüroKit and native browser zoom
         if: matrix.browser == 'chromium'
         run: node tests/projektansicht-browser.cjs
+      - name: Hand-over from BerichtKit, attachments, gap check before hand-over, stage 4
+        if: matrix.browser == 'chromium'
+        run: node tests/uebergabe-browser.cjs
       - name: Project list in groups, „Heute für dich“, „Jetzt dran“ and the „Mehr“ menu
         if: matrix.browser == 'chromium'
         run: node tests/heute-browser.cjs

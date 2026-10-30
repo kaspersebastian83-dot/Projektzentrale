@@ -1,6 +1,6 @@
 /* Spektron – Stufen eines Projekts und „Jetzt dran“ (nur rechnen, nichts lesen oder schreiben).
    Sechs Stufen in Arbeitsreihenfolge; jede mit Zustand, einem Satz und der App, in der es weitergeht:
-     1 Projekt anlegen (Projektdaten)          4 Gutachten (PlanKit, Anlage)
+     1 Projekt anlegen (Projektdaten)          4 Gutachten (PlanKit, BerichtKit, Anlage)
      2 Ortstermin: Proben & Fotos (LabelKit, FotoKit)   5 Ans Büro → Versand (BüroKit)
      3 Labor (ResultKit)                       6 Abrechnung (BelegKit)
    Zustände: 'fertig' | 'dran' (der nächste Schritt liegt bei dir) | 'wartet' (Labor oder Büro sind dran) | 'offen' (später) |
@@ -28,8 +28,9 @@
    *   proben: Probendaten (LabelKit) vorhanden, laborauftrag: Datum,
    *   fotos: { bilder, begonnen, doku },
    *   berichte: Anzahl Prüfberichte, ergebnisse: null | { vollstaendig, veraltet, offen, fehler }, pruefbericht: Datum,
-   *   plan: Probenplan vorhanden,
-   *   buero: { offen, frage, erledigt, rechnungOffen, rechnung: Datum, rechnungVon } | null (unbekannt), uebergabe: Datum, versand: Datum,
+   *   plan: Probenplan vorhanden, mitteilung: { datei, datum } neueste „n. Mitteilung ….docx“ in „Mitteilungen“ (neuesteMitteilung) | null,
+   *   buero: { offen, frage, erledigt, rechnungOffen, rechnung: Datum, rechnungVon, woerter: übergebene Word-Dateien, zuletzt: Datum der
+   *     letzten Übergabe } | null (unbekannt), uebergabe: Datum, versand: Datum,
    *   abrechnung: Datum des letzten BelegKit-Stands
    * }
    */
@@ -60,9 +61,13 @@
     else if (f.proben || f.laborauftrag) s.labor = { zustand: 'wartet', text: `Beim Labor${f.laborauftrag ? ` seit ${de(f.laborauftrag)}` : ''} – noch keine Prüfberichte`, aktion: 'ergebnis' };
     else s.labor = { zustand: 'offen', text: 'Noch kein Laborauftrag', aktion: 'ergebnis' };
 
-    // 4 Gutachten – erledigt, sobald es beim Büro ist
+    // 4 Gutachten – erledigt, sobald es beim Büro ist. Liegt eine Mitteilung (BerichtKit oder von Hand) vor, die noch nicht
+    // übergeben ist, ist das Übergeben dran – auch nach einer früheren Übergabe (z. B. 2. Mitteilung).
     const uebergeben = !!(f.uebergabe || f.versand || b.offen || b.frage || b.erledigt);
-    s.gutachten = uebergeben ? { zustand: 'fertig', text: `Gutachten übergeben${f.uebergabe ? ` ${de(f.uebergabe)}` : ''}` }
+    const mt = f.mitteilung && ISO.test(f.mitteilung.datum || '') ? f.mitteilung : null;
+    const mtOffen = !!mt && !b.unklar && !mitteilungUebergeben(mt, f);
+    s.gutachten = mtOffen ? { zustand: 'offen', text: `Mitteilung vom ${de(mt.datum)} erstellt – ans Büro übergeben`, aktion: 'uebergeben' }
+      : uebergeben ? { zustand: 'fertig', text: `Gutachten übergeben${f.uebergabe ? ` ${de(f.uebergabe)}` : ''}` }
       : { zustand: 'offen', text: f.plan ? 'Probenplan angelegt · Gutachten schreiben, Anlage erstellen' : 'Noch kein Probenplan', aktion: 'plan' };
 
     // 5 Ans Büro → Versand
@@ -88,12 +93,13 @@
     // Spätere Stufe schon erreicht (z. B. Gutachten beim Büro, versandt): frühere Stufen ohne Spur im Ordner gelten als erledigt
     // („übersprungen“) – etwa Prüfberichte, die anderswo abgelegt sind. Was die Fakten ausdrücklich verlangen („dran“), bleibt.
     const reiheAlle = ['ortstermin', 'labor', 'gutachten', 'buero'];
-    const spur = k => s[k].zustand === 'fertig' || (k === 'labor' && !!(f.berichte || er)) || (k === 'buero' && s[k].zustand !== 'offen');
+    const spur = k => s[k].zustand === 'fertig' || (k === 'labor' && !!(f.berichte || er)) || (k === 'gutachten' && !!mt) || (k === 'buero' && s[k].zustand !== 'offen');
     const erreicht = Math.max(-1, ...reiheAlle.map((k, i) => spur(k) ? i : -1));
     for (let i = 0; i < erreicht; i++){
       const k = reiheAlle[i];
       // Labor mit Prüfberichten (z. B. Zwischenstand übernommen) wurde nicht übersprungen, nur nicht abgeschlossen: eigenen Stand behalten
       const mitBerichten = k === 'labor' && !!(f.berichte || er);
+      if (k === 'gutachten' && mtOffen) continue;   // neue Mitteilung liegt vor: das Übergeben ist nicht übersprungen
       if (s[k].zustand === 'offen' || s[k].zustand === 'wartet') s[k] = { zustand: 'uebersprungen', text: mitBerichten ? `${s[k].text} – nicht abgeschlossen` : UEBERSPRUNGEN[k] };
     }
     // Aktuelle Stufe: die erste nicht fertige ab Stufe 2. Was Labor/Büro gerade tun, wartet; danach ist alles „später“.
@@ -105,6 +111,25 @@
 
     const stufen = STUFEN.map(([key, name, app]) => ({ key, name, app, ...s[key] }));
     return { stufen, aktuell, jetzt: jetztDran(s, aktuell, f), gruppe: gruppe(s, aktuell), kurz: kurz(s, aktuell) };
+  }
+
+  const name = s => String(s || '').split('/').pop().normalize('NFC').toLowerCase();
+  /** Mitteilung beim Büro? Ja, wenn eine Büroaufgabe genau diese Datei nennt – oder (Übergaben ohne Dateinamen, vor BüroKit,
+      umbenannte Dateien) eine Übergabe oder ein Versand am Tag der Datei oder später liegt. Bearbeitet das Büro die Datei
+      nach der Übergabe, bleibt der Name gleich. */
+  function mitteilungUebergeben(mt, f){
+    const b = f.buero || {};
+    if ((b.woerter || []).some(w => name(w) === name(mt.datei))) return true;
+    return [b.zuletzt, f.uebergabe, f.versand].some(d => ISO.test(d || '') && d >= mt.datum);
+  }
+  /** Word-Datei einer Mitteilung: „1. Mitteilung ….docx“, „2._Mitteilung_26.0512.docx“, „1__Mitteilung.docx“ (wie die Spektron-Leiste). */
+  const MITTEILUNG = /^\d+[._\s]*Mitteilung(?![a-zäöüß]).*\.docx$/i;
+  /** Neueste Mitteilung aus [{ name, t }] (t = Änderungszeit in ms) → { datei, datum } oder null. */
+  function neuesteMitteilung(liste){
+    const m = (liste || []).filter(x => x && MITTEILUNG.test(x.name) && Number.isFinite(x.t) && x.t > 0).sort((a, b) => b.t - a.t || b.name.localeCompare(a.name, 'de', { numeric: true }))[0];
+    if (!m) return null;
+    const d = new Date(m.t), pad = n => String(n).padStart(2, '0');
+    return { datei: m.name, datum: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` };
   }
 
   const UEBERSPRUNGEN = { ortstermin: 'Keine Probendaten im Ordner – übersprungen', labor: 'Keine Prüfberichte im Ordner – übersprungen', gutachten: 'Übersprungen' };
@@ -121,7 +146,7 @@
     if (s.projekt.aktion === 'az' && s.projekt.zustand === 'dran' && !begonnen) return { titel: 'Projekt anlegen', text: 'Arbeitszettel einlesen – Objekt, Auftraggeber und Termine stehen dann in allen Apps.', aktion: 'az', knopf: AKTIONEN.az };
     if (!aktuell) return { titel: 'Alles erledigt', text: 'Versandt und abgerechnet.', aktion: null, knopf: '' };
     const st = s[aktuell];
-    if (st.zustand === 'dran') return { titel: TITEL[aktuell] || st.text, text: st.text, aktion: st.aktion, knopf: AKTIONEN[st.aktion] || '' };
+    if (st.zustand === 'dran') return { titel: (st.aktion === 'uebergeben' ? TITEL.buero : TITEL[aktuell]) || st.text, text: st.text, aktion: st.aktion, knopf: AKTIONEN[st.aktion] || '' };
     // Labor oder Büro sind dran: was sich inzwischen tun lässt
     if (aktuell === 'labor'){
       if (!f.plan) return { titel: 'Labor läuft', text: `${st.text}. Inzwischen: Probenplan zeichnen.`, aktion: 'plan', knopf: AKTIONEN.plan, wartet: true };
@@ -154,10 +179,11 @@
     if (aktuell === 'buero') return st.zustand === 'wartet' ? 'Beim Büro' : 'Ans Büro übergeben';
     if (aktuell === 'abrechnung') return st.zustand === 'wartet' ? 'Versandt · Rechnung beim Büro' : 'Versandt · Abrechnung offen';
     if (aktuell === 'ortstermin') return 'Proben erfassen';
+    if (aktuell === 'gutachten' && st.aktion === 'uebergeben') return 'Mitteilung ans Büro übergeben';
     return name + (aktuell === 'gutachten' ? ' schreiben' : '');
   }
 
-  const api = Object.freeze({ berechnen, STUFEN, AKTIONEN });
+  const api = Object.freeze({ berechnen, neuesteMitteilung, MITTEILUNG, STUFEN, AKTIONEN });
   root.Stufen = api;
   if (typeof module !== 'undefined') module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

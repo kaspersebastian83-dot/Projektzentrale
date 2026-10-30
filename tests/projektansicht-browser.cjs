@@ -69,7 +69,7 @@ if(!before){
  await page.locator(`.proj[data-name="${B}"]`).focus();await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelector('.proj.active')?.dataset.name==='26.9999 Kontrollort');
   assert.ok(await page.locator('#azQuick').isVisible());
  // ResultKit-Karte: XML+PDF gleichen Namens = ein Bericht, PDF allein zählt mit; nach der Übernahme in ResultKit beim Zurückkehren aktualisiert
- assert.match(await stext('labor'),/^2 Prüfberichte eingegangen, noch nicht geprüft$/);
+ await page.waitForFunction(()=>/^2 Prüfberichte eingegangen, noch nicht geprüft$/.test(document.querySelector('[data-stufe=labor] [data-stext]').textContent));   // Zeile ist schon aktiv, bevor die Ansicht gezeichnet ist
  assert.equal(await page.locator('#jetztGo').innerText(),'Ergebnisse prüfen →');assert.match(await page.locator('#goErgebnis').getAttribute('class'),/passt/);
  // Dateistand wie in ResultKit (Name|Größe|Änderungszeit, sortiert; der Test-Dateizugriff meldet Änderungszeit 1): XML/PDF und neueste LabelKit-Datei
  const kennung=async extra=>{const d=[];for(const n of await fs.readdir(path.join(tmp,B,'Laborergebnisse')))if(/\.(xml|pdf)$/i.test(n))d.push({name:n,size:(await fs.stat(path.join(tmp,B,'Laborergebnisse',n))).size,t:1});for(const n of extra||[])d.push({name:'Laboraufträge/'+n,size:(await fs.stat(path.join(tmp,B,'Laboraufträge',n))).size,t:1});return d.sort((a,b)=>a.name.localeCompare(b.name)).map(x=>`${x.name}|${x.size}|${x.t}`).join('\n');};
@@ -200,7 +200,10 @@ if(!before){
  assert.equal(await page.locator('[data-ab-hinweis]').inputValue(),'Bitte zuerst an die Versicherung.');assert.equal(await page.locator('[data-ab-faellig]').inputValue(),'2026-11-03');
  // Übergabe in einem Schritt: genau eine Datei in „_Spektron/Buero/aufgaben“ (Projekt ab 26.0560 → seit der Umstellung gleich im Spektron-Ordner)
  await page.locator('[data-ab-an="0"]').check();await page.locator('[data-ab-details="0"]').fill('Bestätigter Empfänger B');
- await page.locator('[data-ab-los]').click();await page.locator('#bueroPanel [data-ab-msg]').filter({hasText:'✓ Ans Büro übergeben – erscheint jetzt in BüroKit'}).waitFor();
+ await page.locator('[data-ab-los]').click();
+ // 1.38: Vor dem Übergeben wird die Word-Datei auf Lücken geprüft – die Testdatei ist keine echte .docx, also Rückfrage „nicht geprüft“
+ await page.locator('#dialog h3').filter({hasText:'Word-Datei nicht geprüft'}).waitFor();assert.match(await page.locator('#dialog').innerText(),/„Gutachten B\.docx“ ließ sich nicht auf offene Lücken prüfen/);await page.locator('#dYes').click();
+ await page.locator('#bueroPanel [data-ab-msg]').filter({hasText:'✓ Ans Büro übergeben – erscheint jetzt in BüroKit'}).waitFor();
  const aufgaben=await fs.readdir(path.join(tmp,B,'_Spektron','Buero','aufgaben'));assert.equal(aufgaben.length,1);assert.deepEqual(await fs.readdir(path.join(tmp,B,'_Spektron','Buero')),['aufgaben']);
  const auf=JSON.parse(await fs.readFile(path.join(tmp,B,'_Spektron','Buero','aufgaben',aufgaben[0]),'utf8')),bId=auf.id;
  assert.equal(auf.format,'spektron-buerokit');assert.equal(auf.art,'gutachten');assert.equal(auf.von,'SK');assert.equal(auf.word,'Mitteilungen/Gutachten B.docx');assert.equal(auf.faellig,'2026-11-03');assert.equal(auf.hinweis,'Bitte zuerst an die Versicherung.');assert.equal(auf.projekt.name,B);
@@ -228,7 +231,7 @@ if(!before){
  await page.locator('[data-ab-summary]').click();await page.locator('[data-ab-an="0"]').check();await page.locator('[data-ab-details="0"]').fill('Ergänzungsempfänger B');
  page.once('dialog',d=>d.dismiss());await page.locator('[data-ab-los]').click();await page.waitForTimeout(500);
  assert.equal((await fs.readdir(path.join(tmp,B,'_Spektron','Buero','aufgaben'))).length,1,'abgebrochen: nichts geschrieben');
- let frage='';page.once('dialog',d=>{frage=d.message();d.accept();});await page.locator('[data-ab-los]').click();await page.waitForFunction(()=>document.querySelectorAll('#bueroPanel [data-ab-aufgabe]').length===2);
+ let frage='';page.once('dialog',d=>{frage=d.message();d.accept();});await page.locator('[data-ab-los]').click();await page.locator('#dialog h3').filter({hasText:'Word-Datei nicht geprüft'}).waitFor();await page.locator('#dYes').click();await page.waitForFunction(()=>document.querySelectorAll('#bueroPanel [data-ab-aufgabe]').length===2);
  assert.equal(frage,'Es ist schon ein Gutachten beim Büro offen. Trotzdem ein weiteres übergeben?');
  const zweite=(await fs.readdir(path.join(tmp,B,'_Spektron','Buero','aufgaben'))).map(n=>n.slice(0,-5)).find(n=>n!==bId);
  // Zurückgezogen: ausgeblendet · erledigt: klein „Gutachten erledigt am …“ · eigene Büroaufgabe als kurze Liste
