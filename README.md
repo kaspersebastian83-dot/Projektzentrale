@@ -2,7 +2,11 @@
 
 Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung.
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.36.0** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.36.1** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Neu in 1.36.1 · 30.10.2026
+
+- Anlage PN 98 / Brandgeruch: Der Hinweis „Die Projektdatei trägt die Projektnummer …“ vergleicht nur noch die Nummer (`26.0512`). Steht in LabelKit der ganze Ordnername als Projektnummer („26.0512 Stegerwaldstraße Leverkusen“), kommt kein Fehlalarm mehr.
 
 ## Neu in 1.36.0 · 30.10.2026
 
