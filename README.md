@@ -2,7 +2,13 @@
 
 Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung.
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.38.0** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.39.0** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Neu in 1.39.0 · 30.10.2026
+
+- **Richtige Word-Datei vorgewählt** (`word-wahl.js`, nur rechnen, getestet in `tests/word-wahl.cjs`): In „Ans Büro übergeben“ war bisher die neueste .docx in „Mitteilungen“ vorgewählt – oft eine Anlage. Jetzt in dieser Reihenfolge: (1) die Datei aus dem Link (`uebergabe=`) oder selbst gewählt, (2) der neueste Eintrag in `_BerichtKit.json → berichte[]`, dessen Datei noch da ist, (3) die neueste Datei nach `Stufen.MITTEILUNG`, (4) sonst keine: „– bitte die Mitteilung wählen –“ mit Hinweis, Übergeben erst nach der Wahl. Innerhalb von (2)/(3) geht eine Datei vor, die noch keine Büroaufgabe nennt (sonst stünde nach dem Versand der 1. Mitteilung wieder diese statt der 2. da).
+- **Anlagen nie vorgewählt:** Anlage ist jede Datei mit Zeile im `_Anlagen-Protokoll.txt` (Bereich `anlagenProtokoll`, zusätzlich `Mitteilungen/`) und jede mit PlanKit-Muster (`_Probenahme_`, `_Raumbuch_`, `_Wandansichten_` + Datum) oder PN-98-Muster (`_PN98`, `_Brandgeruch`). In der Auswahl stehen Datum, Uhrzeit und ggf. „· Anlage“ hinter jeder Datei.
+- **Kein natives `confirm` mehr bei einem zweiten Gutachten:** Im Formular steht über dem Knopf „Beim Büro ist schon ein Gutachten offen (Datei, Datum) – das wird eine weitere Übergabe (z. B. Nachtrag)“; ein Klick reicht. Nur wenn seit dem letzten Lesen eines dazugekommen ist, erscheint der Hinweis zuerst und man klickt noch einmal.
 
 ## Neu in 1.38.0 · 30.10.2026
 

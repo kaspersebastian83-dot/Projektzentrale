@@ -1,14 +1,36 @@
 // Vom Bericht zum Büro (1.38): Sprung aus BerichtKit (#projekt=…&uebergabe=…), Prüfberichte laut BerichtKit als Anlagen,
 // Lücken-Prüfung der Word-Datei vor dem Übergeben, Stufe 4 „Mitteilung vom … erstellt – ans Büro übergeben“.
+// 1.39: Vorwahl der Word-Datei ohne Link (Mitteilung statt neuerer Anlage, nur Anlagen → keine, BerichtKit vor Mitteilung),
+// zweite Übergabe ohne natives confirm.
 // Echte Chromium-Seite auf einem synthetischen Archiv (Dateizugriff über eine Brücke zum Testordner, auch binär).
 const assert = require('node:assert/strict'), fs = require('node:fs/promises'), os = require('node:os'), path = require('node:path'), http = require('node:http'), pw = require('playwright');
 const root = path.resolve(__dirname, '..'), P = '26.0600 Teststadt Ste', Q = '26.0601 Nebenort Ste';
+const R = '26.0602 Anlagenort Ste', T = '26.0603 Nurplan Ste', U = '26.0604 Berichtort Ste';
 const MT = '1._Mitteilung_26.0600.docx', fixture = n => fs.readFile(path.join(__dirname, 'fixtures', n));
 (async () => {
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'uebergabe-'));
   const in_ = (...t) => path.join(tmp, P, ...t);
   for (const sub of ['Mitteilungen', 'Laborergebnisse', 'Fotos', 'Laboraufträge', path.join('_Spektron', 'BerichtKit')]) await fs.mkdir(in_(sub), { recursive: true });
   await fs.mkdir(path.join(tmp, Q, 'Mitteilungen'), { recursive: true });
+  // R (Zeiten in UTC – Anzeige in Europe/Berlin = +1 h, unabhängig von der Zeitzone des Runners): Mitteilung, danach Anlagen (PlanKit Probenahme, PN 98, eine nur über das Anlagen-Protokoll erkennbare)
+  const leg = async (proj, name, iso, inhalt) => { const f = path.join(tmp, proj, 'Mitteilungen', name); await fs.mkdir(path.dirname(f), { recursive: true });
+    await fs.writeFile(f, inhalt || await fixture('1._Mitteilung_fertig.docx')); const d = new Date(iso); await fs.utimes(f, d, d); };
+  await leg(R, '1._Mitteilung_26.0602.docx', '2026-10-30T09:00:00Z');
+  await leg(R, '26.0602_Anlage_Probenahme_2026-10-30.docx', '2026-10-30T11:00:00Z', 'Synthetic placeholder');
+  await leg(R, '26.0602_Anlage_PN98_2026-10-30.docx', '2026-10-30T11:30:00Z', 'Synthetic placeholder');
+  await leg(R, 'Anhang Messung.docx', '2026-10-30T12:00:00Z', 'Synthetic placeholder');
+  await fs.mkdir(path.join(tmp, R, '_Spektron', 'Protokolle'), { recursive: true });
+  await fs.writeFile(path.join(tmp, R, '_Spektron', 'Protokolle', '_Anlagen-Protokoll.txt'), 'Anlagen-Protokoll (PlanKit) – je Zeile: Zeit (UTC) | Datei | SHA-256 | Quelle | SHA-256 Quelle | Programm\r\n'
+    + '2026-10-30T12:00:00.000Z | 26.0602_Anlage_Probenahme_2026-10-30.docx | aa | Pläne/x.probenplan | bb | PlanKit 1.49.0\r\n2026-10-30T13:00:00.000Z | Anhang Messung.docx | cc | Pläne/x.probenplan | dd | PlanKit 1.49.0\r\n');
+  // T: nur Anlagen
+  await leg(T, '26.0603_Raumbuch_2026-10-30.docx', '2026-10-30T09:00:00', 'Synthetic placeholder');
+  await leg(T, '26.0603_Wandansichten_2026-10-30.docx', '2026-10-30T10:00:00', 'Synthetic placeholder');
+  // U: BerichtKit hat die 1. Mitteilung gespeichert; eine neuere 2. Mitteilung ist von Hand dazugekommen
+  await leg(U, '1._Mitteilung_26.0604.docx', '2026-10-30T10:00:00');
+  await leg(U, '2._Mitteilung_26.0604.docx', '2026-10-30T11:00:00');
+  await fs.mkdir(path.join(tmp, U, '_Spektron', 'BerichtKit'), { recursive: true });
+  await fs.writeFile(path.join(tmp, U, '_Spektron', 'BerichtKit', '_BerichtKit.json'), JSON.stringify({ format: 'spektron-bericht', version: 1, projekt: '26.0604', form: {},
+    berichte: [{ datei: '1._Mitteilung_26.0604.docx', am: '2026-10-30T09:00:00.000Z', anlagen: [] }] }));
   await fs.writeFile(in_('_Projekt.json'), JSON.stringify({ format: 'mosaik-projekt', version: 1, objekt: 'Musterweg 1, Teststadt', auftraggeber: 'Beispiel Versicherung AG' }));
   const zeit = async (rel, iso) => { const d = new Date(iso); await fs.utimes(in_(...rel.split('/')), d, d); };
   await fs.writeFile(in_('Mitteilungen', MT), await fixture('1._Mitteilung_Luecken.docx')); await zeit('Mitteilungen/' + MT, '2026-10-30T10:00:00');
@@ -58,6 +80,7 @@ const MT = '1._Mitteilung_26.0600.docx', fixture = n => fs.readFile(path.join(__
       window.showDirectoryPicker = async () => new D('');
     });
     const page = await c.newPage(); page.on('pageerror', e => errors.push(e.message));
+    page.on('dialog', dlg => { errors.push('natives Dialogfenster: ' + dlg.message()); dlg.dismiss(); });   // 1.39: kein confirm mehr
     const stext = k => page.locator(`[data-stufe="${k}"] [data-stext]`).textContent();
     const aufgaben = async () => { try{ return await fs.readdir(in_('_Spektron', 'Buero', 'aufgaben')); }catch{ return []; } };
     const anl = async () => page.locator('#bueroPanel [data-ab-anl] label').evaluateAll(l => l.map(x => [x.textContent.trim().replace(/\s+/g, ' '), x.querySelector('input').checked]));
@@ -111,12 +134,26 @@ const MT = '1._Mitteilung_26.0600.docx', fixture = n => fs.readFile(path.join(__
     for (const a of ['Laborergebnisse/AR-777-2026-1-01.pdf', 'Laborergebnisse/AR-777-2026-2-01.pdf']) assert.ok(inhalt.includes(JSON.stringify(a)), 'Anlage: ' + a);
     // Stufe 4 jetzt erledigt, Büro wartet
     await page.waitForFunction(() => /^Gutachten übergeben/.test(document.querySelector('[data-stufe=gutachten] [data-stext]').textContent), null, { timeout: 10000 });
-    assert.match(await stext('buero'), /^Beim Büro/);
+    await page.waitForFunction(() => /^Beim Büro/.test(document.querySelector('[data-stufe=buero] [data-stext]').textContent), null, { timeout: 10000 });
 
     // 5. Später eine 2. Mitteilung: Stufe 4 wieder „ans Büro übergeben“ (nach dem Zurückkehren ins Fenster)
     await fs.writeFile(in_('Mitteilungen', '2._Mitteilung_26.0600.docx'), await fixture('1._Mitteilung_fertig.docx')); await zeit('Mitteilungen/2._Mitteilung_26.0600.docx', '2099-01-05T10:00:00');
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
     await page.waitForFunction(() => /^Mitteilung vom 05\.01\. erstellt – ans Büro übergeben$/.test(document.querySelector('[data-stufe=gutachten] [data-stext]').textContent), null, { timeout: 10000 });
+
+    // 5b. Zweite Übergabe: die 1. Mitteilung ist beim Büro → die neue 2. Mitteilung ist vorgewählt (obwohl BerichtKit die 1. nennt);
+    //     kein confirm, stattdessen der Hinweis über dem Knopf – ein Klick reicht
+    if (!await page.locator('#bueroPanel [data-ab-form]').evaluate(e => e.open)) await page.locator('#bueroPanel [data-ab-summary]').click();
+    await page.waitForFunction(() => document.querySelector('#bueroPanel [data-ab-word]')?.value === 'Mitteilungen/2._Mitteilung_26.0600.docx', null, { timeout: 10000 });
+    const weitere = page.locator('#bueroPanel [data-ab-weitere]');
+    await weitere.waitFor();
+    assert.match(await weitere.innerText(), new RegExp(`^Beim Büro ist schon ein Gutachten offen \\(${MT.replace(/\./g, '\\.')}, übergeben \\d\\d\\.\\d\\d\\.\\d{4}\\) – das wird eine weitere Übergabe \\(z\\. B\\. Nachtrag\\)\\.$`));
+    await page.locator('[data-ab-los]').click();
+    await page.locator('#bueroPanel [data-ab-msg]').filter({ hasText: '✓ Ans Büro übergeben' }).waitFor();
+    assert.equal(await page.locator('#dialog h3').count(), 0, 'keine Rückfrage');
+    const zwei = await aufgaben(); assert.equal(zwei.length, 2, 'zweite Aufgabe angelegt');
+    const neu = zwei.map(n => JSON.parse(require('node:fs').readFileSync(in_('_Spektron', 'Buero', 'aufgaben', n), 'utf8'))).find(a => a.word !== 'Mitteilungen/' + MT);
+    assert.equal(neu.word, 'Mitteilungen/2._Mitteilung_26.0600.docx');
 
     // 6. Fragment, während die Projektzentrale schon offen ist; unbekanntes Projekt → Hinweis, Auswahl bleibt
     await page.evaluate(n => { location.hash = 'projekt=' + encodeURIComponent(n); }, Q);
@@ -124,7 +161,37 @@ const MT = '1._Mitteilung_26.0600.docx', fixture = n => fs.readFile(path.join(__
     await page.evaluate(() => { location.hash = 'projekt=' + encodeURIComponent('26.9999 Gibtsnicht'); });
     await page.locator('#banner.err').filter({ hasText: '„26.9999 Gibtsnicht“ aus dem Link liegt nicht im Archivordner' }).waitFor();
     assert.equal(await page.locator('.proj.active').getAttribute('data-name'), Q);
+
+    // 7. Ohne Link: Mitteilung vor neuerer Probenahme-Anlage; Anlagen in der Liste mit „· Anlage“, alle mit Datum und Uhrzeit
+    const oeffnen = async name => { await page.locator(`.proj[data-name="${name}"]`).click(); await page.locator(`#bueroPanel[data-projekt="${name}"] [data-ab-stand]`).filter({ hasText: 'Noch nichts beim Büro' }).waitFor();
+      if (!await page.locator('#bueroPanel [data-ab-form]').evaluate(e => e.open)) await page.locator('#bueroPanel [data-ab-summary]').click(); };
+    const optionen = () => page.locator('#bueroPanel [data-ab-word] option').allTextContents();
+    await oeffnen(R);
+    await page.waitForFunction(() => document.querySelector('#bueroPanel [data-ab-word]')?.value === 'Mitteilungen/1._Mitteilung_26.0602.docx');
+    assert.deepEqual(await optionen(), ['– keine Word-Datei –', 'Anhang Messung.docx · 30.10.2026 13:00 · Anlage', '26.0602_Anlage_PN98_2026-10-30.docx · 30.10.2026 12:30 · Anlage',
+      '26.0602_Anlage_Probenahme_2026-10-30.docx · 30.10.2026 12:00 · Anlage', '1._Mitteilung_26.0602.docx · 30.10.2026 10:00']);
+    assert.ok(await page.locator('#bueroPanel [data-ab-word-hinweis]').isHidden());
+    assert.ok(await page.locator('#bueroPanel [data-ab-weitere]').isHidden(), 'nichts beim Büro: kein Hinweis auf weitere Übergabe');
+    assert.ok((await anl()).some(([t, an]) => t === '26.0602_Anlage_Probenahme_2026-10-30.docx Mitteilungen' && an), 'die Anlagen bleiben bei den Anlagen (vorgeschlagen)');
+
+    // 8. Nur Anlagen: keine Vorwahl, Hinweis; Übergeben erst nach der Wahl
+    await oeffnen(T);
+    await page.waitForFunction(() => document.querySelector('#bueroPanel [data-ab-word]')?.value === '?');
+    assert.equal((await optionen())[0], '– bitte die Mitteilung wählen –');
+    assert.match(await page.locator('#bueroPanel [data-ab-word-hinweis]').innerText(), /^Bitte die Mitteilung auswählen/);
+    await page.locator('#bueroPanel [data-ab-details="0"]').fill('Empfänger T'); await page.locator('#bueroPanel [data-ab-an="0"]').check();
+    await page.locator('[data-ab-los]').click();
+    await page.locator('#bueroPanel .ab-msg.err').filter({ hasText: 'Bitte die Mitteilung auswählen' }).waitFor();
+    assert.equal(await page.evaluate(() => document.activeElement?.matches('[data-ab-word]')), true, 'Fokus auf der Auswahl');
+    assert.ok(!await fs.stat(path.join(tmp, T, '_Spektron', 'Buero')).catch(() => null), 'nichts geschrieben');
+    await page.locator('[data-ab-word]').selectOption('');   // bewusst ohne Word-Datei
+    assert.ok(await page.locator('#bueroPanel [data-ab-word-hinweis]').isHidden());
+    assert.equal(await page.locator('#bueroPanel [data-ab-word] option[value="?"]').count(), 0);
+
+    // 9. BerichtKit geht vor: die dort gespeicherte 1. Mitteilung, obwohl eine 2. neuer ist
+    await oeffnen(U);
+    await page.waitForFunction(() => document.querySelector('#bueroPanel [data-ab-word]')?.value === 'Mitteilungen/1._Mitteilung_26.0604.docx');
     assert.deepEqual(errors, []);
-    console.log('OK Übergabe aus BerichtKit: Sprung mit Word-Datei, Prüfberichte laut BerichtKit, Lücken-Rückfrage (Liste, nicht prüfbar, abbrechen), Aufgabe mit Anlagen, Stufe 4 vorher/nachher/2. Mitteilung, Fragment bei offener Seite');
+    console.log('OK Übergabe aus BerichtKit: Sprung mit Word-Datei, Prüfberichte laut BerichtKit, Lücken-Rückfrage (Liste, nicht prüfbar, abbrechen), Aufgabe mit Anlagen, Stufe 4 vorher/nachher/2. Mitteilung, zweite Übergabe ohne confirm, Fragment bei offener Seite, Vorwahl ohne Link (Mitteilung vor Anlage, nur Anlagen → keine, BerichtKit vor Mitteilung)');
   } finally { await browser.close(); server.close(); await fs.rm(tmp, { recursive: true, force: true }); }
 })().catch(e => { console.error(e); process.exit(1); });
