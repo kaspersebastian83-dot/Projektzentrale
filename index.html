@@ -719,7 +719,10 @@ const ANLAGE = (() => {
     const fehlend = brand.reduce((n, p) => n + BG_KEYS.filter(k => !t(p[k])).length, 0);
     const nrDaten = t(d.projekt && d.projekt.nr) || t(d.pn98Projekt && d.pn98Projekt.schaden);
     const hinweise = [];
-    if (projektNr && nrDaten && nrDaten.replace(/\s/g, '') !== String(projektNr).replace(/\s/g, ''))
+    // Nur die Projektnummer vergleichen (z. B. „26.0512“): In LabelKit steht oft der ganze Ordnername
+    // („26.0512 Stegerwaldstraße Leverkusen“) – das ist dieselbe Nummer, kein Grund für einen Hinweis.
+    const nrKern = s => { const m = /\d{2}\.\d{3,5}/.exec(str(s)); return m ? m[0] : str(s).replace(/\s/g, ''); };
+    if (projektNr && nrDaten && nrKern(nrDaten) !== nrKern(projektNr))
       hinweise.push(`Die Projektdatei trägt die Projektnummer „${nrDaten}“, der Ordner ${projektNr}. Bitte prüfen, ob es die richtige Datei ist.`);
     if (brand.length && blind) hinweise.push('Brandgeruch: Die Bewertungen sind in LabelKit noch verdeckt (Blind-Modus). Erst in LabelKit „Ergebnisse aufdecken“ und speichern.');
     if (brand.length && !blind && fehlend) hinweise.push(`Brandgeruch: ${fehlend} Bewertung${fehlend === 1 ? ' fehlt' : 'en fehlen'} – ${fehlend === 1 ? 'das Feld bleibt' : 'die Felder bleiben'} in der Anlage leer.`);
@@ -935,9 +938,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.36.0';
+const APP_VERSION = '1.36.1';
 const APP_DATE = '2026-10-30';
 const CHANGELOG = [
+  ['1.36.1', '30.10.2026', 'Anlage PN 98 / Brandgeruch: Der Hinweis „Die Projektdatei trägt die Projektnummer …“ kam auch, wenn in LabelKit der ganze Ordnername als Projektnummer stand (z. B. „26.0512 Stegerwaldstraße Leverkusen“ zum Ordner 26.0512). Verglichen wird jetzt nur noch die Nummer selbst; der Hinweis kommt nur noch bei einer wirklich anderen Nummer.'],
   ['1.36.0', '30.10.2026', 'Neuer Knopf „Asbestbericht“ in Stufe 4 (Gutachten): öffnet BerichtKit mit dem Projekt – der Asbest-Untersuchungsbericht entsteht als Word-Datei in „Mitteilungen“ aus Projektdaten, LabelKit-Proben, ResultKit-Ergebnissen und FotoKit-Fotos. Gemeinsamer Ordner-Baustein: neuer Bereich „BerichtKit“ (Angaben zum Bericht in „_Spektron/BerichtKit“), den der Spektron-Umzug mitnimmt; Kurzanleitung und Adressen ergänzt.'],
   ['1.35.0', '29.10.2026', 'Prüfbericht vom 29.10., Teil 2: Datenarchiv – setzen zwei Rechner gleichzeitig Nutzung, Brandgut oder Probenrolle, ging bisher eine Änderung verloren; jetzt wird vor dem Schreiben geprüft, ob sich „_Spektron-Archiv.json“ inzwischen geändert hat (dann Meldung, bitte erneut setzen). Büroaufgaben behalten die echte Schreibweise des Projektordners (Umlaute), damit BüroKit jedes gelistete Projekt auch öffnen kann (gemeinsam mit BüroKit 1.5). Der Umzug-Dialog sagt deutlicher, dass alle Rechner und RDP-Sitzungen die Apps geschlossen haben müssen.'],
   ['1.34.1', '29.10.2026', 'Umzug sicherer (Prüfbericht vom 29.10.): fremde JSON in „Abrechnung“ bleiben liegen; vor jedem Löschen wird auch die Kopie am neuen Ort geprüft – fehlt sie oder ist sie anders, bleibt das Original; Dateien werden in Datumsreihenfolge kopiert, damit die neueste LabelKit-Tagesdatei die neueste bleibt; eine belegte Sperre hält den Umzug nicht mehr auf (nach 20 s übersprungen und gemeldet). Mitarbeiterliste: ein Lesefehler gilt nicht mehr als „Datei fehlt“ und überschreibt die Liste nie.'],

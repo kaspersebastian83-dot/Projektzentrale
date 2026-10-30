@@ -25,6 +25,14 @@ assert.equal(c.brandMoeglich, true); assert.equal(c.pn98Moeglich, true);
 assert.match(c.hinweise.join(' '), /1 Bewertung fehlt – das Feld bleibt/);
 assert.match(c.hinweise.join(' '), /1 Protokoll ohne Proben-Nr\./);
 assert.match(ANLAGE.pruefen(daten(), '26.0999').hinweise.join(' '), /Projektnummer „26\.0142“, der Ordner 26\.0999/);
+// Ganzer Ordnername als Projektnummer in LabelKit: gleiche Nummer → kein Hinweis; andere Nummer → Hinweis
+const mitName = daten(); mitName.projekt.nr = '26.0142 Stegerwaldstraße Leverkusen';
+assert.doesNotMatch(ANLAGE.pruefen(mitName, '26.0142').hinweise.join(' '), /Projektnummer/, 'gleiche Nummer mit Ortsname ist kein Widerspruch');
+assert.match(ANLAGE.pruefen(mitName, '26.0999').hinweise.join(' '), /Projektnummer „26\.0142 Stegerwaldstraße Leverkusen“, der Ordner 26\.0999/);
+const altNr = daten(); altNr.projekt.nr = '22.00169 DB Services';
+assert.doesNotMatch(ANLAGE.pruefen(altNr, '22.00169').hinweise.join(' '), /Projektnummer/, 'fünfstellige Nummern älterer Jahre');
+const ohneNummer = daten(); ohneNummer.projekt.nr = 'Stegerwaldstraße';
+assert.match(ANLAGE.pruefen(ohneNummer, '26.0142').hinweise.join(' '), /Projektnummer „Stegerwaldstraße“/, 'ohne erkennbare Nummer weiter melden');
 const blind = daten(); blind.bgBlind = true;
 c = ANLAGE.pruefen(blind, '26.0142');
 assert.equal(c.brandMoeglich, false, 'verdeckte Bewertungen nicht in die Anlage');
