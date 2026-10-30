@@ -2,7 +2,14 @@
 
 Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung.
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.37.0** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.38.0** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Neu in 1.38.0 · 30.10.2026
+
+- **Sprung aus BerichtKit zur Übergabe:** `#projekt=<Ordnername>&uebergabe=Mitteilungen%2F<Datei>` öffnet das Projekt, klappt „Gutachten ans Büro übergeben“ auf und wählt genau diese Word-Datei (Ordner- und Dateiname ohne Rücksicht auf Groß-/Kleinschreibung; fehlt sie, Hinweis und Auswahl wie bisher). Das Fragment wirkt einmal und wird danach aus der Adresse entfernt. `#projekt=` allein öffnet nur das Projekt.
+- **Prüfberichte aus BerichtKit als Anlagen:** `_BerichtKit.json` (Bereich `berichtkit`) → neuester Eintrag in `berichte[]` zur gewählten Word-Datei → dessen `anlagen` (`Laborergebnisse/<Prüfbericht>.pdf`) sind angehakt, mit Vermerk „Prüfbericht laut BerichtKit“. Wechselt man die Word-Datei, ziehen die Vorschläge nach; selbst gesetzte Haken bleiben.
+- **Lücken-Prüfung vor dem Übergeben** (`word-luecken.js`, ohne Bibliothek, entpackt mit `DecompressionStream('deflate-raw')`): sucht in Haupttext, Kopf-/Fußzeilen und Noten der .docx gelb hervorgehobenen Text und Platzhalter in eckigen Klammern mit Großbuchstaben am Anfang (`[KI-Wert]`, `[Foto fehlt: …]`; nicht `[mg/kg]`, `[1]`). Gefunden → Rückfrage mit Liste; nicht lesbar → Rückfrage. Keine Sperre: Ausgefüllte Stellen, deren gelbe Markierung stehen blieb, werden mit gemeldet.
+- **Stufe 4 „Gutachten“:** neueste `n. Mitteilung….docx` in „Mitteilungen“ (gleiches Muster wie die Spektron-Leiste), die noch nicht beim Büro ist → „Mitteilung vom … erstellt – ans Büro übergeben“, Aktion „Ans Büro übergeben“. Beim Büro heißt: eine Büroaufgabe nennt die Datei, oder eine Übergabe/ein Versand liegt am Tag der Datei oder später. Gilt auch für eine 2. Mitteilung nach dem Versand der ersten.
 
 ## Neu in 1.37.0 · 30.10.2026
 

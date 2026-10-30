@@ -88,3 +88,41 @@ assert.equal(r.stufen[5].zustand, 'dran'); assert.equal(r.jetzt.aktion, 'beleg')
 r = S.berechnen({ ...labFertig, uebergabe: '2026-10-28', versand: '2026-10-29', buero: { erledigt: true, rechnung: '2026-10-30', rechnungVon: 'Nad' }, abrechnung: '2026-10-27' });
 assert.equal(r.aktuell, null); assert.equal(r.gruppe, 'fertig'); assert.equal(r.stufen[5].text, 'Abgerechnet 30.10. (Nad)');
 console.log('OK stufen: Rechnung beim Büro (BüroKit) – wartet, fehlender Stand ist dran, Haken „Rechnung“ schließt ab');
+// Mitteilung erstellt (BerichtKit), noch nicht beim Büro: Stufe 4 „Mitteilung vom … erstellt – ans Büro übergeben“
+const mt = { datei: '1._Mitteilung_26.0600.docx', datum: '2026-10-30' };
+r = S.berechnen({ ...labFertig, mitteilung: mt });
+assert.deepEqual(r.stufen[3], { key: 'gutachten', name: 'Gutachten', app: 'PlanKit · Anlage', zustand: 'dran', text: 'Mitteilung vom 30.10. erstellt – ans Büro übergeben', aktion: 'uebergeben' });
+assert.equal(r.aktuell, 'gutachten'); assert.equal(r.gruppe, 'dich'); assert.equal(r.kurz, 'Mitteilung ans Büro übergeben');
+assert.deepEqual([r.jetzt.titel, r.jetzt.aktion, r.jetzt.knopf], ['Gutachten ans Büro übergeben', 'uebergeben', 'Ans Büro übergeben']);
+// Labor noch beim Zwischenstand, vorläufige Mitteilung schon da: Übergeben ist dran, Labor bleibt sichtbar „nicht abgeschlossen“
+r = S.berechnen({ ...basis, berichte: 1, ergebnisse: { vollstaendig: false, offen: 2 }, mitteilung: mt });
+assert.equal(r.aktuell, 'gutachten'); assert.equal(r.jetzt.aktion, 'uebergeben'); assert.match(r.stufen[2].text, /– nicht abgeschlossen$/);
+// … neue Prüfberichte seit der Übernahme gehen vor (sie könnten die Mitteilung ändern); Stufe 4 sagt trotzdem, was ansteht
+r = S.berechnen({ ...labFertig, ergebnisse: { vollstaendig: true, veraltet: true }, mitteilung: mt });
+assert.equal(r.aktuell, 'labor'); assert.equal(r.stufen[3].text, 'Mitteilung vom 30.10. erstellt – ans Büro übergeben'); assert.equal(r.stufen[3].zustand, 'offen');
+// übergeben: Büroaufgabe nennt die Datei (auch wenn das Büro sie später bearbeitet hat) …
+r = S.berechnen({ ...labFertig, mitteilung: { ...mt, datum: '2026-11-03' }, uebergabe: '2026-10-30', buero: { offen: true, woerter: ['Mitteilungen/1._Mitteilung_26.0600.docx'], zuletzt: '2026-10-30' } });
+assert.equal(r.stufen[3].zustand, 'fertig'); assert.equal(r.aktuell, 'buero');
+// … oder eine Übergabe/ein Versand am Tag der Datei oder später (frühere Übergaben, umbenannte Datei)
+assert.equal(S.berechnen({ ...labFertig, mitteilung: mt, uebergabe: '2026-10-30', buero: { offen: true, woerter: ['Mitteilungen/Gutachten.docx'], zuletzt: '2026-10-30' } }).stufen[3].zustand, 'fertig');
+assert.equal(S.berechnen({ ...labFertig, mitteilung: mt, versand: '2026-10-31' }).stufen[3].zustand, 'fertig');
+// 2. Mitteilung nach Versand der ersten: wieder dran – auch wenn Versand und Rechnung erledigt sind
+r = S.berechnen({ ...labFertig, mitteilung: { datei: '2._Mitteilung_26.0600.docx', datum: '2026-11-20' }, uebergabe: '2026-10-30', versand: '2026-11-02',
+  buero: { erledigt: true, rechnung: '2026-11-05', woerter: ['Mitteilungen/1._Mitteilung_26.0600.docx'], zuletzt: '2026-10-30' }, abrechnung: '2026-10-29' });
+assert.equal(r.aktuell, 'gutachten'); assert.equal(r.gruppe, 'dich'); assert.equal(r.jetzt.aktion, 'uebergeben'); assert.equal(r.stufen[4].zustand, 'fertig');
+// … während die erste noch beim Büro ist: ebenfalls dran (das Formular fragt vor einer zweiten Übergabe nach)
+r = S.berechnen({ ...labFertig, mitteilung: { datei: '2._Mitteilung_26.0600.docx', datum: '2026-11-20' }, uebergabe: '2026-10-30', buero: { offen: true, woerter: ['Mitteilungen/1._Mitteilung_26.0600.docx'], zuletzt: '2026-10-30' } });
+assert.equal(r.aktuell, 'gutachten'); assert.equal(r.jetzt.aktion, 'uebergeben');
+// Büro-Stand unklar: kein Urteil über die Mitteilung
+r = S.berechnen({ ...labFertig, mitteilung: mt, buero: { unklar: true } });
+assert.notEqual(r.stufen[3].aktion, 'uebergeben'); assert.equal(r.jetzt.aktion, 'buerokit');
+// Rückfrage vom Büro geht weiter vor
+assert.equal(S.berechnen({ ...labFertig, mitteilung: { ...mt, datum: '2026-11-20' }, uebergabe: '2026-10-30', buero: { offen: true, frage: true, woerter: [], zuletzt: '2026-10-30' } }).jetzt.aktion, 'frage');
+// Erkennen der neuesten Mitteilung (wie die Spektron-Leiste): Word-Sperrdateien, andere Word-Dateien und .doc zählen nicht
+const t = s => new Date(s).getTime();
+assert.deepEqual(S.neuesteMitteilung([{ name: '1._Mitteilung_26.0600.docx', t: t('2026-10-30T09:00') }, { name: '2. Mitteilung 26.0600 PAK.docx', t: t('2026-11-02T23:30') },
+  { name: '~$Mitteilung_26.0600.docx', t: t('2026-12-01T10:00') }, { name: 'Anlage PN 98 2026-11-05.docx', t: t('2026-11-05T10:00') }, { name: '3. Mitteilung.doc', t: t('2026-11-06T10:00') },
+  { name: '1__Mitteilungsentwurf.docx', t: t('2026-11-07T10:00') }]), { datei: '2. Mitteilung 26.0600 PAK.docx', datum: '2026-11-02' });
+assert.deepEqual(S.neuesteMitteilung([{ name: '1__Mitteilung.docx', t: t('2026-10-30T12:00') }]), { datei: '1__Mitteilung.docx', datum: '2026-10-30' });
+assert.equal(S.neuesteMitteilung([{ name: 'Gutachten.docx', t: 1 }]), null); assert.equal(S.neuesteMitteilung(null), null);
+console.log('OK stufen: Mitteilung erstellt, noch nicht übergeben – Stufe 4, Jetzt dran, 2. Mitteilung, übergeben nach Name oder Datum');
