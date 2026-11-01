@@ -53,3 +53,15 @@ assert.deepEqual(W.vorwahl(liste, { berichte, uebergeben }), { rel: 'Mitteilunge
 assert.equal(W.vorwahl([liste.find(w => w.name.startsWith('1.'))], { berichte, uebergeben }).rel, 'Mitteilungen/1._Mitteilung_26.0604.docx', 'nur die übergebene da → trotzdem sie');
 
 console.log('Word-Vorwahl: Mitteilung vor neuerer Anlage, nur Anlagen → keine, BerichtKit vor Mitteilung, Anlagen-Protokoll und Namensmuster, Übergebenes nachrangig');
+
+// 1.40: Brandbericht aus BerichtKit (gleicher Dateiname wie der Asbestbericht, art: 'brand') mit neuerer Anlage Brandgeruch daneben
+{
+  const liste = [{ name: '1._Mitteilung_26.0605.docx', rel: 'Mitteilungen/1._Mitteilung_26.0605.docx', t: 10 },
+    { name: '26-0605_Anlage-4_Brandgeruch_2026-11-01.docx', rel: 'Mitteilungen/26-0605_Anlage-4_Brandgeruch_2026-11-01.docx', t: 20 },
+    { name: '26-0605_Brandgeruch_Brandgeruch_2026-11-01.docx', rel: 'Mitteilungen/26-0605_Brandgeruch_Brandgeruch_2026-11-01.docx', t: 30 }];
+  assert.deepEqual(W.vorwahl(liste, { berichte: [{ datei: '1._Mitteilung_26.0605.docx', am: '2026-11-01T08:00:00Z', art: 'brand' }] }),
+    { rel: 'Mitteilungen/1._Mitteilung_26.0605.docx', quelle: 'berichtkit' }, 'Brandbericht aus BerichtKit, nicht die Anlage');
+  assert.deepEqual(W.vorwahl(liste), { rel: 'Mitteilungen/1._Mitteilung_26.0605.docx', quelle: 'mitteilung' }, 'auch ohne BerichtKit-Eintrag');
+  assert.ok(W.istAnlage('26-0605_Brandgeruch_Brandgeruch_2026-11-01.docx'), 'Titel „Brandgeruch“ statt „Anlage“');
+  console.log('OK word-wahl: Brandbericht vor neuerer Anlage Brandgeruch');
+}

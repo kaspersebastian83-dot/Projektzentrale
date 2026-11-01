@@ -6,6 +6,7 @@
 const assert = require('node:assert/strict'), fs = require('node:fs/promises'), os = require('node:os'), path = require('node:path'), http = require('node:http'), pw = require('playwright');
 const root = path.resolve(__dirname, '..'), P = '26.0600 Teststadt Ste', Q = '26.0601 Nebenort Ste';
 const R = '26.0602 Anlagenort Ste', T = '26.0603 Nurplan Ste', U = '26.0604 Berichtort Ste';
+const V = '26.0605 Brandort Ste', W = '26.0606 Asbestort Ste', MB = '1._Mitteilung_26.0605.docx', BG = '26-0605_Anlage-4_Brandgeruch_2026-11-01.docx';
 const MT = '1._Mitteilung_26.0600.docx', fixture = n => fs.readFile(path.join(__dirname, 'fixtures', n));
 (async () => {
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'uebergabe-'));
@@ -31,6 +32,22 @@ const MT = '1._Mitteilung_26.0600.docx', fixture = n => fs.readFile(path.join(__
   await fs.mkdir(path.join(tmp, U, '_Spektron', 'BerichtKit'), { recursive: true });
   await fs.writeFile(path.join(tmp, U, '_Spektron', 'BerichtKit', '_BerichtKit.json'), JSON.stringify({ format: 'spektron-bericht', version: 1, projekt: '26.0604', form: {},
     berichte: [{ datei: '1._Mitteilung_26.0604.docx', am: '2026-10-30T09:00:00.000Z', anlagen: [] }] }));
+  // V (1.40): Brandschaden – LabelKit mit Chlorid-, PAK- und Asbestproben; BerichtKit hat den Brandbericht gespeichert (echte Datei aus
+  // BerichtKit 1.14.0 mit Lücken, erfundene Daten), daneben die Anlage Brandgeruch der Projektzentrale (neuer als der Bericht)
+  await fs.mkdir(path.join(tmp, V, '_Spektron', 'LabelKit'), { recursive: true }); await fs.mkdir(path.join(tmp, V, 'Laborergebnisse'), { recursive: true });
+  await fs.writeFile(path.join(tmp, V, '_Spektron', 'LabelKit', '26.0605_01.11.2026_Daten.json'), JSON.stringify({ projekt: { nr: '26.0605' },
+    chloridProben: [{ _nr: 1, matrix: 'Wischprobe' }, { _nr: 2, matrix: 'Wischprobe', storniert: { am: '2026-11-01', kuerzel: 'Ste', grund: '' } }], proben: [{ _nr: 3, matrix: 'Wischprobe' }],
+    asbestProben: [{ _nr: 4, z3: 'Fliesenkleber' }], brandgeruchProben: [] }));
+  await leg(V, MB, '2026-11-01T09:00:00Z', await fixture('1._Mitteilung_Brand_Luecken.docx'));
+  await leg(V, BG, '2026-11-01T09:30:00Z', 'Synthetic placeholder');
+  await fs.writeFile(path.join(tmp, V, 'Laborergebnisse', 'AR-888-2026-1-01.pdf'), '%PDF');
+  await fs.mkdir(path.join(tmp, V, 'Pläne'), { recursive: true }); await fs.writeFile(path.join(tmp, V, 'Pläne', 'Probenplan ' + V + '.pdf'), '%PDF');
+  await fs.mkdir(path.join(tmp, V, '_Spektron', 'BerichtKit'), { recursive: true });
+  await fs.writeFile(path.join(tmp, V, '_Spektron', 'BerichtKit', '_BerichtKit.json'), JSON.stringify({ format: 'spektron-bericht', version: 1, projekt: '26.0605', form: { brand: { titel: 'sanierung' } },
+    berichte: [{ datei: MB, am: '2026-11-01T08:00:00.000Z', von: 'Ste', art: 'brand', mitteilung: 1, anlagen: ['Laborergebnisse/AR-888-2026-1-01.pdf', 'Pläne/Probenplan ' + V + '.pdf', 'Mitteilungen/' + BG], luecken: 19 }] }));
+  // W: nur Asbestproben → „Asbestbericht“ hervorgehoben
+  await fs.mkdir(path.join(tmp, W, '_Spektron', 'LabelKit'), { recursive: true }); await fs.mkdir(path.join(tmp, W, 'Mitteilungen'), { recursive: true });
+  await fs.writeFile(path.join(tmp, W, '_Spektron', 'LabelKit', '26.0606_01.11.2026_Daten.json'), JSON.stringify({ projekt: { nr: '26.0606' }, asbestProben: [{ _nr: 1 }, { _nr: 2 }], proben: [], chloridProben: [] }));
   await fs.writeFile(in_('_Projekt.json'), JSON.stringify({ format: 'mosaik-projekt', version: 1, objekt: 'Musterweg 1, Teststadt', auftraggeber: 'Beispiel Versicherung AG' }));
   const zeit = async (rel, iso) => { const d = new Date(iso); await fs.utimes(in_(...rel.split('/')), d, d); };
   await fs.writeFile(in_('Mitteilungen', MT), await fixture('1._Mitteilung_Luecken.docx')); await zeit('Mitteilungen/' + MT, '2026-10-30T10:00:00');
@@ -191,7 +208,36 @@ const MT = '1._Mitteilung_26.0600.docx', fixture = n => fs.readFile(path.join(__
     // 9. BerichtKit geht vor: die dort gespeicherte 1. Mitteilung, obwohl eine 2. neuer ist
     await oeffnen(U);
     await page.waitForFunction(() => document.querySelector('#bueroPanel [data-ab-word]')?.value === 'Mitteilungen/1._Mitteilung_26.0604.docx');
+    assert.equal(await page.locator('#goBrand.vorschlag, #goBericht.vorschlag').count(), 0, 'ohne LabelKit-Datei kein Bericht hervorgehoben');
+
+    // 10. (1.40) Nur Asbestproben: „Asbestbericht“ hervorgehoben, „Brandbericht“ daneben
+    await oeffnen(W);
+    await page.waitForFunction(() => document.getElementById('goBericht')?.classList.contains('vorschlag'));
+    assert.equal(await page.locator('#goBrand.vorschlag').count(), 0); assert.ok(await page.locator('#goBrand').isVisible(), 'Brandbericht-Knopf bleibt');
+    assert.match(await page.locator('#goBericht').getAttribute('title'), /Passt zu den LabelKit-Proben \(2 Asbestproben\)$/);
+
+    // 11. (1.40) Brandbericht aus BerichtKit übergeben: Link wie in BerichtKit, „Brandbericht“ hervorgehoben, Anlage Brandgeruch nicht vorgewählt,
+    //     aber angehakt (schon am Namen „Anlage“ erkannt); Probenplan als „Anlage laut BerichtKit“; Lücken des Brandberichts in der Rückfrage; Aufgabe mit Word-Datei und Anlagen; Stufe 4 erledigt
+    await page.evaluate(([n, w]) => { location.hash = 'projekt=' + encodeURIComponent(n) + '&uebergabe=' + encodeURIComponent('Mitteilungen/' + w); }, [V, MB]);
+    await page.waitForFunction(m => document.querySelector('#bueroPanel [data-ab-word]')?.value === 'Mitteilungen/' + m, MB, { timeout: 10000 });
+    await page.waitForFunction(() => document.getElementById('goBrand')?.classList.contains('vorschlag'));
+    assert.equal(await page.locator('#goBericht.vorschlag').count(), 0, 'Asbestproben im Brandschaden: trotzdem Brandbericht');
+    assert.match(await page.locator('#goBrand').getAttribute('title'), /Passt zu den LabelKit-Proben \(1 Chlorid-Probe, 1 PAK-Probe und 1 Asbestprobe\)$/, 'stornierte Chlorid-Probe zählt nicht');
+    assert.deepEqual(await anl(), [[BG + ' Mitteilungen', true], ['Probenplan ' + V + '.pdf Pläne · Anlage laut BerichtKit', true], ['AR-888-2026-1-01.pdf Laborergebnisse · Prüfbericht laut BerichtKit', true]]);
+    await page.waitForFunction(() => /^Mitteilung vom 01\.11\. erstellt – ans Büro übergeben$/.test(document.querySelector('[data-stufe=gutachten] [data-stext]').textContent));
+    assert.ok((await optionen()).includes(BG + ' · 01.11.2026 10:30 · Anlage'), 'Anlage Brandgeruch als Anlage gekennzeichnet');
+    await page.locator('#bueroPanel [data-ab-details="0"]').fill('Brand AG, Testweg 2'); await page.locator('#bueroPanel [data-ab-an="0"]').check();
+    await page.locator('[data-ab-los]').click();
+    await page.locator('#dialog h3').filter({ hasText: 'Noch Lücken im Gutachten' }).waitFor();
+    assert.match(await page.locator('#dialog').innerText(), /enthält noch 19 gelb markierte Lücken/);
+    assert.ok((await page.locator('#dialog .ab-luecken li').allInnerTexts()).includes('[Schadendatum] (4×)'));
+    await page.locator('#dYes').click();
+    await page.locator('#bueroPanel [data-ab-msg]').filter({ hasText: '✓ Ans Büro übergeben' }).waitFor();
+    const vAuf = await fs.readdir(path.join(tmp, V, '_Spektron', 'Buero', 'aufgaben')); assert.equal(vAuf.length, 1);
+    const vInhalt = await fs.readFile(path.join(tmp, V, '_Spektron', 'Buero', 'aufgaben', vAuf[0]), 'utf8');
+    for (const a of ['Mitteilungen/' + MB, 'Mitteilungen/' + BG, 'Pläne/Probenplan ' + V + '.pdf', 'Laborergebnisse/AR-888-2026-1-01.pdf']) assert.ok(vInhalt.includes(JSON.stringify(a)), 'in der Aufgabe: ' + a);
+    await page.waitForFunction(() => /^Gutachten übergeben/.test(document.querySelector('[data-stufe=gutachten] [data-stext]').textContent), null, { timeout: 10000 });
     assert.deepEqual(errors, []);
-    console.log('OK Übergabe aus BerichtKit: Sprung mit Word-Datei, Prüfberichte laut BerichtKit, Lücken-Rückfrage (Liste, nicht prüfbar, abbrechen), Aufgabe mit Anlagen, Stufe 4 vorher/nachher/2. Mitteilung, zweite Übergabe ohne confirm, Fragment bei offener Seite, Vorwahl ohne Link (Mitteilung vor Anlage, nur Anlagen → keine, BerichtKit vor Mitteilung)');
+    console.log('OK Übergabe aus BerichtKit: Sprung mit Word-Datei, Prüfberichte laut BerichtKit, Lücken-Rückfrage (Liste, nicht prüfbar, abbrechen), Aufgabe mit Anlagen, Stufe 4 vorher/nachher/2. Mitteilung, zweite Übergabe ohne confirm, Fragment bei offener Seite, Vorwahl ohne Link (Mitteilung vor Anlage, nur Anlagen → keine, BerichtKit vor Mitteilung), Brandbericht: Knopf nach den Proben hervorgehoben, Übergabe mit Lücken und Anlage Brandgeruch');
   } finally { await browser.close(); server.close(); await fs.rm(tmp, { recursive: true, force: true }); }
 })().catch(e => { console.error(e); process.exit(1); });
