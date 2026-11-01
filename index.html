@@ -3019,6 +3019,7 @@ function berichtVorschlagZeigen(p, lk){
     const b = $(id); if (!b) continue;
     const an = v.art === art;
     b.classList.toggle('vorschlag', an);
+    b.dataset.probenGelesen = v.name || '';   // für welches Projekt die LabelKit-Datei schon gelesen ist (Tests warten darauf)
     b.title = TIP_BERICHT[art] + (an ? ` · Passt zu den LabelKit-Proben (${v.grund})` : '');
   }
 }
