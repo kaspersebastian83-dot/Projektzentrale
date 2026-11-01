@@ -126,3 +126,35 @@ assert.deepEqual(S.neuesteMitteilung([{ name: '1._Mitteilung_26.0600.docx', t: t
 assert.deepEqual(S.neuesteMitteilung([{ name: '1__Mitteilung.docx', t: t('2026-10-30T12:00') }]), { datei: '1__Mitteilung.docx', datum: '2026-10-30' });
 assert.equal(S.neuesteMitteilung([{ name: 'Gutachten.docx', t: 1 }]), null); assert.equal(S.neuesteMitteilung(null), null);
 console.log('OK stufen: Mitteilung erstellt, noch nicht übergeben – Stufe 4, Jetzt dran, 2. Mitteilung, übergeben nach Name oder Datum');
+
+// 1.40: Welcher Bericht passt zu den LabelKit-Proben (Knopf „Asbestbericht“ / „Brandbericht“ hervorgehoben)?
+{
+  const B = S.berichtsart, st = { storniert: { am: '2026-10-30', kuerzel: 'Ste', grund: '' } };
+  assert.deepEqual(B(null), { art: '', grund: '' }, 'keine LabelKit-Datei');
+  assert.deepEqual(B({}), { art: '', grund: '' }, 'keine Proben');
+  assert.deepEqual(B({ proben: 'kaputt', asbestProben: [null, 7] }), { art: '', grund: '' }, 'unlesbare Listen zählen nicht');
+  assert.deepEqual(B({ asbestProben: [{ _nr: 1 }, { _nr: 2 }] }), { art: 'asbest', grund: '2 Asbestproben' }, 'nur Asbest');
+  assert.deepEqual(B({ chloridProben: [{ _nr: 1 }], asbestProben: [{ _nr: 2 }] }), { art: 'brand', grund: '1 Chlorid-Probe und 1 Asbestprobe' }, 'Chlorid + Asbest → Brand');
+  assert.deepEqual(B({ proben: [{}, {}, {}] }), { art: 'brand', grund: '3 PAK-Proben' }, 'PAK');
+  assert.deepEqual(B({ brandgeruchProben: [{ id: 1 }] }), { art: 'brand', grund: '1 Brandgeruch-Probe' }, 'Brandgeruch allein ist auch ein Brandschaden');
+  assert.deepEqual(B({ chloridProben: [{ _nr: 1, ...st }], asbestProben: [{ _nr: 2 }] }), { art: 'asbest', grund: '1 Asbestprobe' }, 'stornierte Chlorid-Probe zählt nicht');
+  assert.deepEqual(B({ asbestProben: [{ _nr: 1, ...st }] }), { art: '', grund: '' }, 'alle storniert');
+  // Chlorid-Bohrmehl unter „Sonstige“ (wie BerichtKit istBohrmehl): Haken für die ganze Liste oder Tiefe + „Chlorid“ im Parameter
+  assert.equal(B({ sonstigeProben: [{ notiz: 'Schwermetalle' }] }).art, '', 'weitere Probe allein');
+  assert.deepEqual(B({ sonstigeProben: [{}, {}], ui: { bohrmehlAktiv: true } }), { art: 'brand', grund: '2 Chlorid-Proben' });
+  assert.equal(B({ sonstigeProben: [{}], bohrmehlAktiv: true }).art, 'brand', 'ältere Dateien: Haken oben im Objekt');
+  assert.equal(B({ sonstigeProben: [{ tiefe: '0-2 cm', notiz: 'Chlorid' }] }).art, 'brand');
+  assert.equal(B({ sonstigeProben: [{ tiefe: '', notiz: 'Chlorid' }] }).art, '', 'ohne Tiefe keine Bohrmehlprobe');
+  assert.deepEqual(B({ chloridProben: [{}], proben: [{}, {}], brandgeruchProben: [{}], asbestProben: [{}, {}] }),
+    { art: 'brand', grund: '1 Chlorid-Probe, 2 PAK-Proben, 1 Brandgeruch-Probe und 2 Asbestproben' });
+  console.log('OK stufen: Berichtsart nach den LabelKit-Proben (Chlorid/PAK/Brandgeruch → Brand, nur Asbest → Asbest, storniert zählt nicht)');
+}
+// Brandbericht aus BerichtKit heißt wie der Asbestbericht – Stufe 4 erkennt ihn gleich (Datei „n._Mitteilung_<Nr>.docx“), die Anlage Brandgeruch nicht
+{
+  const t = s => Date.parse(s);
+  const mt = S.neuesteMitteilung([{ name: '1._Mitteilung_26.0601.docx', t: t('2026-11-01T09:00') }, { name: '26-0601_Anlage-4_Brandgeruch_2026-11-01.docx', t: t('2026-11-01T10:00') }]);
+  assert.deepEqual(mt, { datei: '1._Mitteilung_26.0601.docx', datum: '2026-11-01' });
+  const r = S.berechnen({ pj: true, proben: true, berichte: 2, ergebnisse: { vollstaendig: true }, plan: true, mitteilung: mt, buero: {} });
+  assert.equal(r.stufen[3].text, 'Mitteilung vom 01.11. erstellt – ans Büro übergeben'); assert.equal(r.jetzt.aktion, 'uebergeben');
+  console.log('OK stufen: Brandbericht in „Mitteilungen“ wie der Asbestbericht erkannt');
+}

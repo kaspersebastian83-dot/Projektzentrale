@@ -425,6 +425,7 @@ summary.stufe-kopf::-webkit-details-marker{display:none}
 @media (prefers-color-scheme:dark){ .hstatus:not(.ok){background:var(--panel);color:var(--text)} .listbar{background:var(--bg)} }
 
 .stufe .sk.passt{border-color:var(--accent);color:var(--accent);font-weight:600}
+.stufe .sk.vorschlag{border-color:#b0683c;box-shadow:inset 0 0 0 1px #b0683c;font-weight:600}   /* Bericht, den die LabelKit-Proben nahelegen (BerichtKit-Farbe der Leiste) */
 #pjBox > summary.stufe-kopf{display:grid;padding:11px 14px}
 #pjBox > summary.stufe-kopf::before{display:none}
 #pjBox > summary.stufe-kopf:hover{background:none}
@@ -944,9 +945,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.39.0';
-const APP_DATE = '2026-10-30';
+const APP_VERSION = '1.40.0';
+const APP_DATE = '2026-11-01';
 const CHANGELOG = [
+  ['1.40.0', '01.11.2026', 'Neuer Knopf „Brandbericht“ in Stufe 4 (Gutachten) neben „Asbestbericht“: öffnet BerichtKit (ab 1.14.0) gleich mit dem Brandbericht – Sanierungsvorschlag oder Untersuchungsbericht nach einem Brandschaden, als Word-Datei in „Mitteilungen“. „Asbestbericht“ öffnet ausdrücklich den Asbestbericht. Hervorgehoben ist der Knopf, den die LabelKit-Proben nahelegen: Chlorid- (auch Chlorid-Bohrmehl), PAK- oder Brandgeruch-Proben → Brandbericht (Asbestproben eines Brandschadens stehen darin in einem eigenen Abschnitt), nur Asbestproben → Asbestbericht; stornierte Proben zählen nicht, ohne Proben ist keiner hervorgehoben. Beide Knöpfe bleiben immer da, der Tooltip nennt die Proben. Stufe, „Mitteilung vom … erstellt – ans Büro übergeben“ und „Ans Büro übergeben“ gelten für den Brandbericht genauso wie für den Asbestbericht (gleicher Dateiname „n._Mitteilung_….docx“); die Anlage Brandgeruch daneben wird nie als Gutachten vorgewählt.'],
   ['1.39.0', '30.10.2026', 'Ans Büro übergeben: Vorgewählt ist jetzt die Mitteilung, nicht mehr einfach die neueste Word-Datei in „Mitteilungen“ – dort liegen auch Anlagen (PlanKit: Probenahme, Raumbuch, Wandansichten; Anlage PN 98), die meist nach dem Bericht entstehen. Reihenfolge: die Datei aus dem BerichtKit-Link, sonst die zuletzt in BerichtKit gespeicherte, sonst die neueste „n. Mitteilung ….docx“; eine Datei, die schon beim Büro ist, kommt erst danach. Anlagen werden nie vorgewählt (erkannt am Anlagen-Protokoll und an den Dateinamen) und stehen in der Auswahl mit „· Anlage“; hinter jeder Datei stehen Datum und Uhrzeit. Ist keine Mitteilung erkennbar, steht dort „– bitte die Mitteilung wählen –“ und übergeben geht erst nach der Wahl (auch „– keine Word-Datei –“ ist möglich). Ist schon ein Gutachten beim Büro offen, fragt die Projektzentrale beim Klick nicht mehr nach: Über dem Knopf steht „Beim Büro ist schon ein Gutachten offen (Datei, Datum) – das wird eine weitere Übergabe (z. B. Nachtrag)“, ein Klick reicht.'],
   ['1.38.0', '30.10.2026', 'Vom Bericht zum Büro in einem Zug: „Ans Büro übergeben →“ in BerichtKit öffnet hier das Projekt mit aufgeklapptem „Gutachten ans Büro übergeben“ – die gerade gespeicherte Mitteilung ist gewählt, die Prüfbericht-PDFs, die BerichtKit dazu vermerkt hat, sind als Anlagen angehakt („Prüfbericht laut BerichtKit“). Das gilt auch, wenn die Mitteilung von Hand gewählt wird. Vor dem Übergeben prüft die Projektzentrale die Word-Datei: Stehen noch gelb markierte Lücken oder Platzhalter wie „[KI-Wert]“ darin, werden sie genannt und es kommt eine Rückfrage (schon ausgefüllt? Dann in Word nur die gelbe Markierung entfernen). Stufe 4 „Gutachten“: Liegt eine Mitteilung vor, die noch nicht beim Büro ist, steht dort „Mitteilung vom … erstellt – ans Büro übergeben“ und „Jetzt dran“ führt zur Übergabe – auch bei einer 2. Mitteilung nach einem früheren Versand.'],
   ['1.37.0', '30.10.2026', 'Neues Feld „Versicherer“ in den Projektdaten (unter „Auftraggeber“). Der Arbeitszettel trägt die Spalte VERSICHERUNG jetzt in beide Felder ein; ändert man später den Auftraggeber (z. B. Makler oder VN), bleibt der Versicherer richtig. BerichtKit übernimmt ihn fürs Deckblatt, statt ihn aus dem Auftraggeber zu erraten. Bestehende Projekte: Feld leer, alles wie bisher.'],
@@ -1143,7 +1145,11 @@ const BILDUMBENENNER_URL = '../Bildumbenenner/';
 const PROBENPLAN_URL = '../Probenplan/';
 const LABELKIT_URL = '../labelkit/';
 const AUFWANDKIT_URL = '../aufwandkit/';
-const BERICHTKIT_URL = '../berichtkit/';   // BerichtKit: Asbest-Untersuchungsbericht (Mitteilung) als Word-Datei – Ordner „Mitteilungen“
+const BERICHTKIT_URL = '../berichtkit/';   // BerichtKit: Asbest- oder Brandbericht (Mitteilung) als Word-Datei – Ordner „Mitteilungen“; Berichtsart mit &art=asbest|brand
+const TIP_BERICHT = {
+  asbest: 'BerichtKit: Asbest-Untersuchungsbericht als Word-Datei aus Projektdaten, Proben, Laborergebnissen und Fotos – Ordner „Mitteilungen“',
+  brand: 'BerichtKit: Brandbericht (Sanierungsvorschlag oder Untersuchungsbericht) als Word-Datei aus Projektdaten, Chlorid-, PAK-, Asbest- und Brandgeruch-Proben, Laborergebnissen und Fotos – Ordner „Mitteilungen“',
+};
 const RESULTKIT_URL = '../resultkit/';   // ResultKit: Laborergebnisse prüfen – Laborauftrag gegen Prüfberichte, Import, „_Ergebnisse.json“ für PlanKit/FotoKit
 const BUEROKIT_URL = '../buerokit/';   // BüroKit: Tagesliste des Büros – Gutachten gegenlesen, PDF, Versand; eigene Büroaufgaben
 const AIDKIT_URL = '../aidkit/';   // AidKit: Handbuch der Suite – Abläufe und Regeln, ohne Projektbezug
@@ -2239,7 +2245,7 @@ function bueroZeigen(p){
   const ausBk = x => !x.vorschlag && !!bk && bk.has(abKey(x.rel));
   const anlKey = JSON.stringify([anl.map(x => [x.rel, ausBk(x)]), ro]);
   if (anlEl.dataset.key !== anlKey){
-    anlEl.innerHTML = st.anl === null ? '<span class="ab-klein">Wird gelesen …</span>' : anl.length ? anl.map(x => `<label><input type="checkbox" data-ab-anl-rel="${esc(x.rel)}"${ro ? ' disabled' : ''}> ${esc(x.name)} <small>${esc(x.ordner)}${ausBk(x) ? ' · Prüfbericht laut BerichtKit' : ''}</small></label>`).join('')
+    anlEl.innerHTML = st.anl === null ? '<span class="ab-klein">Wird gelesen …</span>' : anl.length ? anl.map(x => `<label><input type="checkbox" data-ab-anl-rel="${esc(x.rel)}"${ro ? ' disabled' : ''}> ${esc(x.name)} <small>${esc(x.ordner)}${ausBk(x) ? (/^laborergebnisse\//i.test(x.rel) ? ' · Prüfbericht laut BerichtKit' : ' · Anlage laut BerichtKit') : ''}</small></label>`).join('')
       : '<span class="ab-klein">Keine Dateien in Mitteilungen, Fotos (PDF), Pläne oder Laborergebnisse (PDF) – Anlagen ggf. unten eintragen.</span>';
     anlEl.dataset.key = anlKey;
   }
@@ -2477,7 +2483,7 @@ function renderDetail(){
       </li>
       ${stufe('ortstermin', 2, '', knopf('goLabel', 'Proben & Etiketten', 'label', 'LabelKit: Proben erfassen, Etiketten drucken, Laborauftrag – speichert im Ordner „Laboraufträge“') + knopf('goFotos', 'Fotos', 'fotos', 'FotoKit: Fotos benennen und beschriften, Bilddokumentation – Ordner „Fotos“'))}
       ${stufe('labor', 3, '', knopf('goErgebnis', 'Ergebnisse prüfen', 'ergebnis', 'ResultKit: was beim Labor ist, was zurück ist und was fehlt; Prüfberichte importieren und für PlanKit und FotoKit übernehmen – Ordner „Laborergebnisse“'))}
-      ${stufe('gutachten', 4, '', knopf('goPlan', 'Probenplan', 'plan', 'PlanKit: Probenplan zeichnen – Ordner „Pläne“') + knopf('goBericht', 'Asbestbericht', 'bericht', 'BerichtKit: Asbest-Untersuchungsbericht als Word-Datei aus Projektdaten, Proben, Laborergebnissen und Fotos – Ordner „Mitteilungen“') + (stand.plan.present ? knopf('anlPlan', 'Anlage Probenahme …', 'anlage', 'Öffnet PlanKit gleich im Export „Word · Anlage Probenahme“: Lagepläne, Probenverzeichnis, Fotos, Laborwerte') : ''),
+      ${stufe('gutachten', 4, '', knopf('goPlan', 'Probenplan', 'plan', 'PlanKit: Probenplan zeichnen – Ordner „Pläne“') + knopf('goBericht', 'Asbestbericht', 'bericht', TIP_BERICHT.asbest) + knopf('goBrand', 'Brandbericht', 'brandbericht', TIP_BERICHT.brand) + (stand.plan.present ? knopf('anlPlan', 'Anlage Probenahme …', 'anlage', 'Öffnet PlanKit gleich im Export „Word · Anlage Probenahme“: Lagepläne, Probenverzeichnis, Fotos, Laborwerte') : ''),
         '<div class="stufe-body"><div class="att" id="anl"></div></div>')}
       ${stufe('buero', 5, '', knopf('goUebergabe', 'Ans Büro übergeben', 'uebergeben', 'Gutachten mit Word-Datei und Empfängern ans Büro übergeben – das Büro arbeitet in BüroKit'),
         '<div class="stufe-body"><section id="bueroPanel"></section></div>')}
@@ -2545,6 +2551,7 @@ function renderDetail(){
     after: async () => { if(S.sel === p){ S.pj=await readPJ(await pjDir(p)); S.pjStatus=null; renderDetail(); } }
   });
   stufenZeichnen(p);
+  berichtVorschlagZeigen(p);
   if(same)$('detail').scrollTop=scroll;
   if (p.st && !p.st.err) anlStatus(p);
   nachzueglerZeigen(p);
@@ -2618,7 +2625,8 @@ function stufeAktion(p, aktion){
     case 'ergebnis': openApp(p, RESULTKIT_URL, 'resultkit'); return;
     case 'plan': openPlanKit(p); return;
     case 'anlage': openPlanKit(p, 'anlage'); return;
-    case 'bericht': openApp(p, BERICHTKIT_URL, 'berichtkit'); return;
+    case 'bericht': openBerichtKit(p, 'asbest'); return;
+    case 'brandbericht': openBerichtKit(p, 'brand'); return;
     case 'beleg': openApp(p, AUFWANDKIT_URL, 'aufwandkit'); return;
     case 'buerokit': window.open(BUEROKIT_URL, 'buerokit', 'noopener'); return;
     case 'uebergeben': { const panel = $('bueroPanel'), form = panel && panel.querySelector('[data-ab-form]'); if (!form) return;
@@ -2990,6 +2998,30 @@ async function openApp(p, base, target){
   await SUITE.set('archiv', S.archive).catch(() => {});
   projektNavigation(projektLink(base, p.name), target);
 }
+/** BerichtKit mit Berichtsart: #projekt=<Ordner>&art=asbest|brand (BerichtKit ab 1.14.0; ohne art wäre es der Asbestbericht). */
+function berichtLink(name, art){
+  const url = new URL(projektLink(BERICHTKIT_URL, name));
+  url.hash = url.hash.slice(1).split('&').filter(t => t && !new URLSearchParams(t).has('art')).concat('art=' + encodeURIComponent(art)).join('&');
+  return url.href;
+}
+async function openBerichtKit(p, art){
+  await flushPJ();
+  await SUITE.set('archiv', S.archive).catch(() => {});
+  projektNavigation(berichtLink(p.name, art), 'berichtkit');
+}
+/** Hervorgehoben wird der Bericht, den die LabelKit-Proben nahelegen (Stufen.berichtsart); beide Knöpfe bleiben immer da.
+    lk = Inhalt der neuesten LabelKit-Projektdatei, null = keine/nicht lesbar. Ohne lk: das zuletzt für dieses Projekt Erkannte
+    (beim Neuzeichnen der Seite, bis anlStatus die Datei wieder gelesen hat). */
+function berichtVorschlagZeigen(p, lk){
+  if (lk !== undefined) S.berichtVorschlag = { name: p.name, ...Stufen.berichtsart(lk) };
+  const v = S.berichtVorschlag && S.berichtVorschlag.name === p.name ? S.berichtVorschlag : { art: '', grund: '' };
+  for (const [id, art] of [['goBericht', 'asbest'], ['goBrand', 'brand']]){
+    const b = $(id); if (!b) continue;
+    const an = v.art === art;
+    b.classList.toggle('vorschlag', an);
+    b.title = TIP_BERICHT[art] + (an ? ` · Passt zu den LabelKit-Proben (${v.grund})` : '');
+  }
+}
 async function openPlanKit(p, aktion){
   await flushPJ();
   await SUITE.set('archiv', S.archive).catch(() => {});
@@ -3041,11 +3073,12 @@ async function anlStatus(p){
   if (!aktuell()) return;
   let box = $('anl');
   // Ohne LabelKit-Daten oder ohne PN 98/Brandgeruch bleibt der Anhang am Schritt leer (unsichtbar) – außer es gibt schon erstellte Anlagen.
-  if (!f){ S.anl = null; box.innerHTML = erstellt.length ? `<div class="row"><b>Anlage PN 98 / Brandgeruch</b></div>${liste}` : ''; return; }
+  if (!f){ berichtVorschlagZeigen(p, null); S.anl = null; box.innerHTML = erstellt.length ? `<div class="row"><b>Anlage PN 98 / Brandgeruch</b></div>${liste}` : ''; return; }
   let daten;
   try{ daten = JSON.parse(await f.text()); }
-  catch(e){ if (!aktuell()) return; S.anl = null; $('anl').innerHTML = `<div class="warn">„${esc(f.name)}“ ist nicht lesbar: ${esc(e.message)}</div>`; return; }
+  catch(e){ if (!aktuell()) return; berichtVorschlagZeigen(p, null); S.anl = null; $('anl').innerHTML = `<div class="warn">„${esc(f.name)}“ ist nicht lesbar: ${esc(e.message)}</div>`; return; }
   if (!aktuell()) return;
+  berichtVorschlagZeigen(p, daten);
   box = $('anl');
   const chk = ANLAGE.pruefen(daten, p.nr);
   S.anl = { p, f, chk };
@@ -3257,7 +3290,7 @@ function helpHtml(){
     <li><b>④ PlanKit – „Probenplan bearbeiten“:</b> Grundriss aus „Pläne“ wählen. Unter „Proben übernehmen …“ die <b>Probenerfassung aus LabelKit</b> übernehmen und die Proben auf den Plan ziehen. Sind die Ergebnisse in ResultKit übernommen: wieder „Proben übernehmen …“, den Prüfbericht wählen und <b>„Alle Konflikte: Aktualisieren“</b> – die Messwerte hängen dann an den Proben.</li>
     <li><b>Auswerten:</b> PlanKit „Ergebnisse“ → Ergebniskarte exportieren. FotoKit „Ergebnistabelle …“ → Tabelle für Word.</li>
     <li><b>⑤ BelegKit – „Zeiten &amp; Abrechnung“:</b> Jede Person trägt ihre Ortstermine (Stunden, km, Spesen, Übernachtung) und Auswertungsstunden selbst ein. Proben aus LabelKit, Berichtsseiten und Fotos werden gezählt; „Abrechnung“ zeigt alle Positionen mit Nummern zum Übertragen ins Rechnungsprogramm.</li>
-    <li><b>Asbestbericht – BerichtKit:</b> In der Stufe „Gutachten“ <b>„Asbestbericht“</b>. BerichtKit setzt den Untersuchungsbericht aus Projektdaten, LabelKit-Proben, den in ResultKit übernommenen Ergebnissen und den FotoKit-Fotos (mit Probe-Nr.) zusammen. Fehlende Angaben sind in der Vorschau gelb markiert. „Word-Bericht speichern“ legt die Datei in „Mitteilungen“ ab. Danach <b>„Ans Büro übergeben →“</b>: Die Projektzentrale öffnet das Projekt mit dieser Mitteilung und den Prüfberichten als Anlagen. Vor dem Übergeben meldet sie gelb markierte Stellen und Platzhalter wie „[KI-Wert]“, die in der Word-Datei noch stehen.</li>
+    <li><b>Asbest- oder Brandbericht – BerichtKit:</b> In der Stufe „Gutachten“ <b>„Asbestbericht“</b> oder <b>„Brandbericht“</b> (Sanierungsvorschlag oder Untersuchungsbericht nach einem Brandschaden). Hervorgehoben ist der Knopf, der zu den LabelKit-Proben passt: Chlorid-, PAK- oder Brandgeruch-Proben → Brandbericht (Asbestproben stehen dann darin), nur Asbestproben → Asbestbericht; beide Knöpfe sind immer da. BerichtKit setzt den Bericht aus Projektdaten, LabelKit-Proben, den in ResultKit übernommenen Ergebnissen und den FotoKit-Fotos (mit Probe-Nr.) zusammen. Fehlende Angaben sind in der Vorschau gelb markiert. „Word-Bericht speichern“ legt die Datei in „Mitteilungen“ ab. Danach <b>„Ans Büro übergeben →“</b>: Die Projektzentrale öffnet das Projekt mit dieser Mitteilung und den Prüfberichten als Anlagen. Vor dem Übergeben meldet sie gelb markierte Stellen und Platzhalter wie „[KI-Wert]“, die in der Word-Datei noch stehen.</li>
     <li><b>Anlage Probenahme:</b> In der Stufe „Gutachten“ „Anlage Probenahme …“ (sobald ein Plan da ist) – PlanKit öffnet den Export mit „Word · Anlage Probenahme“ (Lagepläne, Probenverzeichnis, Ausschnitte, Fotos, Laborwerte).</li>
     <li><b>Anlagen PN 98 / Brandgeruch:</b> In der Stufe „Gutachten“ „Anlage PN 98 / Brandgeruch · Erstellen …“ (sobald LabelKit PN 98-Protokolle oder Brandgeruch-Proben enthält). Die Datei liegt danach in „Mitteilungen“ – in Word an der gewünschten Stelle <b>Einfügen › Objekt › Text aus Datei</b>.</li>
   </ol>
@@ -3281,7 +3314,7 @@ function helpHtml(){
     <tr><td>FotoKit</td><td>Fotos benennen, Bilddokumentation, Ergebnistabelle</td><td>kaspersebastian83-dot.github.io/Bildumbenenner</td></tr>
     <tr><td>ResultKit</td><td>Laborergebnisse: was beim Labor ist, was zurück ist, was fehlt; Prüfberichte importieren und übernehmen</td><td>kaspersebastian83-dot.github.io/resultkit</td></tr>
     <tr><td>PlanKit</td><td>Probenplan, Ergebniskarte</td><td>kaspersebastian83-dot.github.io/Probenplan</td></tr>
-    <tr><td>BerichtKit</td><td>Asbest-Untersuchungsbericht als Word-Datei (Mitteilung)</td><td>kaspersebastian83-dot.github.io/berichtkit</td></tr>
+    <tr><td>BerichtKit</td><td>Asbest- oder Brandbericht als Word-Datei (Mitteilung)</td><td>kaspersebastian83-dot.github.io/berichtkit</td></tr>
     <tr><td>SpesenKit</td><td>Spesenabrechnung für den Monat (ohne Projektbezug)</td><td>kaspersebastian83-dot.github.io/reisekosten-pro</td></tr>
     <tr><td>AidKit</td><td>Handbuch: Abläufe Schritt für Schritt, gemeinsame Regeln</td><td>kaspersebastian83-dot.github.io/aidkit</td></tr>
   </table>

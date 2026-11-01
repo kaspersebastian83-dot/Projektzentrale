@@ -1,6 +1,6 @@
 /* Spektron – Stufen eines Projekts und „Jetzt dran“ (nur rechnen, nichts lesen oder schreiben).
    Sechs Stufen in Arbeitsreihenfolge; jede mit Zustand, einem Satz und der App, in der es weitergeht:
-     1 Projekt anlegen (Projektdaten)          4 Gutachten (PlanKit, BerichtKit, Anlage)
+     1 Projekt anlegen (Projektdaten)          4 Gutachten (PlanKit, BerichtKit: Asbest- oder Brandbericht, Anlage)
      2 Ortstermin: Proben & Fotos (LabelKit, FotoKit)   5 Ans Büro → Versand (BüroKit)
      3 Labor (ResultKit)                       6 Abrechnung (BelegKit)
    Zustände: 'fertig' | 'dran' (der nächste Schritt liegt bei dir) | 'wartet' (Labor oder Büro sind dran) | 'offen' (später) |
@@ -132,6 +132,24 @@
     return { datei: m.name, datum: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` };
   }
 
+  /** Welcher Bericht passt zu den LabelKit-Proben (neueste `*_Daten.json`)? Hervorgehoben wird nur ein Knopf, beide bleiben da.
+      Brandbericht, sobald Chlorid- (auch Chlorid-Bohrmehl unter „Sonstige“), PAK- oder Brandgeruch-Proben da sind – Asbestproben
+      eines Brandschadens stehen im Brandbericht (5.5). Nur Asbestproben → Asbestbericht. Sonst (keine Datei, keine Proben, nur
+      weitere Proben) keiner. Stornierte Proben zählen nicht, Bohrmehl wie BerichtKit (`istBohrmehl` in bericht-brand.js).
+      → { art: 'brand' | 'asbest' | '', grund: 'kurzer Text für den Tooltip' } */
+  function berichtsart(lk){
+    const liste = k => (lk && Array.isArray(lk[k]) ? lk[k] : []).filter(p => p && typeof p === 'object' && !p.storniert);
+    const txt = v => String(v == null ? '' : v).trim();
+    const bohrAn = !!(lk && ((lk.ui && lk.ui.bohrmehlAktiv) || lk.bohrmehlAktiv));
+    const bohrmehl = liste('sonstigeProben').filter(p => bohrAn || (!!txt(p.tiefe) && /chlorid/i.test(txt(p.notiz)))).length;
+    const n = { cl: liste('chloridProben').length + bohrmehl, pak: liste('proben').length, bg: liste('brandgeruchProben').length, as: liste('asbestProben').length };
+    const teile = [[n.cl, 'Chlorid-Probe', 'Chlorid-Proben'], [n.pak, 'PAK-Probe', 'PAK-Proben'], [n.bg, 'Brandgeruch-Probe', 'Brandgeruch-Proben']]
+      .filter(([z]) => z).map(([z, e, v]) => anz(z, e, v));
+    if (teile.length) return { art: 'brand', grund: teile.join(', ') + (n.as ? ` und ${anz(n.as, 'Asbestprobe', 'Asbestproben')}` : '') };
+    if (n.as) return { art: 'asbest', grund: anz(n.as, 'Asbestprobe', 'Asbestproben') };
+    return { art: '', grund: '' };
+  }
+
   const UEBERSPRUNGEN = { ortstermin: 'Keine Probendaten im Ordner – übersprungen', labor: 'Keine Prüfberichte im Ordner – übersprungen', gutachten: 'Übersprungen' };
   const b0 = f => f.buero || {};
   const AKTIONEN = {
@@ -183,7 +201,7 @@
     return name + (aktuell === 'gutachten' ? ' schreiben' : '');
   }
 
-  const api = Object.freeze({ berechnen, neuesteMitteilung, MITTEILUNG, STUFEN, AKTIONEN });
+  const api = Object.freeze({ berechnen, neuesteMitteilung, berichtsart, MITTEILUNG, STUFEN, AKTIONEN });
   root.Stufen = api;
   if (typeof module !== 'undefined') module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
