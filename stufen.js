@@ -28,7 +28,8 @@
    *   proben: Probendaten (LabelKit) vorhanden, laborauftrag: Datum,
    *   fotos: { bilder, begonnen, doku },
    *   berichte: Anzahl Prüfberichte, ergebnisse: null | { vollstaendig, veraltet, offen, fehler }, pruefbericht: Datum,
-   *   plan: Probenplan vorhanden, mitteilung: { datei, datum } neueste „n. Mitteilung ….docx“ in „Mitteilungen“ (neuesteMitteilung) | null,
+   *   plan: Probenplan vorhanden, berichtsart: 'asbest' | 'brand' | '' – welcher Bericht dran ist (gemerkt in BerichtKit, sonst nach den
+   *     LabelKit-Proben; '' = unbekannt, BerichtKit entscheidet selbst), mitteilung: { datei, datum } neueste „n. Mitteilung ….docx“ in „Mitteilungen“ (neuesteMitteilung) | null,
    *   buero: { offen, frage, erledigt, rechnungOffen, rechnung: Datum, rechnungVon, woerter: übergebene Word-Dateien, zuletzt: Datum der
    *     letzten Übergabe } | null (unbekannt), uebergabe: Datum, versand: Datum,
    *   abrechnung: Datum des letzten BelegKit-Stands
@@ -68,7 +69,8 @@
     const mtOffen = !!mt && !b.unklar && !mitteilungUebergeben(mt, f);
     s.gutachten = mtOffen ? { zustand: 'offen', text: `Mitteilung vom ${de(mt.datum)} erstellt – ans Büro übergeben`, aktion: 'uebergeben' }
       : uebergeben ? { zustand: 'fertig', text: `Gutachten übergeben${f.uebergabe ? ` ${de(f.uebergabe)}` : ''}` }
-      : { zustand: 'offen', text: f.plan ? 'Probenplan angelegt · Gutachten schreiben, Anlage erstellen' : 'Noch kein Probenplan', aktion: 'plan' };
+      : f.plan ? { zustand: 'offen', text: `Probenplan angelegt · ${BERICHT[f.berichtsart] || 'Gutachten'} schreiben, Anlage erstellen`, aktion: BERICHT_AKTION[f.berichtsart] || 'berichtkit' }
+      : { zustand: 'offen', text: 'Noch kein Probenplan', aktion: 'plan' };
 
     // 5 Ans Büro → Versand
     if (b.unklar) s.buero = { zustand: 'dran', text: 'Büroaufgaben nicht vollständig lesbar – in BüroKit prüfen', aktion: 'buerokit' };
@@ -150,11 +152,22 @@
     return { art: '', grund: '' };
   }
 
+  /** Gemerkte Berichtsart aus „_BerichtKit.json“ ({ art, berichte }) wie BerichtKit bericht-vorgaben.js artGemerkt – dort ändern,
+      hier nachziehen: Feld „art“, sonst die Art des zuletzt gespeicherten Berichts (ohne Angabe: asbest). → 'asbest' | 'brand' | '' */
+  function artGemerkt(datei){
+    const ok = a => { const x = String(a == null ? '' : a).trim().toLowerCase(); return BERICHT[x] ? x : ''; };
+    if (!datei || typeof datei !== 'object') return '';
+    const a = ok(datei.art); if (a) return a;
+    const b = (Array.isArray(datei.berichte) ? datei.berichte : []).filter(x => x && x.datei).pop();
+    return b ? (ok(b.art) || (b.art ? '' : 'asbest')) : '';
+  }
+  const BERICHT = { asbest: 'Asbestbericht', brand: 'Brandbericht' }, BERICHT_AKTION = { asbest: 'bericht', brand: 'brandbericht' };
+
   const UEBERSPRUNGEN = { ortstermin: 'Keine Probendaten im Ordner – übersprungen', labor: 'Keine Prüfberichte im Ordner – übersprungen', gutachten: 'Übersprungen' };
   const b0 = f => f.buero || {};
   const AKTIONEN = {
     az: 'Arbeitszettel einlesen', daten: 'Angaben ergänzen', label: 'Proben erfassen', ergebnis: 'Ergebnisse prüfen',
-    plan: 'Probenplan bearbeiten', uebergeben: 'Ans Büro übergeben', frage: 'Antworten', buerokit: 'BüroKit öffnen', beleg: 'Zeiten erfassen',
+    plan: 'Probenplan zeichnen', bericht: 'Asbestbericht schreiben', brandbericht: 'Brandbericht schreiben', berichtkit: 'Bericht schreiben', uebergeben: 'Ans Büro übergeben', frage: 'Antworten', buerokit: 'BüroKit öffnen', beleg: 'Zeiten erfassen',
   };
 
   function jetztDran(s, aktuell, f){
@@ -201,7 +214,7 @@
     return name + (aktuell === 'gutachten' ? ' schreiben' : '');
   }
 
-  const api = Object.freeze({ berechnen, neuesteMitteilung, berichtsart, MITTEILUNG, STUFEN, AKTIONEN });
+  const api = Object.freeze({ berechnen, neuesteMitteilung, berichtsart, artGemerkt, MITTEILUNG, STUFEN, AKTIONEN });
   root.Stufen = api;
   if (typeof module !== 'undefined') module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

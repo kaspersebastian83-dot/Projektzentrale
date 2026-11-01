@@ -208,7 +208,10 @@ const MT = '1._Mitteilung_26.0600.docx', fixture = n => fs.readFile(path.join(__
     // 9. BerichtKit geht vor: die dort gespeicherte 1. Mitteilung, obwohl eine 2. neuer ist
     await oeffnen(U);
     await page.waitForFunction(() => document.querySelector('#bueroPanel [data-ab-word]')?.value === 'Mitteilungen/1._Mitteilung_26.0604.docx');
-    assert.equal(await page.locator('#goBrand.vorschlag, #goBericht.vorschlag').count(), 0, 'ohne LabelKit-Datei kein Bericht hervorgehoben');
+    // ohne LabelKit-Datei, aber in BerichtKit gespeichert (Datei bis 1.14.0, ohne art = Asbestbericht): gemerkt → nur „Asbestbericht“ hervorgehoben
+    await page.waitForFunction(() => document.querySelector('#goBericht.vorschlag'));
+    assert.equal(await page.locator('#goBrand.vorschlag').count(), 0);
+    assert.match(await page.locator('#goBericht').getAttribute('title'), /In BerichtKit für dieses Projekt gemerkt/);
 
     // 10. (1.40) Nur Asbestproben: „Asbestbericht“ hervorgehoben, „Brandbericht“ daneben
     await oeffnen(W);

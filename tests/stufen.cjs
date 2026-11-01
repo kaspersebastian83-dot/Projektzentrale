@@ -156,5 +156,19 @@ console.log('OK stufen: Mitteilung erstellt, noch nicht übergeben – Stufe 4, 
   assert.deepEqual(mt, { datei: '1._Mitteilung_26.0601.docx', datum: '2026-11-01' });
   const r = S.berechnen({ pj: true, proben: true, berichte: 2, ergebnisse: { vollstaendig: true }, plan: true, mitteilung: mt, buero: {} });
   assert.equal(r.stufen[3].text, 'Mitteilung vom 01.11. erstellt – ans Büro übergeben'); assert.equal(r.jetzt.aktion, 'uebergeben');
-  console.log('OK stufen: Brandbericht in „Mitteilungen“ wie der Asbestbericht erkannt');
+  // „Jetzt dran“ Stufe 4 (Schritt 7a): ohne Plan „Probenplan zeichnen“, mit Plan „<Berichtsart> schreiben“ (BerichtKit mit art),
+// Berichtsart unbekannt → BerichtKit ohne art; nach gespeichertem Bericht „Ans Büro übergeben“
+{
+  const lab = { pj: true, proben: true, berichte: 1, ergebnisse: { vollstaendig: true } };
+  let j = S.berechnen(lab).jetzt; assert.equal(j.aktion, 'plan'); assert.equal(j.knopf, 'Probenplan zeichnen');
+  j = S.berechnen({ ...lab, plan: true, berichtsart: 'brand' }).jetzt; assert.equal(j.aktion, 'brandbericht'); assert.equal(j.knopf, 'Brandbericht schreiben');
+  j = S.berechnen({ ...lab, plan: true, berichtsart: 'asbest' }).jetzt; assert.equal(j.aktion, 'bericht'); assert.equal(j.knopf, 'Asbestbericht schreiben');
+  j = S.berechnen({ ...lab, plan: true }).jetzt; assert.equal(j.aktion, 'berichtkit'); assert.equal(j.knopf, 'Bericht schreiben');
+  j = S.berechnen({ ...lab, plan: true, berichtsart: 'brand', mitteilung: { datei: '1._Mitteilung_1.docx', datum: '2026-11-01' }, buero: {} }).jetzt;
+  assert.equal(j.aktion, 'uebergeben'); assert.equal(j.knopf, 'Ans Büro übergeben');
+  assert.equal(S.artGemerkt({ art: 'brand', berichte: [{ datei: 'a.docx' }] }), 'brand');
+  assert.equal(S.artGemerkt({ berichte: [{ datei: 'a.docx' }] }), 'asbest', 'bis BerichtKit 1.14.0: Bericht ohne art = Asbest');
+  assert.equal(S.artGemerkt({ berichte: [] }), '');
+}
+console.log('OK stufen: Brandbericht in „Mitteilungen“ wie der Asbestbericht erkannt');
 }
