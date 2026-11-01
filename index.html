@@ -431,6 +431,47 @@ summary.stufe-kopf::-webkit-details-marker{display:none}
 #pjBox > summary.stufe-kopf:hover{background:none}
 .stufe.z-uebersprungen .sn{border-style:dashed}
 .stufe.z-uebersprungen .sname,.stufe.z-uebersprungen .stext{color:var(--muted)}
+/* 1.42: einfache Projektseite – „Jetzt dran“ in der Farbe der Ziel-App, sechs Kacheln wie das Kopfband der Apps (Symbol, Name, ✓, Stand),
+   darunter „Ans Büro“, Projektdaten und „Mehr zum Projekt …“ */
+.jetzt{border-left:8px solid var(--ac,var(--accent));padding:16px 20px}
+.jetzt b{font-size:20px}
+.jetzt #jetztGo{font-size:16px;padding:12px 20px}
+.jetzt #jetztGo.primary{background:var(--ac,var(--accent));border-color:var(--ac,var(--accent));color:#fff}
+.jetzt #jetztGo.primary:hover{filter:brightness(1.1)}
+.kacheln{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin:0 0 14px}
+.kachel{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0;padding:14px 8px 12px;border:1px solid var(--line);border-top:5px solid var(--ac);border-radius:12px;background:var(--panel);box-shadow:var(--shadow);color:var(--text);font:inherit;text-align:center;cursor:pointer}
+.kachel .ksym{width:34px;height:34px;color:var(--ac);flex:none}
+.kachel .kn{font-weight:700;font-size:15px}
+.kachel .ks{font-size:12px;line-height:1.3;color:var(--muted);overflow-wrap:anywhere}
+.kachel.fertig .kn{color:var(--ok)}
+.kachel.z-offen:not(.fertig){background:color-mix(in srgb,var(--panel) 55%,var(--bg));border-style:dashed;border-top-style:solid}
+.kachel.z-dran .ks{color:var(--warn);font-weight:600}
+.kachel.z-wartet .ks,.kachel.passt .ks{color:var(--text)}
+.kachel.passt{box-shadow:0 0 0 3px var(--ac);border-color:var(--ac)}
+.kachel:hover{border-color:var(--ac);background:var(--panel)}
+.kachel:focus-visible{outline:2px solid var(--ac);outline-offset:3px}
+@media (max-width:1100px){.kacheln{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:560px){.kacheln{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.pz > .stufe{margin-bottom:10px}
+.pz-kontext:has(> .att:empty){display:none}
+.pz-kontext .att{margin:0;padding:12px 16px}
+.pz-buero .sn svg,.pz-projektdaten .sn svg{width:16px;height:16px}
+.pz-buero .stufe-body{padding:0 14px 12px 56px}
+.pz-buero .stufe-body #bueroPanel{border:0;padding:0;margin:0;background:none;box-shadow:none}
+.pz-buero .stufe-body #bueroPanel .ab-kopf h3{display:none}
+.pz-buero .stufe-body #bueroPanel .ab-kopf{justify-content:flex-end;margin:0}
+.pz-buero .sk,.pz-mehr .sk{padding:5px 11px;font-size:13px;white-space:nowrap}
+.pz-buero .sk.passt,.pz-mehr .sk.passt{border-color:var(--accent);color:var(--accent);font-weight:600}
+.pz-mehr .sk.vorschlag{border-color:#b0683c;box-shadow:inset 0 0 0 1px #b0683c;font-weight:600}
+.pj-aendern{font-size:13px;padding:4px 11px}
+.pz-mehr{margin-top:14px;border-top:1px solid var(--line);padding-top:8px}
+.pz-mehr > summary{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:6px 0;cursor:pointer;list-style:none}
+.pz-mehr > summary::-webkit-details-marker{display:none}
+.pz-mehr > summary span{font-weight:600;font-size:14px;padding:8px 14px;border:1px solid var(--line2);border-radius:10px;background:var(--panel)}
+.pz-mehr > summary span::after{content:" ▾"}.pz-mehr[open] > summary span::after{content:" ▴"}
+.pz-mehr > summary small{color:var(--muted);font-size:12.5px}
+.pz-mehr .pm-knoepfe{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 10px}
+.pz-mehr .pz-fuss{margin-top:0}
 .mehr .more a.app{padding:5px 8px;gap:10px}.mehr .more a.app small{font-size:11.5px}.mehr .more a.app .ic{font-size:16px}
 .ohne-archiv .listbar{display:none}
 .appbar{min-width:0}
@@ -460,7 +501,7 @@ summary.stufe-kopf::-webkit-details-marker{display:none}
     <button id="btnArchive" class="hstatus" title="Archivordner wählen oder wechseln"><span class="pkt" aria-hidden="true"></span><span id="archiveName">Archivordner wählen …</span></button>
     <button id="btnRescan" class="hicon" disabled title="Ordner neu einlesen (z. B. nachdem Kollegen etwas geändert haben)" aria-label="Neu einlesen">⟳</button>
     <div class="mehr-wrap">
-      <button id="btnMehr" class="hbadge help" aria-haspopup="true" aria-expanded="false" title="Mitarbeiter, Auslastung, Durchlaufzeiten, weitere Apps">⋯ Mehr</button>
+      <button id="btnMehr" class="hbadge help" aria-haspopup="true" aria-expanded="false" title="Büro: Mitarbeiter, Auslastung, Spektron-Ordner · weitere Apps: Handbuch, BüroKit, Durchlaufzeiten, SpesenKit, Rückmeldung">⋯ Büro &amp; Apps</button>
       <div class="mehr" id="mehr" hidden>
         <div class="mh">Büro</div>
         <button id="btnMa" disabled title="Mitarbeiterliste: Kürzel am Ende der Projektordner und die zugehörigen Namen">👥 Mitarbeiter</button>
@@ -945,9 +986,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.41.0';
+const APP_VERSION = '1.42.0';
 const APP_DATE = '2026-11-01';
 const CHANGELOG = [
+  ['1.42.0', '01.11.2026', 'Einfachere Projektseite (Spektron Schritt 2): Oben „Jetzt dran“ mit einem großen Knopf in der Farbe der App, in der es weitergeht. Darunter statt der sechs Stufen sechs Kacheln – dieselben wie im neuen Kopfband der Apps: Proben · Fotos · Labor · Plan · Bericht · Abrechnung, je mit Symbol, ✓ (die Datei der App ist da, genau wie oben in den Apps) und dem Stand darunter; ein Klick öffnet die App. Die Bericht-Kachel heißt „Brandbericht“ oder „Asbestbericht“, sobald die Berichtsart feststeht, und öffnet genau diesen Bericht. Darunter „Danach: ans Büro übergeben“ (mit dem Übergabe-Formular) und die Projektdaten; im Kopf „Projektdaten ändern“. Seltenes unter „Mehr zum Projekt …“: Asbestbericht/Brandbericht ausdrücklich öffnen, Anlage Probenahme, Ordner, frühere Versandangaben, „Vor Spektron“. Keine Stufennummern mehr. Das Menü oben rechts heißt jetzt „⋯ Büro & Apps“. Dateien, Übergabe und Verbindung zu den Apps unverändert.'],
   ['1.41.0', '01.11.2026', '„Jetzt dran“ in Stufe 4 (Gutachten) führt jetzt zum Bericht: ohne Probenplan „Probenplan zeichnen →“, mit Plan „Brandbericht schreiben →“ bzw. „Asbestbericht schreiben →“ – welcher, steht in BerichtKit gemerkt (ab BerichtKit 1.15.0), sonst nach den LabelKit-Proben; ist noch nichts gelesen, öffnet „Bericht schreiben →“ BerichtKit, das selbst wählt. Nach dem gespeicherten Bericht wie bisher „Ans Büro übergeben“ – ein früher gespeicherter Bericht der anderen Art (z. B. alter Asbestbericht, jetzt Brandbericht gemerkt) zählt dafür nicht. In Stufe 4 ist der in BerichtKit gemerkte Bericht hervorgehoben (sonst der zu den Proben passende). Das Fenster der Projektzentrale heißt „projektzentrale“: ⌂ und „Ans Büro übergeben →“ aus den Apps landen in diesem Tab. Die Spektron-Leiste der Apps (v2) zeigt den Bericht mit Berichtsart und nach dem Speichern „Weiter: Ans Büro übergeben →“.'],
   ['1.40.0', '01.11.2026', 'Neuer Knopf „Brandbericht“ in Stufe 4 (Gutachten) neben „Asbestbericht“: öffnet BerichtKit (ab 1.14.0) gleich mit dem Brandbericht – Sanierungsvorschlag oder Untersuchungsbericht nach einem Brandschaden, als Word-Datei in „Mitteilungen“. „Asbestbericht“ öffnet ausdrücklich den Asbestbericht. Hervorgehoben ist der Knopf, den die LabelKit-Proben nahelegen: Chlorid- (auch Chlorid-Bohrmehl), PAK- oder Brandgeruch-Proben → Brandbericht (Asbestproben eines Brandschadens stehen darin in einem eigenen Abschnitt), nur Asbestproben → Asbestbericht; stornierte Proben zählen nicht, ohne Proben ist keiner hervorgehoben. Beide Knöpfe bleiben immer da, der Tooltip nennt die Proben. Stufe, „Mitteilung vom … erstellt – ans Büro übergeben“ und „Ans Büro übergeben“ gelten für den Brandbericht genauso wie für den Asbestbericht (gleicher Dateiname „n._Mitteilung_….docx“); die Anlage Brandgeruch daneben wird nie als Gutachten vorgewählt.'],
   ['1.39.0', '30.10.2026', 'Ans Büro übergeben: Vorgewählt ist jetzt die Mitteilung, nicht mehr einfach die neueste Word-Datei in „Mitteilungen“ – dort liegen auch Anlagen (PlanKit: Probenahme, Raumbuch, Wandansichten; Anlage PN 98), die meist nach dem Bericht entstehen. Reihenfolge: die Datei aus dem BerichtKit-Link, sonst die zuletzt in BerichtKit gespeicherte, sonst die neueste „n. Mitteilung ….docx“; eine Datei, die schon beim Büro ist, kommt erst danach. Anlagen werden nie vorgewählt (erkannt am Anlagen-Protokoll und an den Dateinamen) und stehen in der Auswahl mit „· Anlage“; hinter jeder Datei stehen Datum und Uhrzeit. Ist keine Mitteilung erkennbar, steht dort „– bitte die Mitteilung wählen –“ und übergeben geht erst nach der Wahl (auch „– keine Word-Datei –“ ist möglich). Ist schon ein Gutachten beim Büro offen, fragt die Projektzentrale beim Klick nicht mehr nach: Über dem Knopf steht „Beim Büro ist schon ein Gutachten offen (Datei, Datum) – das wird eine weitere Übergabe (z. B. Nachtrag)“, ein Klick reicht.'],
@@ -1771,7 +1813,7 @@ function faktenAusScan(p){
   const st = p.st; if (!st || st.err) return null;
   const s = st.subs, pf = st.pjFakten, bf = st.bueroFakten, lab = s.laberg;
   return { pj: st.pj, pflichtFehlt: pf ? pf.pflichtFehlt : (st.pj ? 0 : PJ_PFLICHT.length), arbeitszettel: !!(pf && pf.arbeitszettel),
-    proben: !!(s.labauf && (s.labauf.daten.length || (s.labauf.uebergaben || []).length)),
+    proben: !!(s.labauf && (s.labauf.daten.length || (s.labauf.uebergaben || []).length)), probendaten: !!(s.labauf && s.labauf.daten.length),
     laborauftrag: s.labauf && s.labauf.uebergaben ? s.labauf.uebergaben.map(Durchlauf.datumAusName).filter(Boolean).sort()[0] || '' : '', fotos: { bilder: s.fotos ? s.fotos.images : 0, begonnen: !!(s.fotos && s.fotos.bu), doku: !!(s.fotos && s.fotos.pdfDoc.length) },
     berichte: lab ? lab.berichte : 0, ergebnisse: lab ? lab.ergebnisse : null, plan: !!(s.plaene && s.plaene.probenplan),
     mitteilung: Stufen.neuesteMitteilung(s.mitteil && s.mitteil.mitteilungen),
@@ -1991,7 +2033,7 @@ function heuteHtml(){
     ${h.laeuft.length ? `<h3>Läuft – Labor oder Büro sind dran</h3>${h.laeuft.map(karte).join('')}` : ''}
     ${h.fertig ? `<p class="m">${h.fertig} abgeschlossene${h.fertig === 1 ? 's Projekt' : ' Projekte'} – links unter „Abgeschlossen“.</p>` : ''}
     ${fortschrittHtml()}
-    <p class="m heute-fuss">Alle Projekte links · Mitarbeiter, Auslastung, Durchlaufzeiten und weitere Apps oben unter <b>⋯ Mehr</b>.</p>
+    <p class="m heute-fuss">Alle Projekte links · Mitarbeiter, Auslastung, Durchlaufzeiten und weitere Apps oben unter <b>⋯ Büro &amp; Apps</b>.</p>
   </div>`;
 }
 
@@ -2087,7 +2129,9 @@ async function berichtArtGemerkt(p){
     const o = JSON.parse(await (await (await dir.getFileHandle('_BerichtKit.json')).getFile()).text());
     if (!o || o.format !== 'spektron-bericht') return null;
     const art = Stufen.artGemerkt(o), artVon = b => String(b.art || 'asbest').toLowerCase();
-    return { art, andere: (Array.isArray(o.berichte) ? o.berichte : []).filter(b => b && typeof b.datei === 'string' && art && artVon(b) !== art).map(b => abKey(b.datei)) };
+    const berichte = (Array.isArray(o.berichte) ? o.berichte : []).filter(b => b && typeof b.datei === 'string');
+    // eigene: gespeicherte Berichte der gemerkten Art – nur sie geben der Bericht-Kachel den Haken (wie die Spektron-Leiste)
+    return { art, andere: berichte.filter(b => art && artVon(b) !== art).map(b => abKey(b.datei)), eigene: berichte.filter(b => art && artVon(b) === art).map(b => abKey(b.datei)) };
   }catch(e){ return null; }
 }
 async function abBerichtKitLesen(p){
@@ -2413,7 +2457,7 @@ function ordnerKurz(p){
   const s = p.st.subs, da = SUBS.filter(([k]) => s[k]).length, dateien = SUBS.reduce((n, [k]) => n + (s[k] ? s[k].files : 0), 0);
   return `${da} von ${SUBS.length} Unterordnern · ${dateien} Datei${dateien === 1 ? '' : 'en'}`;
 }
-/** Weitere Apps im Menü „⋯ Mehr“, auch ohne gewähltes Projekt: Die Monatsabrechnung der Reisekosten gehört zu keinem Projekt. */
+/** Weitere Apps im Menü „⋯ Büro & Apps“, auch ohne gewähltes Projekt: Die Monatsabrechnung der Reisekosten gehört zu keinem Projekt. */
 /** Link zum Rückmeldeformular: Programm und Version immer, die Projektnummer (nur die Nummer, kein Ort) wenn ein Projekt gewählt ist. */
 function rueckmeldungUrl(){
   const q = new URLSearchParams({ app: 'projektzentrale', version: APP_VERSION });
@@ -2451,7 +2495,7 @@ function renderDetail(){
   const ae = document.activeElement, fokus = ae && /^pj_/.test(ae.id) && $('detail').contains(ae) ? { id: ae.id, a: ae.selectionStart, b: ae.selectionEnd } : null;
   const ok = p.st && !p.st.err, fehlend = ok ? SUBS.filter(([k]) => !p.st.subs[k]).map(([, n]) => n) : [];
   const summe = ['objekt', 'auftraggeber', 'schadennummer'].map(k => String(d[k] || '').trim()).filter(Boolean).join(' · ');
-  S.pjOpen = S.pjOpen || {}; S.ordOpen = S.ordOpen || {}; S.vtOpen = S.vtOpen || {};
+  S.pjOpen = S.pjOpen || {}; S.ordOpen = S.ordOpen || {}; S.vtOpen = S.vtOpen || {}; S.pmOpen = S.pmOpen || {};
   const vst = verteilerStand(d.verteiler);
   const pflichtLeer = ro ? [] : PJ_PFLICHT.filter(k => !String(k in S.pjDirty ? S.pjDirty[k] : (d[k] || '')).trim());
   // Projektdaten zugeklappt – fehlende Pflichtangaben stehen oben als Hinweis und in Stufe 1; aufgeklappt nur bei Problemen mit der Datei
@@ -2467,20 +2511,23 @@ function renderDetail(){
   S.renderedName=p.name;S.renderedArchive=S.archive;
   // Projektseite: Kopf, „Jetzt dran“ und sechs Stufen in Arbeitsreihenfolge (stufen.js). Jede Stufe: Zustand, ein Satz, Knöpfe der App.
   const knopf = (id, text, aktion, tip) => `<button type="button" class="sk" id="${id}" data-aktion="${aktion}" title="${esc(tip || '')}">${esc(text)}</button>`;
-  const stufe = (key, nr, kopf, knoepfe, body = '') => `<li class="stufe" data-stufe="${key}"><div class="stufe-kopf"><span class="sn" aria-hidden="true">${nr}</span>
-      <div class="si"><div class="sname">${esc(Stufen.STUFEN[nr - 1][1])}<small>${esc(Stufen.STUFEN[nr - 1][2])}</small></div><div class="stext" data-stext></div></div>
-      <div class="sacts">${knoepfe}</div></div>${body}</li>`;
   $('detail').innerHTML = `<div class="pz">
     <h2><span class="nr">${esc(p.nr)}</span> ${esc(p.ort)}</h2>
     <p class="project-summary">${esc([d.objekt,d.auftraggeber,/^\d{4}-\d{2}-\d{2}$/.test(d.ortstermin||'')?'Ortstermin '+deDatum(d.ortstermin):''].filter(Boolean).join(' · ')||'Objekt und Auftraggeber noch nicht eingetragen')}</p>
-    <div class="kopfzeile">${zustHtml(p, zustaendigVon(p, pj.error ? undefined : d), ro)}<button type="button" class="pflichtFehlt" id="pflichtFehlt" hidden></button>${p.key < SPEKTRON_START_KEY && d.spektron === true && !ro ? `<span class="uebernommen-tag">In Spektron übernommen${spektronSpur(p.st) ? '' : ' · <button type="button" class="linkbtn" id="spektronAus" title="Wieder unter „Vor Spektron“ einordnen">zurück zu „Vor Spektron“</button>'}</span>` : ''}${p.key < SPEKTRON_START_KEY && !vorSpektron(p) && p.st && !p.st.spektronDa && !ro ? ` <button type="button" class="linkbtn" id="spektronOrdner" title="Die App-Dateien dieses älteren Projekts in den Ordner „${esc(SO.ORDNER)}“ umziehen – wie bei Projekten ab ${esc(SO.AB)}">Ordner „${esc(SO.ORDNER)}“ anlegen</button>` : ''}</div>
+    <div class="kopfzeile">${zustHtml(p, zustaendigVon(p, pj.error ? undefined : d), ro)}<button type="button" class="pflichtFehlt" id="pflichtFehlt" hidden></button>${p.key < SPEKTRON_START_KEY && d.spektron === true && !ro ? `<span class="uebernommen-tag">In Spektron übernommen</span>` : ''}<button type="button" class="pj-aendern" id="pjAendern" data-aktion="daten" title="Projektdaten aufklappen – Objekt, Auftraggeber, Termine, Beteiligte">${ro ? 'Projektdaten ansehen' : 'Projektdaten ändern'}</button></div>
     <div id="pjAttention" role="status"></div><div id="umzugAttention" role="status" style="display:none;margin:10px 0;padding:10px;border-left:3px solid var(--warn);background:var(--panel2)"></div><div id="bueroAttention" role="status"></div>
     <div class="jetzt" id="jetzt" role="status" aria-live="polite"></div>
-    <ol class="stufen" id="stufen" aria-label="Stufen des Projekts">
-      <li class="stufe" data-stufe="projekt">
+    <div class="kacheln" id="kacheln" role="group" aria-label="Arbeitsschritte">${KACHELN.map(([key, id, name, app, aktion, farbe, tip]) =>
+      `<button type="button" class="kachel" id="${id}" data-kachel="${key}" data-aktion="${aktion}"${key === 'labor' || key === 'abrechnung' ? ` data-stufe="${key}"` : ''} style="--ac:${farbe}" title="${esc(tip)}">${kachelSymbol(key)}<span class="kn">${esc(name)}</span><span class="ks" data-ktext${key === 'labor' || key === 'abrechnung' ? ' data-stext' : ''}></span></button>`).join('')}</div>
+    <section class="pz-kontext stufe" id="anlKarte"><div class="att" id="anl"></div></section>
+    <section class="stufe pz-buero" data-stufe="buero"><div class="stufe-kopf"><span class="sn" aria-hidden="true">${kachelSymbol('buero')}</span>
+        <div class="si"><div class="sname">Danach: ans Büro übergeben<small>Gutachten mit Word-Datei und Empfängern – das Büro arbeitet in BüroKit</small></div><div class="stext" data-stext></div></div>
+        <div class="sacts">${knopf('goUebergabe', 'Ans Büro übergeben', 'uebergeben', 'Gutachten mit Word-Datei und Empfängern ans Büro übergeben – das Büro arbeitet in BüroKit')}</div></div>
+      <div class="stufe-body"><section id="bueroPanel"></section></div></section>
+    <div class="stufe pz-projektdaten" data-stufe="projekt">
         <details class="card${summe ? '' : ' leer'}" id="pjBox" ${pjAuf ? 'open' : ''}>
-          <summary class="stufe-kopf"><span class="sn" aria-hidden="true">1</span>
-            <div class="si"><div class="sname">Projekt anlegen<small>Projektdaten · gilt für alle Apps</small></div><div class="stext" data-stext></div></div>
+          <summary class="stufe-kopf"><span class="sn" aria-hidden="true">${kachelSymbol('projekt')}</span>
+            <div class="si"><div class="sname">Projektdaten<small>gilt für alle Apps</small></div><div class="stext" data-stext></div></div>
             <div class="sacts">${ro ? '' : `<button type="button" class="sk" id="azQuick" data-aktion="az" title="Liest Objekt, Versicherung, Schaden-Nr., Termine und Beteiligte aus dem PDF des Büro-Systems – vor dem Speichern wird jeder Wert angezeigt">Arbeitszettel einlesen …</button>`}<span class="sk auf" data-aktion="daten">${ro ? 'Ansehen' : 'Angaben'}<span class="pfeil" aria-hidden="true">▾</span></span>
               <span class="save" id="pjSave">${pj.exists ? (d.geaendert ? `Gespeichert ${esc(new Date(d.geaendert).toLocaleDateString('de-DE'))}` : '') : ''}</span></div></summary>
           <div class="body">
@@ -2494,17 +2541,15 @@ function renderDetail(){
             <div class="save m" title="${esc(PJ_FILE)} im Projektordner (bei Spektron-Projekten in „${esc(SO.ORDNER)}“) – gilt für alle Apps">${pj.exists ? (d.geaendert ? `Zuletzt gespeichert ${esc(new Date(d.geaendert).toLocaleString('de-DE'))}${d.geaendertMit ? ' mit ' + esc(d.geaendertMit) : ''}` : '') : 'Noch keine Projektdaten – wird beim ersten Eintrag angelegt.'} · gilt für alle Apps</div>
           </div>
         </details>
-      </li>
-      ${stufe('ortstermin', 2, '', knopf('goLabel', 'Proben & Etiketten', 'label', 'LabelKit: Proben erfassen, Etiketten drucken, Laborauftrag – speichert im Ordner „Laboraufträge“') + knopf('goFotos', 'Fotos', 'fotos', 'FotoKit: Fotos benennen und beschriften, Bilddokumentation – Ordner „Fotos“'))}
-      ${stufe('labor', 3, '', knopf('goErgebnis', 'Ergebnisse prüfen', 'ergebnis', 'ResultKit: was beim Labor ist, was zurück ist und was fehlt; Prüfberichte importieren und für PlanKit und FotoKit übernehmen – Ordner „Laborergebnisse“'))}
-      ${stufe('gutachten', 4, '', knopf('goPlan', 'Probenplan', 'plan', 'PlanKit: Probenplan zeichnen – Ordner „Pläne“') + knopf('goBericht', 'Asbestbericht', 'bericht', TIP_BERICHT.asbest) + knopf('goBrand', 'Brandbericht', 'brandbericht', TIP_BERICHT.brand) + (stand.plan.present ? knopf('anlPlan', 'Anlage Probenahme …', 'anlage', 'Öffnet PlanKit gleich im Export „Word · Anlage Probenahme“: Lagepläne, Probenverzeichnis, Fotos, Laborwerte') : ''),
-        '<div class="stufe-body"><div class="att" id="anl"></div></div>')}
-      ${stufe('buero', 5, '', knopf('goUebergabe', 'Ans Büro übergeben', 'uebergeben', 'Gutachten mit Word-Datei und Empfängern ans Büro übergeben – das Büro arbeitet in BüroKit'),
-        '<div class="stufe-body"><section id="bueroPanel"></section></div>')}
-      ${stufe('abrechnung', 6, '', knopf('goAufwand', 'Zeiten & Abrechnung', 'beleg', 'BelegKit: Zeiten, km, Spesen; Proben, Berichtsseiten und Fotos für die Rechnung – Ordner „Abrechnung“'))}
-    </ol>
+    </div>
     ${fehlend.length ? `<div class="warnbar"><span>Es fehlen Unterordner: <b>${fehlend.map(esc).join(', ')}</b></span><button id="mkSubs">Anlegen</button></div>` : ''}
-    <div class="pz-fuss">
+    <details class="pz-mehr" id="projektMehr" ${S.pmOpen[p.name] ? 'open' : ''}>
+      <summary><span>Mehr zum Projekt …</span><small>Bericht einer bestimmten Art, Anlage Probenahme, Ordner, frühere Versandangaben</small></summary>
+      <div class="pm-knoepfe">${knopf('goBericht', 'Asbestbericht öffnen', 'bericht', TIP_BERICHT.asbest) + knopf('goBrand', 'Brandbericht öffnen', 'brandbericht', TIP_BERICHT.brand)
+        + (stand.plan.present ? knopf('anlPlan', 'Anlage Probenahme …', 'anlage', 'Öffnet PlanKit gleich im Export „Word · Anlage Probenahme“: Lagepläne, Probenverzeichnis, Fotos, Laborwerte') : '')
+        + (p.key < SPEKTRON_START_KEY && d.spektron === true && !ro && !spektronSpur(p.st) ? `<button type="button" class="sk" id="spektronAus" title="Wieder unter „Vor Spektron“ einordnen">Zurück zu „Vor Spektron“</button>` : '')
+        + (p.key < SPEKTRON_START_KEY && !vorSpektron(p) && p.st && !p.st.spektronDa && !ro ? `<button type="button" class="sk" id="spektronOrdner" title="Die App-Dateien dieses älteren Projekts in den Ordner „${esc(SO.ORDNER)}“ umziehen – wie bei Projekten ab ${esc(SO.AB)}">Ordner „${esc(SO.ORDNER)}“ anlegen</button>` : '')}</div>
+      <div class="pz-fuss">
       <details class="card" id="ordBox" ${S.ordOpen[p.name] ? 'open' : ''}>
         <summary><span class="t">Ordner</span><span class="sum">${ok ? esc(ordnerKurz(p)) : p.st && p.st.err ? 'nicht lesbar' : 'wird gelesen …'}</span></summary>
         <div class="body">${ok ? `<table class="folders">${folderRows(p)}</table>` : `<div class="m">${p.st && p.st.err ? 'Nicht lesbar: ' + esc(p.st.err) : 'Wird gelesen …'}</div>`}</div>
@@ -2514,7 +2559,8 @@ function renderDetail(){
         <div class="body"><div class="m vtHint">Wer bekommt das Gutachten? Empfänger anhaken, nach dem Versand das Datum eintragen.</div>${verteilerHtml(d, ro)}</div>
       </details>
       <div id="pjRecovery"></div>
-    </div>
+      </div>
+    </details>
   </div>`;
   if(oldPanel)$('bueroPanel').replaceWith(oldPanel);
   if(oldAlerts)$('bueroAttention').replaceWith(oldAlerts);
@@ -2525,6 +2571,7 @@ function renderDetail(){
   $('pjBox').addEventListener('toggle', () => { S.pjOpen[p.name] = $('pjBox').open; });
   $('ordBox').addEventListener('toggle', () => { S.ordOpen[p.name] = $('ordBox').open; });
   $('vtBox').addEventListener('toggle', () => { S.vtOpen[p.name] = $('vtBox').open; });
+  $('projektMehr').addEventListener('toggle', () => { S.pmOpen[p.name] = $('projektMehr').open; });
   if (!ro){
     $('azBtn').onclick = () => $('azFile').click();
     $('azFile').onchange = () => { const f = $('azFile').files[0]; $('azFile').value = ''; if (f) arbeitszettelEinlesen(p, f); };
@@ -2589,26 +2636,66 @@ function faktenAusDetail(p){
   // Die neueste Mitteilung ist ein in BerichtKit gespeicherter Bericht der ANDEREN Art (z. B. alter Asbestbericht, jetzt Brandbericht
   // gemerkt): nicht als fertiges Gutachten zählen – wie die Spektron-Leiste. Mitteilungen von Hand zählen weiter.
   if (v && v.gemerkt && f.mitteilung && (v.andere || []).includes(abKey(f.mitteilung.datei))) f.mitteilung = null;
+  // Haken der Bericht-Kachel wie die Spektron-Leiste: mit _BerichtKit.json nur ein gespeicherter Bericht der gemerkten Art, dessen
+  // Datei noch in „Mitteilungen“ liegt; ohne _BerichtKit.json jede Mitteilung (Dateiname). Noch nicht gelesen: offen lassen (Stufen nimmt die Mitteilung).
+  if (v && v.bkDatei !== undefined){
+    const da = new Set(((S.ab && S.ab.name === p.name && S.ab.word) || (p.st && !p.st.err && p.st.subs.mitteil && p.st.subs.mitteil.mitteilungen) || []).map(x => abKey(x.name)));
+    f.berichtDa = v.bkDatei ? !!v.gemerkt && (v.eigene || []).some(k => da.has(k)) : !!f.mitteilung;
+  }
   return f;
 }
-/** „Jetzt dran“ und die Stufen neu zeichnen, ohne den Rest der Seite (Eingaben, Cursor) anzufassen. */
+/* Kacheln der Projektansicht – dieselben sechs Schritte, Farben und Symbole wie das Kopfband der Apps (Spektron-Leiste v3).
+   [key, id, Name, App, Aktion, Farbe, Tooltip]; die Bericht-Kachel bekommt Aktion und Namen nach der Berichtsart (stufenZeichnen). */
+const KACHELN = [
+  ['proben', 'goLabel', 'Proben', 'LabelKit', 'label', '#5469b8', 'LabelKit: Proben erfassen, Etiketten drucken, Laborauftrag – speichert im Ordner „Laboraufträge“'],
+  ['fotos', 'goFotos', 'Fotos', 'FotoKit', 'fotos', '#2f87a6', 'FotoKit: Fotos benennen und beschriften, Bilddokumentation – Ordner „Fotos“'],
+  ['labor', 'goErgebnis', 'Labor', 'ResultKit', 'ergebnis', '#7a5ca8', 'ResultKit: was beim Labor ist, was zurück ist und was fehlt; Prüfberichte importieren und übernehmen – Ordner „Laborergebnisse“'],
+  ['plan', 'goPlan', 'Plan', 'PlanKit', 'plan', '#4179b2', 'PlanKit: Probenplan zeichnen – Ordner „Pläne“'],
+  ['bericht', 'kBericht', 'Bericht', 'BerichtKit', 'berichtkit', '#b0683c', 'BerichtKit: Asbest- oder Brandbericht als Word-Datei in „Mitteilungen“'],
+  ['abrechnung', 'goAufwand', 'Abrechnung', 'BelegKit', 'beleg', '#2f7d6d', 'BelegKit: Zeiten, km, Spesen; Proben, Berichtsseiten und Fotos für die Rechnung – Ordner „Abrechnung“'],
+];
+/** Farbe der App, zu der eine Aktion führt („Jetzt dran“) – sonst die Farbe der Projektzentrale */
+const AKTION_FARBE = { label: '#5469b8', fotos: '#2f87a6', ergebnis: '#7a5ca8', plan: '#4179b2', bericht: '#b0683c', brandbericht: '#b0683c', berichtkit: '#b0683c', beleg: '#2f7d6d' };
+/** Symbole wie im Kopfband (nur Striche, 24er-Raster) */
+const KACHEL_SYMBOLE = {
+  proben: '<path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
+  fotos: '<rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13.5" r="3.5"/><path d="M8 7l1.5-3h5L16 7"/>',
+  labor: '<path d="M9 3v7L4 20a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1l-5-10V3"/><path d="M7 3h10"/>',
+  plan: '<path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/>',
+  bericht: '<path d="M6 2h8l5 5v15H6z"/><path d="M14 2v5h5M9 13h7M9 17h7"/>',
+  abrechnung: '<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5A4.5 4.5 0 0 0 8 12a4.5 4.5 0 0 0 7.5 3.5M6 10.5h7M6 13.5h7"/>',
+  buero: '<path d="M3 7h18v12H3zM3 7l9 6 9-6"/>',
+  projekt: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h4"/>',
+};
+const kachelSymbol = k => `<svg class="ksym" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${KACHEL_SYMBOLE[k] || ''}</svg>`;
+/** „Jetzt dran“, Kacheln und die Karten „Projektdaten“ und „Ans Büro“ neu zeichnen, ohne den Rest der Seite (Eingaben, Cursor) anzufassen. */
 function stufenZeichnen(p){
-  const box = $('jetzt'), liste = $('stufen');
-  if (!box || !liste || !S.sel || S.sel.name !== p.name) return;
-  const r = Stufen.berechnen(faktenAusDetail(p)), j = r.jetzt;
-  for (const st of r.stufen){
-    const li = liste.querySelector(`[data-stufe="${st.key}"]`); if (!li) continue;
-    li.className = `stufe z-${st.zustand}${st.key === r.aktuell ? ' aktuell' : ''}`;
-    li.querySelector('.sn').textContent = st.zustand === 'fertig' ? '✓' : st.zustand === 'uebersprungen' ? '–' : String(Stufen.STUFEN.findIndex(x => x[0] === st.key) + 1);
-    const t = li.querySelector('[data-stext]'); if (t.textContent !== st.text) t.textContent = st.text;
+  const box = $('jetzt'), kb = $('kacheln');
+  if (!box || !kb || !S.sel || S.sel.name !== p.name) return;
+  const f0 = faktenAusDetail(p), r = Stufen.berechnen(f0), j = r.jetzt;
+  // Kacheln: ✓ wie das Kopfband (Datei der App da), darunter der genaue Stand; Ring = dorthin führt „Jetzt dran“
+  for (const k of Stufen.kacheln(f0, r)){
+    const el = kb.querySelector(`[data-kachel="${k.key}"]`); if (!el) continue;
+    el.className = `kachel z-${k.zustand}${k.fertig ? ' fertig' : ''}${k.jetzt ? ' passt' : ''}${r.aktuell === k.key ? ' aktuell' : ''}`;
+    el.dataset.aktion = k.aktion;
+    const n = el.querySelector('.kn'), t = el.querySelector('[data-ktext]'), name = k.name + (k.fertig ? ' ✓' : '');
+    if (n.textContent !== name) n.textContent = name;
+    if (t.textContent !== k.text) t.textContent = k.text;
+    el.title = `${k.name} – ${k.app}${k.fertig ? ' (erledigt)' : ''}: ${k.text}`;
   }
-  // Ein blauer Knopf auf der Seite (in „Jetzt dran“); in der Stufe ist derselbe Knopf hervorgehoben, aber nicht blau
-  liste.querySelectorAll('.sk').forEach(b => b.classList.toggle('passt', !!j.aktion && b.dataset.aktion === j.aktion && b.tagName === 'BUTTON'));
+  // Projektdaten und „Ans Büro“: Zustand ihrer Stufe
+  for (const [key, basis] of [['projekt', 'stufe pz-projektdaten'], ['buero', 'stufe pz-buero']]){
+    const st = r.stufen.find(x => x.key === key), el = $('detail').querySelector(`.stufe[data-stufe="${key}"]`); if (!st || !el) continue;
+    el.className = `${basis} z-${st.zustand}${r.aktuell === key ? ' aktuell' : ''}`;
+    const t = el.querySelector('[data-stext]'); if (t.textContent !== st.text) t.textContent = st.text;
+  }
+  // Knöpfe unter „Mehr zum Projekt …“ und in der Büro-Karte: derselbe Knopf wie „Jetzt dran“ hervorgehoben (nicht blau)
+  $('detail').querySelectorAll('.sk').forEach(b => b.classList.toggle('passt', !!j.aktion && b.dataset.aktion === j.aktion && b.tagName === 'BUTTON'));
   // Formular „Ans Büro“: offen, wenn Übergeben gerade dran ist – sonst zu, außer selbst aufgeklappt
   const form = document.querySelector('#bueroPanel [data-ab-form]'), entwurf = abEntwurf(p);
   if (form && entwurf.offen === null){ const auf = j.aktion === 'uebergeben'; if (form.open !== auf) form.open = auf; }
   // „Ans Büro übergeben“ in der Stufe nur, solange nichts beim Büro ist (für eine zweite Übergabe bleibt das Formular darunter)
-  const ueb = $('goUebergabe'), f = faktenAusDetail(p), beimBuero = !!(f.buero && (f.buero.offen || f.buero.frage));
+  const ueb = $('goUebergabe'), f = f0, beimBuero = !!(f.buero && (f.buero.offen || f.buero.frage));
   if (ueb) ueb.hidden = beimBuero;
   // Rückfrage: die Frage mit Antwortfeld steht schon oben – „Jetzt dran“ verweist nur darauf
   const frageOben = j.aktion === 'frage' && $('bueroAttention') && $('bueroAttention').querySelector('[data-ab-antwort]');
@@ -2627,6 +2714,7 @@ function stufenZeichnen(p){
   if (frageOben){ box.dataset.key = key; box.className = 'jetzt'; box.innerHTML = ''; return; }
   box.dataset.key = key;
   box.className = 'jetzt' + (j.wartet ? ' wartet' : '') + (!j.aktion ? ' fertig' : '');
+  box.style.setProperty('--ac', AKTION_FARBE[j.aktion] || '');   // Farbe der App, in der es weitergeht
   box.innerHTML = `<div class="t"><small>${j.wartet ? (r.aktuell === 'buero' ? 'Gerade beim Büro' : 'Gerade beim Labor') : j.aktion ? 'Jetzt dran' : 'Stand'}</small><b>${esc(j.titel)}</b>${j.text && j.text !== j.titel ? `<span>${esc(j.text)}</span>` : ''}</div>`
     + (j.aktion && j.knopf ? `<button type="button" class="${j.wartet ? '' : 'primary'}" id="jetztGo" data-aktion="${esc(j.aktion)}">${esc(j.knopf)} →</button>` : '');
   const go = $('jetztGo'); if (go) go.onclick = () => stufeAktion(p, j.aktion);
@@ -2909,7 +2997,7 @@ function verteilerHtml(d, ro){
    Vorschlag aus dem Ordnernamen; eine abweichende Auswahl steht als „zustaendig“ in _Projekt.json (nur die Projektzentrale schreibt sie).
    Der Ordner wird nie umbenannt. „Wie Ordnername“ entfernt die manuelle Auswahl wieder. */
 function zustHtml(p, zu, ro){
-  if (!S.ma || S.ma.fehlt) return `<div class="zust m">Zuständig: noch keine Mitarbeiterliste – oben unter „⋯ Mehr“ › „👥 Mitarbeiter“ anlegen.</div>`;
+  if (!S.ma || S.ma.fehlt) return `<div class="zust m">Zuständig: noch keine Mitarbeiterliste – oben unter „⋯ Büro & Apps“ › „👥 Mitarbeiter“ anlegen.</div>`;
   if (S.ma.error) return `<div class="zust warn">Zuständig: Mitarbeiterliste nicht lesbar.</div>`;
   const pers = S.ma.personen || [], gleich = (a, b) => maNorm(a) === maNorm(b);
   const ausOrdner = p.kuerzel ? `${maName(p.kuerzel)} (${p.kuerzel}) – aus Ordnername` : 'keine Angabe – kein Kürzel im Ordnernamen';
@@ -3034,7 +3122,8 @@ async function openBerichtKit(p, art){
     lk = Inhalt der neuesten LabelKit-Projektdatei, null = keine/nicht lesbar. Ohne lk: das zuletzt für dieses Projekt Erkannte
     (beim Neuzeichnen der Seite, bis anlStatus die Datei wieder gelesen hat). */
 function berichtVorschlagZeigen(p, lk, gemerkt){
-  if (lk !== undefined){ S.berichtVorschlag = { name: p.name, ...Stufen.berichtsart(lk), gemerkt: (gemerkt && gemerkt.art) || '', andere: (gemerkt && gemerkt.andere) || [] }; stufenZeichnen(p); }
+  if (lk !== undefined){ S.berichtVorschlag = { name: p.name, ...Stufen.berichtsart(lk), gemerkt: (gemerkt && gemerkt.art) || '', andere: (gemerkt && gemerkt.andere) || [],
+    bkDatei: !!gemerkt, eigene: (gemerkt && gemerkt.eigene) || [] }; stufenZeichnen(p); }
   const v = S.berichtVorschlag && S.berichtVorschlag.name === p.name ? S.berichtVorschlag : { art: '', grund: '' };
   for (const [id, art] of [['goBericht', 'asbest'], ['goBrand', 'brand']]){
     const b = $(id); if (!b) continue;
@@ -3308,16 +3397,16 @@ function helpHtml(){
   ${helpDiagram()}
   <div class="cap">Durchgezogene Pfeile: Die App speichert dort. Gestrichelt: PlanKit liest die Proben aus LabelKit und die in ResultKit übernommenen Messwerte.</div>
   <ol>
-    <li><b>Projektzentrale:</b> Links stehen die Projekte in Gruppen: <b>„Braucht dich“</b> (der nächste Schritt liegt bei dir), <b>„Läuft“</b> (Labor oder Büro sind dran), <b>„Abgeschlossen“</b>. Rechts im Projekt steht oben <b>„Jetzt dran“</b> mit einem Knopf, darunter die <b>sechs Stufen</b>: Projekt anlegen · Ortstermin: Proben &amp; Fotos · Labor · Gutachten · Ans Büro → Versand · Abrechnung. Jede Stufe zeigt ihren Stand und hat die Knöpfe ihrer App. Die Stufen sind eine Orientierung aus dem Dateibestand – jede App geht jederzeit. In Stufe 1 mit <b>„Arbeitszettel einlesen …“</b> das PDF des Büro-Systems übernehmen.</li>
-    <li><b>① LabelKit – „Proben &amp; Laborauftrag“:</b> Proben anlegen, Etiketten drucken, Laborübergabe erstellen, <b>Strg+S</b>. Alles landet in „Laboraufträge“.</li>
-    <li><b>② FotoKit – „Fotos &amp; Dokumentation“:</b> Fotos benennen und die Bilddokumentation als PDF erstellen (Ordner „Fotos“).</li>
-    <li><b>③ ResultKit – „Laborergebnisse prüfen“:</b> Zeigt, was beim Labor ist, was zurück ist und was fehlt. Kommt der Prüfbericht: XML und PDF dort importieren, prüfen und <b>„Ergebnisse übernehmen“</b>. FotoKits Ergebnistabelle nimmt die Werte von selbst.</li>
-    <li><b>④ PlanKit – „Probenplan zeichnen“:</b> Grundriss aus „Pläne“ wählen. Unter „Proben übernehmen …“ die <b>Probenerfassung aus LabelKit</b> übernehmen und die Proben auf den Plan ziehen. Sind die Ergebnisse in ResultKit übernommen: wieder „Proben übernehmen …“, den Prüfbericht wählen und <b>„Alle Konflikte: Aktualisieren“</b> – die Messwerte hängen dann an den Proben.</li>
+    <li><b>Projektzentrale:</b> Links stehen die Projekte in Gruppen: <b>„Braucht dich“</b> (der nächste Schritt liegt bei dir), <b>„Läuft“</b> (Labor oder Büro sind dran), <b>„Abgeschlossen“</b>. Rechts im Projekt steht oben <b>„Jetzt dran“</b> mit einem Knopf in der Farbe der App, in der es weitergeht, darunter <b>sechs Kacheln</b> – dieselben wie oben in jeder App: Proben · Fotos · Labor · Plan · Bericht · Abrechnung. Jede Kachel zeigt ✓ (die Datei der App ist da) und ihren Stand; ein Klick öffnet die App. Die Kacheln sind eine Orientierung aus dem Dateibestand – jede App geht jederzeit. Darunter <b>„Ans Büro übergeben“</b> und die <b>Projektdaten</b> (oben „Projektdaten ändern“; mit <b>„Arbeitszettel einlesen …“</b> das PDF des Büro-Systems übernehmen). Seltenes steht unter <b>„Mehr zum Projekt …“</b>: einen bestimmten Bericht öffnen, Anlage Probenahme, Ordner, frühere Versandangaben.</li>
+    <li><b>LabelKit – Kachel „Proben“:</b> Proben anlegen, Etiketten drucken, Laborübergabe erstellen, <b>Strg+S</b>. Alles landet in „Laboraufträge“.</li>
+    <li><b>FotoKit – Kachel „Fotos“:</b> Fotos benennen und die Bilddokumentation als PDF erstellen (Ordner „Fotos“).</li>
+    <li><b>ResultKit – Kachel „Labor“:</b> Zeigt, was beim Labor ist, was zurück ist und was fehlt. Kommt der Prüfbericht: XML und PDF dort importieren, prüfen und <b>„Ergebnisse übernehmen“</b>. FotoKits Ergebnistabelle nimmt die Werte von selbst.</li>
+    <li><b>PlanKit – Kachel „Plan“:</b> Grundriss aus „Pläne“ wählen. Unter „Proben übernehmen …“ die <b>Probenerfassung aus LabelKit</b> übernehmen und die Proben auf den Plan ziehen. Sind die Ergebnisse in ResultKit übernommen: wieder „Proben übernehmen …“, den Prüfbericht wählen und <b>„Alle Konflikte: Aktualisieren“</b> – die Messwerte hängen dann an den Proben.</li>
     <li><b>Auswerten:</b> PlanKit „Ergebnisse“ → Ergebniskarte exportieren. FotoKit „Ergebnistabelle …“ → Tabelle für Word.</li>
-    <li><b>⑤ BelegKit – „Zeiten &amp; Abrechnung“:</b> Jede Person trägt ihre Ortstermine (Stunden, km, Spesen, Übernachtung) und Auswertungsstunden selbst ein. Proben aus LabelKit, Berichtsseiten und Fotos werden gezählt; „Abrechnung“ zeigt alle Positionen mit Nummern zum Übertragen ins Rechnungsprogramm.</li>
-    <li><b>Asbest- oder Brandbericht – BerichtKit:</b> In der Stufe „Gutachten“ <b>„Asbestbericht“</b> oder <b>„Brandbericht“</b> (Sanierungsvorschlag oder Untersuchungsbericht nach einem Brandschaden). Hervorgehoben ist der Knopf, der zu den LabelKit-Proben passt: Chlorid-, PAK- oder Brandgeruch-Proben → Brandbericht (Asbestproben stehen dann darin), nur Asbestproben → Asbestbericht; beide Knöpfe sind immer da. BerichtKit setzt den Bericht aus Projektdaten, LabelKit-Proben, den in ResultKit übernommenen Ergebnissen und den FotoKit-Fotos (mit Probe-Nr.) zusammen. Fehlende Angaben sind in der Vorschau gelb markiert. „Word-Bericht speichern“ legt die Datei in „Mitteilungen“ ab. Danach <b>„Ans Büro übergeben →“</b>: Die Projektzentrale öffnet das Projekt mit dieser Mitteilung und den Anlagen, die BerichtKit vermerkt hat (Prüfberichte, Bilddokumentation, Probenplan, Anlage Brandgeruch). Vor dem Übergeben meldet sie gelb markierte Stellen und Platzhalter wie „[KI-Wert]“, die in der Word-Datei noch stehen.</li>
-    <li><b>Anlage Probenahme:</b> In der Stufe „Gutachten“ „Anlage Probenahme …“ (sobald ein Plan da ist) – PlanKit öffnet den Export mit „Word · Anlage Probenahme“ (Lagepläne, Probenverzeichnis, Ausschnitte, Fotos, Laborwerte).</li>
-    <li><b>Anlagen PN 98 / Brandgeruch:</b> In der Stufe „Gutachten“ „Anlage PN 98 / Brandgeruch · Erstellen …“ (sobald LabelKit PN 98-Protokolle oder Brandgeruch-Proben enthält). Die Datei liegt danach in „Mitteilungen“ – in Word an der gewünschten Stelle <b>Einfügen › Objekt › Text aus Datei</b>.</li>
+    <li><b>BelegKit – Kachel „Abrechnung“:</b> Jede Person trägt ihre Ortstermine (Stunden, km, Spesen, Übernachtung) und Auswertungsstunden selbst ein. Proben aus LabelKit, Berichtsseiten und Fotos werden gezählt; „Abrechnung“ zeigt alle Positionen mit Nummern zum Übertragen ins Rechnungsprogramm.</li>
+    <li><b>Asbest- oder Brandbericht – BerichtKit:</b> Kachel <b>„Bericht“</b> – sie heißt „Brandbericht“ oder „Asbestbericht“, sobald BerichtKit sich die Berichtsart gemerkt hat oder die LabelKit-Proben sie nahelegen: Chlorid-, PAK- oder Brandgeruch-Proben → Brandbericht (Asbestproben stehen dann darin), nur Asbestproben → Asbestbericht. Einen bestimmten Bericht öffnet „Mehr zum Projekt …“ › <b>„Asbestbericht öffnen“</b> / <b>„Brandbericht öffnen“</b>. BerichtKit setzt den Bericht aus Projektdaten, LabelKit-Proben, den in ResultKit übernommenen Ergebnissen und den FotoKit-Fotos (mit Probe-Nr.) zusammen. Fehlende Angaben sind in der Vorschau gelb markiert. „Word-Bericht speichern“ legt die Datei in „Mitteilungen“ ab. Danach <b>„Ans Büro übergeben →“</b>: Die Projektzentrale öffnet das Projekt mit dieser Mitteilung und den Anlagen, die BerichtKit vermerkt hat (Prüfberichte, Bilddokumentation, Probenplan, Anlage Brandgeruch). Vor dem Übergeben meldet sie gelb markierte Stellen und Platzhalter wie „[KI-Wert]“, die in der Word-Datei noch stehen.</li>
+    <li><b>Anlage Probenahme:</b> Unter „Mehr zum Projekt …“ „Anlage Probenahme …“ (sobald ein Plan da ist) – PlanKit öffnet den Export mit „Word · Anlage Probenahme“ (Lagepläne, Probenverzeichnis, Ausschnitte, Fotos, Laborwerte).</li>
+    <li><b>Anlagen PN 98 / Brandgeruch:</b> Unter den Kacheln „Anlage PN 98 / Brandgeruch · Erstellen …“ (sobald LabelKit PN 98-Protokolle oder Brandgeruch-Proben enthält). Die Datei liegt danach in „Mitteilungen“ – in Word an der gewünschten Stelle <b>Einfügen › Objekt › Text aus Datei</b>.</li>
   </ol>
   <h4>Gut zu wissen</h4>
   <ul>
@@ -3326,8 +3415,8 @@ function helpHtml(){
     <li><b>Ersetzen:</b> Lädt man in PlanKit einen neuen Grundriss, bleibt die alte Datei als „(vorher …)“-Kopie in „Pläne“.</li>
     <li><b>Mehrere Geschosse:</b> In PlanKit unten „＋ Plan“ (EG, 1. OG …). Probennummern laufen über alle Geschosse weiter. Eine mehrseitige PDF mit „Alle Seiten als einzelne Pläne“ übernehmen.</li>
     <li><b>Ergebniskarte:</b> In PlanKit „Ergebnisse“ (Taste K) färbt die Proben nach der Bewertungsskala – dieselbe wie in der FotoKit-Ergebnistabelle. Beim Export „Darstellung: Ergebniskarte“ wählen.</li>
-    <li><b>Handbuch (AidKit):</b> Abläufe Schritt für Schritt und gemeinsame Regeln, z. B. „Bohrkerne: Schritt für Schritt“ und die Probenbezeichnung. Oben unter <b>„⋯ Mehr“</b>, öffnet in einem eigenen Fenster.</li>
-    <li><b>SpesenKit:</b> Die monatliche Spesenabrechnung der Kollegen. Der Knopf steht oben unter <b>„⋯ Mehr“</b> (auch ohne gewähltes Projekt) und öffnet die App in einem eigenen Fenster. Dort läuft alles über die Monatsübersicht: Dienstreisen und Kosten erfassen, prüfen, abschließen. Einmal „Ordner einrichten“ – SpesenKit speichert dann in einem eigenen Ordner der Person (nicht im Archivordner) und legt abgeschlossene Abrechnungen unter „Spesen/Jahr/Monat“ ab.</li>
+    <li><b>Handbuch (AidKit):</b> Abläufe Schritt für Schritt und gemeinsame Regeln, z. B. „Bohrkerne: Schritt für Schritt“ und die Probenbezeichnung. Oben unter <b>„⋯ Büro &amp; Apps“</b>, öffnet in einem eigenen Fenster.</li>
+    <li><b>SpesenKit:</b> Die monatliche Spesenabrechnung der Kollegen. Der Knopf steht oben unter <b>„⋯ Büro &amp; Apps“</b> (auch ohne gewähltes Projekt) und öffnet die App in einem eigenen Fenster. Dort läuft alles über die Monatsübersicht: Dienstreisen und Kosten erfassen, prüfen, abschließen. Einmal „Ordner einrichten“ – SpesenKit speichert dann in einem eigenen Ordner der Person (nicht im Archivordner) und legt abgeschlossene Abrechnungen unter „Spesen/Jahr/Monat“ ab.</li>
     <li><b>Hilfe:</b> In jeder App erklärt der <b>?</b>-Knopf (oder F1) die Bedienung.</li>
     <li><b>Problem melden:</b> In FotoKit „Problem melden“, sonst Screenshot und kurze Beschreibung an <b>sebastian.kasper@dr-schiffers.de</b>.</li>
   </ul>
@@ -3371,7 +3460,7 @@ $('btnRescan').onclick = async () => { await flushPJ(); S.projects.forEach(p => 
 $('btnUmzug').onclick = () => umzugVorschau();
 $('btnAusl').onclick = async () => { await maLaden(); renderList(); if (S.sel) renderDetail(); auDialog(); };
 document.addEventListener('click', e => { if (e.target.closest && e.target.closest('#goDurch')){ e.preventDefault(); mehrZu(); dlDialog(); } });
-/* Menü „⋯ Mehr“: Büro-Werkzeuge und weitere Apps – selten gebraucht, darum nicht in der Leiste */
+/* Menü „⋯ Büro & Apps“: Büro-Werkzeuge und weitere Apps – selten gebraucht, darum nicht in der Leiste */
 function mehrZu(){ $('mehr').hidden = true; $('btnMehr').setAttribute('aria-expanded', 'false'); }
 $('mehrApps').innerHTML = weitereApps();   // Links von Anfang an da (auch ohne Archivordner), Rückmeldung bekommt beim Öffnen die Projektnummer
 $('btnMehr').onclick = e => { e.stopPropagation(); const auf = $('mehr').hidden; if (auf) $('mehrApps').innerHTML = weitereApps(); $('mehr').hidden = !auf; $('btnMehr').setAttribute('aria-expanded', String(auf)); };

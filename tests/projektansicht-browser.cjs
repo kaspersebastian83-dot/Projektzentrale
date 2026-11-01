@@ -49,22 +49,26 @@ async function context(existing){
 const page=await(await context()).newPage();page.on('pageerror',e=>errors.push(e.message));await page.setViewportSize({width:1440,height:1000});
 await page.goto(base+'/index.html');await page.locator('#btnStart').click();await page.locator(`.proj[data-name="${A}"]`).click();
 await page.locator('#bueroPanel [data-ab-aufgabe]').waitFor();
-const stext=k=>page.locator(`[data-stufe="${k}"] [data-stext]`).textContent();
+const stext=k=>page.locator(`[data-stufe="${k}"] [data-stext]`).textContent();   // Projektdaten, Labor, Büro, Abrechnung tragen ihre Stufe
+const mehrAuf=async()=>{if(!await page.locator('#projektMehr').evaluate(d=>d.open))await page.locator('#projektMehr > summary').click();};   // 1.42: Ordner und Versandangaben unter „Mehr zum Projekt …“
+const ktext=k=>page.locator(`[data-kachel="${k}"] [data-ktext]`).textContent();   // 1.42: Stand je Kachel
 async function top(){await page.locator('#detail').evaluate(e=>e.scrollTop=0);}
 async function shot(state){if(state==='uebergabe')await page.locator('#bueroPanel').evaluate(e=>e.scrollIntoView({block:'start'}));else await top();await page.screenshot({path:path.join(out,(before?'vorher':'nachher')+'-'+state+'.png')});}
 await shot('projekt');
 if(!before){
  const list=await page.locator('#listWrap').boundingBox(),detail=await page.locator('#detail').boundingBox();assert.ok(detail.width>list.width*1.6);
- // 1.29: sechs Stufen in Arbeitsreihenfolge, je Zustand und ein Satz; darüber „Jetzt dran“ mit einem blauen Knopf
- assert.deepEqual(await page.locator('#stufen > li').evaluateAll(l=>l.map(x=>x.dataset.stufe)),['projekt','ortstermin','labor','gutachten','buero','abrechnung']);
- assert.deepEqual(await page.locator('#stufen .sname').evaluateAll(l=>l.map(x=>x.firstChild.textContent.trim())),['Projekt anlegen','Ortstermin: Proben & Fotos','Labor','Gutachten','Ans Büro → Versand','Abrechnung']);
- assert.match(await stext('ortstermin'),/Fotos in Bearbeitung/);
- assert.ok((await page.locator('#jetzt').boundingBox()).y<(await page.locator('#stufen').boundingBox()).y);
+ // 1.42: sechs Kacheln wie das Kopfband der Apps (ohne Nummern), darüber „Jetzt dran“ mit einem Knopf; darunter „Ans Büro“ und Projektdaten
+ assert.deepEqual(await page.locator('#kacheln .kachel').evaluateAll(l=>l.map(x=>x.dataset.kachel)),['proben','fotos','labor','plan','bericht','abrechnung']);
+ assert.deepEqual(await page.locator('#kacheln .kn').evaluateAll(l=>l.map(x=>x.textContent.replace(/ ✓$/,''))),['Proben','Fotos','Labor','Plan','Bericht','Abrechnung']);
+ assert.equal(await page.locator('#detail .sn').evaluateAll(l=>l.filter(x=>/\d/.test(x.textContent)).length),0,'keine Stufennummern');
+ assert.match(await ktext('fotos'),/Fotos in Bearbeitung/);
+ assert.ok((await page.locator('#jetzt').boundingBox()).y<(await page.locator('#kacheln').boundingBox()).y);
+ assert.ok((await page.locator('#kacheln').boundingBox()).y<(await page.locator('[data-stufe=buero]').boundingBox()).y);
  assert.ok(await page.locator('#detail button.primary:visible').count()<=1,'höchstens ein blauer Knopf: „Jetzt dran“');assert.match(await page.locator('#jetzt').innerText(),/Gerade beim Büro\s*Beim Büro\s*Noch offen: Gegenlesen · PDF · Versand/i);
  // Projektstand: Laborauftrag (Datum aus dem Dateinamen) in Stufe 2, Abrechnungsstand aus BelegKit in Stufe 6, frühere Übergabe in Stufe 4
- await page.waitForFunction(()=>/Laborauftrag 05\.01\./.test(document.querySelector('[data-stufe=ortstermin] [data-stext]').textContent));
+ await page.waitForFunction(()=>/Laborauftrag 05\.01\./.test(document.querySelector('[data-kachel=proben] [data-ktext]').textContent));
  assert.match(await stext('abrechnung'),/Abrechnungsstand vom 22\.10\./);
- await page.waitForFunction(()=>/Gutachten übergeben \d\d\.\d\d\./.test(document.querySelector('[data-stufe=gutachten] [data-stext]').textContent),null,{timeout:10000});
+ await page.waitForFunction(()=>/Gutachten übergeben \d\d\.\d\d\./.test(document.querySelector('[data-kachel=bericht] [data-ktext]').textContent),null,{timeout:10000});
  assert.match(await stext('buero'),/^Beim Büro · noch offen: Gegenlesen · PDF · Versand$/);
  await page.locator(`.proj[data-name="${B}"]`).focus();await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelector('.proj.active')?.dataset.name==='26.9999 Kontrollort');
   assert.ok(await page.locator('#azQuick').isVisible());
@@ -80,7 +84,7 @@ if(!before){
  // LabelKit speichert danach (Auftrag geändert): Karte nicht mehr „übernommen“, Proben-Karte ohne neues Projekt-Lesen aktualisiert
  await fs.writeFile(path.join(tmp,B,'Laboraufträge','26.9999_2026-10-26_Daten.json'),JSON.stringify({proben:[]}));
  await zurueck('^Neue Prüfberichte seit der Übernahme – prüfen und übernehmen$');
- assert.match(await stext('ortstermin'),/^Proben erfasst/);
+ assert.match(await ktext('proben'),/^Proben erfasst/);
  await ergebnis({vollstaendig:true,offen:[]},['26.9999_2026-10-26_Daten.json']);await zurueck('^Ergebnisse vollständig übernommen');
  // neuer Prüfbericht nach der Übernahme
  await fs.writeFile(path.join(tmp,B,'Laborergebnisse','AR-2-01.pdf'),'%PDF');
@@ -134,7 +138,7 @@ if(!before){
  expectedPj=JSON.stringify(pj);await fs.writeFile(path.join(tmp,A,'_Projekt.json'),expectedPj);await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await page.locator('.project-summary').filter({hasText:'Wohnhaus'}).waitFor();
  await page.waitForFunction(()=>document.querySelector('[data-ab-details="0"]')?.value==='Beispiel AG, Abteilung West');
  // Frühere Versandangaben: mit Gutachten beim Büro nur Ansicht; die Anzeige schreibt die Projektdaten nicht
- await page.locator('#vtBox > summary').click();assert.ok(await page.locator('#vtBox .vtAn').first().isDisabled());
+ await mehrAuf();await page.locator('#vtBox > summary').click();assert.ok(await page.locator('#vtBox .vtAn').first().isDisabled());
  assert.equal(await fs.readFile(path.join(tmp,A,'_Projekt.json'),'utf8'),expectedPj,'display never rewrites PJ');
  await page.locator('#vtBox > summary').click();
 }
@@ -185,7 +189,7 @@ if(!before){
  await page.evaluate(()=>testIO.failWrite=false);await page.locator('#showPJ').click();await page.locator('#pj_objekt').fill(pj.objekt);await page.locator('#pjSave.ok').waitFor();
  // Ohne Gutachten beim Büro: frühere Versandangaben bearbeitbar; nichts wird ins Büro geschrieben
  await page.locator(`.proj[data-name="${B}"]`).click();await page.locator('#bueroPanel[data-projekt="26.9999 Kontrollort"] [data-ab-stand]').filter({hasText:'Noch nichts beim Büro'}).waitFor();
- await page.locator('#vtBox > summary').click();
+ await mehrAuf();await page.locator('#vtBox > summary').click();
  assert.ok(await page.locator('#vtBox .vtAn').first().isEnabled());await page.locator('#vtBox .vtAn').first().check();await page.waitForFunction(()=>document.querySelector('#vtBox .vtAn')?.checked);
  assert.ok(!await fs.stat(path.join(tmp,B,'_Spektron','Buero')).catch(()=>null));
  assert.ok(!await page.locator('[data-ab-form]').evaluate(e=>e.open),'Formular zu: gerade sind die Prüfberichte dran');
@@ -214,7 +218,7 @@ if(!before){
  await page.locator(`[data-ab-aufgabe="${bId}"]`).filter({hasText:/^Gutachten beim Büro · übergeben \d\d\.\d\d\. von SK · noch offen: Gegenlesen · PDF · Versand · Rechnung · fällig 03\.11\.$/}).waitFor();
  assert.ok(!await page.locator('[data-ab-form]').evaluate(e=>e.open),'nach der Übergabe zu');assert.equal(await page.locator('[data-ab-hinweis]').inputValue(),'','Formular frisch');
  assert.ok(await page.locator('#vtBox .vtAn').first().isDisabled(),'jetzt gilt der Versand in BüroKit');
- await page.waitForFunction(()=>/Gutachten übergeben \d\d\.\d\d\./.test(document.querySelector('[data-stufe=gutachten] [data-stext]').textContent),null,{timeout:10000});
+ await page.waitForFunction(()=>/Gutachten übergeben \d\d\.\d\d\./.test(document.querySelector('[data-kachel=bericht] [data-ktext]').textContent),null,{timeout:10000});
  assert.ok(await page.locator('#goUebergabe').isHidden(),'Gutachten beim Büro: kein zweiter Übergabe-Knopf in der Stufe');
  // Das Büro arbeitet in BüroKit; nach Rückkehr ins Fenster steht der neue Stand da
  const buero=(f,...a)=>page.evaluate(async([f,a])=>{const p=await new SharedDirectoryHandle('').getDirectoryHandle('26.9999 Kontrollort');return BueroAufgaben[f](p,...a);},[f,a]);

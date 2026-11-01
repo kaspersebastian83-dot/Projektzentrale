@@ -47,7 +47,7 @@
       : { zustand: 'fertig', text: f.arbeitszettel ? 'Projektdaten vollständig · Arbeitszettel eingelesen' : 'Projektdaten vollständig', aktion: 'daten' };
 
     // 2 Ortstermin: Proben & Fotos
-    const fotoText = fotos.doku ? 'Bilddokumentation erstellt' : fotos.begonnen ? 'Fotos in Bearbeitung' : fotos.bilder ? anz(fotos.bilder, 'Foto', 'Fotos') : 'noch keine Fotos';
+    const fotoText = fotoStand(fotos);
     // Probendaten aus LabelKit oder eine Laborübergabe (Datum im Dateinamen) zeigen, dass Proben genommen wurden
     s.ortstermin = f.proben || f.laborauftrag
       ? { zustand: 'fertig', text: `Proben erfasst${f.laborauftrag ? ` · Laborauftrag ${de(f.laborauftrag)}` : ''} · ${fotoText}` }
@@ -114,6 +114,36 @@
     const stufen = STUFEN.map(([key, name, app]) => ({ key, name, app, ...s[key] }));
     return { stufen, aktuell, jetzt: jetztDran(s, aktuell, f), gruppe: gruppe(s, aktuell), kurz: kurz(s, aktuell) };
   }
+
+  const fotoStand = fotos => fotos.doku ? 'Bilddokumentation erstellt' : fotos.begonnen ? 'Fotos in Bearbeitung' : fotos.bilder ? anz(fotos.bilder, 'Foto', 'Fotos') : 'noch keine Fotos';
+
+  /** Sechs Kacheln der Projektansicht – dieselben sechs Schritte wie im Kopfband der Apps (Spektron-Leiste v3), ohne Nummern.
+      ✓ (fertig) = die Datei der App ist da, wie in der Leiste: LabelKit-Projektdatei (probendaten, sonst proben), FotoKit-Datei
+      (fotos.begonnen), ResultKit-Ergebnisse, Probenplan, Bericht (berichtDa – Regel der Leiste; ohne Angabe: eine Mitteilung liegt
+      vor), BelegKit-Stand. Der Text darunter ist der genaue Stand. zustand: Labor und Abrechnung wie ihre Stufe, sonst
+      fertig / dran (die Aktion von „Jetzt dran“) / offen. jetzt = die Kachel, zu der „Jetzt dran“ führt.
+      r = berechnen(f), falls schon gerechnet. → [{ key, name, app, aktion, fertig, zustand, jetzt, text }] */
+  function kacheln(f, r){
+    f = f || {}; r = r || berechnen(f);
+    const s = {}; for (const x of r.stufen) s[x.key] = x;
+    const fotos = f.fotos || {}, art = BERICHT[f.berichtsart] ? f.berichtsart : '';
+    const mt = f.mitteilung && ISO.test(f.mitteilung.datum || '') ? f.mitteilung : null;
+    const liste = [
+      { key: 'proben', name: 'Proben', app: 'LabelKit', aktion: 'label', fertig: typeof f.probendaten === 'boolean' ? f.probendaten : !!f.proben,
+        text: f.proben || f.laborauftrag ? `Proben erfasst${f.laborauftrag ? ` · Laborauftrag ${de(f.laborauftrag)}` : ''}` : 'Noch keine Proben erfasst' },
+      { key: 'fotos', name: 'Fotos', app: 'FotoKit', aktion: 'fotos', fertig: !!fotos.begonnen, text: fotoStand(fotos) },
+      { key: 'labor', name: 'Labor', app: 'ResultKit', aktion: 'ergebnis', fertig: !!f.ergebnisse, text: s.labor.text, stufe: s.labor.zustand },
+      { key: 'plan', name: 'Plan', app: 'PlanKit', aktion: 'plan', fertig: !!f.plan, text: f.plan ? 'Probenplan angelegt' : 'Noch kein Probenplan' },
+      { key: 'bericht', name: BERICHT[art] || 'Bericht', app: 'BerichtKit', aktion: BERICHT_AKTION[art] || 'berichtkit',
+        fertig: typeof f.berichtDa === 'boolean' ? f.berichtDa : !!mt,
+        text: mt || s.gutachten.zustand === 'fertig' ? s.gutachten.text : `${BERICHT[art] || 'Bericht'} noch nicht gespeichert` },
+      { key: 'abrechnung', name: 'Abrechnung', app: 'BelegKit', aktion: 'beleg', fertig: !!f.abrechnung, text: s.abrechnung.text, stufe: s.abrechnung.zustand },
+    ];
+    const j = r.jetzt || {}, zu = KACHEL_ZU[j.aktion] || '';
+    return liste.map(({ stufe, ...k }) => ({ ...k, jetzt: k.key === zu, zustand: stufe || (k.fertig ? 'fertig' : k.key === zu ? 'dran' : 'offen') }));
+  }
+  /** Aktion von „Jetzt dran“ → Kachel (Projektdaten, Übergabe, Rückfrage, BüroKit haben keine Kachel) */
+  const KACHEL_ZU = { label: 'proben', fotos: 'fotos', ergebnis: 'labor', plan: 'plan', bericht: 'bericht', brandbericht: 'bericht', berichtkit: 'bericht', beleg: 'abrechnung' };
 
   const name = s => String(s || '').split('/').pop().normalize('NFC').toLowerCase();
   /** Mitteilung beim Büro? Ja, wenn eine Büroaufgabe genau diese Datei nennt – oder (Übergaben ohne Dateinamen, vor BüroKit,
@@ -214,7 +244,7 @@
     return name + (aktuell === 'gutachten' ? ' schreiben' : '');
   }
 
-  const api = Object.freeze({ berechnen, neuesteMitteilung, berichtsart, artGemerkt, MITTEILUNG, STUFEN, AKTIONEN });
+  const api = Object.freeze({ berechnen, kacheln, neuesteMitteilung, berichtsart, artGemerkt, MITTEILUNG, STUFEN, AKTIONEN });
   root.Stufen = api;
   if (typeof module !== 'undefined') module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

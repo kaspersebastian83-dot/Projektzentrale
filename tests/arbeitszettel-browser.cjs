@@ -113,6 +113,7 @@ const TYP = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.c
   assert.match(await page.locator('#banner').textContent(), /kein Arbeitszettel/);
 
   // 5) Verteiler: Empfänger anhaken, „heute“ als Versanddatum
+  if (!await page.locator('#projektMehr').evaluate(d => d.open)) await page.locator('#projektMehr > summary').click();   // 1.42: unter „Mehr zum Projekt …“
   await page.locator('#vtBox > summary').click();
   assert.match(await page.locator('#vtBox tr[data-k=versicherung]').textContent(), /Muster Versicherung AG/);
   await page.locator('#vtBox tr[data-k=versicherung] .vtAn').check();
