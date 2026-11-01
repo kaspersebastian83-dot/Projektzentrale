@@ -60,7 +60,7 @@ const A = '26.0142 Teststadt', B = '26.0150 Köln';
   { const l = page.locator('#mehr .more a#goReise');
     await l.waitFor({ state: 'attached' });
     assert.equal(await l.getAttribute('href'), '../reisekosten-pro/'); assert.equal(await l.getAttribute('target'), 'reisekosten');
-    assert.equal(await page.locator('#stufen #goReise').count(), 0, 'kein Teil der Stufen');
+    assert.equal(await page.locator('#kacheln #goReise, #projektMehr #goReise').count(), 0, 'kein Teil der Projektseite');
     await page.click('#btnMehr');
     const [popup] = await Promise.all([page.waitForEvent('popup'), l.click()]);
     assert.match(popup.url(), /\/reisekosten-pro\/$/, 'öffnet ../reisekosten-pro/ ohne Parameter'); await popup.close().catch(() => {}); }

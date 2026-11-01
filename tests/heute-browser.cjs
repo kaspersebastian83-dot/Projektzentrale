@@ -135,7 +135,7 @@ assert.equal(await page.locator('#archiveName').innerText(),'Testarchiv');assert
 // Altes Projekt: Suche findet es (Gruppe klappt auf); kein „Jetzt dran“, sondern „In Spektron übernehmen“ → steht oben, Merkmal in _Projekt.json
 await page.fill('#q','Altbestand');await page.locator('.proj[data-name="26.0050 Altbestand SK"]').click();await page.locator('#jetzt.vor').waitFor();
 assert.match(await page.locator('#jetzt').innerText(),/Vor Spektron\s*Projekt aus der Zeit vor Spektron/i);assert.equal(await page.locator('#detail button.primary:visible').count(),0);
-await page.locator('#spektronAn').click();await page.locator('#spektronAus').waitFor();
+await page.locator('#spektronAn').click();await page.locator('#spektronAus').waitFor({state:'attached'});if(!await page.locator('#projektMehr').evaluate(d=>d.open))await page.locator('#projektMehr > summary').click();   // 1.42: unter „Mehr zum Projekt …“
 // Übernehmen legt „_Spektron“ an und zieht die App-Dateien sofort um – _Projekt.json liegt danach dort
 const pjV=async()=>JSON.parse(await fs.readFile(path.join(tmp,V,'_Spektron','_Projekt.json'),'utf8'));
 assert.equal((await pjV()).spektron,true);assert.ok(!await fs.stat(path.join(tmp,V,'_Projekt.json')).catch(()=>null),'am alten Ort gelöscht');

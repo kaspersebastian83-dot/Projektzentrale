@@ -73,22 +73,28 @@ const daten = {
   await page.locator('#anlPn98').waitFor();
   // Sicherungskopien von PlanKit zählen nicht als eigene Pläne
   assert.match(await page.locator('#detail').textContent(), /3 Dateien · Probenplan · 2 Sicherungskopien von PlanKit/);
-  assert.match(await page.locator('[data-stufe=gutachten] [data-stext]').textContent(), /Probenplan angelegt/);
+  assert.match(await page.locator('[data-kachel=plan] [data-ktext]').textContent(), /Probenplan angelegt/);
+  const mehrAuf = async () => { if (!await page.locator('#projektMehr').evaluate(d => d.open)) await page.locator('#projektMehr > summary').click(); };   // 1.42: „Mehr zum Projekt …“
   // Projektdaten: Neuzeichnen der Ansicht, bevor die Eingabe gespeichert ist (hier: fehlende Unterordner anlegen), behält die Eingabe
-  // Projektansicht 1.29: sechs Stufen in Arbeitsreihenfolge, Knöpfe der Apps in ihrer Stufe; Projektdaten zugeklappt (leer: einladend hervorgehoben)
-  assert.deepEqual(await page.locator('#stufen button.sk').evaluateAll(b => b.map(x => x.id)), ['azQuick', 'goLabel', 'goFotos', 'goErgebnis', 'goPlan', 'goBericht', 'goBrand', 'anlPlan', 'goUebergabe', 'goAufwand']);
+  // Projektansicht 1.42: sechs Kacheln wie das Kopfband; Asbest-/Brandbericht ausdrücklich und Anlage Probenahme unter „Mehr zum Projekt …“; Projektdaten zugeklappt (leer: einladend hervorgehoben)
+  assert.deepEqual(await page.locator('#kacheln .kachel').evaluateAll(b => b.map(x => x.id)), ['goLabel', 'goFotos', 'goErgebnis', 'goPlan', 'kBericht', 'goAufwand']);
+  assert.deepEqual(await page.locator('#projektMehr button.sk').evaluateAll(b => b.map(x => x.id)), ['goBericht', 'goBrand', 'anlPlan']);
+  assert.equal(await page.locator('[data-stufe=projekt] #azQuick').count(), 1); assert.equal(await page.locator('[data-stufe=buero] #goUebergabe').count(), 1);
+  await mehrAuf();
   // 1.40: Brandgeruch-Proben in LabelKit → „Brandbericht“ hervorgehoben, „Asbestbericht“ bleibt daneben
   await page.waitForFunction(() => document.getElementById('goBrand').classList.contains('vorschlag'));
   assert.equal(await page.locator('#goBericht.vorschlag').count(), 0);
   assert.match(await page.locator('#goBrand').getAttribute('title'), /Passt zu den LabelKit-Proben \(1 Brandgeruch-Probe\)/);
   assert.doesNotMatch(await page.locator('#goBericht').getAttribute('title'), /Passt/);
+  await page.waitForFunction(() => document.querySelector('#kBericht .kn')?.textContent === 'Brandbericht');   // Kachel nach den Proben benannt
+  assert.equal(await page.locator('#kBericht').getAttribute('data-aktion'), 'berichtkit');
   // SpesenKit: unter „⋯ Mehr“ – kein Schritt, kein Projektbezug
   { const l = page.locator('#mehr .more a#goReise');
     assert.equal(await l.count(), 1, 'im Menü „⋯ Mehr“');
     assert.equal(await l.getAttribute('href'), '../reisekosten-pro/', 'ohne ?projekt= – die App gehört zu keinem Projekt');
     assert.equal(await l.getAttribute('target'), 'reisekosten');
     assert.match(await l.textContent(), /SpesenKit[\s\S]*Spesenabrechnung für den Monat/);
-    assert.equal(await page.locator('#stufen #goReise').count(), 0, 'nicht Teil der Stufen'); }
+    assert.equal(await page.locator('#kacheln #goReise, #projektMehr #goReise').count(), 0, 'nicht Teil der Projektseite'); }
   assert.equal(await page.locator('#pjBox').evaluate(d => d.open), false, 'Projektdaten zugeklappt – fehlende Pflichtangaben stehen oben und in Stufe 1');
   assert.match(await page.locator('[data-stufe=projekt] [data-stext]').textContent(), /Noch keine Projektdaten – Arbeitszettel einlesen/);
   await page.locator('#pjBox > summary').click();
@@ -120,25 +126,26 @@ const daten = {
   assert.equal(await leseAuftraggeber(), 'Muster Versicherung', 'nach Freigabe der Sperre gespeichert');
   // Anlage Probenahme: Absprung nach PlanKit mit geöffnetem Anlagen-Export
   await page.evaluate(() => { window.__geoeffnet = []; window.open = () => ({ location: { href: 'about:blank', assign: u => window.__geoeffnet.push(u) }, focus(){} }); });
-  await page.locator('#anlPlan').click();
+  await mehrAuf(); await page.locator('#anlPlan').click();   // die Seite kann inzwischen neu gezeichnet sein
   await page.waitForFunction(() => window.__geoeffnet.length === 1);
   const anlageLink = new URL(await page.evaluate(() => window.__geoeffnet[0]));
   assert.equal(anlageLink.search, '');
   assert.equal(new URLSearchParams(anlageLink.hash.slice(1)).get('projekt'), '26.0142 Teststadt');
   assert.equal(new URLSearchParams(anlageLink.hash.slice(1)).get('aktion'), 'anlage');
   // Alle fünf echten Absprungknöpfe: Ziele bleiben erhalten, Projekt nur im Fragment.
-  for (const [id, app, target] of [['goLabel','labelkit','labelkit'],['goFotos','Bildumbenenner','bildumbenenner'],['goErgebnis','resultkit','resultkit'],['goPlan','Probenplan','plankit'],['goBericht','berichtkit','berichtkit'],['goBrand','berichtkit','berichtkit'],['goAufwand','aufwandkit','aufwandkit']]){
+  for (const [id, app, target] of [['goLabel','labelkit','labelkit'],['goFotos','Bildumbenenner','bildumbenenner'],['goErgebnis','resultkit','resultkit'],['goPlan','Probenplan','plankit'],['goBericht','berichtkit','berichtkit'],['goBrand','berichtkit','berichtkit'],['kBericht','berichtkit','berichtkit'],['goAufwand','aufwandkit','aufwandkit']]){
     await page.evaluate(() => { window.__sprung = null; window.open = (_, target) => ({ location: { href: 'about:blank', assign: url => { window.__sprung = {url, target}; } }, focus(){} }); });
-    await page.locator('#' + id).click();
+    await mehrAuf(); await page.locator('#' + id).click();
     await page.waitForFunction(() => window.__sprung !== null);
     const sprung = await page.evaluate(() => window.__sprung), link = new URL(sprung.url);
     assert.equal(sprung.target, target); assert.ok(link.pathname.endsWith('/' + app + '/'));
     assert.equal(link.search, ''); assert.equal(new URLSearchParams(link.hash.slice(1)).get('projekt'), '26.0142 Teststadt');
-    if (app === 'berichtkit') assert.equal(new URLSearchParams(link.hash.slice(1)).get('art'), id === 'goBrand' ? 'brand' : 'asbest', 'Berichtsart im Fragment');
+    // Kachel: nichts gemerkt → ohne art (BerichtKit wählt nach den Proben und merkt nichts); ausdrücklich nur über „Mehr zum Projekt …“
+    if (app === 'berichtkit') assert.equal(new URLSearchParams(link.hash.slice(1)).get('art'), id === 'kBericht' ? null : id === 'goBrand' ? 'brand' : 'asbest', 'Berichtsart im Fragment');
   }
   const special = '26.0142 Köln & Süd + 50% #Hof';
   await page.locator('.proj').filter({hasText:special}).click();
-  await page.locator('#anlPlan').waitFor();
+  await page.locator('#anlPlan').waitFor({ state: 'attached' }); await mehrAuf();
   // Zweites Projekt ohne LabelKit-Datei: kein Bericht hervorgehoben (auch nicht der vom vorigen Projekt)
   await page.waitForFunction(n => document.getElementById('goBrand')?.dataset.probenGelesen === n, special);   // anlStatus hat das Projekt ohne LabelKit-Datei gelesen
   assert.equal(await page.locator('#goBrand.vorschlag, #goBericht.vorschlag').count(), 0, 'ohne Proben keiner hervorgehoben');
@@ -147,7 +154,7 @@ const daten = {
       window.__sprung = null;
       window.open = (_, target) => ({location:{href:target === 'plankit' ? new URL('../Probenplan/#projekt=alt',location.href).href : 'about:blank',assign:url=>{window.__sprung={url,target};}},focus(){}});
     });
-    await page.locator('#' + id).click(); await page.waitForFunction(() => window.__sprung !== null);
+    await mehrAuf(); await page.locator('#' + id).click(); await page.waitForFunction(() => window.__sprung !== null);
     const sprung = await page.evaluate(() => window.__sprung), link = new URL(sprung.url);
     assert.equal(link.search, '');
     assert.equal(new URLSearchParams(link.hash.slice(1)).get('projekt'), special);

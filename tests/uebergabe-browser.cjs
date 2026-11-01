@@ -113,7 +113,7 @@ const MT = '1._Mitteilung_26.0600.docx', fixture = n => fs.readFile(path.join(__
       ['AR-777-2026-1-01.pdf Laborergebnisse · Prüfbericht laut BerichtKit', true], ['AR-777-2026-2-01.pdf Laborergebnisse', false]],
       'Prüfbericht aus dem neuesten BerichtKit-Eintrag zur Datei angehakt; in „Mitteilungen“ alles außer der gewählten Datei');
     // Stufe 4 und „Jetzt dran“: Mitteilung erstellt, noch nicht übergeben
-    await page.waitForFunction(() => /^Mitteilung vom 30\.10\. erstellt – ans Büro übergeben$/.test(document.querySelector('[data-stufe=gutachten] [data-stext]').textContent));
+    await page.waitForFunction(() => /^Mitteilung vom 30\.10\. erstellt – ans Büro übergeben$/.test(document.querySelector('[data-kachel=bericht] [data-ktext]').textContent));
     assert.equal(await page.locator('#jetztGo').innerText(), 'Ans Büro übergeben →');
     assert.match(await page.locator('#jetzt').innerText(), /Gutachten ans Büro übergeben/);
 
@@ -150,13 +150,13 @@ const MT = '1._Mitteilung_26.0600.docx', fixture = n => fs.readFile(path.join(__
     assert.ok(inhalt.includes('"Mitteilungen/' + MT + '"'), 'Word-Datei in der Aufgabe');
     for (const a of ['Laborergebnisse/AR-777-2026-1-01.pdf', 'Laborergebnisse/AR-777-2026-2-01.pdf']) assert.ok(inhalt.includes(JSON.stringify(a)), 'Anlage: ' + a);
     // Stufe 4 jetzt erledigt, Büro wartet
-    await page.waitForFunction(() => /^Gutachten übergeben/.test(document.querySelector('[data-stufe=gutachten] [data-stext]').textContent), null, { timeout: 10000 });
+    await page.waitForFunction(() => /^Gutachten übergeben/.test(document.querySelector('[data-kachel=bericht] [data-ktext]').textContent), null, { timeout: 10000 });
     await page.waitForFunction(() => /^Beim Büro/.test(document.querySelector('[data-stufe=buero] [data-stext]').textContent), null, { timeout: 10000 });
 
     // 5. Später eine 2. Mitteilung: Stufe 4 wieder „ans Büro übergeben“ (nach dem Zurückkehren ins Fenster)
     await fs.writeFile(in_('Mitteilungen', '2._Mitteilung_26.0600.docx'), await fixture('1._Mitteilung_fertig.docx')); await zeit('Mitteilungen/2._Mitteilung_26.0600.docx', '2099-01-05T10:00:00');
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-    await page.waitForFunction(() => /^Mitteilung vom 05\.01\. erstellt – ans Büro übergeben$/.test(document.querySelector('[data-stufe=gutachten] [data-stext]').textContent), null, { timeout: 10000 });
+    await page.waitForFunction(() => /^Mitteilung vom 05\.01\. erstellt – ans Büro übergeben$/.test(document.querySelector('[data-kachel=bericht] [data-ktext]').textContent), null, { timeout: 10000 });
 
     // 5b. Zweite Übergabe: die 1. Mitteilung ist beim Büro → die neue 2. Mitteilung ist vorgewählt (obwohl BerichtKit die 1. nennt);
     //     kein confirm, stattdessen der Hinweis über dem Knopf – ein Klick reicht
@@ -212,11 +212,19 @@ const MT = '1._Mitteilung_26.0600.docx', fixture = n => fs.readFile(path.join(__
     await page.waitForFunction(() => document.querySelector('#goBericht.vorschlag'));
     assert.equal(await page.locator('#goBrand.vorschlag').count(), 0);
     assert.match(await page.locator('#goBericht').getAttribute('title'), /In BerichtKit für dieses Projekt gemerkt/);
+    // 1.42: die Bericht-Kachel heißt nach der gemerkten Berichtsart und öffnet genau diesen Bericht
+    await page.waitForFunction(() => document.querySelector('#kBericht .kn')?.textContent.startsWith('Asbestbericht'));
+    assert.equal(await page.locator('#kBericht').getAttribute('data-aktion'), 'berichtkit');
+    // Kachel öffnet die gemerkte Art mit &auto=1 – wie das Kopfband, merkt nichts neu (Review)
+    { await page.evaluate(() => { window.__sprung = null; window.open = (_, target) => ({ location: { href: 'about:blank', assign: url => { window.__sprung = { url, target }; } }, focus(){} }); });
+      await page.locator('#kBericht').click(); await page.waitForFunction(() => window.__sprung !== null);
+      const sp = await page.evaluate(() => window.__sprung), h = new URLSearchParams(new URL(sp.url).hash.slice(1));
+      assert.equal(sp.target, 'berichtkit'); assert.equal(h.get('art'), 'asbest'); assert.equal(h.get('auto'), '1'); }
 
     // 10. (1.40) Nur Asbestproben: „Asbestbericht“ hervorgehoben, „Brandbericht“ daneben
     await oeffnen(W);
     await page.waitForFunction(() => document.getElementById('goBericht')?.classList.contains('vorschlag'));
-    assert.equal(await page.locator('#goBrand.vorschlag').count(), 0); assert.ok(await page.locator('#goBrand').isVisible(), 'Brandbericht-Knopf bleibt');
+    assert.equal(await page.locator('#goBrand.vorschlag').count(), 0); assert.equal(await page.locator('#goBrand').count(), 1, 'Brandbericht-Knopf bleibt (unter „Mehr zum Projekt …“)');
     assert.match(await page.locator('#goBericht').getAttribute('title'), /Passt zu den LabelKit-Proben \(2 Asbestproben\)$/);
 
     // 11. (1.40) Brandbericht aus BerichtKit übergeben: Link wie in BerichtKit, „Brandbericht“ hervorgehoben, Anlage Brandgeruch nicht vorgewählt,
@@ -224,10 +232,11 @@ const MT = '1._Mitteilung_26.0600.docx', fixture = n => fs.readFile(path.join(__
     await page.evaluate(([n, w]) => { location.hash = 'projekt=' + encodeURIComponent(n) + '&uebergabe=' + encodeURIComponent('Mitteilungen/' + w); }, [V, MB]);
     await page.waitForFunction(m => document.querySelector('#bueroPanel [data-ab-word]')?.value === 'Mitteilungen/' + m, MB, { timeout: 10000 });
     await page.waitForFunction(() => document.getElementById('goBrand')?.classList.contains('vorschlag'));
+    await page.waitForFunction(() => document.querySelector('#kBericht .kn')?.textContent.startsWith('Brandbericht')); assert.equal(await page.locator('#kBericht').getAttribute('data-aktion'), 'berichtkit');
     assert.equal(await page.locator('#goBericht.vorschlag').count(), 0, 'Asbestproben im Brandschaden: trotzdem Brandbericht');
     assert.match(await page.locator('#goBrand').getAttribute('title'), /Passt zu den LabelKit-Proben \(1 Chlorid-Probe, 1 PAK-Probe und 1 Asbestprobe\)$/, 'stornierte Chlorid-Probe zählt nicht');
     assert.deepEqual(await anl(), [[BG + ' Mitteilungen', true], ['Probenplan ' + V + '.pdf Pläne · Anlage laut BerichtKit', true], ['AR-888-2026-1-01.pdf Laborergebnisse · Prüfbericht laut BerichtKit', true]]);
-    await page.waitForFunction(() => /^Mitteilung vom 01\.11\. erstellt – ans Büro übergeben$/.test(document.querySelector('[data-stufe=gutachten] [data-stext]').textContent));
+    await page.waitForFunction(() => /^Mitteilung vom 01\.11\. erstellt – ans Büro übergeben$/.test(document.querySelector('[data-kachel=bericht] [data-ktext]').textContent));
     assert.ok((await optionen()).includes(BG + ' · 01.11.2026 10:30 · Anlage'), 'Anlage Brandgeruch als Anlage gekennzeichnet');
     await page.locator('#bueroPanel [data-ab-details="0"]').fill('Brand AG, Testweg 2'); await page.locator('#bueroPanel [data-ab-an="0"]').check();
     await page.locator('[data-ab-los]').click();
@@ -239,7 +248,7 @@ const MT = '1._Mitteilung_26.0600.docx', fixture = n => fs.readFile(path.join(__
     const vAuf = await fs.readdir(path.join(tmp, V, '_Spektron', 'Buero', 'aufgaben')); assert.equal(vAuf.length, 1);
     const vInhalt = await fs.readFile(path.join(tmp, V, '_Spektron', 'Buero', 'aufgaben', vAuf[0]), 'utf8');
     for (const a of ['Mitteilungen/' + MB, 'Mitteilungen/' + BG, 'Pläne/Probenplan ' + V + '.pdf', 'Laborergebnisse/AR-888-2026-1-01.pdf']) assert.ok(vInhalt.includes(JSON.stringify(a)), 'in der Aufgabe: ' + a);
-    await page.waitForFunction(() => /^Gutachten übergeben/.test(document.querySelector('[data-stufe=gutachten] [data-stext]').textContent), null, { timeout: 10000 });
+    await page.waitForFunction(() => /^Gutachten übergeben/.test(document.querySelector('[data-kachel=bericht] [data-ktext]').textContent), null, { timeout: 10000 });
     assert.deepEqual(errors, []);
     console.log('OK Übergabe aus BerichtKit: Sprung mit Word-Datei, Prüfberichte laut BerichtKit, Lücken-Rückfrage (Liste, nicht prüfbar, abbrechen), Aufgabe mit Anlagen, Stufe 4 vorher/nachher/2. Mitteilung, zweite Übergabe ohne confirm, Fragment bei offener Seite, Vorwahl ohne Link (Mitteilung vor Anlage, nur Anlagen → keine, BerichtKit vor Mitteilung), Brandbericht: Knopf nach den Proben hervorgehoben, Übergabe mit Lücken und Anlage Brandgeruch');
   } finally { await browser.close(); server.close(); await fs.rm(tmp, { recursive: true, force: true }); }

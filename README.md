@@ -2,7 +2,13 @@
 
 Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung.
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.41.0** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.42.0** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Neu in 1.42.0 · 01.11.2026
+
+- **Projektseite mit Kacheln** (Spektron Schritt 2, `claude/spektron-einfache-oberflaeche-schritt2-plan.md`): „Jetzt dran“ (Knopf in der Farbe der Ziel-App), darunter sechs Kacheln wie das Kopfband der Apps (Leiste v3): Proben · Fotos · Labor · Plan · Bericht · Abrechnung (`KACHELN` in `index.html`, Symbole und Farben wie `mosaik-leiste.js`). `Stufen.kacheln(f, r)` (nur rechnen, `tests/stufen.cjs`): ✓ = Datei der App da – wie die Leiste: `probendaten` (LabelKit-Projektdatei), FotoKit-Datei, `_Ergebnisse.json`, Probenplan, Bericht `berichtDa` (mit `_BerichtKit.json` nur ein gespeicherter Bericht der gemerkten Art, dessen Datei in „Mitteilungen“ liegt; ohne die Datei jede Mitteilung), BelegKit-Stand; Text = genauer Stand (Labor, Abrechnung und der Bericht nach der Übergabe aus `berechnen`). Die Bericht-Kachel (Aktion `berichtkit`) öffnet BerichtKit wie das Kopfband: gemerkte Art mit `&art=…&auto=1`, sonst ohne `art` – sie merkt nie selbst. `berechnen` (Jetzt dran, Gruppen der Liste, Heute) unverändert.
+- Darunter Kontextkarte Anlage PN 98 / Brandgeruch (nur wenn nötig), Karte „Danach: ans Büro übergeben“ (`data-stufe="buero"`, mit `#bueroPanel`) und „Projektdaten“ (`data-stufe="projekt"`, `#pjBox`); im Kopf „Projektdaten ändern“ (`#pjAendern`).
+- **„Mehr zum Projekt …“** (`#projektMehr`): „Asbestbericht öffnen“ (`#goBericht`), „Brandbericht öffnen“ (`#goBrand`, Hervorhebung nach Berichtsart wie bisher), „Anlage Probenahme …“, „Vor Spektron“-Knöpfe, Ordner, frühere Versandangaben. Keine Stufennummern mehr. Menü oben „⋯ Büro & Apps“ (gleiche Inhalte, `#btnMehr`).
 
 ## Neu in 1.41.0 · 01.11.2026
 

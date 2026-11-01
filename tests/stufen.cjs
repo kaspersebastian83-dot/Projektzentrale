@@ -172,3 +172,31 @@ console.log('OK stufen: Mitteilung erstellt, noch nicht übergeben – Stufe 4, 
 }
 console.log('OK stufen: Brandbericht in „Mitteilungen“ wie der Asbestbericht erkannt');
 }
+
+// Kacheln (1.42.0): dieselben sechs Schritte wie das Kopfband der Apps; ✓ = Datei der App da (wie die Leiste), Text = genauer Stand,
+// Ring (jetzt) = Kachel der „Jetzt dran“-Aktion; Bericht-Kachel nach der Berichtsart benannt, mit Haken nach berichtDa
+{
+  const K = f => Object.fromEntries(S.kacheln(f).map(k => [k.key, k]));
+  const lab = { pj: true, proben: true, probendaten: true, laborauftrag: '2026-10-20', fotos: { bilder: 3, begonnen: true }, berichte: 1, ergebnisse: { vollstaendig: true } };
+  let k = K(lab);
+  assert.deepEqual(Object.keys(k), ['proben', 'fotos', 'labor', 'plan', 'bericht', 'abrechnung'], 'Reihenfolge wie das Kopfband');
+  assert.deepEqual(Object.values(k).map(x => x.fertig), [true, true, true, false, false, false]);
+  assert.equal(k.proben.text, 'Proben erfasst · Laborauftrag 20.10.'); assert.equal(k.fotos.text, 'Fotos in Bearbeitung');
+  assert.equal(k.plan.zustand, 'dran'); assert.ok(k.plan.jetzt, 'Jetzt dran: Probenplan zeichnen → Kachel Plan');
+  assert.equal(k.bericht.name, 'Bericht'); assert.equal(k.bericht.aktion, 'berichtkit', 'Kachel merkt nie selbst'); assert.equal(k.bericht.text, 'Bericht noch nicht gespeichert');
+  // Laborauftrag ohne LabelKit-Projektdatei: Stand „Proben erfasst“, aber kein Haken (die Leiste prüft die Datei)
+  assert.equal(K({ ...lab, probendaten: false }).proben.fertig, false);
+  k = K({ ...lab, plan: true, berichtsart: 'brand' });
+  assert.equal(k.bericht.name, 'Brandbericht'); assert.equal(k.bericht.aktion, 'berichtkit', 'gemerkt → &auto=1, sonst ohne art (wie das Kopfband)'); assert.ok(k.bericht.jetzt); assert.equal(k.bericht.zustand, 'dran');
+  // Mitteilung liegt vor: ohne berichtDa zählt sie (wie die Leiste ohne _BerichtKit.json); berichtDa false (andere Art / von Hand) → kein Haken
+  const mit = { ...lab, plan: true, berichtsart: 'brand', mitteilung: { datei: '1._Mitteilung_26.0601.docx', datum: '2026-11-01' }, buero: {} };
+  k = K(mit); assert.ok(k.bericht.fertig); assert.equal(k.bericht.text, 'Mitteilung vom 01.11. erstellt – ans Büro übergeben');
+  assert.ok(!Object.values(k).some(x => x.jetzt), '„Ans Büro übergeben“ hat keine Kachel');
+  assert.equal(K({ ...mit, berichtDa: false }).bericht.fertig, false);
+  // Labor und Abrechnung: Zustand ihrer Stufe (z. B. beim Labor = wartet)
+  k = K({ pj: true, proben: true, probendaten: true, fotos: {} });
+  assert.equal(k.labor.zustand, 'wartet'); assert.equal(k.labor.fertig, false); assert.equal(k.fotos.text, 'noch keine Fotos');
+  assert.equal(k.abrechnung.text, 'Noch keine Zeiten erfasst');
+  k = K({ ...mit, abrechnung: '2026-11-02' }); assert.ok(k.abrechnung.fertig);
+  console.log('OK stufen: Kacheln wie das Kopfband');
+}
