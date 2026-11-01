@@ -2571,7 +2571,8 @@ function renderDetail(){
   $('pjBox').addEventListener('toggle', () => { S.pjOpen[p.name] = $('pjBox').open; });
   $('ordBox').addEventListener('toggle', () => { S.ordOpen[p.name] = $('ordBox').open; });
   $('vtBox').addEventListener('toggle', () => { S.vtOpen[p.name] = $('vtBox').open; });
-  $('projektMehr').addEventListener('toggle', () => { S.pmOpen[p.name] = $('projektMehr').open; });
+  // Zustand vom Element, das umgeschaltet wurde (toggle kommt verzögert – ist die Seite inzwischen neu gezeichnet, gilt er für die neue „Mehr“-Karte)
+  $('projektMehr').addEventListener('toggle', e => { const d = e.target, jetzt = $('projektMehr'); S.pmOpen[p.name] = d.open; if (jetzt && jetzt !== d && S.sel === p) jetzt.open = d.open; });
   if (!ro){
     $('azBtn').onclick = () => $('azFile').click();
     $('azFile').onchange = () => { const f = $('azFile').files[0]; $('azFile').value = ''; if (f) arbeitszettelEinlesen(p, f); };

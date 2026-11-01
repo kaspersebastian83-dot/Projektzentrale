@@ -126,7 +126,7 @@ const daten = {
   assert.equal(await leseAuftraggeber(), 'Muster Versicherung', 'nach Freigabe der Sperre gespeichert');
   // Anlage Probenahme: Absprung nach PlanKit mit geöffnetem Anlagen-Export
   await page.evaluate(() => { window.__geoeffnet = []; window.open = () => ({ location: { href: 'about:blank', assign: u => window.__geoeffnet.push(u) }, focus(){} }); });
-  await page.locator('#anlPlan').click();
+  await mehrAuf(); await page.locator('#anlPlan').click();   // die Seite kann inzwischen neu gezeichnet sein
   await page.waitForFunction(() => window.__geoeffnet.length === 1);
   const anlageLink = new URL(await page.evaluate(() => window.__geoeffnet[0]));
   assert.equal(anlageLink.search, '');
@@ -135,7 +135,7 @@ const daten = {
   // Alle fünf echten Absprungknöpfe: Ziele bleiben erhalten, Projekt nur im Fragment.
   for (const [id, app, target] of [['goLabel','labelkit','labelkit'],['goFotos','Bildumbenenner','bildumbenenner'],['goErgebnis','resultkit','resultkit'],['goPlan','Probenplan','plankit'],['goBericht','berichtkit','berichtkit'],['goBrand','berichtkit','berichtkit'],['kBericht','berichtkit','berichtkit'],['goAufwand','aufwandkit','aufwandkit']]){
     await page.evaluate(() => { window.__sprung = null; window.open = (_, target) => ({ location: { href: 'about:blank', assign: url => { window.__sprung = {url, target}; } }, focus(){} }); });
-    await page.locator('#' + id).click();
+    await mehrAuf(); await page.locator('#' + id).click();
     await page.waitForFunction(() => window.__sprung !== null);
     const sprung = await page.evaluate(() => window.__sprung), link = new URL(sprung.url);
     assert.equal(sprung.target, target); assert.ok(link.pathname.endsWith('/' + app + '/'));
@@ -154,7 +154,7 @@ const daten = {
       window.__sprung = null;
       window.open = (_, target) => ({location:{href:target === 'plankit' ? new URL('../Probenplan/#projekt=alt',location.href).href : 'about:blank',assign:url=>{window.__sprung={url,target};}},focus(){}});
     });
-    await page.locator('#' + id).click(); await page.waitForFunction(() => window.__sprung !== null);
+    await mehrAuf(); await page.locator('#' + id).click(); await page.waitForFunction(() => window.__sprung !== null);
     const sprung = await page.evaluate(() => window.__sprung), link = new URL(sprung.url);
     assert.equal(link.search, '');
     assert.equal(new URLSearchParams(link.hash.slice(1)).get('projekt'), special);
