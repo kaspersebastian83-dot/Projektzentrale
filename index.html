@@ -419,8 +419,9 @@ summary.stufe-kopf::-webkit-details-marker{display:none}
 .stufe #pjBox .body{padding:4px 16px 14px}
 .pz-fuss{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px;align-items:start}
 .pz-fuss .card{margin:0}
-.pz-fuss #pjRecovery{grid-column:1/-1}
-.pz-fuss #pjRecovery button{font-size:12.5px;color:var(--muted)}
+.pz-fuss #pjRecovery,#detail .pz > #pjRecovery{grid-column:1/-1}
+.pz-fuss #pjRecovery button,#detail .pz > #pjRecovery button{font-size:12.5px;color:var(--muted)}
+#detail .pz > #pjRecovery:not(:empty){margin:-4px 0 10px}
 @media (max-width:860px){ .stufe-kopf{grid-template-columns:30px 1fr} .stufe .sacts{grid-column:2;justify-content:flex-start} .stufe-body{padding-left:14px} .pz-fuss{grid-template-columns:1fr} .heute-karte{grid-template-columns:1fr} .listbar{position:static;padding-top:6px} .listbar .lb2{margin-top:5px} #listWrap{max-height:24vh} #listWrap .count{display:none} .listbar .lb2{display:none} .mehr{position:fixed;right:8px;left:8px;width:auto;top:56px} .hstatus{max-width:140px} }
 @media (prefers-color-scheme:dark){ .hstatus:not(.ok){background:var(--panel);color:var(--text)} .listbar{background:var(--bg)} }
 
@@ -2542,9 +2543,10 @@ function renderDetail(){
           </div>
         </details>
     </div>
+    <div id="pjRecovery"></div>
     ${fehlend.length ? `<div class="warnbar"><span>Es fehlen Unterordner: <b>${fehlend.map(esc).join(', ')}</b></span><button id="mkSubs">Anlegen</button></div>` : ''}
     <details class="pz-mehr" id="projektMehr" ${S.pmOpen[p.name] ? 'open' : ''}>
-      <summary><span>Mehr zum Projekt …</span><small>Bericht einer bestimmten Art, Anlage Probenahme, Ordner, frühere Versandangaben, Projektfassungen</small></summary>
+      <summary><span>Mehr zum Projekt …</span><small>Bericht einer bestimmten Art, Anlage Probenahme, Ordner, frühere Versandangaben</small></summary>
       <div class="pm-knoepfe">${knopf('goBericht', 'Asbestbericht öffnen', 'bericht', TIP_BERICHT.asbest) + knopf('goBrand', 'Brandbericht öffnen', 'brandbericht', TIP_BERICHT.brand)
         + (stand.plan.present ? knopf('anlPlan', 'Anlage Probenahme …', 'anlage', 'Öffnet PlanKit gleich im Export „Word · Anlage Probenahme“: Lagepläne, Probenverzeichnis, Fotos, Laborwerte') : '')
         + (p.key < SPEKTRON_START_KEY && d.spektron === true && !ro && !spektronSpur(p.st) ? `<button type="button" class="sk" id="spektronAus" title="Wieder unter „Vor Spektron“ einordnen">Zurück zu „Vor Spektron“</button>` : '')
@@ -2558,7 +2560,6 @@ function renderDetail(){
         <summary><span class="t">Frühere Versandangaben</span><span class="sum">${esc(vst.text)}</span></summary>
         <div class="body"><div class="m vtHint">Wer bekommt das Gutachten? Empfänger anhaken, nach dem Versand das Datum eintragen.</div>${verteilerHtml(d, ro)}</div>
       </details>
-      <div id="pjRecovery"></div>
       </div>
     </details>
   </div>`;
