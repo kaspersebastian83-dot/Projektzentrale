@@ -183,11 +183,11 @@ console.log('OK stufen: Brandbericht in „Mitteilungen“ wie der Asbestbericht
   assert.deepEqual(Object.values(k).map(x => x.fertig), [true, true, true, false, false, false]);
   assert.equal(k.proben.text, 'Proben erfasst · Laborauftrag 20.10.'); assert.equal(k.fotos.text, 'Fotos in Bearbeitung');
   assert.equal(k.plan.zustand, 'dran'); assert.ok(k.plan.jetzt, 'Jetzt dran: Probenplan zeichnen → Kachel Plan');
-  assert.equal(k.bericht.name, 'Bericht'); assert.equal(k.bericht.aktion, 'berichtkit'); assert.equal(k.bericht.text, 'Bericht noch nicht gespeichert');
+  assert.equal(k.bericht.name, 'Bericht'); assert.equal(k.bericht.aktion, 'berichtkit', 'Kachel merkt nie selbst'); assert.equal(k.bericht.text, 'Bericht noch nicht gespeichert');
   // Laborauftrag ohne LabelKit-Projektdatei: Stand „Proben erfasst“, aber kein Haken (die Leiste prüft die Datei)
   assert.equal(K({ ...lab, probendaten: false }).proben.fertig, false);
   k = K({ ...lab, plan: true, berichtsart: 'brand' });
-  assert.equal(k.bericht.name, 'Brandbericht'); assert.equal(k.bericht.aktion, 'brandbericht'); assert.ok(k.bericht.jetzt); assert.equal(k.bericht.zustand, 'dran');
+  assert.equal(k.bericht.name, 'Brandbericht'); assert.equal(k.bericht.aktion, 'berichtkit', 'gemerkt → &auto=1, sonst ohne art (wie das Kopfband)'); assert.ok(k.bericht.jetzt); assert.equal(k.bericht.zustand, 'dran');
   // Mitteilung liegt vor: ohne berichtDa zählt sie (wie die Leiste ohne _BerichtKit.json); berichtDa false (andere Art / von Hand) → kein Haken
   const mit = { ...lab, plan: true, berichtsart: 'brand', mitteilung: { datei: '1._Mitteilung_26.0601.docx', datum: '2026-11-01' }, buero: {} };
   k = K(mit); assert.ok(k.bericht.fertig); assert.equal(k.bericht.text, 'Mitteilung vom 01.11. erstellt – ans Büro übergeben');

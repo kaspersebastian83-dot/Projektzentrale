@@ -214,7 +214,12 @@ const MT = '1._Mitteilung_26.0600.docx', fixture = n => fs.readFile(path.join(__
     assert.match(await page.locator('#goBericht').getAttribute('title'), /In BerichtKit für dieses Projekt gemerkt/);
     // 1.42: die Bericht-Kachel heißt nach der gemerkten Berichtsart und öffnet genau diesen Bericht
     await page.waitForFunction(() => document.querySelector('#kBericht .kn')?.textContent.startsWith('Asbestbericht'));
-    assert.equal(await page.locator('#kBericht').getAttribute('data-aktion'), 'bericht');
+    assert.equal(await page.locator('#kBericht').getAttribute('data-aktion'), 'berichtkit');
+    // Kachel öffnet die gemerkte Art mit &auto=1 – wie das Kopfband, merkt nichts neu (Review)
+    { await page.evaluate(() => { window.__sprung = null; window.open = (_, target) => ({ location: { href: 'about:blank', assign: url => { window.__sprung = { url, target }; } }, focus(){} }); });
+      await page.locator('#kBericht').click(); await page.waitForFunction(() => window.__sprung !== null);
+      const sp = await page.evaluate(() => window.__sprung), h = new URLSearchParams(new URL(sp.url).hash.slice(1));
+      assert.equal(sp.target, 'berichtkit'); assert.equal(h.get('art'), 'asbest'); assert.equal(h.get('auto'), '1'); }
 
     // 10. (1.40) Nur Asbestproben: „Asbestbericht“ hervorgehoben, „Brandbericht“ daneben
     await oeffnen(W);
@@ -227,7 +232,7 @@ const MT = '1._Mitteilung_26.0600.docx', fixture = n => fs.readFile(path.join(__
     await page.evaluate(([n, w]) => { location.hash = 'projekt=' + encodeURIComponent(n) + '&uebergabe=' + encodeURIComponent('Mitteilungen/' + w); }, [V, MB]);
     await page.waitForFunction(m => document.querySelector('#bueroPanel [data-ab-word]')?.value === 'Mitteilungen/' + m, MB, { timeout: 10000 });
     await page.waitForFunction(() => document.getElementById('goBrand')?.classList.contains('vorschlag'));
-    await page.waitForFunction(() => document.querySelector('#kBericht .kn')?.textContent.startsWith('Brandbericht')); assert.equal(await page.locator('#kBericht').getAttribute('data-aktion'), 'brandbericht');
+    await page.waitForFunction(() => document.querySelector('#kBericht .kn')?.textContent.startsWith('Brandbericht')); assert.equal(await page.locator('#kBericht').getAttribute('data-aktion'), 'berichtkit');
     assert.equal(await page.locator('#goBericht.vorschlag').count(), 0, 'Asbestproben im Brandschaden: trotzdem Brandbericht');
     assert.match(await page.locator('#goBrand').getAttribute('title'), /Passt zu den LabelKit-Proben \(1 Chlorid-Probe, 1 PAK-Probe und 1 Asbestprobe\)$/, 'stornierte Chlorid-Probe zählt nicht');
     assert.deepEqual(await anl(), [[BG + ' Mitteilungen', true], ['Probenplan ' + V + '.pdf Pläne · Anlage laut BerichtKit', true], ['AR-888-2026-1-01.pdf Laborergebnisse · Prüfbericht laut BerichtKit', true]]);

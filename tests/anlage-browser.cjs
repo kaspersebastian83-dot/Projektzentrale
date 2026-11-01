@@ -87,7 +87,7 @@ const daten = {
   assert.match(await page.locator('#goBrand').getAttribute('title'), /Passt zu den LabelKit-Proben \(1 Brandgeruch-Probe\)/);
   assert.doesNotMatch(await page.locator('#goBericht').getAttribute('title'), /Passt/);
   await page.waitForFunction(() => document.querySelector('#kBericht .kn')?.textContent === 'Brandbericht');   // Kachel nach den Proben benannt
-  assert.equal(await page.locator('#kBericht').getAttribute('data-aktion'), 'brandbericht');
+  assert.equal(await page.locator('#kBericht').getAttribute('data-aktion'), 'berichtkit');
   // SpesenKit: unter „⋯ Mehr“ – kein Schritt, kein Projektbezug
   { const l = page.locator('#mehr .more a#goReise');
     assert.equal(await l.count(), 1, 'im Menü „⋯ Mehr“');
@@ -140,7 +140,8 @@ const daten = {
     const sprung = await page.evaluate(() => window.__sprung), link = new URL(sprung.url);
     assert.equal(sprung.target, target); assert.ok(link.pathname.endsWith('/' + app + '/'));
     assert.equal(link.search, ''); assert.equal(new URLSearchParams(link.hash.slice(1)).get('projekt'), '26.0142 Teststadt');
-    if (app === 'berichtkit') assert.equal(new URLSearchParams(link.hash.slice(1)).get('art'), id === 'goBrand' || id === 'kBericht' ? 'brand' : 'asbest', 'Berichtsart im Fragment');
+    // Kachel: nichts gemerkt → ohne art (BerichtKit wählt nach den Proben und merkt nichts); ausdrücklich nur über „Mehr zum Projekt …“
+    if (app === 'berichtkit') assert.equal(new URLSearchParams(link.hash.slice(1)).get('art'), id === 'kBericht' ? null : id === 'goBrand' ? 'brand' : 'asbest', 'Berichtsart im Fragment');
   }
   const special = '26.0142 Köln & Süd + 50% #Hof';
   await page.locator('.proj').filter({hasText:special}).click();

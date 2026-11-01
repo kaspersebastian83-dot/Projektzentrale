@@ -989,7 +989,7 @@ const ANLAGE = (() => {
 const APP_VERSION = '1.42.0';
 const APP_DATE = '2026-11-01';
 const CHANGELOG = [
-  ['1.42.0', '01.11.2026', 'Einfachere Projektseite (Spektron Schritt 2): Oben „Jetzt dran“ mit einem großen Knopf in der Farbe der App, in der es weitergeht. Darunter statt der sechs Stufen sechs Kacheln – dieselben wie im neuen Kopfband der Apps: Proben · Fotos · Labor · Plan · Bericht · Abrechnung, je mit Symbol, ✓ (die Datei der App ist da, genau wie oben in den Apps) und dem Stand darunter; ein Klick öffnet die App. Die Bericht-Kachel heißt „Brandbericht“ oder „Asbestbericht“, sobald die Berichtsart feststeht, und öffnet genau diesen Bericht. Darunter „Danach: ans Büro übergeben“ (mit dem Übergabe-Formular) und die Projektdaten; im Kopf „Projektdaten ändern“. Seltenes unter „Mehr zum Projekt …“: Asbestbericht/Brandbericht ausdrücklich öffnen, Anlage Probenahme, Ordner, frühere Versandangaben, „Vor Spektron“. Keine Stufennummern mehr. Das Menü oben rechts heißt jetzt „⋯ Büro & Apps“. Dateien, Übergabe und Verbindung zu den Apps unverändert.'],
+  ['1.42.0', '01.11.2026', 'Einfachere Projektseite (Spektron Schritt 2): Oben „Jetzt dran“ mit einem großen Knopf in der Farbe der App, in der es weitergeht. Darunter statt der sechs Stufen sechs Kacheln – dieselben wie im neuen Kopfband der Apps: Proben · Fotos · Labor · Plan · Bericht · Abrechnung, je mit Symbol, ✓ (die Datei der App ist da, genau wie oben in den Apps) und dem Stand darunter; ein Klick öffnet die App. Die Bericht-Kachel heißt „Brandbericht“ oder „Asbestbericht“, sobald die Berichtsart feststeht; sie öffnet BerichtKit wie das Kopfband (die gemerkte Art, sonst wählt BerichtKit nach den Proben) und merkt selbst nichts – ausdrücklich gewählt wird über „Jetzt dran“ oder „Mehr zum Projekt …“. Darunter „Danach: ans Büro übergeben“ (mit dem Übergabe-Formular) und die Projektdaten; im Kopf „Projektdaten ändern“. Seltenes unter „Mehr zum Projekt …“: Asbestbericht/Brandbericht ausdrücklich öffnen, Anlage Probenahme, Ordner, frühere Versandangaben, „Vor Spektron“. Keine Stufennummern mehr. Das Menü oben rechts heißt jetzt „⋯ Büro & Apps“. Dateien, Übergabe und Verbindung zu den Apps unverändert.'],
   ['1.41.0', '01.11.2026', '„Jetzt dran“ in Stufe 4 (Gutachten) führt jetzt zum Bericht: ohne Probenplan „Probenplan zeichnen →“, mit Plan „Brandbericht schreiben →“ bzw. „Asbestbericht schreiben →“ – welcher, steht in BerichtKit gemerkt (ab BerichtKit 1.15.0), sonst nach den LabelKit-Proben; ist noch nichts gelesen, öffnet „Bericht schreiben →“ BerichtKit, das selbst wählt. Nach dem gespeicherten Bericht wie bisher „Ans Büro übergeben“ – ein früher gespeicherter Bericht der anderen Art (z. B. alter Asbestbericht, jetzt Brandbericht gemerkt) zählt dafür nicht. In Stufe 4 ist der in BerichtKit gemerkte Bericht hervorgehoben (sonst der zu den Proben passende). Das Fenster der Projektzentrale heißt „projektzentrale“: ⌂ und „Ans Büro übergeben →“ aus den Apps landen in diesem Tab. Die Spektron-Leiste der Apps (v2) zeigt den Bericht mit Berichtsart und nach dem Speichern „Weiter: Ans Büro übergeben →“.'],
   ['1.40.0', '01.11.2026', 'Neuer Knopf „Brandbericht“ in Stufe 4 (Gutachten) neben „Asbestbericht“: öffnet BerichtKit (ab 1.14.0) gleich mit dem Brandbericht – Sanierungsvorschlag oder Untersuchungsbericht nach einem Brandschaden, als Word-Datei in „Mitteilungen“. „Asbestbericht“ öffnet ausdrücklich den Asbestbericht. Hervorgehoben ist der Knopf, den die LabelKit-Proben nahelegen: Chlorid- (auch Chlorid-Bohrmehl), PAK- oder Brandgeruch-Proben → Brandbericht (Asbestproben eines Brandschadens stehen darin in einem eigenen Abschnitt), nur Asbestproben → Asbestbericht; stornierte Proben zählen nicht, ohne Proben ist keiner hervorgehoben. Beide Knöpfe bleiben immer da, der Tooltip nennt die Proben. Stufe, „Mitteilung vom … erstellt – ans Büro übergeben“ und „Ans Büro übergeben“ gelten für den Brandbericht genauso wie für den Asbestbericht (gleicher Dateiname „n._Mitteilung_….docx“); die Anlage Brandgeruch daneben wird nie als Gutachten vorgewählt.'],
   ['1.39.0', '30.10.2026', 'Ans Büro übergeben: Vorgewählt ist jetzt die Mitteilung, nicht mehr einfach die neueste Word-Datei in „Mitteilungen“ – dort liegen auch Anlagen (PlanKit: Probenahme, Raumbuch, Wandansichten; Anlage PN 98), die meist nach dem Bericht entstehen. Reihenfolge: die Datei aus dem BerichtKit-Link, sonst die zuletzt in BerichtKit gespeicherte, sonst die neueste „n. Mitteilung ….docx“; eine Datei, die schon beim Büro ist, kommt erst danach. Anlagen werden nie vorgewählt (erkannt am Anlagen-Protokoll und an den Dateinamen) und stehen in der Auswahl mit „· Anlage“; hinter jeder Datei stehen Datum und Uhrzeit. Ist keine Mitteilung erkennbar, steht dort „– bitte die Mitteilung wählen –“ und übergeben geht erst nach der Wahl (auch „– keine Word-Datei –“ ist möglich). Ist schon ein Gutachten beim Büro offen, fragt die Projektzentrale beim Klick nicht mehr nach: Über dem Knopf steht „Beim Büro ist schon ein Gutachten offen (Datei, Datum) – das wird eine weitere Übergabe (z. B. Nachtrag)“, ein Klick reicht.'],
@@ -2514,7 +2514,7 @@ function renderDetail(){
   $('detail').innerHTML = `<div class="pz">
     <h2><span class="nr">${esc(p.nr)}</span> ${esc(p.ort)}</h2>
     <p class="project-summary">${esc([d.objekt,d.auftraggeber,/^\d{4}-\d{2}-\d{2}$/.test(d.ortstermin||'')?'Ortstermin '+deDatum(d.ortstermin):''].filter(Boolean).join(' · ')||'Objekt und Auftraggeber noch nicht eingetragen')}</p>
-    <div class="kopfzeile">${zustHtml(p, zustaendigVon(p, pj.error ? undefined : d), ro)}<button type="button" class="pflichtFehlt" id="pflichtFehlt" hidden></button>${p.key < SPEKTRON_START_KEY && d.spektron === true && !ro ? `<span class="uebernommen-tag">In Spektron übernommen</span>` : ''}<button type="button" class="pj-aendern" id="pjAendern" data-aktion="daten" title="Projektdaten aufklappen – Objekt, Auftraggeber, Termine, Beteiligte">${ro ? 'Projektdaten ansehen' : 'Projektdaten ändern'}</button></div>
+    <div class="kopfzeile">${zustHtml(p, zustaendigVon(p, pj.error ? undefined : d), ro)}<button type="button" class="pflichtFehlt" id="pflichtFehlt" hidden></button>${p.key < SPEKTRON_START_KEY && d.spektron === true && !ro ? `<span class="uebernommen-tag">In Spektron übernommen</span>` : ''}<button type="button" class="pj-aendern" id="pjAendern" data-aktion="daten-auf" title="Projektdaten aufklappen – Objekt, Auftraggeber, Termine, Beteiligte">${ro ? 'Projektdaten ansehen' : 'Projektdaten ändern'}</button></div>
     <div id="pjAttention" role="status"></div><div id="umzugAttention" role="status" style="display:none;margin:10px 0;padding:10px;border-left:3px solid var(--warn);background:var(--panel2)"></div><div id="bueroAttention" role="status"></div>
     <div class="jetzt" id="jetzt" role="status" aria-live="polite"></div>
     <div class="kacheln" id="kacheln" role="group" aria-label="Arbeitsschritte">${KACHELN.map(([key, id, name, app, aktion, farbe, tip]) =>
@@ -2544,7 +2544,7 @@ function renderDetail(){
     </div>
     ${fehlend.length ? `<div class="warnbar"><span>Es fehlen Unterordner: <b>${fehlend.map(esc).join(', ')}</b></span><button id="mkSubs">Anlegen</button></div>` : ''}
     <details class="pz-mehr" id="projektMehr" ${S.pmOpen[p.name] ? 'open' : ''}>
-      <summary><span>Mehr zum Projekt …</span><small>Bericht einer bestimmten Art, Anlage Probenahme, Ordner, frühere Versandangaben</small></summary>
+      <summary><span>Mehr zum Projekt …</span><small>Bericht einer bestimmten Art, Anlage Probenahme, Ordner, frühere Versandangaben, Projektfassungen</small></summary>
       <div class="pm-knoepfe">${knopf('goBericht', 'Asbestbericht öffnen', 'bericht', TIP_BERICHT.asbest) + knopf('goBrand', 'Brandbericht öffnen', 'brandbericht', TIP_BERICHT.brand)
         + (stand.plan.present ? knopf('anlPlan', 'Anlage Probenahme …', 'anlage', 'Öffnet PlanKit gleich im Export „Word · Anlage Probenahme“: Lagepläne, Probenverzeichnis, Fotos, Laborwerte') : '')
         + (p.key < SPEKTRON_START_KEY && d.spektron === true && !ro && !spektronSpur(p.st) ? `<button type="button" class="sk" id="spektronAus" title="Wieder unter „Vor Spektron“ einordnen">Zurück zu „Vor Spektron“</button>` : '')
@@ -2725,7 +2725,8 @@ function stufeAktion(p, aktion){
   const zeige = el => { if (el && el.scrollIntoView) el.scrollIntoView({ block: 'center', behavior: 'smooth' }); };
   switch (aktion){
     case 'az': if ($('azFile')) $('azFile').click(); else { $('pjBox').open = true; zeige($('pjBox')); } return;
-    case 'daten': { const box = $('pjBox'); const war = box.open; box.open = true; S.pjOpen[p.name] = true;
+    case 'daten-auf': S.datenOffenLassen = true; return stufeAktion(p, 'daten');   // „Projektdaten ändern“: immer auf, nie zuklappen
+    case 'daten': { const box = $('pjBox'); const war = box.open && !S.datenOffenLassen; S.datenOffenLassen = false; box.open = true; S.pjOpen[p.name] = true;
       const k = PJ_PFLICHT.find(k => $('pj_' + k) && !String(pjFeldWert(k)).trim()); if (k && !$('pj_' + k).disabled) $('pj_' + k).focus({ preventScroll: true }); zeige(k ? $('pj_' + k) : box);
       if (war && !k) { box.open = false; S.pjOpen[p.name] = false; } return; }
     case 'label': openApp(p, LABELKIT_URL, 'labelkit'); return;
@@ -2735,7 +2736,10 @@ function stufeAktion(p, aktion){
     case 'anlage': openPlanKit(p, 'anlage'); return;
     case 'bericht': openBerichtKit(p, 'asbest'); return;
     case 'brandbericht': openBerichtKit(p, 'brand'); return;
-    case 'berichtkit': openApp(p, BERICHTKIT_URL, 'berichtkit'); return;   // ohne art: BerichtKit wählt (gemerkt → Proben → Asbest)
+    case 'berichtkit': {   // Kachel „Bericht“ (und „Bericht schreiben →“): wie das Kopfband – gemerkte Art mit &auto=1 (merkt nichts neu, überschreibt keinen Kollegen), sonst ohne art: BerichtKit wählt (gemerkt → Proben → Asbest)
+      const v = S.berichtVorschlag && S.berichtVorschlag.name === p.name ? S.berichtVorschlag : null;
+      if (v && v.gemerkt) openBerichtKit(p, v.gemerkt, true); else openApp(p, BERICHTKIT_URL, 'berichtkit');
+      return; }
     case 'beleg': openApp(p, AUFWANDKIT_URL, 'aufwandkit'); return;
     case 'buerokit': window.open(BUEROKIT_URL, 'buerokit', 'noopener'); return;
     case 'uebergeben': { const panel = $('bueroPanel'), form = panel && panel.querySelector('[data-ab-form]'); if (!form) return;
@@ -3108,15 +3112,15 @@ async function openApp(p, base, target){
   projektNavigation(projektLink(base, p.name), target);
 }
 /** BerichtKit mit Berichtsart: #projekt=<Ordner>&art=asbest|brand (BerichtKit ab 1.14.0; ohne art wäre es der Asbestbericht). */
-function berichtLink(name, art){
+function berichtLink(name, art, auto){
   const url = new URL(projektLink(BERICHTKIT_URL, name));
-  url.hash = url.hash.slice(1).split('&').filter(t => t && !new URLSearchParams(t).has('art')).concat('art=' + encodeURIComponent(art)).join('&');
+  url.hash = url.hash.slice(1).split('&').filter(t => t && !new URLSearchParams(t).has('art') && !new URLSearchParams(t).has('auto')).concat('art=' + encodeURIComponent(art), ...(auto ? ['auto=1'] : [])).join('&');
   return url.href;
 }
-async function openBerichtKit(p, art){
+async function openBerichtKit(p, art, auto){
   await flushPJ();
   await SUITE.set('archiv', S.archive).catch(() => {});
-  projektNavigation(berichtLink(p.name, art), 'berichtkit');
+  projektNavigation(berichtLink(p.name, art, auto), 'berichtkit');
 }
 /** Hervorgehoben wird der Bericht, den die LabelKit-Proben nahelegen (Stufen.berichtsart); beide Knöpfe bleiben immer da.
     lk = Inhalt der neuesten LabelKit-Projektdatei, null = keine/nicht lesbar. Ohne lk: das zuletzt für dieses Projekt Erkannte

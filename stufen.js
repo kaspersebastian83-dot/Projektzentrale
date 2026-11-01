@@ -134,7 +134,9 @@
       { key: 'fotos', name: 'Fotos', app: 'FotoKit', aktion: 'fotos', fertig: !!fotos.begonnen, text: fotoStand(fotos) },
       { key: 'labor', name: 'Labor', app: 'ResultKit', aktion: 'ergebnis', fertig: !!f.ergebnisse, text: s.labor.text, stufe: s.labor.zustand },
       { key: 'plan', name: 'Plan', app: 'PlanKit', aktion: 'plan', fertig: !!f.plan, text: f.plan ? 'Probenplan angelegt' : 'Noch kein Probenplan' },
-      { key: 'bericht', name: BERICHT[art] || 'Bericht', app: 'BerichtKit', aktion: BERICHT_AKTION[art] || 'berichtkit',
+      // Aktion immer „berichtkit“: die Projektzentrale öffnet die gemerkte Art mit &auto=1 (wie das Kopfband), sonst ohne art –
+      // ausdrücklich gewählt (und gemerkt) wird nur über „Jetzt dran“ oder „Mehr zum Projekt …“ › „… öffnen“
+      { key: 'bericht', name: BERICHT[art] || 'Bericht', app: 'BerichtKit', aktion: 'berichtkit',
         fertig: typeof f.berichtDa === 'boolean' ? f.berichtDa : !!mt,
         text: mt || s.gutachten.zustand === 'fertig' ? s.gutachten.text : `${BERICHT[art] || 'Bericht'} noch nicht gespeichert` },
       { key: 'abrechnung', name: 'Abrechnung', app: 'BelegKit', aktion: 'beleg', fertig: !!f.abrechnung, text: s.abrechnung.text, stufe: s.abrechnung.zustand },
