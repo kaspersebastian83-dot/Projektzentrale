@@ -1359,6 +1359,9 @@ const AU_SCHRITTE = [['arbeit', 'In Bearbeitung', 'noch keine offene Büroüberg
    selbst, sobald eine Spektron-App darin gearbeitet hat (Laborauftrag aus LabelKit, in ResultKit übernommene Ergebnisse, Übergabe
    ans Büro, Abrechnung aus BelegKit) – oder per „In Spektron übernehmen“ (Merkmal spektron: true in _Projekt.json).
    Nichts wird in die alten Projektordner geschrieben, solange niemand übernimmt. */
+// Das Fenster der Projektzentrale heißt „projektzentrale“ – wie das Ziel von ⌂ und „Ans Büro übergeben →“ in den Apps. So landen diese
+// Links in diesem Tab statt in einem zweiten (auch wenn die Projektzentrale von Hand oder als Lesezeichen geöffnet wurde).
+try{ if (!window.name) window.name = 'projektzentrale'; }catch(e){}
 const SPEKTRON_START = (() => { const t = window.SPEKTRON_START_TEST; return typeof t === 'string' && /^\d{2}\.\d{2,6}$/.test(t) ? t : '26.0560'; })();   // _TEST: nur für die Browsertests
 const SPEKTRON_START_KEY = (([yy, n]) => (+yy) * 1e6 + (+n))(SPEKTRON_START.split('.'));
 /** Spuren einer Spektron-App im Ordnerscan. */
