@@ -140,7 +140,7 @@ const daten = {
   await page.locator('.proj').filter({hasText:special}).click();
   await page.locator('#anlPlan').waitFor();
   // Zweites Projekt ohne LabelKit-Datei: kein Bericht hervorgehoben (auch nicht der vom vorigen Projekt)
-  await page.waitForTimeout(300);
+  await page.waitForFunction(n => S.berichtVorschlag && S.berichtVorschlag.name === n, special);   // anlStatus hat das Projekt ohne LabelKit-Datei gelesen
   assert.equal(await page.locator('#goBrand.vorschlag, #goBericht.vorschlag').count(), 0, 'ohne Proben keiner hervorgehoben');
   for (const id of ['goLabel','goFotos','goErgebnis','goPlan','goAufwand','anlPlan','goBrand']){
     await page.evaluate(() => {

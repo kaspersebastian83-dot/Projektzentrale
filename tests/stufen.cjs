@@ -91,7 +91,7 @@ console.log('OK stufen: Rechnung beim Büro (BüroKit) – wartet, fehlender Sta
 // Mitteilung erstellt (BerichtKit), noch nicht beim Büro: Stufe 4 „Mitteilung vom … erstellt – ans Büro übergeben“
 const mt = { datei: '1._Mitteilung_26.0600.docx', datum: '2026-10-30' };
 r = S.berechnen({ ...labFertig, mitteilung: mt });
-assert.deepEqual(r.stufen[3], { key: 'gutachten', name: 'Gutachten', app: 'PlanKit · Anlage', zustand: 'dran', text: 'Mitteilung vom 30.10. erstellt – ans Büro übergeben', aktion: 'uebergeben' });
+assert.deepEqual(r.stufen[3], { key: 'gutachten', name: 'Gutachten', app: 'PlanKit · BerichtKit · Anlage', zustand: 'dran', text: 'Mitteilung vom 30.10. erstellt – ans Büro übergeben', aktion: 'uebergeben' });
 assert.equal(r.aktuell, 'gutachten'); assert.equal(r.gruppe, 'dich'); assert.equal(r.kurz, 'Mitteilung ans Büro übergeben');
 assert.deepEqual([r.jetzt.titel, r.jetzt.aktion, r.jetzt.knopf], ['Gutachten ans Büro übergeben', 'uebergeben', 'Ans Büro übergeben']);
 // Labor noch beim Zwischenstand, vorläufige Mitteilung schon da: Übergeben ist dran, Labor bleibt sichtbar „nicht abgeschlossen“

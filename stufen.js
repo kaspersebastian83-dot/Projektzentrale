@@ -17,7 +17,7 @@
     ['projekt', 'Projekt anlegen', 'Projektdaten'],
     ['ortstermin', 'Ortstermin: Proben & Fotos', 'LabelKit · FotoKit'],
     ['labor', 'Labor', 'ResultKit'],
-    ['gutachten', 'Gutachten', 'PlanKit · Anlage'],
+    ['gutachten', 'Gutachten', 'PlanKit · BerichtKit · Anlage'],
     ['buero', 'Ans Büro → Versand', 'BüroKit'],
     ['abrechnung', 'Abrechnung', 'BelegKit'],
   ];
