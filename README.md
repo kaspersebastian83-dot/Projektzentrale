@@ -2,7 +2,11 @@
 
 Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung.
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.40.0** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.41.0** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Neu in 1.41.0 · 01.11.2026
+
+- **„Jetzt dran“ in Stufe 4** (Gutachten) führt jetzt zum Bericht: ohne Probenplan „Probenplan zeichnen →“, mit Plan „Brandbericht schreiben →“ bzw. „Asbestbericht schreiben →“ – welcher, steht in BerichtKit gemerkt (ab BerichtKit 1.15.0), sonst nach den LabelKit-Proben; ist noch nichts gelesen, öffnet „Bericht schreiben →“ BerichtKit, das selbst wählt. Nach dem gespeicherten Bericht wie bisher „Ans Büro übergeben“. Die Spektron-Leiste der Apps (v2) zeigt den Bericht mit Berichtsart und nach dem Speichern „Weiter: Ans Büro übergeben →“. Regel: `stufen.js` (`berichtsart`, neu `artGemerkt` wie BerichtKit `bericht-vorgaben.js`), Fakt `berichtsart` aus `faktenAusDetail`.
 
 ## Neu in 1.40.0 · 01.11.2026
 
