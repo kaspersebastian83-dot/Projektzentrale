@@ -135,11 +135,12 @@ async function laeuftSetzen(sp, bereich, an, zeit){
 /**
  * Wie sieht es aus, wo ein Bereich an beiden Orten Einträge hat? Nur lesen. Je Bereich:
  *   art 'nachzuegler'  – Umzug vermerkt, am früheren Ort danach noch geschrieben (es gilt „_Spektron“, wie bisher)
- *   art 'unterbrochen' – Umzug begonnen („laeuft“) oder es liegen gleiche bzw. leere Kopien in „_Spektron“: sieht nach einem
- *                        abgebrochenen Umzug aus → „Umzug erneut ausführen“ holt nach, was fehlt
- *   art 'streu'        – „_Spektron“ hat eigene Daten, am früheren Ort liegt nur Abweichendes (kopiert, heruntergeladen,
+ *   art 'unterbrochen' – Umzug begonnen („laeuft“), oder in „_Spektron“ fehlt die Hauptdatei (nur Sicherungen, leere Dateien
+ *                        oder Ordner): es gilt noch der frühere Ort → „Umzug erneut ausführen“ holt nach, was fehlt
+ *   art 'streu'        – „_Spektron“ hat die Hauptdatei (gilt), am früheren Ort liegt Abweichendes (kopiert, heruntergeladen,
  *                        von einer alten App-Fassung gespeichert) → von Hand prüfen, der Umzug holt es nicht herein
- *   art 'leer'         – am früheren Ort nur leere Ordner (harmlos; ein Umzug räumt sie weg)
+ *   art 'leer'         – „_Spektron“ gilt, am früheren Ort nur leere Ordner oder dieselben Dateien (harmlos; ein Umzug räumt sie weg)
+ * Ob „unterbrochen“ entscheidet allein ort() (Hauptdatei da?) bzw. „laeuft“ – nie eine einzelne gleiche Sicherung (Codex).
  * dateien: [{ pfad, stand:'gleich'|'neuLeer'|'anders'|'nurAlt'|'nurNeu', altZeit, neuZeit }]
  */
 async function zweiOrtePruefen(projektDir){
@@ -169,7 +170,7 @@ async function zweiOrtePruefen(projektDir){
     // Gilt laut ort() noch der frühere Ort (z. B. in „_Spektron“ nur eine Sicherung oder ein leerer Ordner, keine Hauptdatei),
     // ist das ein unvollständiger Umzug – nie eine Streudatei, sonst könnte der Umzug ihn nicht mehr nachholen.
     let wo = 'neu'; try{ wo = (await S.ort(projektDir, id)).wo; }catch(e){}
-    const art = vermerkt ? 'nachzuegler' : laeuft || wo === 'alt' || dateien.some(d => d.stand === 'gleich' || d.stand === 'neuLeer') ? 'unterbrochen'
+    const art = vermerkt ? 'nachzuegler' : laeuft || wo === 'alt' ? 'unterbrochen'
       : !dateien.some(d => d.stand === 'nurAlt' || d.stand === 'anders') ? 'leer' : 'streu';
     aus.push({ bereich: id, app: b.app, von: b.alt.join('/'), nach: [S.ORDNER].concat(b.neu).join('/'), art, vermerkt, laeuft, dateien });
   }
@@ -219,6 +220,9 @@ async function projektUmziehen(projektDir, optionen){
             }
             return;
           }
+          // Galt der neue Ort schon vor diesem Lauf (Hauptdatei in „_Spektron“)? Dann stellt eine Rücknahme genau das wieder her –
+          // ein fehlgeschlagener Umzug darf einen aktiven Bereich nie auf den früheren Ort zurückschalten (Codex).
+          let warNeu = false; try{ warNeu = (await S.ort(projektDir, l.bereich)).wo === 'neu'; }catch(e){}
           const neuDir = await unterordner(sp, b.neu, true);
           // vor dem ersten Kopieren: „laeuft“ vermerken – bricht der Lauf ab, gelten in den Apps weiter die Originale
           if (!schonVermerkt) vermerk = await laeuftSetzen(sp, l.bereich, true, zeit);
@@ -290,7 +294,7 @@ async function projektUmziehen(projektDir, optionen){
               // gleichzeitig geschrieben, Reste eines früheren Abbruchs), gelten weiter die Originale – sonst würde der neue Ort
               // mit unvollständigen Daten gelten, obwohl der Umzug nicht vermerkt ist.
               let rest = 0; try{ for await (const h of neuDir.values()) if (b.passt(h.name, h.kind)) rest++; }catch(e){}
-              if (rest){ log([jetzt(), name, l.bereich, '', '„laeuft“ bleibt – am neuen Ort liegen noch ' + rest + ' Einträge, der frühere Ort gilt weiter', ''].join(' | ')); vermerk = await vermerkLesen(sp); }
+              if (rest && !warNeu){ log([jetzt(), name, l.bereich, '', '„laeuft“ bleibt – am neuen Ort liegen noch ' + rest + ' Einträge, der frühere Ort gilt weiter', ''].join(' | ')); vermerk = await vermerkLesen(sp); }
               else vermerk = await laeuftSetzen(sp, l.bereich, false);   // nichts mehr „in Arbeit“: am früheren Ort liegt alles wie vorher
             } else {
               vermerk = await vermerkLesen(sp);   // frisch (innerhalb der Projekt-Sperre)

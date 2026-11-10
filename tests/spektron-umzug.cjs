@@ -230,8 +230,9 @@ const ok = async (t, fn) => { hooks.beimLoeschen = null; hooks.beimSchreiben = n
   });
 
   await ok('Review II-4: Protokoll mit Uhrzeit je Zeile, Beginn/Ende, Konflikte und Fehler; Schreibfehler wird gemeldet', async () => {
-    // abgebrochener Umzug (Sicherung schon gleich kopiert), _Projekt.json inzwischen an beiden Orten verschieden → Konflikt, nicht vermerkt
-    const f = await fixture(N, { '_Projekt.json': '{"a":1}', '_Spektron/_Projekt.json': '{"a":2}', '_Projekt_Sicherungen/s.json': 'S', '_Spektron/_Projekt_Sicherungen/s.json': 'S' }), log = await U.logSchreiber(f.archiv);
+    // abgebrochener Umzug („laeuft“, Sicherung schon gleich kopiert), _Projekt.json an beiden Orten verschieden → Konflikt, nicht vermerkt
+    const f = await fixture(N, { '_Projekt.json': '{"a":1}', '_Spektron/_Projekt.json': '{"a":2}', '_Projekt_Sicherungen/s.json': 'S', '_Spektron/_Projekt_Sicherungen/s.json': 'S',
+      '_Spektron/_Umzug.json': JSON.stringify({ format: 'spektron-umzug', version: 1, bereiche: {}, laeuft: { projekt: '2026-11-10T10:00:00Z' } }) }), log = await U.logSchreiber(f.archiv);
     let gesichert = 0; await U.projektUmziehen(f.projekt, { log: log.zeile, sichern: async () => { gesichert++; await log.speichern(); } });
     assert.ok(gesichert >= 2, 'nach jedem Bereich und am Ende gesichert');
     const t = (await fs.readFile(path.join(f.tmp, '_Spektron-Umzug.log'))).toString();
@@ -383,6 +384,25 @@ const ok = async (t, fn) => { hooks.beimLoeschen = null; hooks.beimSchreiben = n
     for (const b of ['resultkit', 'projekt', 'fotokit']){ const x = r.bereiche.find(y => y.bereich === b); assert.deepEqual(x.fehler, [], b); assert.deepEqual(x.konflikte, [], b); }
     const a = await alle(f.dir); assert.equal(a['_Spektron/ResultKit/_Ergebnisse.json'], '{"e":1}'); assert.equal(a['_Spektron/_Projekt.json'], '{"p":1}'); assert.equal(a['_Spektron/FotoKit/_Bildumbenenner.json'], '{"b":1}');
     for (const b of ['resultkit', 'projekt', 'fotokit']) assert.equal((await S.ort(f.projekt, b)).wo, 'neu', b + ' danach neu');
+  });
+
+  await ok('Codex 3. Runde: aktiver Bereich in _Spektron + gleiche alte Sicherung und abweichende Hauptdatei am früheren Ort → „streu“, nichts kopiert, bleibt neu', async () => {
+    const f = await fixture(K, { '_Projekt.json': '{"alt":1}', '_Projekt_Sicherungen/s.json': 'S', '_Spektron/_Projekt.json': '{"neu":1}', '_Spektron/_Projekt_Sicherungen/s.json': 'S', '_Spektron/BITTE NICHT ANFASSEN.txt': 'x' });
+    assert.equal((await S.ort(f.projekt, 'projekt')).wo, 'neu');
+    assert.equal((await U.zweiOrtePruefen(f.projekt)).find(x => x.bereich === 'projekt').art, 'streu', 'eine gleiche Sicherung ist kein Beweis für einen Abbruch');
+    const r = await U.projektUmziehen(f.projekt, {}); const pj = r.bereiche.find(b => b.bereich === 'projekt');
+    assert.equal(pj.kopiert, 0); assert.ok(pj.konflikte.every(k => k.streu));
+    assert.equal((await S.ort(f.projekt, 'projekt')).wo, 'neu', 'bleibt neu'); assert.equal(await umzugJson(f.dir), null, 'kein „laeuft“, kein Vermerk');
+  });
+
+  await ok('Codex 3. Runde: Fehler im Lauf über einem schon aktiven Bereich → Rücknahme stellt „neu“ wieder her („laeuft“ weg)', async () => {
+    const f = await fixture(K, { 'Laborergebnisse/_Ergebnisse.json': '{"e":1}', '_Spektron/ResultKit/_Ergebnisse.json': '{"e":1}', '_Spektron/BITTE NICHT ANFASSEN.txt': 'x' });
+    assert.equal((await U.zweiOrtePruefen(f.projekt)).find(x => x.bereich === 'resultkit').art, 'leer', 'gleiche Datei am früheren Ort');
+    const Orig = Datei.prototype.getFile;
+    Datei.prototype.getFile = async function(){ if (this.p.endsWith(path.join('Laborergebnisse', '_Ergebnisse.json')) && !this.p.includes('_Spektron')){ const r = await Orig.call(this); return { ...r, arrayBuffer: async () => { throw Error('Lesefehler'); } }; } return Orig.call(this); };
+    try{ const r = await U.projektUmziehen(f.projekt, {}); assert.equal(r.bereiche.find(b => b.bereich === 'resultkit').fehler.length, 1); }
+    finally { Datei.prototype.getFile = Orig; }
+    const v = await umzugJson(f.dir); assert.ok(!v || !v.laeuft, '„laeuft“ entfernt'); assert.equal((await S.ort(f.projekt, 'resultkit')).wo, 'neu', 'aktiver Bereich bleibt neu');
   });
 
   await ok('K1: Nachzügler nach vermerktem Umzug bleiben „nachzuegler“ (Umzug holt identische nach, wie bisher)', async () => {
