@@ -2,7 +2,13 @@
 
 Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung.
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.42.0** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.43.0** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Neu in 1.43.0 · 10.11.2026
+
+- **Neuer Ort gilt** (Audit K1, `claude/spektron-k1-plan.md`): `spektron-ordner.js` – liegen passende Einträge in `_Spektron`, gilt `_Spektron`, auch ohne `_Umzug.json` (`konflikt` bleibt gesetzt). Ausnahme: `_Umzug.json` → `laeuft[<bereich>]` (Umzug dieses Bereichs begonnen, nicht vermerkt) → früherer Ort, `unterbrochen: true`. Neu: `zweiOrte(dir, bereiche)` / `zweiOrteText(eintrag)` – die eine Zeile, die jede App zeigt.
+- **Umzug** (`spektron-umzug.js`): setzt `laeuft` vor dem Kopieren eines Bereichs und entfernt es mit dem Vermerk oder der Rücknahme (nur dafür angelegtes `_Umzug.json` wird wieder entfernt). Neu `zweiOrtePruefen(dir)` – je Bereich `streu` / `unterbrochen` / `nachzuegler` / `leer`; `streu`-Bereiche werden nicht hereingeholt (Konflikt mit `streu: true`).
+- **Projektansicht**: Hinweis „App-Dateien an zwei Orten“ mit beiden Dateien und Datum je Bereich und was zu tun ist; „Umzug erneut ausführen“ nur, wenn er helfen kann. **Vorschau** „Spektron-Ordner einrichten“: Tabelle „Schon an zwei Orten“.
 
 ## Neu in 1.42.0 · 01.11.2026
 

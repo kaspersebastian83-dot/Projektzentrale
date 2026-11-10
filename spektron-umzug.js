@@ -24,6 +24,12 @@
      • Vor jedem Löschen wird auch die Kopie am neuen Ort noch einmal gelesen: fehlt sie oder ist sie anders, bleibt das Original.
      • Dateien eines Bereichs werden in der Reihenfolge ihres Änderungsdatums kopiert (älteste zuerst), damit „neueste Datei“
        (z. B. die LabelKit-Tagesdateien) auch nach dem Umzug dieselbe ist – die Kopien bekommen ja neue Zeitstempel.
+     • Seit K1 (10.11.2026) gilt in den Apps der neue Ort, sobald dort etwas liegt. Damit ein abgebrochener Umzug nicht halbe
+       Kopien gelten lässt, steht vor dem Kopieren eines Bereichs „laeuft: { <bereich>: Zeit }“ im Vermerk; erst mit dem
+       Vermerk (oder der Rücknahme) wird es wieder entfernt. Solange es dasteht, gelten in den Apps die Originale.
+     • Liegt ein Bereich schon in „_Spektron“ (ohne Vermerk, ohne „laeuft“) und am früheren Ort nur eine abweichende Datei
+       (z. B. eine dorthin kopierte oder heruntergeladene), wird sie NICHT hereingeholt – sonst würde eine alte Datei mit neuem
+       Zeitstempel zur „neuesten“. Gemeldet, der Mensch entscheidet (zweiOrtePruefen sagt, wie es aussieht).
    Läuft im Browser (globalThis.SpektronUmzug) und in Node (module.exports, Tests). */
 (function(root){
 'use strict';
@@ -116,6 +122,65 @@ async function vermerkSchreiben(sp, o){
   if (!bytesGleich(await lesen(h), bytes)) throw Error('Umzugsvermerk konnte nicht bestätigt werden.');
 }
 
+/** „laeuft“ für einen Bereich setzen (an=true) oder entfernen – frisch gelesen, innerhalb der Projekt-Sperre. */
+async function laeuftSetzen(sp, bereich, an, zeit){
+  const v = await vermerkLesen(sp);
+  const l = v.laeuft && typeof v.laeuft === 'object' ? Object.assign({}, v.laeuft) : {};
+  if (an) l[bereich] = zeit; else delete l[bereich];
+  if (Object.keys(l).length) v.laeuft = l; else delete v.laeuft;
+  await vermerkSchreiben(sp, v);
+  return v;
+}
+
+/**
+ * Wie sieht es aus, wo ein Bereich an beiden Orten Einträge hat? Nur lesen. Je Bereich:
+ *   art 'nachzuegler'  – Umzug vermerkt, am früheren Ort danach noch geschrieben (es gilt „_Spektron“, wie bisher)
+ *   art 'unterbrochen' – Umzug begonnen („laeuft“), oder in „_Spektron“ fehlt die Hauptdatei (nur Sicherungen, leere Dateien
+ *                        oder Ordner): es gilt noch der frühere Ort → „Umzug erneut ausführen“ holt nach, was fehlt
+ *   art 'streu'        – „_Spektron“ hat die Hauptdatei (gilt), am früheren Ort liegt Abweichendes (kopiert, heruntergeladen,
+ *                        von einer alten App-Fassung gespeichert) → von Hand prüfen, der Umzug holt es nicht herein
+ *   art 'leer'         – „_Spektron“ gilt, am früheren Ort nur leere Ordner oder dieselben Dateien (harmlos; ein Umzug räumt sie weg)
+ * Ob „unterbrochen“ entscheidet allein ort() (Hauptdatei da?) bzw. „laeuft“ – nie eine einzelne gleiche Sicherung (Codex).
+ * dateien: [{ pfad, stand:'gleich'|'neuLeer'|'anders'|'nurAlt'|'nurNeu', altZeit, neuZeit }]
+ */
+async function zweiOrtePruefen(projektDir){
+  const S = SO(), aus = [];
+  if (!(await S.istSpektronProjekt(projektDir))) return aus;
+  const sp = await S.spektronDir(projektDir, false); if (!sp) return aus;
+  let v = null; try{ v = await vermerkLesen(sp); }catch(e){ v = null; }
+  for (const id of Object.keys(S.BEREICHE)) try{
+    const b = S.BEREICHE[id];
+    const altDir = await unterordner(projektDir, b.alt, false), neuDir = await unterordner(sp, b.neu, false);
+    if (!altDir || !neuDir) continue;
+    const eintr = async d => { const r = []; for await (const h of d.values()) if (b.passt(h.name, h.kind)) r.push(h.name); return r; };
+    const altE = await eintr(altDir), neuE = await eintr(neuDir);
+    if (!altE.length || !neuE.length) continue;
+    const sammeln = async (d, namen) => { const f = []; for (const n of namen) await dateienVon(d, n, [], f); const m = new Map(); for (const x of f) m.set(nfc(x.pfad.join('/')).toLowerCase(), x); return m; };
+    const alt = await sammeln(altDir, altE), neu = await sammeln(neuDir, neuE);
+    const zeit = async h => { try{ return (await h.getFile()).lastModified || 0; }catch(e){ return 0; } };
+    const dateien = [];
+    for (const [k, a] of alt){
+      const n = neu.get(k), d = { pfad: a.pfad.join('/'), altZeit: await zeit(a.handle), neuZeit: n ? await zeit(n.handle) : 0 };
+      if (!n) d.stand = 'nurAlt';
+      else { const ab = await lesen(a.handle), nb = await lesen(n.handle); d.stand = bytesGleich(ab, nb) ? 'gleich' : (!nb.length && ab.length ? 'neuLeer' : 'anders'); }
+      dateien.push(d);
+    }
+    for (const [k, n] of neu) if (!alt.has(k)) dateien.push({ pfad: n.pfad.join('/'), stand: 'nurNeu', altZeit: 0, neuZeit: await zeit(n.handle) });
+    const vermerkt = !!(v && v.bereiche[id]), laeuft = !!(v && v.laeuft && v.laeuft[id]);
+    // Gilt laut ort() noch der frühere Ort (z. B. in „_Spektron“ nur eine Sicherung oder ein leerer Ordner, keine Hauptdatei),
+    // ist das ein unvollständiger Umzug – nie eine Streudatei, sonst könnte der Umzug ihn nicht mehr nachholen.
+    let wo = 'neu'; try{ wo = (await S.ort(projektDir, id)).wo; }catch(e){}
+    const art = vermerkt ? 'nachzuegler' : laeuft || wo === 'alt' ? 'unterbrochen'
+      : !dateien.some(d => d.stand === 'nurAlt' || d.stand === 'anders') ? 'leer' : 'streu';
+    aus.push({ bereich: id, app: b.app, von: b.alt.join('/'), nach: [S.ORDNER].concat(b.neu).join('/'), art, vermerkt, laeuft, dateien });
+  }catch(e){
+    // Lesefehler in einem Bereich (z. B. SMB): als „fehler“ melden – der Umzug fasst diesen Bereich dann nicht an (Codex)
+    const b = S.BEREICHE[id];
+    aus.push({ bereich: id, app: b.app, von: b.alt.join('/'), nach: [S.ORDNER].concat(b.neu).join('/'), art: 'fehler', fehler: e && e.message || String(e), vermerkt: false, laeuft: false, dateien: [] });
+  }
+  return aus;
+}
+
 /**
  * Ein Projekt umziehen. optionen: { von (Kürzel), trocken (nur planen), log(zeile), sichern() (Log nach jedem Bereich schreiben), fortschritt(text),
  *   sperreWarten (ms, Standard 20000), zeitstempelWarten (ms, Standard 4000) }.
@@ -130,12 +195,17 @@ async function projektUmziehen(projektDir, optionen){
   const liste = await S.umzugListe(projektDir);
   if (o.trocken){ for (const l of liste) ergebnis.bereiche.push({ bereich: l.bereich, app: l.app, von: l.von || '(Projektordner)', nach: l.nach, eintraege: l.eintraege.map(e => e.name + (e.art === 'directory' ? '/' : '')), kopiert: 0, geloescht: 0, uebersprungen: 0, konflikte: [], fehler: [] }); return ergebnis; }
   try{ await locked('spektron:umzug:' + name, async () => {
-    let sp, vermerk;
+    let sp, vermerk, vermerkWarDa = true;
+    const lage = new Map();   // Bereich → Art aus zweiOrtePruefen (vor dem ersten Schreiben ermittelt)
     try{
       sp = await S.spektronDir(projektDir, false);            // erst prüfen, ob ein vorhandener Vermerk lesbar ist – vorher nichts anlegen
       vermerk = sp ? await vermerkLesen(sp) : LEER();
       sp = await S.spektronDir(projektDir, true);             // legt „_Spektron“ und die Hinweisdatei an (z. B. Datei namens „_Spektron“ → Fehler)
+      vermerkWarDa = !!(await kind(sp, S.MARKER));
     }catch(e){ ergebnis.fehler.push(e.message); log([jetzt(), name, '', '', 'ABBRUCH – ' + e.message, ''].join(' | ')); await sichern(); return; }
+    // Ohne diese Prüfung darf nichts kopiert werden (sie schützt aktive Bereiche vor Streudateien): Fehler → Projekt nicht umziehen (Codex)
+    try{ for (const x of await zweiOrtePruefen(projektDir)) lage.set(x.bereich, x); }
+    catch(e){ ergebnis.fehler.push('Prüfung der App-Dateien fehlgeschlagen (' + e.message + ') – nichts verändert, bitte erneut ausführen.'); log([jetzt(), name, '', '', 'ABBRUCH – Prüfung fehlgeschlagen: ' + e.message, ''].join(' | ')); await sichern(); return; }
     const zeit = jetzt();   // Beginn des Laufs (steht im Vermerk); jede Logzeile trägt ihre eigene Uhrzeit
     log([zeit, name, '', '', 'Umzug begonnen (' + liste.length + ' Bereiche)', ''].join(' | '));
     for (const l of liste){
@@ -145,8 +215,27 @@ async function projektUmziehen(projektDir, optionen){
         await sperre(l.bereich, namen, nr, null, async () => {
           const altDir = await unterordner(projektDir, b.alt, false);
           if (!altDir) return;
-          const neuDir = await unterordner(sp, b.neu, true);
           const schonVermerkt = !!vermerk.bereiche[l.bereich];
+          // Bereich lebt schon in „_Spektron“ (ohne Vermerk, kein abgebrochener Umzug): Abweichendes am früheren Ort nicht hereinholen
+          const x = lage.get(l.bereich);
+          if (!schonVermerkt && x && x.art === 'fehler'){
+            r.fehler.push('nicht geprüft (' + x.fehler + ') – Bereich nicht angefasst, bitte erneut ausführen');
+            log([jetzt(), name, l.bereich, '', 'ÜBERSPRUNGEN – Prüfung fehlgeschlagen: ' + x.fehler, ''].join(' | ')); return;
+          }
+          if (!schonVermerkt && x && x.art === 'streu'){
+            for (const d of x.dateien) if (d.stand === 'anders' || d.stand === 'nurAlt'){
+              r.konflikte.push({ datei: d.pfad, streu: true, altNeuer: d.altZeit > d.neuZeit, alt: d.altZeit ? new Date(d.altZeit).toISOString() : '', neu: d.neuZeit ? new Date(d.neuZeit).toISOString() : '',
+                hinweis: 'liegt schon in „' + S.ORDNER + '“ – die Datei am früheren Ort wird nicht übernommen' });
+              log([jetzt(), name, l.bereich, d.pfad, 'NICHT ÜBERNOMMEN – Bereich liegt schon in ' + S.ORDNER + ', Datei am früheren Ort bitte prüfen', ''].join(' | '));
+            }
+            return;
+          }
+          // Galt der neue Ort schon vor diesem Lauf (Hauptdatei in „_Spektron“)? Dann stellt eine Rücknahme genau das wieder her –
+          // ein fehlgeschlagener Umzug darf einen aktiven Bereich nie auf den früheren Ort zurückschalten (Codex).
+          let warNeu = false; try{ warNeu = (await S.ort(projektDir, l.bereich)).wo === 'neu'; }catch(e){}
+          const neuDir = await unterordner(sp, b.neu, true);
+          // vor dem ersten Kopieren: „laeuft“ vermerken – bricht der Lauf ab, gelten in den Apps weiter die Originale
+          if (!schonVermerkt) vermerk = await laeuftSetzen(sp, l.bereich, true, zeit);
           // 1. alle Dateien sammeln, kopieren und prüfen – nichts löschen
           const dateien = [];
           for (const e of l.eintraege) await dateienVon(altDir, e.name, [], dateien);
@@ -211,9 +300,16 @@ async function projektUmziehen(projektDir, optionen){
               }
               for (const e of l.eintraege) if (e.art === 'directory') await leereOrdnerEntfernen(neuDir, e.name);
               if (b.neu.length){ const eltern = await unterordner(sp, b.neu.slice(0, -1), false); if (eltern) await leereOrdnerEntfernen(eltern, b.neu[b.neu.length - 1]); }
+              // „laeuft“ nur entfernen, wenn am neuen Ort für diesen Bereich nichts mehr liegt. Bleibt dort etwas (eine App hat
+              // gleichzeitig geschrieben, Reste eines früheren Abbruchs), gelten weiter die Originale – sonst würde der neue Ort
+              // mit unvollständigen Daten gelten, obwohl der Umzug nicht vermerkt ist.
+              let rest = 0; try{ for await (const h of neuDir.values()) if (b.passt(h.name, h.kind)) rest++; }catch(e){}
+              if (rest && !warNeu){ log([jetzt(), name, l.bereich, '', '„laeuft“ bleibt – am neuen Ort liegen noch ' + rest + ' Einträge, der frühere Ort gilt weiter', ''].join(' | ')); vermerk = await vermerkLesen(sp); }
+              else vermerk = await laeuftSetzen(sp, l.bereich, false);   // nichts mehr „in Arbeit“: am früheren Ort liegt alles wie vorher
             } else {
               vermerk = await vermerkLesen(sp);   // frisch (innerhalb der Projekt-Sperre)
               vermerk.bereiche[l.bereich] = { am: zeit, von: o.von || '', dateien: r.kopiert + r.uebersprungen };
+              if (vermerk.laeuft){ delete vermerk.laeuft[l.bereich]; if (!Object.keys(vermerk.laeuft).length) delete vermerk.laeuft; }
               await vermerkSchreiben(sp, vermerk);
               log([jetzt(), name, l.bereich, '', 'vermerkt (' + (r.kopiert + r.uebersprungen) + ' Dateien) – neuer Ort gilt', ''].join(' | '));
             }
@@ -245,6 +341,10 @@ async function projektUmziehen(projektDir, optionen){
       }catch(e){ r.fehler.push(e.message); log([jetzt(), name, l.bereich, '', 'FEHLER – ' + e.message, ''].join(' | ')); }
       await sichern();   // Log nach jedem Bereich auf die Platte – auch bei Absturz steht der bisherige Verlauf da
     }
+    // Nur für „laeuft“ angelegter Vermerk, am Ende ohne Inhalt: wieder entfernen (keine neue Datei ohne Grund)
+    if (!vermerkWarDa){
+      try{ const h = await kind(sp, S.MARKER); if (h && h.kind === 'file'){ const v = await vermerkLesen(sp); if (!Object.keys(v.bereiche).length && !v.laeuft) await sp.removeEntry(h.name); } }catch(e){}
+    }
     log([jetzt(), name, '', '', 'Umzug beendet', ''].join(' | ')); await sichern();
   }, warten); }catch(e){
     if (!e || !e.belegt) throw e;
@@ -273,7 +373,7 @@ async function logSchreiber(archivDir){
   return w;
 }
 
-const api = { projektUmziehen, logSchreiber, sha256, _locks: null };   // _locks: nur für Tests (Ersatz für navigator.locks)
+const api = { projektUmziehen, zweiOrtePruefen, logSchreiber, sha256, _locks: null };   // _locks: nur für Tests (Ersatz für navigator.locks)
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 root.SpektronUmzug = api;
 })(typeof window !== 'undefined' ? window : globalThis);

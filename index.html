@@ -987,9 +987,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.42.0';
-const APP_DATE = '2026-11-01';
+const APP_VERSION = '1.43.0';
+const APP_DATE = '2026-11-10';
 const CHANGELOG = [
+  ['1.43.0', '10.11.2026', 'Dateien an zwei Orten (Audit K1): Liegt in einem Projekt eine App-Datei sowohl in „_Spektron“ als auch am früheren Ort (z. B. eine heruntergeladene LabelKit-Datei, die jemand in „Laboraufträge“ abgelegt hat), gilt jetzt immer die Datei in „_Spektron“ – bisher schaltete eine solche Datei das ganze Projekt in allen Apps zurück. Die Projektansicht nennt beide Dateien mit Datum und sagt, was zu tun ist: ältere Datei am früheren Ort wegnehmen; neuere vergleichen und Fehlendes in der App nachtragen. Gelöscht wird nichts automatisch. „Umzug erneut ausführen“ holt solche Dateien bewusst nicht mehr herein, und ein abgebrochener Umzug lässt weiter die Originale gelten, bis er fertig ist. Die Vorschau von „Spektron-Ordner einrichten“ listet alle Projekte mit Dateien an zwei Orten und sagt je Bereich, ob es nach Streudatei oder nach unterbrochenem Umzug aussieht.'],
   ['1.42.0', '01.11.2026', 'Einfachere Projektseite (Spektron Schritt 2): Oben „Jetzt dran“ mit einem großen Knopf in der Farbe der App, in der es weitergeht. Darunter statt der sechs Stufen sechs Kacheln – dieselben wie im neuen Kopfband der Apps: Proben · Fotos · Labor · Plan · Bericht · Abrechnung, je mit Symbol, ✓ (die Datei der App ist da, genau wie oben in den Apps) und dem Stand darunter; ein Klick öffnet die App. Die Bericht-Kachel heißt „Brandbericht“ oder „Asbestbericht“, sobald die Berichtsart feststeht; sie öffnet BerichtKit wie das Kopfband (die gemerkte Art, sonst wählt BerichtKit nach den Proben) und merkt selbst nichts – ausdrücklich gewählt wird über „Jetzt dran“ oder „Mehr zum Projekt …“. Darunter „Danach: ans Büro übergeben“ (mit dem Übergabe-Formular) und die Projektdaten; im Kopf „Projektdaten ändern“. Seltenes unter „Mehr zum Projekt …“: Asbestbericht/Brandbericht ausdrücklich öffnen, Anlage Probenahme, Ordner, frühere Versandangaben, „Vor Spektron“. Keine Stufennummern mehr. Das Menü oben rechts heißt jetzt „⋯ Büro & Apps“. Dateien, Übergabe und Verbindung zu den Apps unverändert.'],
   ['1.41.0', '01.11.2026', '„Jetzt dran“ in Stufe 4 (Gutachten) führt jetzt zum Bericht: ohne Probenplan „Probenplan zeichnen →“, mit Plan „Brandbericht schreiben →“ bzw. „Asbestbericht schreiben →“ – welcher, steht in BerichtKit gemerkt (ab BerichtKit 1.15.0), sonst nach den LabelKit-Proben; ist noch nichts gelesen, öffnet „Bericht schreiben →“ BerichtKit, das selbst wählt. Nach dem gespeicherten Bericht wie bisher „Ans Büro übergeben“ – ein früher gespeicherter Bericht der anderen Art (z. B. alter Asbestbericht, jetzt Brandbericht gemerkt) zählt dafür nicht. In Stufe 4 ist der in BerichtKit gemerkte Bericht hervorgehoben (sonst der zu den Proben passende). Das Fenster der Projektzentrale heißt „projektzentrale“: ⌂ und „Ans Büro übergeben →“ aus den Apps landen in diesem Tab. Die Spektron-Leiste der Apps (v2) zeigt den Bericht mit Berichtsart und nach dem Speichern „Weiter: Ans Büro übergeben →“.'],
   ['1.40.0', '01.11.2026', 'Neuer Knopf „Brandbericht“ in Stufe 4 (Gutachten) neben „Asbestbericht“: öffnet BerichtKit (ab 1.14.0) gleich mit dem Brandbericht – Sanierungsvorschlag oder Untersuchungsbericht nach einem Brandschaden, als Word-Datei in „Mitteilungen“. „Asbestbericht“ öffnet ausdrücklich den Asbestbericht. Hervorgehoben ist der Knopf, den die LabelKit-Proben nahelegen: Chlorid- (auch Chlorid-Bohrmehl), PAK- oder Brandgeruch-Proben → Brandbericht (Asbestproben eines Brandschadens stehen darin in einem eigenen Abschnitt), nur Asbestproben → Asbestbericht; stornierte Proben zählen nicht, ohne Proben ist keiner hervorgehoben. Beide Knöpfe bleiben immer da, der Tooltip nennt die Proben. Stufe, „Mitteilung vom … erstellt – ans Büro übergeben“ und „Ans Büro übergeben“ gelten für den Brandbericht genauso wie für den Asbestbericht (gleicher Dateiname „n._Mitteilung_….docx“); die Anlage Brandgeruch daneben wird nie als Gutachten vorgewählt.'],
@@ -1477,7 +1478,9 @@ function umzugErgebnisHtml(erg){
     for (const b of r.bereiche){
       const t = [b.kopiert ? `${b.kopiert} kopiert` : '', b.geloescht ? `${b.geloescht} am alten Ort gelöscht` : '', b.uebersprungen ? `${b.uebersprungen} schon vorhanden` : ''].filter(Boolean).join(', ') || '–';
       zeilen.push(`<tr><td>${esc(r.projekt)}</td><td>${esc(b.app)}</td><td><code>${esc(b.von)}</code> → <code>${esc(b.nach)}</code></td><td>${esc(t)}</td></tr>`);
-      for (const k of b.konflikte) zeilen.push(`<tr class="warn"><td></td><td colspan="3">⚠ ${esc(k.datei)}: liegt an beiden Orten mit verschiedenem Inhalt${k.hinweis ? ` (${esc(k.hinweis)})` : k.altNeuer ? ' – die Datei am früheren Ort ist neuer (Nachzügler einer noch offenen App?)' : ' – die Datei in _Spektron ist neuer'}. Beide bleiben; bitte prüfen, dann den Umzug erneut ausführen.</td></tr>`);
+      for (const k of b.konflikte) zeilen.push(k.streu
+        ? `<tr class="warn"><td></td><td colspan="3">⚠ ${esc(k.datei)}: Dieser Bereich liegt schon in „${esc(SO.ORDNER)}“ – die Datei am früheren Ort wurde nicht übernommen${k.altNeuer ? ' (sie ist neuer – vielleicht von einer alten App-Fassung)' : ''}. Bitte von Hand prüfen; was zu tun ist, steht in der Projektansicht.</td></tr>`
+        : `<tr class="warn"><td></td><td colspan="3">⚠ ${esc(k.datei)}: liegt an beiden Orten mit verschiedenem Inhalt${k.hinweis ? ` (${esc(k.hinweis)})` : k.altNeuer ? ' – die Datei am früheren Ort ist neuer (Nachzügler einer noch offenen App?)' : ' – die Datei in _Spektron ist neuer'}. Beide bleiben; bitte prüfen, dann den Umzug erneut ausführen.</td></tr>`);
       for (const f of b.fehler) zeilen.push(`<tr class="warn"><td></td><td colspan="3">✕ ${esc(f)}</td></tr>`);
     }
     for (const f of r.fehler) zeilen.push(`<tr class="warn"><td>${esc(r.projekt)}</td><td colspan="3">✕ ${esc(f)}</td></tr>`);
@@ -1490,13 +1493,20 @@ async function umzugVorschau(){
   const kopf = `<h3>Spektron-Ordner einrichten</h3>
       <div class="m">Alles, was ohne App nicht nutzbar ist, zieht in den Ordner <code>${esc(SO.ORDNER)}</code> des Projekts. Fotos, Pläne, Laborberichte, Anlagen und Abrechnungen (CSV) bleiben, wo sie sind.
       Gilt für Projekte ab ${esc(SO.AB)} und von Hand übernommene. Jede Datei wird kopiert, zurückgelesen und verglichen, bevor das Original gelöscht wird; alles steht in <code>_Spektron-Umzug.log</code> im Archivordner.</div>`;
+  const ART = { streu: 'Streudatei – bleibt liegen, von Hand prüfen (Projektansicht)', unterbrochen: 'Umzug unterbrochen – wird nachgeholt',
+    nachzuegler: 'Nachzügler nach dem Umzug – gleiche werden weggeräumt', leer: 'nur leere Ordner oder gleiche Dateien – werden weggeräumt',
+    fehler: 'nicht lesbar – wird nicht angefasst, später erneut prüfen' };
+  const zweiZeile = (p, x) => `<tr><td>${esc(p.name)}</td><td>${esc(x.app)}</td><td>${esc(ART[x.art] || x.art)}</td><td>${x.dateien.filter(d => d.stand !== 'nurNeu').map(d => esc(d.pfad) + ' <span class="m">(' + esc({ gleich: 'gleich wie in _Spektron', neuLeer: 'in _Spektron leer', anders: 'anderer Inhalt', nurAlt: 'nur am früheren Ort' }[d.stand] || d.stand) + ')</span>').join('<br>')}</td></tr>`;
   const zeichnen = (ergebnis, offen, fehler, kandidaten) => {
     const n = ergebnis.reduce((a, r) => a + r.liste.reduce((b, x) => b + x.eintraege.length, 0), 0), fertig = !offen;
+    const zwei = ergebnis.filter(r => r.zwei && r.zwei.length);
     showDialog(`${kopf}
       ${offen ? `<div class="m" role="status">Noch ${offen} von ${kandidaten.length} Projekten werden gelesen …</div>` : ''}
       ${fertig ? `<div class="m"><b>Vorschau:</b> ${kandidaten.length} Spektron-Projekt${kandidaten.length === 1 ? '' : 'e'} · ${n} Eintr${n === 1 ? 'ag' : 'äge'} würde${n === 1 ? '' : 'n'} umziehen. Es wurde noch nichts verschoben.</div>` : ''}
       ${ergebnis.some(r => r.liste.length) ? `<div style="overflow:auto;max-height:45vh"><table class="ma-tab"><thead><tr><th>Projekt</th><th>App</th><th>Von → nach</th><th>Einträge</th></tr></thead><tbody>
-        ${ergebnis.map(r => r.liste.map(x => zeile(r.p, x)).join('')).join('')}</tbody></table></div>` : (fertig ? '<div class="m">Nichts umzuziehen – alle App-Dateien liegen schon in „_Spektron“.</div>' : '')}
+        ${ergebnis.map(r => r.liste.map(x => zeile(r.p, x)).join('')).join('')}</tbody></table></div>` : (fertig ? (zwei.length ? '<div class="m">Nichts umzuziehen.</div>' : '<div class="m">Nichts umzuziehen – alle App-Dateien liegen schon in „_Spektron“.</div>') : '')}
+      ${zwei.length ? `<div class="m" style="margin-top:10px"><b>Schon an zwei Orten</b> (in „${esc(SO.ORDNER)}“ und am früheren Ort):</div><div style="overflow:auto;max-height:30vh"><table class="ma-tab"><thead><tr><th>Projekt</th><th>App</th><th>Sieht aus wie</th><th>Dateien am früheren Ort</th></tr></thead><tbody>
+        ${zwei.map(r => r.zwei.map(x => zweiZeile(r.p, x)).join('')).join('')}</tbody></table></div>` : ''}
       ${fehler.length ? `<div class="warn">Nicht lesbar: ${fehler.map(esc).join(', ')}</div>` : ''}
       ${fertig && n ? `<div class="warn" style="margin-top:10px"><label><input type="checkbox" id="umzugOk"> Alle Kollegen haben ihre Spektron-Apps auf allen Rechnern und in allen RDP-Profilen geschlossen. Nur eine Person führt den Umzug aus. Browsersperren gelten ausschließlich im selben Browserprofil; gleichzeitige Schreibvorgänge über SMB können nicht sicher ausgeschlossen werden.</label></div>` : ''}
       <div class="btns"><button id="umzugZu">${fertig && n ? 'Abbrechen' : 'Schließen'}</button>${fertig && n ? `<button id="umzugLos" class="primary" disabled>Jetzt umziehen (${kandidaten.length} Projekt${kandidaten.length === 1 ? '' : 'e'})</button>` : ''}</div>`);
@@ -1509,7 +1519,11 @@ async function umzugVorschau(){
   const kandidaten = await umzugKandidaten(fehler); if (!$('umzugZu')) return;
   zeichnen(ergebnis, kandidaten.length, fehler, kandidaten);
   for (const p of kandidaten){
-    try{ ergebnis.push({ p, liste: p.spektronAnlegen ? await umzugListeOhneOrdner(p) : await SO.umzugListe(p.handle) }); }catch(e){ fehler.push(p.name); }
+    try{
+      const zwei = p.spektronAnlegen || !UM.zweiOrtePruefen ? [] : await UM.zweiOrtePruefen(p.handle);
+      const streu = new Set(zwei.filter(x => x.art === 'streu' || x.art === 'fehler').map(x => x.bereich));   // ziehen nicht um (K1) – nur in der unteren Liste
+      ergebnis.push({ p, zwei, liste: (p.spektronAnlegen ? await umzugListeOhneOrdner(p) : await SO.umzugListe(p.handle)).filter(x => !streu.has(x.bereich)) });
+    }catch(e){ fehler.push(p.name); }
     if ($('umzugZu')) zeichnen(ergebnis, kandidaten.length - ergebnis.length - fehler.length, fehler, kandidaten); else return;   // Dialog geschlossen
   }
 }
@@ -1557,8 +1571,19 @@ async function nachzueglerZeigen(p){
   const e2 = $('umzugAttention');
   if (!liste.length){ e2.style.display = 'none'; e2.innerHTML = ''; return; }
   e2.style.display = '';
-  e2.innerHTML = `<b>App-Dateien an zwei Orten:</b> ${liste.map(x => esc(x.app)).join(', ')} – im Ordner „${esc(SO.ORDNER)}“ <i>und</i> am früheren Ort${liste.some(x => x.umgezogen) ? ' (nach dem Umzug noch dort geschrieben, z. B. von einer noch offenen älteren App-Version)' : ''}. Es gilt ${liste.every(x => x.umgezogen) ? 'der neue Ort' : 'der frühere Ort'}; nichts wird automatisch gelöscht.
-    <div class="btns" style="margin-top:6px"><button type="button" id="umzugNach">Umzug für dieses Projekt erneut ausführen</button></div>`;
+  // Je Bereich die eine Zeile (dieselbe wie in den Apps) und darunter, was zu tun ist – je nachdem, wie es aussieht (K1)
+  const RAT = {
+    streu: `Was tun mit der Datei am früheren Ort? <b>Ist sie älter</b> als die in „${esc(SO.ORDNER)}“: Nimm sie aus dem Projektordner (verschieben, z. B. auf den Desktop, oder löschen) – gebraucht wird sie nicht. <b>Ist sie neuer</b>, steckt darin vielleicht Arbeit, die in „${esc(SO.ORDNER)}“ fehlt (z. B. mit einer alten App-Fassung gespeichert): Öffne die App, vergleiche und trag Fehlendes dort nach; danach die Datei am früheren Ort entfernen. „Umzug erneut ausführen“ hilft hier nicht – er holt solche Dateien bewusst nicht herein.`,
+    unterbrochen: `Der Umzug dieses Bereichs ist nicht fertig geworden. Führ ihn für dieses Projekt erneut aus – er holt nach, was fehlt, und lässt abweichende Dateien stehen.`,
+    nachzuegler: `Nach dem Umzug wurde am früheren Ort noch geschrieben (z. B. von einer noch offenen älteren App-Version). „Umzug erneut ausführen“ räumt gleiche Dateien weg; abweichende bleiben stehen – dann wie oben vergleichen und von Hand entscheiden.`,
+    leer: `Am früheren Ort liegen nur leere Ordner oder dieselben Dateien wie in „${esc(SO.ORDNER)}“. „Umzug erneut ausführen“ räumt sie weg.`,
+    fehler: `Die Dateien konnten gerade nicht vollständig gelesen werden (z. B. Netzlaufwerk). Bitte später noch einmal öffnen – der Umzug fasst diesen Bereich bis dahin nicht an.`
+  };
+  const knopf = liste.some(x => x.art !== 'streu' && x.art !== 'fehler');
+  e2.innerHTML = `<b>App-Dateien an zwei Orten.</b> Gelöscht wird nichts automatisch.
+    ${liste.map(x => `<div style="margin-top:6px">${esc(x.zeile)}<div class="m" style="margin-top:2px">${RAT[x.art] || RAT.streu}</div></div>`).join('')}
+    ${knopf ? '<div class="btns" style="margin-top:6px"><button type="button" id="umzugNach">Umzug für dieses Projekt erneut ausführen</button></div>' : ''}`;
+  if (!$('umzugNach')) return;
   $('umzugNach').onclick = async () => {
     $('umzugNach').disabled = true;
     const r = await umzugEinzeln(p);
@@ -1568,10 +1593,17 @@ async function nachzueglerZeigen(p){
     if (S.sel === p){ p.st = st; S.pj = pj; renderDetail(); }
   };
 }
-/** Nachzügler: Bereiche, die an beiden Orten liegen (alte App-Version schrieb nach dem Umzug an den früheren Ort). */
+/** Bereiche mit App-Dateien an beiden Orten: die Zeile aus spektron-ordner.js (gleich wie in den Apps) und die Art
+    aus spektron-umzug.js (Streudatei, unterbrochener Umzug, Nachzügler, nur leere Ordner). Nur lesen. */
 async function nachzuegler(p){
   const aus = [];
-  try{ if (!(await SO.istSpektronProjekt(p.handle))) return aus; for (const b of Object.keys(SO.BEREICHE)){ const o = await SO.ort(p.handle, b); if (o.konflikt) aus.push({ bereich: b, app: SO.BEREICHE[b].app, umgezogen: o.umgezogen }); } }catch(e){}
+  try{
+    if (!(await SO.istSpektronProjekt(p.handle))) return aus;
+    const zwei = SO.zweiOrte ? await SO.zweiOrte(p.handle) : [];
+    if (!zwei.length) return aus;   // der Normalfall: nichts weiter lesen (die genaue Prüfung vergleicht Dateiinhalte)
+    const lage = new Map(); try{ for (const x of (UM && UM.zweiOrtePruefen ? await UM.zweiOrtePruefen(p.handle) : [])) lage.set(x.bereich, x.art); }catch(e){}
+    for (const z of zwei) aus.push({ bereich: z.bereich, app: z.app, umgezogen: z.umgezogen, art: z.unterbrochen ? 'unterbrochen' : (lage.get(z.bereich) || (z.umgezogen ? 'nachzuegler' : 'streu')), zeile: SO.zweiOrteText(z, { projektzentrale: true }) });
+  }catch(e){}
   return aus;
 }
 function auDialog(){
