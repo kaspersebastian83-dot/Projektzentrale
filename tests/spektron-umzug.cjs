@@ -192,6 +192,11 @@ const ok = async (t, fn) => { hooks.beimLoeschen = null; hooks.beimSchreiben = n
       assert.equal(l2.konflikte.length, 1); assert.match(l2.konflikte[0].hinweis, /gleichzeitig/); assert.equal(l2.geloescht, 0);
       assert.equal((await fs.readFile(path.join(g.dir, '_Spektron/LabelKit/26.0560_x_Daten.json'))).toString(), '{"proben":[1,2]}', 'Fassung der App bleibt');
       assert.equal((await fs.readFile(path.join(g.dir, 'Laboraufträge/26.0560_x_Daten.json'))).toString(), '{"proben":[1]}', 'Original bleibt');
+      // Codex (K1): fremde Datei bleibt am neuen Ort, Bereich nicht vermerkt → „laeuft“ bleibt, die Apps nutzen weiter das Original
+      const v = JSON.parse((await fs.readFile(path.join(g.dir, '_Spektron/_Umzug.json'))).toString());
+      assert.ok(v.laeuft && v.laeuft.labelkit, '„laeuft“ bleibt stehen'); assert.equal(v.bereiche.labelkit, undefined);
+      const o = await S.ort(g.projekt, 'labelkit'); assert.equal(o.wo, 'alt'); assert.equal(o.unterbrochen, true);
+      assert.equal((await U.zweiOrtePruefen(g.projekt)).find(x => x.bereich === 'labelkit').art, 'unterbrochen');
     } finally { Datei.prototype.createWritable = Orig; }
   });
 
@@ -364,6 +369,20 @@ const ok = async (t, fn) => { hooks.beimLoeschen = null; hooks.beimSchreiben = n
     const r = await U.projektUmziehen(f.projekt, {}); assert.equal(r.bereiche[0].fehler.length, 1);
     assert.equal(await umzugJson(f.dir), null, 'kein leerer Vermerk bleibt liegen');
     assert.equal((await S.ort(f.projekt, 'resultkit')).wo, 'alt');
+  });
+
+  await ok('Codex K1: in _Spektron nur Sicherung oder leerer Ordner (Abbruch vor K1) → früherer Ort gilt, „unterbrochen“, Umzug holt nach', async () => {
+    const f = await fixture(N, { 'Laborergebnisse/_Ergebnisse.json': '{"e":1}', '_Spektron/ResultKit/_Ergebnisse.vorher.json': '{"e":0}',
+      '_Projekt.json': '{"p":1}', '_Projekt_Sicherungen/s.json': 'S', 'Fotos/_Bildumbenenner.json': '{"b":1}' });
+    await fs.mkdir(path.join(f.dir, '_Spektron/FotoKit/_FotoKit_Fassungen'), { recursive: true });
+    await fs.mkdir(path.join(f.dir, '_Spektron/_Projekt_Sicherungen'), { recursive: true });
+    for (const b of ['resultkit', 'projekt', 'fotokit']) assert.equal((await S.ort(f.projekt, b)).wo, 'alt', b);
+    const lage = await U.zweiOrtePruefen(f.projekt);
+    for (const b of ['resultkit', 'projekt', 'fotokit']) assert.equal(lage.find(x => x.bereich === b).art, 'unterbrochen', b);
+    const r = await U.projektUmziehen(f.projekt, {});
+    for (const b of ['resultkit', 'projekt', 'fotokit']){ const x = r.bereiche.find(y => y.bereich === b); assert.deepEqual(x.fehler, [], b); assert.deepEqual(x.konflikte, [], b); }
+    const a = await alle(f.dir); assert.equal(a['_Spektron/ResultKit/_Ergebnisse.json'], '{"e":1}'); assert.equal(a['_Spektron/_Projekt.json'], '{"p":1}'); assert.equal(a['_Spektron/FotoKit/_Bildumbenenner.json'], '{"b":1}');
+    for (const b of ['resultkit', 'projekt', 'fotokit']) assert.equal((await S.ort(f.projekt, b)).wo, 'neu', b + ' danach neu');
   });
 
   await ok('K1: Nachzügler nach vermerktem Umzug bleiben „nachzuegler“ (Umzug holt identische nach, wie bisher)', async () => {

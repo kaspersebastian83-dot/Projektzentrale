@@ -166,7 +166,10 @@ async function zweiOrtePruefen(projektDir){
     }
     for (const [k, n] of neu) if (!alt.has(k)) dateien.push({ pfad: n.pfad.join('/'), stand: 'nurNeu', altZeit: 0, neuZeit: await zeit(n.handle) });
     const vermerkt = !!(v && v.bereiche[id]), laeuft = !!(v && v.laeuft && v.laeuft[id]);
-    const art = vermerkt ? 'nachzuegler' : laeuft || dateien.some(d => d.stand === 'gleich' || d.stand === 'neuLeer') ? 'unterbrochen'
+    // Gilt laut ort() noch der frühere Ort (z. B. in „_Spektron“ nur eine Sicherung oder ein leerer Ordner, keine Hauptdatei),
+    // ist das ein unvollständiger Umzug – nie eine Streudatei, sonst könnte der Umzug ihn nicht mehr nachholen.
+    let wo = 'neu'; try{ wo = (await S.ort(projektDir, id)).wo; }catch(e){}
+    const art = vermerkt ? 'nachzuegler' : laeuft || wo === 'alt' || dateien.some(d => d.stand === 'gleich' || d.stand === 'neuLeer') ? 'unterbrochen'
       : !dateien.some(d => d.stand === 'nurAlt' || d.stand === 'anders') ? 'leer' : 'streu';
     aus.push({ bereich: id, app: b.app, von: b.alt.join('/'), nach: [S.ORDNER].concat(b.neu).join('/'), art, vermerkt, laeuft, dateien });
   }
@@ -283,7 +286,12 @@ async function projektUmziehen(projektDir, optionen){
               }
               for (const e of l.eintraege) if (e.art === 'directory') await leereOrdnerEntfernen(neuDir, e.name);
               if (b.neu.length){ const eltern = await unterordner(sp, b.neu.slice(0, -1), false); if (eltern) await leereOrdnerEntfernen(eltern, b.neu[b.neu.length - 1]); }
-              vermerk = await laeuftSetzen(sp, l.bereich, false);   // nichts mehr „in Arbeit“: am früheren Ort liegt alles wie vorher
+              // „laeuft“ nur entfernen, wenn am neuen Ort für diesen Bereich nichts mehr liegt. Bleibt dort etwas (eine App hat
+              // gleichzeitig geschrieben, Reste eines früheren Abbruchs), gelten weiter die Originale – sonst würde der neue Ort
+              // mit unvollständigen Daten gelten, obwohl der Umzug nicht vermerkt ist.
+              let rest = 0; try{ for await (const h of neuDir.values()) if (b.passt(h.name, h.kind)) rest++; }catch(e){}
+              if (rest){ log([jetzt(), name, l.bereich, '', '„laeuft“ bleibt – am neuen Ort liegen noch ' + rest + ' Einträge, der frühere Ort gilt weiter', ''].join(' | ')); vermerk = await vermerkLesen(sp); }
+              else vermerk = await laeuftSetzen(sp, l.bereich, false);   // nichts mehr „in Arbeit“: am früheren Ort liegt alles wie vorher
             } else {
               vermerk = await vermerkLesen(sp);   // frisch (innerhalb der Projekt-Sperre)
               vermerk.bereiche[l.bereich] = { am: zeit, von: o.von || '', dateien: r.kopiert + r.uebersprungen };
