@@ -148,7 +148,7 @@ async function zweiOrtePruefen(projektDir){
   if (!(await S.istSpektronProjekt(projektDir))) return aus;
   const sp = await S.spektronDir(projektDir, false); if (!sp) return aus;
   let v = null; try{ v = await vermerkLesen(sp); }catch(e){ v = null; }
-  for (const id of Object.keys(S.BEREICHE)){
+  for (const id of Object.keys(S.BEREICHE)) try{
     const b = S.BEREICHE[id];
     const altDir = await unterordner(projektDir, b.alt, false), neuDir = await unterordner(sp, b.neu, false);
     if (!altDir || !neuDir) continue;
@@ -173,6 +173,10 @@ async function zweiOrtePruefen(projektDir){
     const art = vermerkt ? 'nachzuegler' : laeuft || wo === 'alt' ? 'unterbrochen'
       : !dateien.some(d => d.stand === 'nurAlt' || d.stand === 'anders') ? 'leer' : 'streu';
     aus.push({ bereich: id, app: b.app, von: b.alt.join('/'), nach: [S.ORDNER].concat(b.neu).join('/'), art, vermerkt, laeuft, dateien });
+  }catch(e){
+    // Lesefehler in einem Bereich (z. B. SMB): als „fehler“ melden – der Umzug fasst diesen Bereich dann nicht an (Codex)
+    const b = S.BEREICHE[id];
+    aus.push({ bereich: id, app: b.app, von: b.alt.join('/'), nach: [S.ORDNER].concat(b.neu).join('/'), art: 'fehler', fehler: e && e.message || String(e), vermerkt: false, laeuft: false, dateien: [] });
   }
   return aus;
 }
@@ -199,7 +203,9 @@ async function projektUmziehen(projektDir, optionen){
       sp = await S.spektronDir(projektDir, true);             // legt „_Spektron“ und die Hinweisdatei an (z. B. Datei namens „_Spektron“ → Fehler)
       vermerkWarDa = !!(await kind(sp, S.MARKER));
     }catch(e){ ergebnis.fehler.push(e.message); log([jetzt(), name, '', '', 'ABBRUCH – ' + e.message, ''].join(' | ')); await sichern(); return; }
-    try{ for (const x of await zweiOrtePruefen(projektDir)) lage.set(x.bereich, x); }catch(e){ /* dann wie bisher je Datei vergleichen */ }
+    // Ohne diese Prüfung darf nichts kopiert werden (sie schützt aktive Bereiche vor Streudateien): Fehler → Projekt nicht umziehen (Codex)
+    try{ for (const x of await zweiOrtePruefen(projektDir)) lage.set(x.bereich, x); }
+    catch(e){ ergebnis.fehler.push('Prüfung der App-Dateien fehlgeschlagen (' + e.message + ') – nichts verändert, bitte erneut ausführen.'); log([jetzt(), name, '', '', 'ABBRUCH – Prüfung fehlgeschlagen: ' + e.message, ''].join(' | ')); await sichern(); return; }
     const zeit = jetzt();   // Beginn des Laufs (steht im Vermerk); jede Logzeile trägt ihre eigene Uhrzeit
     log([zeit, name, '', '', 'Umzug begonnen (' + liste.length + ' Bereiche)', ''].join(' | '));
     for (const l of liste){
@@ -212,6 +218,10 @@ async function projektUmziehen(projektDir, optionen){
           const schonVermerkt = !!vermerk.bereiche[l.bereich];
           // Bereich lebt schon in „_Spektron“ (ohne Vermerk, kein abgebrochener Umzug): Abweichendes am früheren Ort nicht hereinholen
           const x = lage.get(l.bereich);
+          if (!schonVermerkt && x && x.art === 'fehler'){
+            r.fehler.push('nicht geprüft (' + x.fehler + ') – Bereich nicht angefasst, bitte erneut ausführen');
+            log([jetzt(), name, l.bereich, '', 'ÜBERSPRUNGEN – Prüfung fehlgeschlagen: ' + x.fehler, ''].join(' | ')); return;
+          }
           if (!schonVermerkt && x && x.art === 'streu'){
             for (const d of x.dateien) if (d.stand === 'anders' || d.stand === 'nurAlt'){
               r.konflikte.push({ datei: d.pfad, streu: true, altNeuer: d.altZeit > d.neuZeit, alt: d.altZeit ? new Date(d.altZeit).toISOString() : '', neu: d.neuZeit ? new Date(d.neuZeit).toISOString() : '',

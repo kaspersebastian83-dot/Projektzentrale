@@ -405,6 +405,36 @@ const ok = async (t, fn) => { hooks.beimLoeschen = null; hooks.beimSchreiben = n
     const v = await umzugJson(f.dir); assert.ok(!v || !v.laeuft, '„laeuft“ entfernt'); assert.equal((await S.ort(f.projekt, 'resultkit')).wo, 'neu', 'aktiver Bereich bleibt neu');
   });
 
+  await ok('Codex 4. Runde: Lesefehler in einem Bereich → nur dieser wird übersprungen; Streudatei-Schutz der anderen bleibt', async () => {
+    const f = await fixture(K, { '_Spektron/LabelKit/26.0604_Daten.json': '{"p":13}', 'Laboraufträge/26.0604_2026-10-01_Daten.json': '{"p":1}',
+      'Laborergebnisse/_Ergebnisse.json': '{"e":1}', '_Spektron/ResultKit/_Ergebnisse.json': '{"e":2}', '_Spektron/BITTE NICHT ANFASSEN.txt': 'x' });
+    const Orig = Datei.prototype.getFile;
+    Datei.prototype.getFile = async function(){ const r = await Orig.call(this); if (this.p.endsWith(path.join('Laborergebnisse', '_Ergebnisse.json'))) return { ...r, arrayBuffer: async () => { throw Error('SMB weg'); } }; return r; };
+    try{
+      const lage = await U.zweiOrtePruefen(f.projekt);
+      assert.equal(lage.find(x => x.bereich === 'resultkit').art, 'fehler'); assert.equal(lage.find(x => x.bereich === 'labelkit').art, 'streu', 'andere Bereiche weiter geprüft');
+      const vorher = await alle(f.dir), r = await U.projektUmziehen(f.projekt, {});
+      assert.match(r.bereiche.find(b => b.bereich === 'resultkit').fehler.join(' '), /nicht geprüft/);
+      assert.equal(r.bereiche.find(b => b.bereich === 'labelkit').kopiert, 0, 'Streudatei nicht hereingeholt');
+      assert.deepEqual(await alle(f.dir), vorher, 'nichts verändert');
+    } finally { Datei.prototype.getFile = Orig; }
+  });
+
+  await ok('Codex 4. Runde: Prüfung insgesamt fehlgeschlagen → Projekt nicht umgezogen, nichts verändert', async () => {
+    const f = await fixture(K, { '_Spektron/LabelKit/26.0604_Daten.json': '{"p":13}', 'Laboraufträge/26.0604_2026-10-01_Daten.json': '{"p":1}', '_Spektron/BITTE NICHT ANFASSEN.txt': 'x' });
+    let schonGelesen = false;
+    // Fehler genau in der Vorab-Prüfung erzeugen: _Spektron nicht auflistbar, sobald der Umzug läuft
+    const sp = path.join(f.dir, '_Spektron'), valOrig = Ordner.prototype.values;
+    Ordner.prototype.values = async function*(){ if (this.p === sp && schonGelesen) throw Error('Ordner nicht lesbar'); yield* valOrig.call(this); };
+    try{
+      schonGelesen = true;
+      const vorher = await alle(f.dir), r = await U.projektUmziehen(f.projekt, {});
+      assert.ok(r.fehler.length || r.bereiche.every(b => b.kopiert === 0 && b.geloescht === 0), 'kein Kopieren/Löschen');
+      Ordner.prototype.values = valOrig;
+      assert.deepEqual(await alle(f.dir), vorher, 'nichts verändert');
+    } finally { Ordner.prototype.values = valOrig; }
+  });
+
   await ok('K1: Nachzügler nach vermerktem Umzug bleiben „nachzuegler“ (Umzug holt identische nach, wie bisher)', async () => {
     const f = await fixture(); await U.projektUmziehen(f.projekt, {});
     await fs.writeFile(path.join(f.dir, '_Projekt.json'), '{"objekt":"NACHZUEGLER"}');

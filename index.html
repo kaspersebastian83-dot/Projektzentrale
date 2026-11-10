@@ -1494,7 +1494,8 @@ async function umzugVorschau(){
       <div class="m">Alles, was ohne App nicht nutzbar ist, zieht in den Ordner <code>${esc(SO.ORDNER)}</code> des Projekts. Fotos, Pläne, Laborberichte, Anlagen und Abrechnungen (CSV) bleiben, wo sie sind.
       Gilt für Projekte ab ${esc(SO.AB)} und von Hand übernommene. Jede Datei wird kopiert, zurückgelesen und verglichen, bevor das Original gelöscht wird; alles steht in <code>_Spektron-Umzug.log</code> im Archivordner.</div>`;
   const ART = { streu: 'Streudatei – bleibt liegen, von Hand prüfen (Projektansicht)', unterbrochen: 'Umzug unterbrochen – wird nachgeholt',
-    nachzuegler: 'Nachzügler nach dem Umzug – gleiche werden weggeräumt', leer: 'nur leere Ordner – werden weggeräumt' };
+    nachzuegler: 'Nachzügler nach dem Umzug – gleiche werden weggeräumt', leer: 'nur leere Ordner oder gleiche Dateien – werden weggeräumt',
+    fehler: 'nicht lesbar – wird nicht angefasst, später erneut prüfen' };
   const zweiZeile = (p, x) => `<tr><td>${esc(p.name)}</td><td>${esc(x.app)}</td><td>${esc(ART[x.art] || x.art)}</td><td>${x.dateien.filter(d => d.stand !== 'nurNeu').map(d => esc(d.pfad) + ' <span class="m">(' + esc({ gleich: 'gleich wie in _Spektron', neuLeer: 'in _Spektron leer', anders: 'anderer Inhalt', nurAlt: 'nur am früheren Ort' }[d.stand] || d.stand) + ')</span>').join('<br>')}</td></tr>`;
   const zeichnen = (ergebnis, offen, fehler, kandidaten) => {
     const n = ergebnis.reduce((a, r) => a + r.liste.reduce((b, x) => b + x.eintraege.length, 0), 0), fertig = !offen;
@@ -1520,7 +1521,7 @@ async function umzugVorschau(){
   for (const p of kandidaten){
     try{
       const zwei = p.spektronAnlegen || !UM.zweiOrtePruefen ? [] : await UM.zweiOrtePruefen(p.handle);
-      const streu = new Set(zwei.filter(x => x.art === 'streu').map(x => x.bereich));   // ziehen nicht um (K1) – nur in der unteren Liste
+      const streu = new Set(zwei.filter(x => x.art === 'streu' || x.art === 'fehler').map(x => x.bereich));   // ziehen nicht um (K1) – nur in der unteren Liste
       ergebnis.push({ p, zwei, liste: (p.spektronAnlegen ? await umzugListeOhneOrdner(p) : await SO.umzugListe(p.handle)).filter(x => !streu.has(x.bereich)) });
     }catch(e){ fehler.push(p.name); }
     if ($('umzugZu')) zeichnen(ergebnis, kandidaten.length - ergebnis.length - fehler.length, fehler, kandidaten); else return;   // Dialog geschlossen
@@ -1575,9 +1576,10 @@ async function nachzueglerZeigen(p){
     streu: `Was tun mit der Datei am früheren Ort? <b>Ist sie älter</b> als die in „${esc(SO.ORDNER)}“: Nimm sie aus dem Projektordner (verschieben, z. B. auf den Desktop, oder löschen) – gebraucht wird sie nicht. <b>Ist sie neuer</b>, steckt darin vielleicht Arbeit, die in „${esc(SO.ORDNER)}“ fehlt (z. B. mit einer alten App-Fassung gespeichert): Öffne die App, vergleiche und trag Fehlendes dort nach; danach die Datei am früheren Ort entfernen. „Umzug erneut ausführen“ hilft hier nicht – er holt solche Dateien bewusst nicht herein.`,
     unterbrochen: `Der Umzug dieses Bereichs ist nicht fertig geworden. Führ ihn für dieses Projekt erneut aus – er holt nach, was fehlt, und lässt abweichende Dateien stehen.`,
     nachzuegler: `Nach dem Umzug wurde am früheren Ort noch geschrieben (z. B. von einer noch offenen älteren App-Version). „Umzug erneut ausführen“ räumt gleiche Dateien weg; abweichende bleiben stehen – dann wie oben vergleichen und von Hand entscheiden.`,
-    leer: `Am früheren Ort liegen nur leere Ordner. „Umzug erneut ausführen“ räumt sie weg.`
+    leer: `Am früheren Ort liegen nur leere Ordner oder dieselben Dateien wie in „${esc(SO.ORDNER)}“. „Umzug erneut ausführen“ räumt sie weg.`,
+    fehler: `Die Dateien konnten gerade nicht vollständig gelesen werden (z. B. Netzlaufwerk). Bitte später noch einmal öffnen – der Umzug fasst diesen Bereich bis dahin nicht an.`
   };
-  const knopf = liste.some(x => x.art !== 'streu');
+  const knopf = liste.some(x => x.art !== 'streu' && x.art !== 'fehler');
   e2.innerHTML = `<b>App-Dateien an zwei Orten.</b> Gelöscht wird nichts automatisch.
     ${liste.map(x => `<div style="margin-top:6px">${esc(x.zeile)}<div class="m" style="margin-top:2px">${RAT[x.art] || RAT.streu}</div></div>`).join('')}
     ${knopf ? '<div class="btns" style="margin-top:6px"><button type="button" id="umzugNach">Umzug für dieses Projekt erneut ausführen</button></div>' : ''}`;
@@ -1598,6 +1600,7 @@ async function nachzuegler(p){
   try{
     if (!(await SO.istSpektronProjekt(p.handle))) return aus;
     const zwei = SO.zweiOrte ? await SO.zweiOrte(p.handle) : [];
+    if (!zwei.length) return aus;   // der Normalfall: nichts weiter lesen (die genaue Prüfung vergleicht Dateiinhalte)
     const lage = new Map(); try{ for (const x of (UM && UM.zweiOrtePruefen ? await UM.zweiOrtePruefen(p.handle) : [])) lage.set(x.bereich, x.art); }catch(e){}
     for (const z of zwei) aus.push({ bereich: z.bereich, app: z.app, umgezogen: z.umgezogen, art: z.unterbrochen ? 'unterbrochen' : (lage.get(z.bereich) || (z.umgezogen ? 'nachzuegler' : 'streu')), zeile: SO.zweiOrteText(z, { projektzentrale: true }) });
   }catch(e){}
