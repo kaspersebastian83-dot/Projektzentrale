@@ -320,7 +320,7 @@ const ok = async (t, fn) => { hooks.beimLoeschen = null; hooks.beimSchreiben = n
 
   await ok('K1: Streudatei in neuem Projekt (nur _Spektron, kein Vermerk) wird nicht hereingeholt; nichts gelöscht, kein Vermerk angelegt', async () => {
     const f = await fixture(K, { '_Spektron/LabelKit/26.0604_Daten.json': '{"proben":13}', 'Laboraufträge/26.0604_Daten.json': '{"proben":1}',
-      'Laboraufträge/26.0604_2026-10-30_Daten.json': '{"proben":0}', '_Spektron/PlanKit/Probenplan a.probenplan': '{"v":2}', 'Pläne/Probenplan a Notfallkopie.probenplan': '{"v":1}' });
+      'Laboraufträge/26.0604_2026-10-30_Daten.json': '{"proben":0}', ['_Spektron/PlanKit/Probenplan ' + K + '.probenplan']: '{"v":2}', ['Pläne/PlanKit Notfallkopie ' + K + ' 1.probenplan']: '{"v":1}' });
     const lage = await U.zweiOrtePruefen(f.projekt), lk = lage.find(x => x.bereich === 'labelkit'), pk = lage.find(x => x.bereich === 'plankit');
     assert.equal(lk.art, 'streu'); assert.deepEqual(lk.dateien.map(d => d.stand).sort(), ['anders', 'nurAlt']); assert.equal(pk.art, 'streu');
     assert.equal((await S.ort(f.projekt, 'labelkit')).wo, 'neu');
