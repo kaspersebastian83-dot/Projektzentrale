@@ -107,7 +107,9 @@ function hinweiseVon(p){
   if (p.nichtUebernommen) h.push(`${werteText(p.nichtUebernommen)} aus den Prüfberichten ${p.nichtUebernommen === 1 ? 'steht' : 'stehen'} nicht in der ResultKit-Übernahme (z. B. Probe in LabelKit storniert oder Bericht in einem Unterordner von „Laborergebnisse“) – ${p.nichtUebernommen === 1 ? 'zählt' : 'zählen'} hier nicht.`);
   const u = p.unterschiede || [];
   if (u.length){
-    const eins = x => `„${x.eigen.roh}“ aus ${x.eigen.bericht} (${x.probe}, ${x.p}${x.u ? ', ' + x.u : ''}); in ResultKit steht noch „${x.resultkit.roh}“${x.resultkit.bericht !== x.eigen.bericht ? ' (' + x.resultkit.bericht + ')' : ''}`;   // Unterschied im Wert, nie Null
+    // Unterschied im Wert, nie Null. Verschiedene Einheiten (ab 1.3.1, o41): je Wert mit seiner Einheit, nichts umgerechnet
+    const eins = x => { const ue = x.resultkit.u !== undefined && x.resultkit.u !== x.eigen.u, mit = (roh, u) => ue && u ? roh + ' ' + u : roh;
+      return `„${mit(x.eigen.roh, x.eigen.u)}“ aus ${x.eigen.bericht} (${x.probe}, ${x.p}${!ue && x.u ? ', ' + x.u : ''}); in ResultKit steht noch „${mit(x.resultkit.roh, x.resultkit.u)}“${x.resultkit.bericht !== x.eigen.bericht ? ' (' + x.resultkit.bericht + ')' : ''}`; };
     h.push(`Das Datenarchiv zählt ${u.slice(0, 3).map(eins).join(' · ')}${u.length > 3 ? ` – und ${u.length - 3} weitere` : ''}. Ein Klick auf „Erneut übernehmen“ in ResultKit macht beide gleich.`);
   }
   if (p.bkFehler) h.push(p.bkFehler);
