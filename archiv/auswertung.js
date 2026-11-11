@@ -136,7 +136,9 @@
       if (g.length === 1){ const x = g[0].x; for (const c of l) if (c.x === x && !werte.has(mk(k, c))) werte.set(mk(k, c), messung(c.x.b, c.pr, c.w, k)); gilt.add(x); continue; }
       const codes = g.map(c => tidy(c.x.b.bericht) || c.x.b.datei).sort((a, b) => a.localeCompare(b, 'de', { numeric: true })), id = codes.join('\u0000');
       const e = konfliktMap.get(id) || { berichte: codes, proben: [], n: 0, werte: [] }; const pk = k.split('\u0000')[0];
-      if (!e.proben.includes(pk)) e.proben.push(pk); e.n += g.length; e.werte.push(...g.map(c => messung(c.x.b, c.pr, c.w, k))); konfliktMap.set(id, e);
+      // alle Werte der beteiligten Berichte zählen als nicht mitgezählt – auch mehrere Einheiten eines Berichts (Codex, PR #81)
+      const alle = l.filter(c => g.some(r => r.x === c.x));
+      if (!e.proben.includes(pk)) e.proben.push(pk); e.n += alle.length; e.werte.push(...alle.map(c => messung(c.x.b, c.pr, c.w, k))); konfliktMap.set(id, e);
     }
     const konflikte = [...konfliktMap.values()].map(k => ({ ...k, proben: k.proben.map(p => /^p\d+$/i.test(p) ? p.toUpperCase() : p).sort((a, b) => a.localeCompare(b, 'de', { numeric: true })) }));
     const ersetzt = liste.filter(x => !x.fremd && mitWerten(x.b) && !gilt.has(x) && !konflikte.some(k => k.berichte.includes(tidy(x.b.bericht) || x.b.datei))).map(x => tidy(x.b.bericht) || x.b.datei);
