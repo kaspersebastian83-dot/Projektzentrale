@@ -1,4 +1,10 @@
-# Spektron · Datenarchiv, Version 1.3
+# Spektron · Datenarchiv, Version 1.3.1
+
+## Neu in 1.3.1 (Audit Kernkette o41 – 11.11.2026)
+
+- **Einheit nicht im Wertschlüssel (wie ResultKit 2.5, Entscheidung 11.11.2026 Variante A):** welcher Wert gilt, entscheiden Probe + Parameter. Eine neuere Fassung (`-02`) ersetzt die ältere auch in einer anderen Einheit (mg/m² → µg/cm²); zwei Grundnummern mit Werten für dieselbe Probe und denselben Parameter sind auch in verschiedenen Einheiten ein Konflikt (zählt nicht, „Zu prüfen“). Vom geltenden Bericht bleiben alle Einheiten eines Parameters (Chlorid „µg/Probe“ und „µg/cm²“). Nichts umgerechnet.
+- **Abgleich mit `_Ergebnisse.json`:** alle Werte der Datei je Probe + Parameter werden verglichen (auch die Einheit, vereinheitlicht). Eine Übernahme vor ResultKit 2.5 mit dem Wert der älteren Fassung daneben ergibt die Zeile „Das Datenarchiv zählt „14 µg/cm²“ aus AR-…-02 (…); in ResultKit steht noch „120 mg/m²“ (AR-…-01). …“ – bei gleicher Einheit ohne Einheit im Zitat wie bisher.
+- Zwischenspeicher: Signatur `v4` (einmal neu eingelesen).
 
 ## Neu in 1.3 (Audit Kernkette o1, o6 – 11.11.2026)
 

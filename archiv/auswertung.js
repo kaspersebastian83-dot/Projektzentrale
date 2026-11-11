@@ -73,9 +73,12 @@
   /* ---------- Welcher Prüfbericht gilt (ab 1.3, Audit o1) – Regel wie ResultKit 2.2 (src/ergebnisse.ts, dort gleich halten) ----------
      • Gleiche Berichtsnummer mehrfach abgelegt → Datei mit Messwerten, dann endgültig vor vorläufig, sonst die neuere Datei
        (nur hier zählt das Dateidatum).
-     • Eurofins-Fassung = genau zwei Ziffern nach dem letzten Strich („AR-…-01“, „-02“). Je Probe/Parameter/Einheit innerhalb
-       derselben Grundnummer: endgültig vor vorläufig, dann die höhere Fassung – nie das Dateidatum.
-     • Verschiedene Grundnummern ersetzen einander nie: gleiche Probe/Parameter/Einheit in zwei Berichten = Konflikt, keiner zählt.
+     • Eurofins-Fassung = genau zwei Ziffern nach dem letzten Strich („AR-…-01“, „-02“). Je Probe/Parameter innerhalb derselben
+       Grundnummer: endgültig vor vorläufig, dann die höhere Fassung – nie das Dateidatum.
+     • Verschiedene Grundnummern ersetzen einander nie: gleiche Probe/Parameter in zwei Berichten = Konflikt, keiner zählt.
+     • Die Einheit gehört nicht zum Schlüssel (ab 1.3.1, Audit o41, wie ResultKit 2.5, Entscheidung 11.11.2026 Variante A): eine neue
+       Fassung in µg/cm² ersetzt die alte in mg/m², zwei Grundnummern in verschiedenen Einheiten sind ein Konflikt. Umgerechnet
+       wird nichts; vom geltenden Bericht bleiben alle Einheiten eines Parameters (Chlorid „µg/Probe“ und „µg/cm²“).
      • Auftragsreferenz nennt eine andere Projektnummer → der Bericht zählt nicht.
      Probe = Probennummer aus „Probe n“, sonst Probenreferenz, sonst Labornummer (wie ResultKit). */
   const kurz = s => tidy(s).toLocaleLowerCase('de').replace(/[^\p{L}\p{N}]/gu, '');
@@ -85,9 +88,9 @@
     const n = Number(m[1]); return Number.isSafeInteger(n) && n > 0 && n < 1e9 ? 'P' + n : '';
   }
   const probeKey = s => probeLabel(s.ref) || kurz(s.ref) || kurz(s.labNr);
-  /* Einheit vereinheitlicht im Schlüssel (Codex P2 auf #80): „μg / m2“ und „µg/m²“ sind dieselbe Messung – sonst bliebe eine ältere
-     Fassung neben der neueren stehen. ResultKit vergleicht hier tidy(u); bei Eurofins kommt beides nicht vor. */
-  const wertKey = (s, w) => probeKey(s) + '\u0000' + tidy(w.p) + '\u0000' + einheit(w.u);
+  /* Schlüssel ohne Einheit (ab 1.3.1, o41; 1.3 hatte die vereinheitlichte Einheit, Codex P2 auf #80): sonst bliebe eine ältere
+     Fassung in mg/m² neben der neueren in µg/cm² stehen. Gleich wie wkey in ResultKit src/ergebnisse.ts (dort gleich halten). */
+  const wertKey = (s, w) => probeKey(s) + '\u0000' + tidy(w.p);
   /** Grundnummer und Fassung (ResultKit berichtsFassung; die Eurofins-XML ist immer Eurofins). */
   function berichtsFassung(bericht){
     const t = tidy(bericht).replace(/[‐-―−]/g, '-').replace(/\s+/g, '').toUpperCase(), m = /^(.*[^-])-(\d{2})$/.exec(t);
@@ -124,12 +127,13 @@
     const kandidaten = new Map();
     for (const x of liste) if (!x.fremd) for (const pr of x.b.proben || []) for (const w of pr.werte || []){
       const k = wertKey(pr, w), l = kandidaten.get(k) || []; l.push({ x, pr, w }); kandidaten.set(k, l); }
-    const werte = new Map(), konfliktMap = new Map(), gilt = new Set();
+    // werte: je Messung (Schlüssel + vereinheitlichte Einheit) – vom geltenden Bericht bleiben alle Einheiten eines Parameters (ab 1.3.1)
+    const werte = new Map(), konfliktMap = new Map(), gilt = new Set(), mk = (k, c) => k + '\u0000' + einheit(c.w.u);
     for (const [k, l] of kandidaten){
       const jeGrund = new Map();
       for (const c of l){ const g = (c.x.fassung === null ? 'ohne:' : 'mit:') + c.x.grund, alt = jeGrund.get(g); if (!alt || besser(c.x, alt.x) > 0) jeGrund.set(g, c); }
       const g = [...jeGrund.values()];
-      if (g.length === 1){ const c = g[0]; werte.set(k, messung(c.x.b, c.pr, c.w, k)); gilt.add(c.x); continue; }
+      if (g.length === 1){ const x = g[0].x; for (const c of l) if (c.x === x && !werte.has(mk(k, c))) werte.set(mk(k, c), messung(c.x.b, c.pr, c.w, k)); gilt.add(x); continue; }
       const codes = g.map(c => tidy(c.x.b.bericht) || c.x.b.datei).sort((a, b) => a.localeCompare(b, 'de', { numeric: true })), id = codes.join('\u0000');
       const e = konfliktMap.get(id) || { berichte: codes, proben: [], n: 0, werte: [] }; const pk = k.split('\u0000')[0];
       if (!e.proben.includes(pk)) e.proben.push(pk); e.n += g.length; e.werte.push(...g.map(c => messung(c.x.b, c.pr, c.w, k))); konfliktMap.set(id, e);
@@ -147,7 +151,10 @@
     const m = new Map();
     for (const b of Array.isArray(datei && datei.berichte) ? datei.berichte : []) if (!(projektNr && projektnummer(b && b.auftragsreferenz) && projektnummer(b.auftragsreferenz) !== projektNr)) for (const pr of Array.isArray(b && b.proben) ? b.proben : [])
       for (const w of Array.isArray(pr && pr.werte) ? pr.werte : []){ if (!w || !tidy(w.p) || !tidy(w.r)) continue;
-        const k = wertKey(pr, w); m.set(k, { ...messung(b, pr, w, k), pdf: !(b.sources && b.sources.xml), pdfName: (b.sources && b.sources.pdf) || '' }); }
+        const k = wertKey(pr, w), x = { ...messung(b, pr, w, k), pdf: !(b.sources && b.sources.xml), pdfName: (b.sources && b.sources.pdf) || '' }, alt = m.get(k);
+        // ab 1.3.1 (o41): mehrere Werte je Schlüssel (Übernahme vor ResultKit 2.5 mit -01 neben -02 in anderer Einheit, oder ein
+        // Bericht mit „µg/Probe“ und „µg/cm²“) – alle behalten (alle[]), damit ein abweichender Wert genannt wird
+        if (alt) (alt.alle || (alt.alle = [alt])).push(x); else m.set(k, x); }
     return m;
   }
   /** Zusammenführen mit der ResultKit-Übernahme (ab 1.3, Audit o1, Entscheidung Basti 11.11.2026).
@@ -158,21 +165,27 @@
       • Nur in der Datei: zählt, wenn die Übernahme aktuell ist – oder der Wert aus einer PDF kam, die noch im Ordner liegt.
       • Nur in den Prüfberichten bei aktueller Übernahme: ResultKit hat ihn nicht übernommen (z. B. Probe in LabelKit storniert,
         XML in einem Unterordner) → zählt nicht, wird mitgezählt unter „nicht mitgezählt“.
-      → { messungen, unterschiede: [{ probe, p, u, eigen: {roh, bericht}, resultkit: {roh, bericht} }], nichtUebernommen: [Messung], quelle } */
+      → { messungen, unterschiede: [{ probe, p, u, eigen: {roh, bericht, u}, resultkit: {roh, bericht, u} }], nichtUebernommen: [Messung], quelle } */
   function mitErgebnisDatei(eigen, datei, aktuell, pdfDa, projektNr){
     const werte = [...eigen.werte.values()];
     if (!datei) return { messungen: listeMessungen(werte), unterschiede: [], nichtUebernommen: [], quelle: 'pruefberichte' };
     const rk = ergebnisWerte(datei, projektNr), out = [], unterschiede = [], nichtUebernommen = [], strittig = new Set();
     for (const k of eigen.konflikte.flatMap(x => x.werte.map(w => w.key))) strittig.add(k);
-    for (const x of werte){
-      const r = rk.get(x.key);
-      if (!r){ if (aktuell) nichtUebernommen.push(x); else out.push(x); continue; }
-      if (r.roh !== x.roh || r.vorlaeufig !== x.vorlaeufig)   // gleicher Wert aus einer anderen Fassung: ändert nichts, kein Hinweis
-        unterschiede.push({ probe: x.label || x.ref || x.probe, p: x.p, u: x.u, eigen: { roh: x.roh, bericht: x.bericht }, resultkit: { roh: r.roh, bericht: r.bericht } });
-      out.push(x);
+    // je Schlüssel (Probe + Parameter, ohne Einheit – ab 1.3.1, o41) auf beiden Seiten alle Werte vergleichen
+    const eigenJe = new Map(); for (const x of werte) eigenJe.set(x.key, [...(eigenJe.get(x.key) || []), x]);
+    const gleich = (a, b) => a.roh === b.roh && a.u === b.u && a.vorlaeufig === b.vorlaeufig;
+    for (const [k, xs] of eigenJe){
+      const r = rk.get(k);
+      if (!r){ if (aktuell) nichtUebernommen.push(...xs); else out.push(...xs); continue; }
+      // Gleicher Wert aus einer anderen Fassung ändert nichts (kein Hinweis). Ab 1.3.1 zählen auch Einheit (vereinheitlicht) und jeder
+      // Wert der Datei zu diesem Schlüssel (o41): eine alte Übernahme mit „-01“ neben „-02“ wird genannt.
+      const rs = r.alle || [r], fehlt = xs.find(x => !rs.some(y => gleich(x, y))), extra = rs.find(y => !xs.some(x => gleich(x, y)));
+      if (fehlt || extra){ const x = fehlt || xs.find(x => x.u === extra.u) || xs[0], y = extra || rs.find(y => y.u === x.u) || rs[0];
+        unterschiede.push({ probe: x.label || x.ref || x.probe, p: x.p, u: x.u, eigen: { roh: x.roh, bericht: x.bericht, u: x.u }, resultkit: { roh: y.roh, bericht: y.bericht, u: y.u } }); }
+      out.push(...xs);
     }
-    for (const [k, r] of rk){ if (eigen.werte.has(k) || strittig.has(k)) continue;
-      if (aktuell || (r.pdf && r.pdfName && pdfDa && pdfDa(r.pdfName))) out.push(r); }
+    for (const [k, r] of rk){ if (eigenJe.has(k) || strittig.has(k)) continue;
+      for (const y of r.alle || [r]) if (aktuell || (y.pdf && y.pdfName && pdfDa && pdfDa(y.pdfName))) out.push(y); }
     return { messungen: listeMessungen(out), unterschiede, nichtUebernommen, quelle: aktuell ? 'resultkit' : 'pruefberichte' };
   }
   /** Für die Statistik nutzbar: endgültig und gemessen oder unter BG / n. n. */
