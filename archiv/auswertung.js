@@ -2,7 +2,8 @@
    Grundsätze:
    • Nichts wird erfunden: keine Grenz- oder Orientierungswerte, keine Schwellen für Quotienten.
    • Werte unter BG / n. n. sind nie null, sondern „unter BG“ und zählen bei Rangstatistiken als kleinste Werte.
-   • Vorläufige Prüfberichte zählen nicht, sobald es für dieselbe Probe einen endgültigen gibt; sonst gekennzeichnet
+   • Welcher Prüfbericht gilt, entscheidet die Regel von ResultKit 2.2 (Fassung -01/-02, nie das Dateidatum; zwei Berichte für
+     dieselbe Probe und Berichte eines anderen Projekts zählen nicht). Vorläufige Werte ohne endgültigen sind gekennzeichnet
      und aus der Statistik ausgeschlossen.
    • Einheiten werden nicht umgerechnet: µg/m², µg/100 cm² und mg/kg bleiben getrennte Gruppen. */
 (function(root){
@@ -69,25 +70,108 @@
     return { nr: m[1] + '.' + m[2], jahr: (yy <= jetzt + 1 ? 2000 : 1900) + yy };
   }
 
-  /** Messwerte eines Projekts aus seinen gelesenen Prüfberichten.
-      berichte: [{ datei, geaendert (ms), bericht, vorlaeufig, proben: [{ labNr, ref, art, datum, werte: [{ p, r, u, loq }] }] }]
-      Gleicher Bericht mehrfach abgelegt → neueste Datei. Gleiche Probe/Parameter/Einheit in mehreren Berichten → endgültig vor
-      vorläufig, sonst der neuere. Vorläufige Werte einer Probe entfallen, sobald sie einen endgültigen Bericht hat. */
-  function projektMessungen(berichte){
-    const nachCode = new Map();
-    for (const b of berichte || []){ const k = b.bericht || b.datei; const alt = nachCode.get(k); if (!alt || (b.geaendert || 0) >= (alt.geaendert || 0)) nachCode.set(k, b); }
-    const sortiert = [...nachCode.values()].sort((a, b) => (a.vorlaeufig ? 0 : 1) - (b.vorlaeufig ? 0 : 1) || (a.geaendert || 0) - (b.geaendert || 0));
-    const m = new Map(), endgueltig = new Set();
-    for (const b of sortiert) for (const pr of b.proben || []){
-      const probe = tidy(pr.labNr) || tidy(pr.ref); if (!probe) continue;
-      if (!b.vorlaeufig) endgueltig.add(probe);
-      for (const w of pr.werte || []){
-        const p = tidy(w.p), u = einheit(w.u); if (!p) continue;
-        const e = ergebnis(w.r, w.loq), bg = zahl(w.loq);
-        m.set(probe + '\u0000' + p + '\u0000' + u, { probe, ref: tidy(pr.ref), desc: tidy(pr.desc), art: tidy(pr.art), datum: pr.datum || '', p, u, q: e.q, v: e.v, bg: Number.isFinite(bg) && bg >= 0 ? bg : null, roh: tidy(w.r), bericht: b.bericht || '', vorlaeufig: !!b.vorlaeufig });
-      }
+  /* ---------- Welcher Prüfbericht gilt (ab 1.3, Audit o1) – Regel wie ResultKit 2.2 (src/ergebnisse.ts, dort gleich halten) ----------
+     • Gleiche Berichtsnummer mehrfach abgelegt → Datei mit Messwerten, dann endgültig vor vorläufig, sonst die neuere Datei
+       (nur hier zählt das Dateidatum).
+     • Eurofins-Fassung = genau zwei Ziffern nach dem letzten Strich („AR-…-01“, „-02“). Je Probe/Parameter/Einheit innerhalb
+       derselben Grundnummer: endgültig vor vorläufig, dann die höhere Fassung – nie das Dateidatum.
+     • Verschiedene Grundnummern ersetzen einander nie: gleiche Probe/Parameter/Einheit in zwei Berichten = Konflikt, keiner zählt.
+     • Auftragsreferenz nennt eine andere Projektnummer → der Bericht zählt nicht.
+     Probe = Probennummer aus „Probe n“, sonst Probenreferenz, sonst Labornummer (wie ResultKit). */
+  const kurz = s => tidy(s).toLocaleLowerCase('de').replace(/[^\p{L}\p{N}]/gu, '');
+  /** „Probe 3“ / „P3“ / „26.0142-3“ → „P3“, sonst '' (ResultKit referenceLabel). */
+  function probeLabel(ref){
+    const s = tidy(ref), m = s.match(/^(?:Probe|P)\s*(\d+)$/i) || s.match(/^\d{2}\.\d{3,5}\s*-\s*(\d+)$/); if (!m) return '';
+    const n = Number(m[1]); return Number.isSafeInteger(n) && n > 0 && n < 1e9 ? 'P' + n : '';
+  }
+  const probeKey = s => probeLabel(s.ref) || kurz(s.ref) || kurz(s.labNr);
+  const wertKey = (s, w) => probeKey(s) + '\u0000' + tidy(w.p) + '\u0000' + tidy(w.u);
+  /** Grundnummer und Fassung (ResultKit berichtsFassung; die Eurofins-XML ist immer Eurofins). */
+  function berichtsFassung(bericht){
+    const t = tidy(bericht).replace(/[‐-―−]/g, '-').replace(/\s+/g, '').toUpperCase(), m = /^(.*[^-])-(\d{2})$/.exec(t);
+    return m ? { grund: m[1], fassung: Number(m[2]) } : { grund: t, fassung: null };
+  }
+  /** Projektnummer „26.0142“ aus einer Auftragsreferenz (wie ResultKit). */
+  const projektnummer = s => (String(s || '').match(/\b\d{2}\.\d{3,6}\b/) || [''])[0];
+
+  /** Ein Messwert wie in der Auswertung (probe = Labornummer, sonst Referenz – Schlüssel der Rollen-Korrekturen). */
+  function messung(b, pr, w, key){
+    const e = ergebnis(w.r, w.loq), bg = zahl(w.loq);
+    return { key, probe: tidy(pr.labNr) || tidy(pr.ref), label: probeLabel(pr.ref), ref: tidy(pr.ref), desc: tidy(pr.desc), art: tidy(pr.art), datum: pr.datum || '', p: tidy(w.p), u: einheit(w.u),
+      q: e.q, v: e.v, bg: Number.isFinite(bg) && bg >= 0 ? bg : null, roh: tidy(w.r), bericht: tidy(b.bericht), vorlaeufig: !!b.vorlaeufig };
+  }
+  const listeMessungen = werte => { const m = new Map(); for (const x of werte) m.set(x.probe + '\u0000' + x.p + '\u0000' + x.u, x); return [...m.values()]; };
+
+  /** Prüfberichte eines Projekts zusammenführen.
+      berichte: [{ datei, geaendert (ms), bericht, vorlaeufig, auftragsreferenz, proben: [{ labNr, ref, desc, art, datum, werte: [{ p, r, u, loq }] }] }]
+      projektNr: „26.0142“ (aus dem Ordnernamen) – ohne Nummer keine Prüfung der Auftragsreferenz.
+      → { werte: geltende Messwerte (Map key → Messung), konflikte: [{ berichte, proben, n }], fremd: [{ bericht, nr, ref, n }], ersetzt: [Berichtsnummern] } */
+  function projektAuswerten(berichte, projektNr){
+    const mitWerten = b => (b.proben || []).some(pr => (pr.werte || []).length), nachCode = new Map();
+    for (const b of berichte || []){
+      const k = tidy(b.bericht) ? 'b:' + kurz(b.bericht) : 'd:' + b.datei, alt = nachCode.get(k);
+      if (!alt){ nachCode.set(k, b); continue; }
+      const neuGilt = mitWerten(b) !== mitWerten(alt) ? mitWerten(b) : !b.vorlaeufig !== !alt.vorlaeufig ? !b.vorlaeufig : (b.geaendert || 0) >= (alt.geaendert || 0);
+      if (neuGilt) nachCode.set(k, b);
     }
-    return [...m.values()].filter(x => !(x.vorlaeufig && endgueltig.has(x.probe)));
+    const liste = [...nachCode.values()].map(b => ({ b, ...(tidy(b.bericht) ? berichtsFassung(b.bericht) : { grund: '?' + b.datei, fassung: null }) }));
+    const fremd = [];
+    for (const x of liste){ const nr = projektnummer(x.b.auftragsreferenz); if (projektNr && nr && nr !== projektNr){ x.fremd = nr;
+      fremd.push({ bericht: tidy(x.b.bericht) || x.b.datei, nr, ref: tidy(x.b.auftragsreferenz), n: (x.b.proben || []).reduce((s, pr) => s + (pr.werte || []).length, 0) }); } }
+    const besser = (a, b) => (a.b.vorlaeufig ? 0 : 1) - (b.b.vorlaeufig ? 0 : 1) || (a.fassung ?? -1) - (b.fassung ?? -1) || (a.b.geaendert || 0) - (b.b.geaendert || 0);
+    const kandidaten = new Map();
+    for (const x of liste) if (!x.fremd) for (const pr of x.b.proben || []) for (const w of pr.werte || []){
+      const k = wertKey(pr, w), l = kandidaten.get(k) || []; l.push({ x, pr, w }); kandidaten.set(k, l); }
+    const werte = new Map(), konfliktMap = new Map(), gilt = new Set();
+    for (const [k, l] of kandidaten){
+      const jeGrund = new Map();
+      for (const c of l){ const g = (c.x.fassung === null ? 'ohne:' : 'mit:') + c.x.grund, alt = jeGrund.get(g); if (!alt || besser(c.x, alt.x) > 0) jeGrund.set(g, c); }
+      const g = [...jeGrund.values()];
+      if (g.length === 1){ const c = g[0]; werte.set(k, messung(c.x.b, c.pr, c.w, k)); gilt.add(c.x); continue; }
+      const codes = g.map(c => tidy(c.x.b.bericht) || c.x.b.datei).sort((a, b) => a.localeCompare(b, 'de', { numeric: true })), id = codes.join('\u0000');
+      const e = konfliktMap.get(id) || { berichte: codes, proben: [], n: 0, werte: [] }; const pk = k.split('\u0000')[0];
+      if (!e.proben.includes(pk)) e.proben.push(pk); e.n += g.length; e.werte.push(...g.map(c => messung(c.x.b, c.pr, c.w, k))); konfliktMap.set(id, e);
+    }
+    const konflikte = [...konfliktMap.values()].map(k => ({ ...k, proben: k.proben.map(p => /^p\d+$/i.test(p) ? p.toUpperCase() : p).sort((a, b) => a.localeCompare(b, 'de', { numeric: true })) }));
+    const ersetzt = liste.filter(x => !x.fremd && mitWerten(x.b) && !gilt.has(x) && !konflikte.some(k => k.berichte.includes(tidy(x.b.bericht) || x.b.datei))).map(x => tidy(x.b.bericht) || x.b.datei);
+    return { werte, konflikte, fremd, ersetzt };
+  }
+  /** Geltende Messwerte (vorläufige ohne endgültigen bleiben, gekennzeichnet). Zwei Berichte für dieselbe Probe und Berichte eines
+      anderen Projekts zählen nicht (siehe projektAuswerten). */
+  const projektMessungen = (berichte, projektNr) => listeMessungen(projektAuswerten(berichte, projektNr).werte.values());
+
+  /** Werte aus ResultKits „_Ergebnisse.json“ (berichte[].proben[].werte) als Map key → Messung. pdf: Bericht ohne XML (nur aus der PDF gelesen). */
+  function ergebnisWerte(datei, projektNr){
+    const m = new Map();
+    for (const b of Array.isArray(datei && datei.berichte) ? datei.berichte : []) if (!(projektNr && projektnummer(b && b.auftragsreferenz) && projektnummer(b.auftragsreferenz) !== projektNr)) for (const pr of Array.isArray(b && b.proben) ? b.proben : [])
+      for (const w of Array.isArray(pr && pr.werte) ? pr.werte : []){ if (!w || !tidy(w.p) || !tidy(w.r)) continue;
+        const k = wertKey(pr, w); m.set(k, { ...messung(b, pr, w, k), pdf: !(b.sources && b.sources.xml), pdfName: (b.sources && b.sources.pdf) || '' }); }
+    return m;
+  }
+  /** Zusammenführen mit der ResultKit-Übernahme (ab 1.3, Audit o1, Entscheidung Basti 11.11.2026).
+      eigen = projektAuswerten(…); datei = gelesene _Ergebnisse.json oder null; aktuell = ihr Dateistand passt zum Ordner;
+      pdfDa(name) = liegt diese PDF (Dateiname aus der Datei) noch in „Laborergebnisse“? projektNr: Werte eines Berichts, dessen
+      Auftragsreferenz ein anderes Projekt nennt, zählen auch aus der Datei nie (Übernahme vor ResultKit 2.2).
+      • Gleicher Schlüssel, anderer Wert → es zählt der Wert aus den Prüfberichten; der Unterschied wird genannt.
+      • Nur in der Datei: zählt, wenn die Übernahme aktuell ist – oder der Wert aus einer PDF kam, die noch im Ordner liegt.
+      • Nur in den Prüfberichten bei aktueller Übernahme: ResultKit hat ihn nicht übernommen (z. B. Probe in LabelKit storniert,
+        XML in einem Unterordner) → zählt nicht, wird mitgezählt unter „nicht mitgezählt“.
+      → { messungen, unterschiede: [{ probe, p, u, eigen: {roh, bericht}, resultkit: {roh, bericht} }], nichtUebernommen: [Messung], quelle } */
+  function mitErgebnisDatei(eigen, datei, aktuell, pdfDa, projektNr){
+    const werte = [...eigen.werte.values()];
+    if (!datei) return { messungen: listeMessungen(werte), unterschiede: [], nichtUebernommen: [], quelle: 'pruefberichte' };
+    const rk = ergebnisWerte(datei, projektNr), out = [], unterschiede = [], nichtUebernommen = [], strittig = new Set();
+    for (const k of eigen.konflikte.flatMap(x => x.werte.map(w => w.key))) strittig.add(k);
+    for (const x of werte){
+      const r = rk.get(x.key);
+      if (!r){ if (aktuell) nichtUebernommen.push(x); else out.push(x); continue; }
+      if (r.roh !== x.roh || r.vorlaeufig !== x.vorlaeufig)   // gleicher Wert aus einer anderen Fassung: ändert nichts, kein Hinweis
+        unterschiede.push({ probe: x.label || x.ref || x.probe, p: x.p, u: x.u, eigen: { roh: x.roh, bericht: x.bericht }, resultkit: { roh: r.roh, bericht: r.bericht } });
+      out.push(x);
+    }
+    for (const [k, r] of rk){ if (eigen.werte.has(k) || strittig.has(k)) continue;
+      if (aktuell || (r.pdf && r.pdfName && pdfDa && pdfDa(r.pdfName))) out.push(r); }
+    return { messungen: listeMessungen(out), unterschiede, nichtUebernommen, quelle: aktuell ? 'resultkit' : 'pruefberichte' };
   }
   /** Für die Statistik nutzbar: endgültig und gemessen oder unter BG / n. n. */
   const zaehlt = x => !x.vorlaeufig && (x.q === 'gemessen' || x.q === 'unter' || x.q === 'nn');
@@ -182,6 +266,26 @@
     return vs[0].map((_, i) => { const xs = vs.map(v => v[i]).sort((a, b) => a - b), h = xs.length >> 1; return xs.length % 2 ? xs[h] : (xs[h - 1] + xs[h]) / 2; });
   }
 
+
+  /** Dateistand wie ResultKit (standKennung): „Name|Größe|Zeit“ je Datei, nach Namen sortiert. */
+  const standKennung = dateien => [...dateien].sort((a, b) => a.name.localeCompare(b.name)).map(d => `${d.name}|${d.size}|${d.t}`).join('\n');
+  /** Rollenwahl aus BerichtKits „_BerichtKit.json“ (form.brand.rolle[Label] = { auto, wahl }, Audit M4/o6) – nur gültige Einträge. */
+  function berichtkitRollen(o){
+    if (!o || !o.form || !o.form.brand || typeof o.form.brand !== 'object') return null;   // kein Brandbericht: BerichtKit nimmt keine Rollen an
+    const r = typeof o.form.brand.rolle === 'object' && o.form.brand.rolle ? o.form.brand.rolle : {}, out = {};
+    for (const [k, v] of Object.entries(r)) if (/^P\d+$/.test(k) && v && ['frei', 'referenz'].includes(v.auto) && ['ok', 'keine'].includes(v.wahl)) out[k] = { auto: v.auto, wahl: v.wahl };
+    return out;
+  }
+  /** Rolle einer Probe im Datenarchiv (ab 1.3): eigene Korrektur hier → „Normale Probe“ aus BerichtKit (nur solange die Regel dieselbe
+      Rolle annimmt wie damals in BerichtKit) → Konvention aus dem Namen. → { rolle, auto, bk: 'keine'|'ok'|'', korrektur } */
+  function rolleWirksam(x, korrektur, bkRollen){
+    const auto = rolleAuto(x.ref, x.desc), w = bkRollen && bkRollen[probeLabel(x.ref)], bk = w && w.auto === auto ? w.wahl : '';
+    if (korrektur) return { rolle: korrektur === 'keine' ? '' : korrektur, auto, bk, korrektur };
+    return { rolle: bk === 'keine' ? '' : auto, auto, bk, korrektur: '' };
+  }
+  /** Sicht von BerichtKit (Brandbericht) auf eine Probe: nur Freimessung, Referenz oder normal. */
+  const bkSicht = rolle => rolle === 'frei' || rolle === 'referenz' ? rolle : 'normal';
+
   /** Semikolon-CSV mit Dezimalkomma für Excel. Keine Ortsangaben, keine Probenbeschreibung – nur Projektnummer. */
   function csv(zeilen){
     const zelle = v => { const s = v == null ? '' : typeof v === 'number' ? String(v).replace('.', ',') : String(v); return /[;"\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
@@ -191,8 +295,8 @@
       .map(r => r.map(zelle).join(';')).join('\r\n') + '\r\n';
   }
 
-  const api = Object.freeze({ zahl, ergebnis, einheit, PAK16, pakIndex, QUOTIENTEN, QUELLE, MIN_N, projektKopf, projektMessungen, zaehlt, unterBG, statistik, parameterListe, profile, medianProfil, csv, norm, tidy,
-    ROLLEN, ROLLE_NAME, rolleAuto, freiBasis, berlinTag, tageNachBrand, tageKlasse, gemeinsam, aufMenge, kosinus, medianVektor });
+  const api = Object.freeze({ zahl, ergebnis, einheit, PAK16, pakIndex, QUOTIENTEN, QUELLE, MIN_N, projektKopf, projektMessungen, projektAuswerten, ergebnisWerte, mitErgebnisDatei, berichtsFassung, probeLabel, zaehlt, unterBG, statistik, parameterListe, profile, medianProfil, csv, norm, tidy,
+    ROLLEN, ROLLE_NAME, rolleAuto, rolleWirksam, bkSicht, berichtkitRollen, standKennung, freiBasis, berlinTag, tageNachBrand, tageKlasse, gemeinsam, aufMenge, kosinus, medianVektor });
   root.ArchivAuswertung = api;
   if (typeof module !== 'undefined') module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

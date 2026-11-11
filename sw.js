@@ -8,7 +8,7 @@
    This worker therefore only ever touches caches with its own prefix and only answers requests inside its own scope. */
 const SCOPE = self.registration.scope;
 const PREFIX = 'projektzentrale:' + SCOPE + ':';
-const CACHE = PREFIX + 'v37';
+const CACHE = PREFIX + 'v38';
 const LEGACY = [];
 const ASSETS = ['./', './index.html', './spektron-ordner.js', './spektron-umzug.js', './project-store.js', './durchlauf.js', './buero-aufgaben.js', './stufen.js', './word-luecken.js', './word-wahl.js', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png',
   './buero/', './buero/index.html',   // nur noch Weiterleitung zu BüroKit

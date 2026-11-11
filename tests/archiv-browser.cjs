@@ -26,7 +26,7 @@ const PROJEKTE = [
     { 'AR-1.xml': xml('AR-1', P(4, 1).map((p, i) => ({ ...p, desc: ['Brandraum Küche Decke', 'Flur Wand', 'Wohnzimmer Wand', 'Referenz OG unbelastet'][i] }))) }],   // Probenahme 08.10. = 7 Tage nach Brand
   ['26.0102 Beispielstadt Abc', { nutzung: 'Wohnen', brandgut: 'Küche/Lebensmittel' }, { 'AR-2.xml': xml('AR-2', [...P(3, 2), { nr: 'F-P1', f: 0.1, desc: 'Wohnzimmer nach Reinigung' }]), 'AR-2.pdf': '%PDF' }],   // F-P1 = Freimessung zu P1
   ['25.0103 Testheim Dr. Te', { nutzung: 'Gewerbe/Industrie', brandgut: 'Kunststoffe/PVC' }, { 'alt/AR-3.xml': xml('AR-3', P(3, 10)) }],
-  ['25.0104 Vorort Abc', { nutzung: 'Büro' }, { 'AR-4v.xml': xml('AR-4v', [{ nr: 'P1', f: 50 }], { vorlaeufig: true, lab: 'AR-4' }), 'AR-4.xml': xml('AR-4', [{ nr: 'P1', f: 3 }]) }],
+  ['25.0104 Vorort Abc', { nutzung: 'Büro' }, { 'AR-4v.xml': xml('AR-4-01', [{ nr: 'P1', f: 50 }], { vorlaeufig: true, lab: 'AR-4' }), 'AR-4.xml': xml('AR-4-02', [{ nr: 'P1', f: 3 }], { lab: 'AR-4' }) }],
   ['24.0105 Ohnedaten', null, { 'AR-5.xml': xml('AR-5', [{ nr: 'P1', f: 1, art: 'Material' }, { nr: 'P2', f: 2, art: 'Material' }], { einheit: 'mg/kg TS' }) }],
   ['24.0106 Nurpdf', { nutzung: 'Wohnen' }, { 'bericht.pdf': '%PDF' }],
 ];
@@ -157,7 +157,7 @@ const PROJEKTE = [
     const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#csv')]);
     const csv = fs.readFileSync(await dl.path(), 'utf8');
     assert.ok(csv.startsWith('﻿Projekt;Jahr;Nutzung;Brandgut;'));
-    assert.ok(csv.includes('25.0104;2025;Büro;Elektro/Geräte;AR-4-1;;;Wischprobe;Benzo[a]pyren;µg/m²;39;39;;0,5;AR-4;'));
+    assert.ok(csv.includes('25.0104;2025;Büro;Elektro/Geräte;AR-4-1;;;Wischprobe;Benzo[a]pyren;µg/m²;39;39;;0,5;AR-4-02;'));
     assert.ok(csv.includes('26.0101;2026;Wohnen;Küche/Lebensmittel;AR-1-1;Brandbereich;7;Wischprobe;Benzo[a]pyren;'), 'Rolle und Tage nach Brand');
     assert.ok(csv.includes('26.0101;2026;Wohnen;Küche/Lebensmittel;AR-1-2;betroffener Bereich;7;'), 'korrigierte Rolle');
     assert.ok(!csv.includes('Wohnzimmer') && !csv.includes('Brandraum Küche'), 'keine Probenbeschreibung im Export');
