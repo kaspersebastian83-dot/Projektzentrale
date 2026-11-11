@@ -85,7 +85,9 @@
     const n = Number(m[1]); return Number.isSafeInteger(n) && n > 0 && n < 1e9 ? 'P' + n : '';
   }
   const probeKey = s => probeLabel(s.ref) || kurz(s.ref) || kurz(s.labNr);
-  const wertKey = (s, w) => probeKey(s) + '\u0000' + tidy(w.p) + '\u0000' + tidy(w.u);
+  /* Einheit vereinheitlicht im Schlüssel (Codex P2 auf #80): „μg / m2“ und „µg/m²“ sind dieselbe Messung – sonst bliebe eine ältere
+     Fassung neben der neueren stehen. ResultKit vergleicht hier tidy(u); bei Eurofins kommt beides nicht vor. */
+  const wertKey = (s, w) => probeKey(s) + '\u0000' + tidy(w.p) + '\u0000' + einheit(w.u);
   /** Grundnummer und Fassung (ResultKit berichtsFassung; die Eurofins-XML ist immer Eurofins). */
   function berichtsFassung(bericht){
     const t = tidy(bericht).replace(/[‐-―−]/g, '-').replace(/\s+/g, '').toUpperCase(), m = /^(.*[^-])-(\d{2})$/.exec(t);
