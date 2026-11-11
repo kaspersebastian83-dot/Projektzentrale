@@ -75,12 +75,51 @@ function uebersicht(){
       <div class="kachel"><b>${S.projekte.reduce((s, p) => s + p.berichte, 0).toLocaleString('de-DE')}</b><span>Prüfberichte (XML)</span></div>
       <div class="kachel"><b>${proben.size.toLocaleString('de-DE')}</b><span>Proben</span></div>
       <div class="kachel"><b>${zaehlen.length.toLocaleString('de-DE')}</b><span>Messwerte in der Statistik</span></div></div>
+    ${quelleZeile()}${ausgelassenZeile()}
     ${nurPdf || vorl || S.tagsFehler ? `<p class="hinweis">${nurPdf ? `${nurPdf} Projekte haben nur PDF-Berichte – in Version 1 noch nicht gelesen. ` : ''}${vorl ? `${vorl} Werte stammen aus vorläufigen Berichten ohne endgültigen – sie zählen nicht. ` : ''}${S.tagsFehler ? esc(S.tagsFehler) : ''}</p>` : ''}
     <div class="zwei"><div><h2>Häufigste Parameter</h2><table><thead><tr><th>Parameter</th><th>Einheit</th><th class="z">Werte</th><th class="z">Projekte</th></tr></thead><tbody>
       ${liste.map(x => `<tr class="klick" data-key="${esc(x.key)}" tabindex="0" title="Im Vergleich öffnen"><td>${esc(x.p)}</td><td>${esc(x.u)}</td><td class="z">${x.n.toLocaleString('de-DE')}</td><td class="z">${projJeParam.get(x.key).size}</td></tr>`).join('')}</tbody></table></div>
     <div><h2>Je Jahr</h2><table><thead><tr><th>Jahr</th><th class="z">Projekte</th><th class="z">Messwerte</th></tr></thead><tbody>
-      ${[...jahre].sort((a, b) => b[0] - a[0]).map(([j, v]) => `<tr><td>${j}</td><td class="z">${v.p}</td><td class="z">${v.w.toLocaleString('de-DE')}</td></tr>`).join('')}</tbody></table></div></div>`;
+      ${[...jahre].sort((a, b) => b[0] - a[0]).map(([j, v]) => `<tr><td>${j}</td><td class="z">${v.p}</td><td class="z">${v.w.toLocaleString('de-DE')}</td></tr>`).join('')}</tbody></table></div></div>
+    ${zuPruefen()}`;
   $('ansicht').querySelectorAll('[data-key]').forEach(tr => { const go = () => { S.v.key = tr.dataset.key; S.v.hervor = ''; S.reiter = 'vergleich'; zeichnen(); }; tr.onclick = go; tr.onkeydown = e => { if (e.key === 'Enter') go(); }; });
+}
+
+/* ---------- Herkunft, nicht mitgezählte Werte, Hinweise je Projekt (ab 1.3, Audit o1/o6) ---------- */
+const zahlDe = n => n.toLocaleString('de-DE');
+const werteText = n => n === 1 ? '1 Wert' : zahlDe(n) + ' Werte';
+const ausgelassen = p => (p.konflikte || []).reduce((s, k) => s + k.n, 0) + (p.fremd || []).reduce((s, f) => s + f.n, 0) + (p.nichtUebernommen || 0);
+function quelleZeile(){
+  const rk = S.projekte.filter(p => p.quelle === 'resultkit').length, selbst = S.projekte.filter(p => p.quelle !== 'resultkit' && p.berichte).length;
+  return `<p class="hinweis">Quelle: ${zahlDe(rk)} ${rk === 1 ? 'Projekt' : 'Projekte'} aus ResultKit (_Ergebnisse.json), ${zahlDe(selbst)} aus den Prüfberichten selbst ausgewertet.</p>`;
+}
+function ausgelassenZeile(){
+  const ps = S.projekte.filter(p => ausgelassen(p)), n = ps.reduce((s, p) => s + ausgelassen(p), 0);
+  if (!n) return '';
+  return `<p class="meldung" id="ausgelassen"><b>Nicht mitgezählt: ${werteText(n)} in ${zahlDe(ps.length)} ${ps.length === 1 ? 'Projekt' : 'Projekten'}</b> – zwei Prüfberichte für dieselben Proben, Prüfbericht eines anderen Projekts oder nicht in der ResultKit-Übernahme. Alle Zahlen auf dieser Seite sind ohne diese Werte, also kleiner als der Bestand im Ordner. Einzelheiten unter „Zu prüfen“.</p>`;
+}
+/** Hinweise eines Projekts – Texte für „Zu prüfen“. */
+function hinweiseVon(p){
+  const h = [];
+  if (p.ergFehler) h.push(p.ergFehler);
+  for (const k of p.konflikte || []) h.push(`Zwei Prüfberichte für dieselben Proben: ${k.berichte.join(' und ')} (${k.proben.join(', ')}) – verschiedene Berichte, keine neue Fassung. Diese ${werteText(k.n)} zählen hier nicht, bis eine der Dateien aus „Laborergebnisse“ genommen ist.`);
+  for (const f of p.fremd || []) h.push(`Prüfbericht ${f.bericht} nennt in der Auftragsreferenz Projekt ${f.nr} – seine ${werteText(f.n)} zählen hier nicht.`);
+  if (p.nichtUebernommen) h.push(`${werteText(p.nichtUebernommen)} aus den Prüfberichten ${p.nichtUebernommen === 1 ? 'steht' : 'stehen'} nicht in der ResultKit-Übernahme (z. B. Probe in LabelKit storniert oder Bericht in einem Unterordner von „Laborergebnisse“) – ${p.nichtUebernommen === 1 ? 'zählt' : 'zählen'} hier nicht.`);
+  const u = p.unterschiede || [];
+  if (u.length){
+    const eins = x => `„${x.eigen.roh}“ aus ${x.eigen.bericht} (${x.probe}, ${x.p}${x.u ? ', ' + x.u : ''}); in ResultKit steht noch „${x.resultkit.roh}“${x.resultkit.bericht !== x.eigen.bericht ? ' (' + x.resultkit.bericht + ')' : ''}`;   // Unterschied im Wert, nie Null
+    h.push(`Das Datenarchiv zählt ${u.slice(0, 3).map(eins).join(' · ')}${u.length > 3 ? ` – und ${u.length - 3} weitere` : ''}. Ein Klick auf „Erneut übernehmen“ in ResultKit macht beide gleich.`);
+  }
+  if (p.bkFehler) h.push(p.bkFehler);
+  const proben = [...new Map((p.messungen || []).map(x => [x.probe, x])).values()];
+  for (const x of proben){ const t = rollenAbweichung(p, x); if (t) h.push(t); }
+  return h;
+}
+function zuPruefen(){
+  const zeilen = S.projekte.map(p => [p, hinweiseVon(p)]).filter(([, h]) => h.length);
+  if (!zeilen.length) return '';
+  return `<h2 class="abstand">Zu prüfen (${zeilen.length} ${zeilen.length === 1 ? 'Projekt' : 'Projekte'})</h2><table id="zuPruefen"><thead><tr><th>Projekt</th><th>Hinweis</th></tr></thead><tbody>
+    ${zeilen.flatMap(([p, h]) => h.map((t, i) => `<tr>${i ? '<td></td>' : `<td rowspan="1"><b>${esc(p.nr)}</b><br><span class="aus-pj">${esc(p.name.slice(p.nr.length).trim())}</span></td>`}<td>${esc(t)}</td></tr>`)).join('')}</tbody></table>`;
 }
 
 /* ---------- Vergleich ---------- */
@@ -209,12 +248,27 @@ function muster(){
   const a = [0xF3, 0xF7, 0xFB], b = [0x24, 0x5C, 0x9E];
   $('ansicht').querySelectorAll('td[data-t]').forEach(td => { const t = Math.min(1, Number(td.dataset.t) / .3); td.style.background = `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * t)).join(',')})`; if (t > .55) td.style.color = '#fff'; });
 }
-/** Rolle einer Probe: eigene Korrektur im Archiv vor der Konvention aus Probenbezeichnung/-beschreibung. 'keine' = bewusst ohne Rolle. */
-function rolleVon(p, x){ const k = ((S.tags[p.name] || {}).rollen || {})[x.probe]; return k === 'keine' ? '' : k || A.rolleAuto(x.ref, x.desc); }
+/** Rolle einer Probe (ab 1.3): eigene Korrektur im Archiv → „Normale Probe“ aus BerichtKit → Konvention aus Probenbezeichnung/-beschreibung.
+    'keine' = bewusst ohne Rolle. */
+const korrekturVon = (p, x) => ((S.tags[p.name] || {}).rollen || {})[x.probe] || '';
+const wirksamVon = (p, x) => A.rolleWirksam(x, korrekturVon(p, x), p.bkRollen);
+function rolleVon(p, x){ return wirksamVon(p, x).rolle; }
+/** Wisch-/Flächenprobe – nur für solche nimmt BerichtKit im Brandbericht Rollen an. */
+const wischVon = (p, x) => /wisch/i.test(x.art || '') || p.messungen.some(m => m.probe === x.probe && /\/(m²|cm²|100 cm²)$/.test(m.u));
+/** Abweichung BerichtKit ↔ Datenarchiv (Audit o6): nur mit einer eigenen Korrektur hier, nur in Brandberichtsprojekten und nur für
+    Wischproben. BerichtKit sieht Korrekturen des Datenarchivs nicht. → Text oder '' */
+function rollenAbweichung(p, x){
+  const w = wirksamVon(p, x); if (!w.korrektur || !p.bkRollen || !wischVon(p, x)) return '';
+  const bk = w.bk === 'keine' ? 'normal' : A.bkSicht(w.auto), hier = A.bkSicht(w.rolle);
+  if (bk === hier) return '';
+  const name = r => ({ normal: 'normale Probe', frei: 'Freimessung', referenz: 'Referenzprobe' })[r];   // Namen wie in BerichtKit
+  return `${x.label ? 'Probe ' + x.label.slice(1) : (x.ref || x.probe)}: BerichtKit „${name(bk)}“${w.bk === 'keine' ? ' (Wahl in BerichtKit)' : ''}, Datenarchiv „${A.ROLLE_NAME[w.rolle] || 'keine Rolle'}“ (Korrektur hier). Hier gilt die Korrektur; BerichtKit sieht sie nicht.`;
+}
 function rolleWahl(p, x){
-  const k = ((S.tags[p.name] || {}).rollen || {})[x.probe] || '', auto = A.rolleAuto(x.ref, x.desc);
-  return `<select class="rolle" data-rprojekt="${esc(p.name)}" data-rprobe="${esc(x.probe)}" title="Automatisch aus der Probenbezeichnung: ${esc(A.ROLLE_NAME[auto] || 'keine')}">
-    <option value="">${esc('automatisch: ' + (A.ROLLE_NAME[auto] || 'keine'))}</option>${A.ROLLEN.map(([v, t]) => `<option value="${v}" ${k === v ? 'selected' : ''}>${esc(t)}</option>`).join('')}<option value="keine" ${k === 'keine' ? 'selected' : ''}>bewusst keine Rolle</option></select>`;
+  const w = wirksamVon(p, x), k = w.korrektur, auto = w.auto;
+  const std = w.bk === 'keine' ? 'wie BerichtKit: keine Rolle' : 'automatisch: ' + (A.ROLLE_NAME[auto] || 'keine');
+  return `<select class="rolle" data-rprojekt="${esc(p.name)}" data-rprobe="${esc(x.probe)}" title="Automatisch aus der Probenbezeichnung: ${esc(A.ROLLE_NAME[auto] || 'keine')}${w.bk === 'keine' ? ' – in BerichtKit als normale Probe gewählt' : ''}">
+    <option value="">${esc(std)}</option>${A.ROLLEN.map(([v, t]) => `<option value="${v}" ${k === v ? 'selected' : ''}>${esc(t)}</option>`).join('')}<option value="keine" ${k === 'keine' ? 'selected' : ''}>bewusst keine Rolle</option></select>`;
 }
 function rollenAnbinden(){
   $('ansicht').querySelectorAll('select.rolle').forEach(sel => sel.onchange = async () => {
@@ -242,9 +296,15 @@ function zuordnen(){
     const proben = [...new Map(pz.messungen.map(x => [x.probe, x])).values()];
     $('ansicht').insertAdjacentHTML('beforeend', `<h2 class="abstand">Rollen der Proben</h2>
       <p class="hinweis">Automatisch aus Probenbezeichnung und -beschreibung: „Brandraum“, „Brandbereich“, „Brandherd“ → Brandbereich · „REF“, „Referenz“, „unbelastet“ → Referenz · „Kleber“, „Teer“, „Bitumen“ → Verdachtsquelle · „F-“ vor der alten ID, „Freimessung“ → Freimessung. Eine Korrektur hier gilt vor der Konvention und steht nur in <code>${L.TAGS}</code>.</p>
+      <p class="hinweis">Eine „Normale Probe“ aus BerichtKit gilt hier auch, solange hier keine eigene Korrektur steht. Eine Korrektur hier sieht BerichtKit nicht.</p>
       <div class="filter"><label class="feld">Projekt${auswahl('zP', S.z.projekt, mitWerten.map(p => [p.name, p.name]))}</label></div>
-      <table><thead><tr><th>Probe</th><th>Beschreibung (Labor)</th><th>Matrix</th><th>Probenahme</th><th>Rolle</th></tr></thead><tbody>
-      ${proben.map(x => `<tr><td>${esc(x.ref || x.probe)}</td><td>${esc(x.desc) || '<span class="aus-pj">–</span>'}</td><td>${esc(x.art)}</td><td>${x.datum ? new Date(x.datum + 'T12:00:00').toLocaleDateString('de-DE') : '–'}${A.tageNachBrand(pz.schadendatum, x.datum) != null ? ' <span class="aus-pj">(' + A.tageNachBrand(pz.schadendatum, x.datum) + ' Tage nach Brand)</span>' : ''}</td><td>${rolleWahl(pz, x)}</td></tr>`).join('')}</tbody></table>`);
+      ${pz.bkFehler ? `<div class="meldung">${esc(pz.bkFehler)}</div>` : ''}
+      <table><thead><tr><th>Probe</th><th>Beschreibung (Labor)</th><th>Matrix</th><th>Probenahme</th><th>Rolle</th><th>BerichtKit</th></tr></thead><tbody>
+      ${proben.map(x => { const w = wirksamVon(pz, x), ab = rollenAbweichung(pz, x);
+        return `<tr><td>${esc(x.ref || x.probe)}</td><td>${esc(x.desc) || '<span class="aus-pj">–</span>'}</td><td>${esc(x.art)}</td><td>${x.datum ? new Date(x.datum + 'T12:00:00').toLocaleDateString('de-DE') : '–'}${A.tageNachBrand(pz.schadendatum, x.datum) != null ? ' <span class="aus-pj">(' + A.tageNachBrand(pz.schadendatum, x.datum) + ' Tage nach Brand)</span>' : ''}</td><td>${rolleWahl(pz, x)}</td>
+        <td class="bk">${w.bk === 'keine' ? 'normale Probe (Wahl in BerichtKit)' : w.bk === 'ok' ? '✓ bestätigt' : '<span class="aus-pj">–</span>'}${ab ? `<br><span class="warn" title="${esc(ab)}">⚠ ${esc(ab)}</span>` : ''}</td></tr>`; }).join('')}</tbody></table>
+      ${(() => { const da = new Set(pz.messungen.map(x => x.probe)), weg = Object.entries((S.tags[pz.name] || {}).rollen || {}).filter(([id]) => !da.has(id));
+        return weg.length ? `<p class="hinweis">Rollen-Korrekturen ohne Probe: ${weg.map(([id, r]) => `${esc(id)} (${esc(r === 'keine' ? 'bewusst keine Rolle' : A.ROLLE_NAME[r] || r)})`).join(', ')} – die Probe kommt in den geltenden Werten nicht mehr vor. Die Korrektur bleibt in <code>${L.TAGS}</code> und wirkt wieder, wenn die Probe zurückkommt.</p>` : ''; })()}`);
     $('zP').onchange = e => { S.z.projekt = e.target.value; zuordnen(); };
     rollenAnbinden();
   }

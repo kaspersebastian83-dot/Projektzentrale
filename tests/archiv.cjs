@@ -32,8 +32,8 @@ check('Projektnummer und Jahr aus dem Ordnernamen', () => {
 });
 check('Dubletten: gleicher Bericht doppelt, vorläufig ersetzt, Nachtrag ergänzt', () => {
   const pr = (labNr, werte) => ({ labNr, ref: '26.0001-' + labNr, art: 'Wischprobe', werte });
-  const v = { datei: 'a_vorl.xml', geaendert: 1, bericht: 'AR-1', vorlaeufig: true, proben: [pr('1', [{ p: 'BaP', r: '9', u: 'µg/m²', loq: '0,5' }]), pr('2', [{ p: 'BaP', r: '7', u: 'µg/m²', loq: '0,5' }])] };
-  const e = { datei: 'a.xml', geaendert: 2, bericht: 'AR-2', proben: [pr('1', [{ p: 'BaP', r: '4', u: 'µg/m²', loq: '0,5' }])] };
+  const v = { datei: 'a_vorl.xml', geaendert: 1, bericht: 'AR-1-01', vorlaeufig: true, proben: [pr('1', [{ p: 'BaP', r: '9', u: 'µg/m²', loq: '0,5' }]), pr('2', [{ p: 'BaP', r: '7', u: 'µg/m²', loq: '0,5' }])] };
+  const e = { datei: 'a.xml', geaendert: 2, bericht: 'AR-1-02', proben: [pr('1', [{ p: 'BaP', r: '4', u: 'µg/m²', loq: '0,5' }])] };
   const kopie = { ...e, datei: 'a (Kopie).xml', geaendert: 3 };
   const nachtrag = { datei: 'b.xml', geaendert: 4, bericht: 'AR-3', proben: [pr('1', [{ p: 'PCB', r: '< 0,1', u: 'mg/kg', loq: '0,1' }])] };
   const m = A.projektMessungen([nachtrag, kopie, v, e]);

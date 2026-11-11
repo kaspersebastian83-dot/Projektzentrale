@@ -1,4 +1,13 @@
-# Spektron · Datenarchiv, Version 1.2
+# Spektron · Datenarchiv, Version 1.3
+
+## Neu in 1.3 (Audit Kernkette o1, o6 – 11.11.2026)
+
+- **Welcher Prüfbericht gilt – Regel wie ResultKit 2.2:** Fassungsblock der Eurofins-Nummer (`-01`, `-02`) entscheidet, nie das Dateidatum (nur bei derselben Nummer in derselben Fassung doppelt abgelegt: Datei mit Werten, endgültig vor vorläufig, dann die neuere Datei). Je Probe („Probe n“ → P-Nummer, sonst Referenz, sonst Labornummer)/Parameter/Einheit: endgültig vor vorläufig, dann die höhere Fassung. Verschiedene Grundnummern für dieselbe Probe/Parameter/Einheit = Konflikt: keiner zählt. Auftragsreferenz mit anderer Projektnummer → der Bericht zählt nicht.
+- **ResultKit zuerst:** Passt `_Ergebnisse.json` (Ort nach `spektron-ordner.js`) zum Dateistand des Ordners (XML/PDF direkt in „Laborergebnisse“ + LabelKit-Datei dieses Projekts, wie ResultKit `stand`), kommen die Werte aus der Datei – auch aus PDF gelesene. Sonst wertet das Datenarchiv die XML selbst aus. Weicht ein Wert der Datei von den Prüfberichten ab (Übernahme nach älterer Regel oder Ordner seitdem geändert), zählt der Wert aus den Prüfberichten; „Zu prüfen“ nennt beide. Bei aktueller Übernahme zählen Werte, die nur in den XML stehen (z. B. in LabelKit stornierte Probe, Bericht im Unterordner), nicht.
+- **Nicht mitgezählt** (Konflikt, anderes Projekt, nicht übernommen): Anzahl Werte und Projekte in der Übersicht, Einzelheiten unter „Zu prüfen“. Diese Werte fehlen ganz – nie Null, nie „unter BG“.
+- **Rollen aus BerichtKit:** `_BerichtKit.json` `form.brand.rolle` (nur gelesen). „Normale Probe“ gilt hier, solange die Regel dieselbe Rolle annimmt und hier keine eigene Korrektur steht. Eigene Korrektur ≠ BerichtKit (Brandbericht, Wischprobe) → Hinweis. BerichtKit liest `_Spektron-Archiv.json` nicht.
+- Rollen-Korrekturen, deren Probe nicht mehr in den geltenden Werten vorkommt, bleiben in `_Spektron-Archiv.json` und werden unter „Zuordnen“ genannt.
+- Zwischenspeicher: Signatur `v3` (einmal neu eingelesen).
 
 Eigene Seite unter `archiv/` (Projektzentrale › Weitere Apps › kleiner Link „Datenarchiv“). Chrome/Edge, gemeinsamer Archivordner aus `mosaik-suite/kv/archiv` wie Projektzentrale und BüroKit. Kein Server, keine externen Dienste, nichts verlässt den Archivordner.
 
@@ -19,7 +28,7 @@ Unveränderte Projekte (gleiche Dateinamen, Größen, Änderungszeiten) kommen b
 
 - **Keine erfundenen Zahlen:** keine Grenz- oder Orientierungswerte, keine Schwellen für Quotienten.
 - **Unter BG / n. n.** sind keine Null. In Rangstatistiken zählen sie als kleinste Werte; fällt Median oder 90. Perzentil darauf, steht „< BG“. Kennzahlen erst ab 5 Werten.
-- **Vorläufige Berichte** entfallen für Proben mit endgültigem Bericht; sonst gekennzeichnet und nicht in der Statistik. Derselbe Bericht mehrfach abgelegt → neueste Datei. Nachträge ergänzen Parameter.
+- **Vorläufige Werte** entfallen, sobald derselbe Bericht (gleiche Grundnummer) einen endgültigen Wert für Probe/Parameter/Einheit hat; sonst gekennzeichnet und nicht in der Statistik. Regel im Einzelnen: „Neu in 1.3“.
 - **Einheiten** werden nur vereinheitlicht geschrieben (µ, ², Leerzeichen), nie umgerechnet. µg/m², µg/100 cm² und mg/kg bleiben getrennte Gruppen.
 - **PAK-Muster:** Anteil jedes der 16 EPA-PAK an der Summe der gemessenen Einzel-PAK je Probe. Vergleich nur innerhalb derselben Matrix (Median anderer Projekte, ab 5 Proben).
 - **Quotienten** Flt/(Flt+Pyr), BaA/(BaA+Chr), IcdP/(IcdP+BghiP), Ant/(Ant+Phe) nach Yunker et al. (2002), Org. Geochem. 33, 489–515 – nur wenn beide Stoffe über BG, ohne Schwellen (für Sedimente/Luft hergeleitet; Übertragbarkeit auf Brandrückstände in Innenräumen offen).

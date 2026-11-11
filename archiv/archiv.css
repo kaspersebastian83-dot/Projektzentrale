@@ -47,3 +47,4 @@ h2.abstand{margin-top:26px}
 @media print{.hilfe-link{display:none}}
 
 .quelle-hinweis{font-size:13px;margin-top:4px;padding:6px 10px;border-left:3px solid #8fb1d0;background:rgba(143,177,208,.12);border-radius:4px}
+.warn{color:#9a3412;font-size:12px}td.bk{font-size:13px;max-width:280px}#zuPruefen td{vertical-align:top;font-size:13px}
