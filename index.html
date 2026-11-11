@@ -987,9 +987,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.43.0';
+const APP_VERSION = '1.44.0';
 const APP_DATE = '2026-11-10';
 const CHANGELOG = [
+  ['1.44.0', '11.11.2026', 'LabelKit-Datei nur noch von diesem Projekt (Audit o7, o8, m1): Eine fremde …_Daten.json in „_Spektron/LabelKit“ schaltet ein Projekt nicht mehr dorthin um – es gilt die Datei dieses Projekts am früheren Ort, die Zeile „Dateien an zwei Orten“ nennt die fremde Datei, und „Umzug erneut ausführen“ holt die eigene nach „_Spektron“ (die fremde bleibt liegen). Berichtsvorschlag, Anlage PN 98/Brandgeruch und der Laborstand lesen nur die Datei dieses Projekts (Name beginnt mit der Projektnummer, Regel wie LabelKit 5.1) statt der neuesten beliebigen; liegt nur eine fremde da, wird nichts gelesen und eine Zeile sagt es. „Proben ✓“ nur für eine Datei dieses Projekts. Einmalig kann „Neue Prüfberichte seit der Übernahme“ erscheinen, wo bisher eine fremde oder eine ältere datierte Datei mitzählte – in ResultKit einmal „Erneut übernehmen“.'],
   ['1.43.0', '10.11.2026', 'Dateien an zwei Orten (Audit K1): Liegt in einem Projekt eine App-Datei sowohl in „_Spektron“ als auch am früheren Ort (z. B. eine heruntergeladene LabelKit-Datei, die jemand in „Laboraufträge“ abgelegt hat), gilt jetzt immer die Datei in „_Spektron“ – bisher schaltete eine solche Datei das ganze Projekt in allen Apps zurück. Die Projektansicht nennt beide Dateien mit Datum und sagt, was zu tun ist: ältere Datei am früheren Ort wegnehmen; neuere vergleichen und Fehlendes in der App nachtragen. Gelöscht wird nichts automatisch. „Umzug erneut ausführen“ holt solche Dateien bewusst nicht mehr herein, und ein abgebrochener Umzug lässt weiter die Originale gelten, bis er fertig ist. Die Vorschau von „Spektron-Ordner einrichten“ listet alle Projekte mit Dateien an zwei Orten und sagt je Bereich, ob es nach Streudatei oder nach unterbrochenem Umzug aussieht.'],
   ['1.42.0', '01.11.2026', 'Einfachere Projektseite (Spektron Schritt 2): Oben „Jetzt dran“ mit einem großen Knopf in der Farbe der App, in der es weitergeht. Darunter statt der sechs Stufen sechs Kacheln – dieselben wie im neuen Kopfband der Apps: Proben · Fotos · Labor · Plan · Bericht · Abrechnung, je mit Symbol, ✓ (die Datei der App ist da, genau wie oben in den Apps) und dem Stand darunter; ein Klick öffnet die App. Die Bericht-Kachel heißt „Brandbericht“ oder „Asbestbericht“, sobald die Berichtsart feststeht; sie öffnet BerichtKit wie das Kopfband (die gemerkte Art, sonst wählt BerichtKit nach den Proben) und merkt selbst nichts – ausdrücklich gewählt wird über „Jetzt dran“ oder „Mehr zum Projekt …“. Darunter „Danach: ans Büro übergeben“ (mit dem Übergabe-Formular) und die Projektdaten; im Kopf „Projektdaten ändern“. Seltenes unter „Mehr zum Projekt …“: Asbestbericht/Brandbericht ausdrücklich öffnen, Anlage Probenahme, Ordner, frühere Versandangaben, „Vor Spektron“. Keine Stufennummern mehr. Das Menü oben rechts heißt jetzt „⋯ Büro & Apps“. Dateien, Übergabe und Verbindung zu den Apps unverändert.'],
   ['1.41.0', '01.11.2026', '„Jetzt dran“ in Stufe 4 (Gutachten) führt jetzt zum Bericht: ohne Probenplan „Probenplan zeichnen →“, mit Plan „Brandbericht schreiben →“ bzw. „Asbestbericht schreiben →“ – welcher, steht in BerichtKit gemerkt (ab BerichtKit 1.15.0), sonst nach den LabelKit-Proben; ist noch nichts gelesen, öffnet „Bericht schreiben →“ BerichtKit, das selbst wählt. Nach dem gespeicherten Bericht wie bisher „Ans Büro übergeben“ – ein früher gespeicherter Bericht der anderen Art (z. B. alter Asbestbericht, jetzt Brandbericht gemerkt) zählt dafür nicht. In Stufe 4 ist der in BerichtKit gemerkte Bericht hervorgehoben (sonst der zu den Proben passende). Das Fenster der Projektzentrale heißt „projektzentrale“: ⌂ und „Ans Büro übergeben →“ aus den Apps landen in diesem Tab. Die Spektron-Leiste der Apps (v2) zeigt den Bericht mit Berichtsart und nach dem Speichern „Weiter: Ans Büro übergeben →“.'],
@@ -1574,6 +1575,7 @@ async function nachzueglerZeigen(p){
   // Je Bereich die eine Zeile (dieselbe wie in den Apps) und darunter, was zu tun ist – je nachdem, wie es aussieht (K1)
   const RAT = {
     streu: `Was tun mit der Datei am früheren Ort? <b>Ist sie älter</b> als die in „${esc(SO.ORDNER)}“: Nimm sie aus dem Projektordner (verschieben, z. B. auf den Desktop, oder löschen) – gebraucht wird sie nicht. <b>Ist sie neuer</b>, steckt darin vielleicht Arbeit, die in „${esc(SO.ORDNER)}“ fehlt (z. B. mit einer alten App-Fassung gespeichert): Öffne die App, vergleiche und trag Fehlendes dort nach; danach die Datei am früheren Ort entfernen. „Umzug erneut ausführen“ hilft hier nicht – er holt solche Dateien bewusst nicht herein.`,
+    fremd: `In „${esc(SO.ORDNER)}/LabelKit“ liegt nur die Datei eines anderen Projekts. Die Apps arbeiten mit der Datei in „Laboraufträge“. „Umzug erneut ausführen“ holt sie nach „${esc(SO.ORDNER)}“; die fremde Datei bleibt liegen und wird nicht gelesen.`,
     unterbrochen: `Der Umzug dieses Bereichs ist nicht fertig geworden. Führ ihn für dieses Projekt erneut aus – er holt nach, was fehlt, und lässt abweichende Dateien stehen.`,
     nachzuegler: `Nach dem Umzug wurde am früheren Ort noch geschrieben (z. B. von einer noch offenen älteren App-Version). „Umzug erneut ausführen“ räumt gleiche Dateien weg; abweichende bleiben stehen – dann wie oben vergleichen und von Hand entscheiden.`,
     leer: `Am früheren Ort liegen nur leere Ordner oder dieselben Dateien wie in „${esc(SO.ORDNER)}“. „Umzug erneut ausführen“ räumt sie weg.`,
@@ -1602,7 +1604,8 @@ async function nachzuegler(p){
     const zwei = SO.zweiOrte ? await SO.zweiOrte(p.handle) : [];
     if (!zwei.length) return aus;   // der Normalfall: nichts weiter lesen (die genaue Prüfung vergleicht Dateiinhalte)
     const lage = new Map(); try{ for (const x of (UM && UM.zweiOrtePruefen ? await UM.zweiOrtePruefen(p.handle) : [])) lage.set(x.bereich, x.art); }catch(e){}
-    for (const z of zwei) aus.push({ bereich: z.bereich, app: z.app, umgezogen: z.umgezogen, art: z.unterbrochen ? 'unterbrochen' : (lage.get(z.bereich) || (z.umgezogen ? 'nachzuegler' : 'streu')), zeile: SO.zweiOrteText(z, { projektzentrale: true }) });
+    // Audit o7: in „_Spektron“ nur Dateien anderer Projekte (z. B. eine fremde LabelKit-Datei) → eigener Rat statt „unterbrochen“
+    for (const z of zwei) aus.push({ bereich: z.bereich, app: z.app, umgezogen: z.umgezogen, art: z.unterbrochen ? 'unterbrochen' : z.nurFremd && z.wo === 'alt' ? 'fremd' : (lage.get(z.bereich) || (z.umgezogen ? 'nachzuegler' : 'streu')), zeile: SO.zweiOrteText(z, { projektzentrale: true }) });
   }catch(e){}
   return aus;
 }
@@ -1796,7 +1799,7 @@ async function listProjects(){
     Dateistand wie in ResultKit (und FotoKit/PlanKit): XML/PDF in „Laborergebnisse“ und die neueste LabelKit-Datei in „Laboraufträge“ –
     weicht er vom übernommenen ab, wurde danach etwas geändert. */
 const standKennung = dateien => [...dateien].sort((a, b) => a.name.localeCompare(b.name)).map(d => `${d.name}|${d.size}|${d.t}`).join('\n');
-async function laborStand(dir, auftraege, ergebnisDir){
+async function laborStand(dir, auftraege, ergebnisDir, projektName){
   const namen = new Set(), berichtDateien = []; let ergebnisse = null, uebernommen = '';
   const ergebnisDatei = [];
   for await (const f of dir.values()){
@@ -1815,7 +1818,12 @@ async function laborStand(dir, auftraege, ergebnisDir){
   if (ergebnisse && !ergebnisse.fehler) try{
     const stand = [];
     for (const f of berichtDateien){ const d = await f.getFile(); stand.push({ name: f.name, size: d.size, t: d.lastModified }); }
-    if (auftraege){ let neu = null; for await (const h of auftraege.values()) if (h.kind === 'file' && /_Daten\.json$/i.test(h.name)){ const d = await h.getFile(); if (!neu || d.lastModified > neu.t) neu = { name: 'Laboraufträge/' + h.name, size: d.size, t: d.lastModified }   /* feste Kennung wie in ResultKit – bleibt nach dem Umzug nach „_Spektron“ gleich */; } if (neu) stand.push(neu); }
+    // LabelKit-Datei im Stand: dieselbe wie in ResultKit – die Datei dieses Projekts nach der Regel von LabelKit 5.1 (Audit m1, o13/o16),
+    // nicht die neueste beliebige. Feste Kennung „Laboraufträge/<Name>“ – bleibt nach dem Umzug nach „_Spektron“ gleich.
+    if (auftraege){ let neu = null;
+      if (SO.labelkitWahl){ const w = await SO.labelkitWahl(auftraege, projektName); if (w.datei) neu = { name: 'Laboraufträge/' + w.datei.name, size: w.datei.file.size, t: w.datei.file.lastModified }; }
+      else for await (const h of auftraege.values()) if (h.kind === 'file' && /_Daten\.json$/i.test(h.name)){ const d = await h.getFile(); if (!neu || d.lastModified > neu.t) neu = { name: 'Laboraufträge/' + h.name, size: d.size, t: d.lastModified }; }   // ohne Modul (Testausschnitte)
+      if (neu) stand.push(neu); }
     ergebnisse.veraltet = standKennung(stand) !== uebernommen;
   }catch(e){ /* Dateistand nicht lesbar: Karte wie bisher nach der Ergebnisdatei */ }
   return { berichte: namen.size, ergebnisse };
@@ -1841,12 +1849,14 @@ function bueroFakten(aufgaben, fehler = []){
     rechnungOffen: g.some(a => a.erledigt && a.rechnungNoetig && !a.rechnung),   // BüroKit 1.1: versandt, Rechnung noch nicht abgehakt
     rechnung: abgerechnet ? tag(abgerechnet.rechnung.zeit) : '', rechnungVon: abgerechnet ? abgerechnet.rechnung.von : '' };
 }
+/** LabelKit-Datei dieses Projekts nach dem Namen? (spektron-ordner.js labelkitEigen, Regel wie LabelKit 5.1; ohne Modul jede wie bisher) */
+const lkEigen = (name, projektName) => !SO.labelkitEigen || SO.labelkitEigen(name, SO.projektNr ? SO.projektNr(projektName) : '');
 /** Fakten für stufen.js aus dem schnellen Ordnerscan (Liste, „Heute“). */
 function faktenAusScan(p){
   const st = p.st; if (!st || st.err) return null;
   const s = st.subs, pf = st.pjFakten, bf = st.bueroFakten, lab = s.laberg;
   return { pj: st.pj, pflichtFehlt: pf ? pf.pflichtFehlt : (st.pj ? 0 : PJ_PFLICHT.length), arbeitszettel: !!(pf && pf.arbeitszettel),
-    proben: !!(s.labauf && (s.labauf.daten.length || (s.labauf.uebergaben || []).length)), probendaten: !!(s.labauf && s.labauf.daten.length),
+    proben: !!(s.labauf && (s.labauf.daten.some(n => lkEigen(n, p.name)) || (s.labauf.uebergaben || []).length)), probendaten: !!(s.labauf && s.labauf.daten.some(n => lkEigen(n, p.name))),   // Audit o8: nur eine Datei dieses Projekts
     laborauftrag: s.labauf && s.labauf.uebergaben ? s.labauf.uebergaben.map(Durchlauf.datumAusName).filter(Boolean).sort()[0] || '' : '', fotos: { bilder: s.fotos ? s.fotos.images : 0, begonnen: !!(s.fotos && s.fotos.bu), doku: !!(s.fotos && s.fotos.pdfDoc.length) },
     berichte: lab ? lab.berichte : 0, ergebnisse: lab ? lab.ergebnisse : null, plan: !!(s.plaene && s.plaene.probenplan),
     mitteilung: Stufen.neuesteMitteilung(s.mitteil && s.mitteil.mitteilungen),
@@ -1915,7 +1925,7 @@ async function scanProject(p){
     if (st.spektronDa) await spektronUeberlagern(p, st);
     // nach der Schleife: der Stand braucht auch „Laboraufträge“ (LabelKit-Datei, ggf. am neuen Ort)
     const la = st.subs.labauf;
-    if (st.subs.laberg) Object.assign(st.subs.laberg, await laborStand(st.subs.laberg.handle, la && (la.datenDir || la.handle), st.ergebnisDir));
+    if (st.subs.laberg) Object.assign(st.subs.laberg, await laborStand(st.subs.laberg.handle, la && (la.datenDir || la.handle), st.ergebnisDir, p.name));
   }catch(e){ st.err = e.message; }
   return st;
 }
@@ -3191,11 +3201,15 @@ const ANL_ORDNER = 'Mitteilungen';
 const ANL_PROTOKOLL = '_Anlagen-Protokoll.txt';
 async function sha256Hex(buf){ const h = await crypto.subtle.digest('SHA-256', buf); return [...new Uint8Array(h)].map(b => b.toString(16).padStart(2, '0')).join(''); }
 const heuteIso = () => { const d = new Date(), z = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`; };
-async function neuesteDaten(p){
-  const la = p.st && p.st.subs.labauf; if (!la || !la.daten.length) return null;
-  let best = null;
-  for (const n of la.daten){ try{ const f = await (await (la.datenDir || la.handle).getFileHandle(n)).getFile(); if (!best || f.lastModified > best.lastModified) best = f; }catch(e){} }
-  return best;
+/** LabelKit-Datei des Projekts für Anlage und Berichtsvorschlag (Audit m1): nur eine Datei dieses Projekts nach der Regel von LabelKit 5.1
+    (spektron-ordner.js labelkitWahl) – nie die neueste beliebige. → { datei: File | null, fremd: [Namen], pfad } */
+async function lkWahlFuer(p){
+  const la = p.st && p.st.subs.labauf, leer = { datei: null, fremd: [], pfad: '' }; if (!la || !la.daten.length) return leer;
+  const dir = la.datenDir || la.handle, pfad = la.datenPfad || la.name;
+  if (SO.labelkitWahl){ try{ const w = await SO.labelkitWahl(dir, p.name); return { datei: w.datei ? w.datei.file : null, fremd: w.fremd, pfad }; }catch(e){ return { ...leer, pfad }; } }
+  let best = null;   // ohne Modul (Testausschnitte): wie bisher die neueste
+  for (const n of la.daten){ try{ const f = await (await dir.getFileHandle(n)).getFile(); if (!best || f.lastModified > best.lastModified) best = f; }catch(e){} }
+  return { datei: best, fremd: [], pfad };
 }
 async function anlOrdner(p, erstellen){
   const m = p.st && p.st.subs.mitteil;
@@ -3216,8 +3230,9 @@ async function anlStatus(p){
   if (!$('anl')) return;
   const token = S.anlToken = (S.anlToken || 0) + 1;   // nur der letzte Aufruf schreibt (renderDetail kann mehrfach kommen)
   const aktuell = () => token === S.anlToken && S.sel === p && $('anl');
-  const f = await neuesteDaten(p);
+  const w = await lkWahlFuer(p), f = w.datei;
   if (!aktuell()) return;
+  const fremdZeile = !f && w.fremd.length ? `<div class="warn">⚠ In „${esc(w.pfad)}“ liegt keine LabelKit-Datei von Projekt ${esc(p.nr)} – nur „${esc(w.fremd[0])}“${w.fremd.length > 1 ? ` und ${w.fremd.length - 1} weitere` : ''} (nach dem Namen nicht von diesem Projekt). Die Projektzentrale liest sie nicht (kein Berichtsvorschlag aus den Proben, keine Anlage).</div>` : '';
   const erstellt = (await anlVorhandene(p)).filter(n => /_PN98|_Brandgeruch/i.test(n) && /\.docx$/i.test(n)).sort();
   const liste = erstellt.length ? `<div class="klein">Bereits erstellt: ${erstellt.slice(-3).map(esc).join(', ')}${erstellt.length > 3 ? ` (+${erstellt.length - 3})` : ''}</div>` : '';
   if (!aktuell()) return;
@@ -3225,7 +3240,7 @@ async function anlStatus(p){
   // Ohne LabelKit-Daten oder ohne PN 98/Brandgeruch bleibt der Anhang am Schritt leer (unsichtbar) – außer es gibt schon erstellte Anlagen.
   const gemerkt = await berichtArtGemerkt(p);   // in BerichtKit gemerkte Berichtsart – „Jetzt dran“ Stufe 4
   if (!aktuell()) return;
-  if (!f){ berichtVorschlagZeigen(p, null, gemerkt); S.anl = null; box.innerHTML = erstellt.length ? `<div class="row"><b>Anlage PN 98 / Brandgeruch</b></div>${liste}` : ''; return; }
+  if (!f){ berichtVorschlagZeigen(p, null, gemerkt); S.anl = null; box.innerHTML = fremdZeile + (erstellt.length ? `<div class="row"><b>Anlage PN 98 / Brandgeruch</b></div>${liste}` : ''); return; }
   let daten;
   try{ daten = JSON.parse(await f.text()); }
   catch(e){ if (!aktuell()) return; berichtVorschlagZeigen(p, null, gemerkt); S.anl = null; $('anl').innerHTML = `<div class="warn">„${esc(f.name)}“ ist nicht lesbar: ${esc(e.message)}</div>`; return; }
