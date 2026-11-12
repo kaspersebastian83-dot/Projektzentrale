@@ -141,6 +141,11 @@ if(!before){
  await mehrAuf();await page.locator('#vtBox > summary').click();assert.ok(await page.locator('#vtBox .vtAn').first().isDisabled());
  assert.equal(await fs.readFile(path.join(tmp,A,'_Projekt.json'),'utf8'),expectedPj,'display never rewrites PJ');
  await page.locator('#vtBox > summary').click();
+ // 1.47: „GlasKit öffnen“ unter „Mehr zum Projekt …“ → ../glaskit/#projekt=<Ordner> im Fenster „glaskit“
+ await page.evaluate(()=>{window.__glas=null;window.__open=window.open;window.open=(_,target)=>({location:{href:'about:blank',assign:url=>{window.__glas={url,target};}},focus(){}});});
+ await mehrAuf();await page.locator('#projektMehr #glasProjekt').click();await page.waitForFunction(()=>window.__glas!==null);
+ {const g=await page.evaluate(()=>window.__glas),l=new URL(g.url);assert.equal(g.target,'glaskit');assert.ok(l.pathname.endsWith('/glaskit/'));assert.equal(l.search,'');assert.equal(new URLSearchParams(l.hash.slice(1)).get('projekt'),A);}
+ await page.evaluate(()=>{window.open=window.__open;});
 }
 await shot('uebergabe');
 // Rückfrage des Büros (so wie BüroKit sie schreibt) erscheint oben am Projektkopf

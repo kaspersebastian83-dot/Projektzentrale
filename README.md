@@ -2,7 +2,11 @@
 
 Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung und GlasKit (Gebäude aus Glas, 3D-Ansicht der PlanKit-Pläne).
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.46.0** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.47.0** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Neu in 1.47.0 · 12.11.2026
+
+- **„GlasKit öffnen“** unter „Mehr zum Projekt …“ (`#glasProjekt`, `data-aktion="glaskit"` → `openApp(p, GLASKIT_URL, 'glaskit')`): öffnet `../glaskit/#projekt=<Ordnername>` im Fenster `glaskit` (GlasKit ab 1.1.0 liest den Archivordner aus `mosaik-suite`/`kv`/`archiv`, nur mit Leserecht). Immer sichtbar – ohne Plan sagt GlasKit das selbst und bietet PlanKit an. Der Knopf unter „⋯ Büro & Apps“ (`#goGlas`, ohne Projekt) bleibt. sw.js Cache v41.
 
 ## Neu in 1.46.0 · 12.11.2026
 

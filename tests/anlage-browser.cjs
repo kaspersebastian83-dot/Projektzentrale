@@ -78,7 +78,7 @@ const daten = {
   // Projektdaten: Neuzeichnen der Ansicht, bevor die Eingabe gespeichert ist (hier: fehlende Unterordner anlegen), behält die Eingabe
   // Projektansicht 1.42: sechs Kacheln wie das Kopfband; Asbest-/Brandbericht ausdrücklich und Anlage Probenahme unter „Mehr zum Projekt …“; Projektdaten zugeklappt (leer: einladend hervorgehoben)
   assert.deepEqual(await page.locator('#kacheln .kachel').evaluateAll(b => b.map(x => x.id)), ['goLabel', 'goFotos', 'goErgebnis', 'goPlan', 'kBericht', 'goAufwand']);
-  assert.deepEqual(await page.locator('#projektMehr button.sk').evaluateAll(b => b.map(x => x.id)), ['goBericht', 'goBrand', 'anlPlan']);
+  assert.deepEqual(await page.locator('#projektMehr button.sk').evaluateAll(b => b.map(x => x.id)), ['goBericht', 'goBrand', 'anlPlan', 'glasProjekt']);   // 1.47: GlasKit mit #projekt=
   assert.equal(await page.locator('[data-stufe=projekt] #azQuick').count(), 1); assert.equal(await page.locator('[data-stufe=buero] #goUebergabe').count(), 1);
   await mehrAuf();
   // 1.40: Brandgeruch-Proben in LabelKit → „Brandbericht“ hervorgehoben, „Asbestbericht“ bleibt daneben
@@ -149,7 +149,7 @@ const daten = {
   // Zweites Projekt ohne LabelKit-Datei: kein Bericht hervorgehoben (auch nicht der vom vorigen Projekt)
   await page.waitForFunction(n => document.getElementById('goBrand')?.dataset.probenGelesen === n, special);   // anlStatus hat das Projekt ohne LabelKit-Datei gelesen
   assert.equal(await page.locator('#goBrand.vorschlag, #goBericht.vorschlag').count(), 0, 'ohne Proben keiner hervorgehoben');
-  for (const id of ['goLabel','goFotos','goErgebnis','goPlan','goAufwand','anlPlan','goBrand']){
+  for (const id of ['goLabel','goFotos','goErgebnis','goPlan','goAufwand','anlPlan','goBrand','glasProjekt']){
     await page.evaluate(() => {
       window.__sprung = null;
       window.open = (_, target) => ({location:{href:target === 'plankit' ? new URL('../Probenplan/#projekt=alt',location.href).href : 'about:blank',assign:url=>{window.__sprung={url,target};}},focus(){}});
@@ -159,6 +159,7 @@ const daten = {
     assert.equal(link.search, '');
     assert.equal(new URLSearchParams(link.hash.slice(1)).get('projekt'), special);
     if (id === 'anlPlan') assert.equal(new URLSearchParams(link.hash.slice(1)).get('aktion'), 'anlage');
+    if (id === 'glasProjekt'){ assert.equal(sprung.target, 'glaskit'); assert.ok(link.pathname.endsWith('/glaskit/'), 'GlasKit im eigenen Fenster'); }
     if (id === 'goBrand') assert.equal(new URLSearchParams(link.hash.slice(1)).get('art'), 'brand', 'Sonderzeichen im Ordnernamen bleiben im Projekt, art eigenes Feld');
     if (sprung.target === 'plankit') assert.ok(link.pathname.endsWith('/Probenplan/index.html'), 'Bereits offenes PlanKit lädt neu');
   }
