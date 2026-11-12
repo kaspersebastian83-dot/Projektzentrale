@@ -502,7 +502,7 @@ summary.stufe-kopf::-webkit-details-marker{display:none}
     <button id="btnArchive" class="hstatus" title="Archivordner wählen oder wechseln"><span class="pkt" aria-hidden="true"></span><span id="archiveName">Archivordner wählen …</span></button>
     <button id="btnRescan" class="hicon" disabled title="Ordner neu einlesen (z. B. nachdem Kollegen etwas geändert haben)" aria-label="Neu einlesen">⟳</button>
     <div class="mehr-wrap">
-      <button id="btnMehr" class="hbadge help" aria-haspopup="true" aria-expanded="false" title="Büro: Mitarbeiter, Auslastung, Spektron-Ordner · weitere Apps: Handbuch, BüroKit, Durchlaufzeiten, SpesenKit, Rückmeldung">⋯ Büro &amp; Apps</button>
+      <button id="btnMehr" class="hbadge help" aria-haspopup="true" aria-expanded="false" title="Büro: Mitarbeiter, Auslastung, Spektron-Ordner · weitere Apps: Handbuch, BüroKit, Durchlaufzeiten, GlasKit, SpesenKit, Rückmeldung">⋯ Büro &amp; Apps</button>
       <div class="mehr" id="mehr" hidden>
         <div class="mh">Büro</div>
         <button id="btnMa" disabled title="Mitarbeiterliste: Kürzel am Ende der Projektordner und die zugehörigen Namen">👥 Mitarbeiter</button>
@@ -987,9 +987,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.45.1';
-const APP_DATE = '2026-11-10';
+const APP_VERSION = '1.46.0';
+const APP_DATE = '2026-11-12';
 const CHANGELOG = [
+  ['1.46.0', '12.11.2026', 'Neu unter „⋯ Büro & Apps“: GlasKit – das Gebäude aus Glas. Öffnet in einem eigenen Fenster; dort den Projektordner wählen, und die Geschosse aus PlanKit erscheinen als gläsernes 3D-Modell mit allen Proben in der Farbe ihrer Bewertung, Brandherd und Rundgang. GlasKit liest nur und ändert nichts im Projekt. Sonst unverändert.'],
   ['1.45.1', '11.11.2026', 'Datenarchiv 1.3.1 (Audit o41): Wie ResultKit 2.5 gehört die Einheit nicht mehr zum Vergleich der Werte – eine neuere Fassung eines Prüfberichts (-02) ersetzt die ältere auch dann, wenn sie den Wert in einer anderen Einheit angibt (z. B. µg/cm² statt mg/m²); zwei verschiedene Berichte mit Werten für dieselbe Probe und denselben Parameter zählen auch in verschiedenen Einheiten nicht. Umgerechnet wird nichts. Enthält eine ältere ResultKit-Übernahme noch den Wert der älteren Fassung, nennt „Zu prüfen“ beide Werte mit Einheit.'],
   ['1.45.0', '11.11.2026', 'Datenarchiv 1.3 (Audit o1, o6): Welcher Prüfbericht gilt, entscheidet wie in ResultKit die Fassung der Berichtsnummer (-01, -02) – nie das Dateidatum. Zwei verschiedene Prüfberichte für dieselbe Probe zählen beide nicht, ein Bericht, dessen Auftragsreferenz ein anderes Projekt nennt, zählt nicht; die Übersicht sagt, wie viele Werte in wie vielen Projekten deshalb fehlen, „Zu prüfen“ nennt die Einzelheiten. Passt die ResultKit-Übernahme (_Ergebnisse.json) zum Ordner, kommen die Werte aus ihr; sagen die Prüfberichte etwas anderes, zählt der Wert aus den Prüfberichten und der Unterschied wird genannt. Eine „Normale Probe“ aus dem Brandbericht in BerichtKit gilt auch im Datenarchiv; weicht eine Korrektur im Datenarchiv davon ab, steht das dort.'],
   ['1.44.0', '11.11.2026', 'LabelKit-Datei nur noch von diesem Projekt (Audit o7, o8, m1): Eine fremde …_Daten.json in „_Spektron/LabelKit“ schaltet ein Projekt nicht mehr dorthin um – es gilt die Datei dieses Projekts am früheren Ort, die Zeile „Dateien an zwei Orten“ nennt die fremde Datei, und „Umzug erneut ausführen“ holt die eigene nach „_Spektron“ (die fremde bleibt liegen). Berichtsvorschlag, Anlage PN 98/Brandgeruch und der Laborstand lesen nur die Datei dieses Projekts (Name beginnt mit der Projektnummer, Regel wie LabelKit 5.1) statt der neuesten beliebigen; liegt nur eine fremde da, wird nichts gelesen und eine Zeile sagt es. „Proben ✓“ nur für eine Datei dieses Projekts. Einmalig kann „Neue Prüfberichte seit der Übernahme“ erscheinen, wo bisher eine fremde oder eine ältere datierte Datei mitzählte – in ResultKit einmal „Erneut übernehmen“.'],
@@ -1204,6 +1205,7 @@ const AIDKIT_URL = '../aidkit/';   // AidKit: Handbuch der Suite – Abläufe un
 /** Hilfe-Link ins Handbuch: feste Kapiteladresse aus AidKit (hilfe-anker.json), immer dasselbe Fenster „aidkit“. */
 const handbuchLink = (anker, text, titel) => `<a class="hilfe-link" href="${AIDKIT_URL}#${anker}" target="aidkit" rel="noopener" title="${esc(titel)} – öffnet das Handbuch (AidKit) in einem eigenen Fenster">📘 ${esc(text)}</a>`;
 const RUECKMELDUNG_URL = '../rueckmeldung/';   // Rückmeldung: Fehler oder Wunsch an den Betreuer – Programm, Version und Projektnummer werden vorbelegt
+const GLASKIT_URL = '../glaskit/';   // GlasKit: Gebäude aus Glas – Geschosse und Proben aus PlanKit als 3D-Ansicht, liest nur
 const REISEKOSTEN_URL = '../reisekosten-pro/';   // SpesenKit: Spesenabrechnung je Kollege und Monat – ohne Projektbezug, darum kein Schritt und kein ?projekt=
 
 /* ---------- _Projekt.json ----------
@@ -2514,6 +2516,7 @@ function weitereApps(){
     <a class="app" id="goAid" href="${AIDKIT_URL}" target="aidkit" rel="noopener" title="Öffnet das Handbuch in einem eigenen Fenster – Abläufe Schritt für Schritt und gemeinsame Regeln (z. B. Probenbezeichnung Bohrkerne)"><span class="ic" aria-hidden="true">📘</span><span><span class="name">Handbuch (AidKit)</span><small>Abläufe Schritt für Schritt und gemeinsame Regeln</small></span><span class="go" aria-hidden="true">↗</span></a>
     <a class="app" id="goBuero" href="${BUEROKIT_URL}" target="buerokit" rel="noopener" title="Öffnet BüroKit in einem eigenen Fenster – die Tagesliste des Büros"><span class="ic" aria-hidden="true">▤</span><span><span class="name">BüroKit</span><small>Aufgaben des Büros: Gutachten gegenlesen, PDF, Versand</small></span><span class="go" aria-hidden="true">↗</span></a>
     <a class="app" id="goDurch" href="#durchlaufzeiten" role="button" title="Wie lange dauert es vom Ortstermin bis zum Versand? Aus vorhandenen Daten, nichts wird eingegeben"><span class="ic" aria-hidden="true">📈</span><span><span class="name">Durchlaufzeiten</span><small>Vom Ortstermin bis zum Versand – je Abschnitt und Labor</small></span><span class="go" aria-hidden="true">›</span></a>
+    <a class="app" id="goGlas" href="${GLASKIT_URL}" target="glaskit" rel="noopener" title="Öffnet GlasKit in einem eigenen Fenster – das Gebäude aus Glas: Geschosse und Proben aus PlanKit dreidimensional, mit Rundgang. Liest nur, ändert nichts im Projekt"><span class="ic" aria-hidden="true">🧊</span><span><span class="name">GlasKit</span><small>Das Gebäude aus Glas – Proben in 3D</small></span><span class="go" aria-hidden="true">↗</span></a>
     <a class="app" id="goReise" href="${REISEKOSTEN_URL}" target="reisekosten" rel="noopener" title="Öffnet SpesenKit in einem eigenen Fenster – Reisekosten- und Spesenabrechnung je Monat, unabhängig vom Projekt">
       <span class="ic" aria-hidden="true">🧾</span><span><span class="name">SpesenKit</span><small>Spesenabrechnung für den Monat</small></span><span class="go" aria-hidden="true">↗</span></a>
     <a class="app" id="goRueck" href="${rueckmeldungUrl()}" target="rueckmeldung" rel="noopener" title="Öffnet das Rückmeldeformular in einem eigenen Fenster – Programm, Version und (falls gewählt) Projektnummer sind schon eingetragen"><span class="ic" aria-hidden="true">💬</span><span><span class="name">Rückmeldung</span><small>Fehler oder Wunsch melden</small></span><span class="go" aria-hidden="true">↗</span></a>

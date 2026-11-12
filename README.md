@@ -1,8 +1,12 @@
 # Projektzentrale
 
-Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung.
+Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung und GlasKit (Gebäude aus Glas, 3D-Ansicht der PlanKit-Pläne).
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.43.0** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.46.0** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Neu in 1.46.0 · 12.11.2026
+
+- **GlasKit** unter „⋯ Büro & Apps“ (`#goGlas`, `GLASKIT_URL = '../glaskit/'`, Fenster `glaskit`): eigene App (Repo `glaskit`), liest eine PlanKit-Datei nur lesend und zeigt sie als gläsernes 3D-Modell. Noch ohne `#projekt=` – der Projektordner wird in GlasKit gewählt.
 
 ## Neu in 1.43.0 · 10.11.2026
 
