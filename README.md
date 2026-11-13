@@ -1,8 +1,13 @@
 # Projektzentrale
 
-Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung und GlasKit (Gebäude aus Glas, 3D-Ansicht der PlanKit-Pläne).
+Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung, GlasKit (Gebäude aus Glas, 3D-Ansicht der PlanKit-Pläne) und LexiKit (Themensuche in den fertigen Berichten).
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.49.0** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.50.0** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Neu in 1.50.0 · 13.11.2026
+
+- **LexiKit** unter „⋯ Büro & Apps“ (`#goLexi`, `LEXIKIT_URL = '../lexikit/'`, Fenster `lexikit`), direkt nach dem Handbuch: eigene App (Repo `lexikit`), Themensuche in den fertigen Word-Mitteilungen aller Projekte. Ohne Projektbezug, kein `?projekt=`; LexiKit liest den Archivordner aus `mosaik-suite`/`kv`/`archiv` und schreibt nur in `_LexiKit` im Archivordner. Kein Schritt, kein Projektstand. sw.js Cache v44.
+- Tests: `tests/zuletzt-browser.cjs` prüft den Knopf (mit und ohne gewähltes Projekt, nicht Teil der Projektseite).
 
 ## Neu in 1.49.0 · 13.11.2026
 
