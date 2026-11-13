@@ -66,6 +66,13 @@ const TYP = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.c
     await leg('26.0143 Andere Nummer', 'Arbeitszettel/AZ2600558/Revision 001/AZ.pdf', 'arbeitszettel-voll.pdf');
     await leg('26.0144 Zwei PDFs', 'Arbeitszettel/AZ2600559/Revision 001/AZ.pdf', 'arbeitszettel-voll.pdf');
     await leg('26.0144 Zwei PDFs', 'Arbeitszettel/AZ2600559/Revision 001/Anhang.pdf', 'arbeitszettel-knapp.pdf');
+    // Notizen schon gefüllt: einmal ohne, einmal mit dem Arbeitsauftrag darin (Plan Punkt 3: Arbeitsauftrag wie bisher an die Notizen)
+    for (const [proj, notizen] of [['26.0142 Notizen Teststadt', 'Schlüssel beim Hausmeister.'],
+                                   ['26.0142 Notiz schon Teststadt', 'Schlüssel beim Hausmeister.\n\nArbeitsauftrag: Bitte Rußproben im EG nehmen.']]){
+      const w = await (await (await archiv.getDirectoryHandle(proj, { create: true })).getFileHandle('_Projekt.json', { create: true })).createWritable();
+      await w.write(JSON.stringify({ format: 'mosaik-projekt', version: 1, notizen })); await w.close();
+      await leg(proj, 'Arbeitszettel/AZ2600562/Revision 001/AZ.pdf', 'arbeitszettel-voll.pdf');
+    }
     // zweiter AZ-Ordner ohne Revision: trotzdem „mehrere Arbeitszettel“ (Codex-Review #82)
     await leg('26.0142 Zwei AZ Teststadt', 'Arbeitszettel/AZ2600560/Revision 001/AZ.pdf', 'arbeitszettel-voll.pdf');
     await (await (await (await archiv.getDirectoryHandle('26.0142 Zwei AZ Teststadt')).getDirectoryHandle('Arbeitszettel')).getDirectoryHandle('AZ2600561', { create: true }));
@@ -178,7 +185,7 @@ const TYP = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.c
   const AUTO = '26.0142 Auto Teststadt';
   await oeffne(AUTO);
   await warteMeldung(FELDER13);
-  assert.match(await meldung(), /Arbeitszettel Revision 010 übernommen: 13 Felder/);
+  assert.match(await meldung(), /Arbeitszettel Revision 010 übernommen: 13 Felder · Arbeitsauftrag in die Notizen eingetragen/);
   assert.ok(await page.evaluate(() => !!(document.querySelector('#azMeldung').compareDocumentPosition(document.querySelector('#jetzt')) & Node.DOCUMENT_POSITION_FOLLOWING)), 'Meldung steht über „Jetzt dran“');
   pj = await leseIn(AUTO);
   assert.equal(pj.objekt, 'Beispiel Wohnbau GmbH, Hauptstraße 12, 99999 Teststadt');
@@ -276,6 +283,35 @@ const TYP = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.c
   assert.match(await meldung(), /In „Revision 001“ liegen 2 PDFs/);
   assert.equal(await page.locator('#azMeldung [data-az=datei]').textContent(), 'Datei wählen …');
   assert.deepEqual(await inhalt(ZWEI), ['Arbeitszettel']);
+
+  // 9a) Notizen und Arbeitsauftrag (Plan Punkt 3) – (1) steht er schon in den Notizen, wird nichts angehängt
+  const SCHON = '26.0142 Notiz schon Teststadt';
+  await oeffne(SCHON);
+  await warteMeldung(/übernommen: 12 Felder/);
+  assert.doesNotMatch(await meldung(), /Arbeitsauftrag/, 'kein Hinweis aufs Anhängen, wenn nichts angehängt wurde');
+  assert.equal((await leseIn(SCHON)).notizen, 'Schlüssel beim Hausmeister.\n\nArbeitsauftrag: Bitte Rußproben im EG nehmen.', 'nicht doppelt angehängt');
+  await page.locator('#azMeldung [data-az=zurueck]').click();
+  await warteMeldung(/zurückgenommen/);
+  pj = await leseIn(SCHON);
+  assert.equal(pj.notizen, 'Schlüssel beim Hausmeister.\n\nArbeitsauftrag: Bitte Rußproben im EG nehmen.', 'Rückgängig lässt nicht übernommene Notizen stehen');
+  assert.equal(pj.objekt, undefined);
+  // (2) Notizen mit anderem Text: angehängt, und die Meldung sagt es · (3) danach von Hand geändert → Rückgängig lässt die Notizen stehen und nennt sie
+  const NOTIZ = '26.0142 Notizen Teststadt';
+  await oeffne(NOTIZ);
+  await warteMeldung(FELDER13);
+  assert.match(await meldung(), /Arbeitszettel Revision 001 übernommen: 13 Felder · Arbeitsauftrag an die Notizen angehängt/);
+  assert.equal((await leseIn(NOTIZ)).notizen, 'Schlüssel beim Hausmeister.\n\nArbeitsauftrag: Bitte Rußproben im EG nehmen.');
+  if (!await page.locator('#pjBox').evaluate(d => d.open)) await page.locator('#pjBox > summary').click();
+  await page.locator('#pj_notizen').fill('Schlüssel beim Hausmeister.\n\nArbeitsauftrag: Bitte Rußproben im EG nehmen.\nTermin bestätigt.');
+  await page.locator('#pjSave.ok').waitFor();
+  await page.locator('#azMeldung [data-az=zurueck]').click();
+  await warteMeldung(/zurückgenommen/);
+  assert.match(await meldung(), /inzwischen geändert und deshalb behalten: Notizen\./);
+  pj = await leseIn(NOTIZ);
+  assert.equal(pj.notizen, 'Schlüssel beim Hausmeister.\n\nArbeitsauftrag: Bitte Rußproben im EG nehmen.\nTermin bestätigt.', 'von Hand geänderte Notizen bleiben');
+  for (const k of ['objekt', 'ortstermin', 'sachverstaendiger']) assert.equal(pj[k], undefined, k + ' zurückgenommen');
+  assert.equal(pj.arbeitszettel.abgelehnt, true);
+  assert.equal(await page.locator('#pj_notizen').inputValue(), pj.notizen);
 
   // 9b) zweiter AZ-Ordner ohne Revision zählt mit: nicht automatisch
   const ZWEIAZ = '26.0142 Zwei AZ Teststadt';
