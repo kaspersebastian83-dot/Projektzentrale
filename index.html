@@ -213,6 +213,13 @@ label.pflicht-offen>input,label.pflicht-offen>select,label.pflicht-offen>textare
 .datum-nb>.nb{flex:0 0 auto;font-size:12px;padding:3px 9px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer;white-space:nowrap}
 .datum-nb>.nb[aria-pressed="true"]{background:var(--accent,#2a6fb0);border-color:var(--accent,#2a6fb0);color:#fff}
 .datum-nb>.nb:disabled{cursor:default;opacity:.6}
+/* 1.49: fehlende Pflichtangaben direkt unter der zugeklappten Karte „Projektdaten“ – aufgeklappt stehen sie im Formular (nie doppelt) */
+.pz-pflicht{padding:0 14px 12px 56px}
+.pz-pflicht[hidden],.pz-pflicht [hidden]{display:none!important}
+#pjBox[open] + .pz-pflicht{display:none}
+.pz-pflicht .pfl-viele{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.az-hand button{border:0;background:none;padding:0;font:inherit;color:var(--accent);text-decoration:underline;cursor:pointer}
+@media (max-width:860px){.pz-pflicht{padding-left:14px}}
 @media (prefers-color-scheme:dark){.pflicht-tag{color:#f0c850}label.pflicht-offen>input,label.pflicht-offen>select,label.pflicht-offen>textarea,label.pflicht-offen>.datum-nb>input{background:rgba(217,164,0,.12)}}
 .save{font-size:12.5px;color:var(--muted);margin-top:8px;min-height:18px}
 .save.err{color:var(--err)}
@@ -994,9 +1001,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.48.0';
+const APP_VERSION = '1.49.0';
 const APP_DATE = '2026-11-12';
 const CHANGELOG = [
+  ['1.49.0', '13.11.2026', 'Fehlende Pflichtangaben gleich sichtbar: Seit der Arbeitszettel von selbst übernommen wird, bleiben meist nur Nutzung und Schadendatum offen – und die standen im zugeklappten Formular. Jetzt stehen fehlende Pflichtangaben (bis zu drei) direkt unter der zugeklappten Karte „Projektdaten“ zum Ausfüllen, „nicht bekannt“ inklusive; ausgefüllt verschwinden sie, gespeichert wird wie im Formular. Fehlen mehr, steht dort, welche, mit „Angaben öffnen“. Der gelbe Hinweis oben nennt die Felder („Fehlt: Nutzung · Schadendatum“) und springt beim Klick ins erste. Die Meldung „Arbeitszettel … übernommen“ sagt, was noch von Hand fehlt. Das Formular unter „Angaben“ ist unverändert.'],
   ['1.48.0', '13.11.2026', 'Arbeitszettel von selbst: Liegt im Projektordner unter „Arbeitszettel“ ein Zettel aus MOS\'aik (Arbeitszettel › AZ… › Revision …, darin das PDF), liest die Projektzentrale ihn beim ersten Öffnen des Projekts und trägt ihn ein – nur in leere Felder, nur wenn alles eindeutig ist (genau ein PDF in der höchsten Revision, Projektnummer auf dem Zettel = Ordner, Spektron-Projekt). Über „Jetzt dran“ steht dann immer eine Zeile, die bleibt, bis man sie schließt: übernommen (mit „Ansehen“ und „Rückgängig“ – danach wird der Zettel nicht wieder übernommen; der Arbeitsauftrag kommt wie bisher an die Notizen, die Zeile sagt es, und steht er dort schon, wird nichts angehängt; hat jemand die Notizen danach geändert, lässt „Rückgängig“ sie stehen und nennt sie), nicht übernommen mit dem Grund (z. B. andere Projektnummer, Felder haben schon andere Werte, mehrere PDFs, Projekt aus der Zeit vor Spektron) und „Arbeitszettel prüfen und übernehmen“, oder „Kein Arbeitszettel gefunden“ mit „Datei wählen …“, solange Projektdaten fehlen. Kommt später eine neue Revision dazu, steht dort „Neuer Arbeitszettel (Revision 002) – Änderungen ansehen“; übernommen wird sie nur von Hand, und der Dialog zeigt nur die Felder, die sich ändern. Der Knopf in den Projektdaten heißt jetzt „Andere Datei wählen …“. Behoben: Hielt ein zweites Projektzentrale-Fenster das Projekt, passierte beim Einlesen und Speichern still nichts. Jetzt erscheint sofort „Lese Arbeitszettel …“ und nach spätestens 20 Sekunden „Das Projekt ist gerade in einem anderen Projektzentrale-Fenster belegt – bitte das andere Fenster schließen und erneut versuchen.“ Getippte Eingaben bleiben dabei stehen.'],
   ['1.47.0', '12.11.2026', 'Unter „Mehr zum Projekt …“ neu: „GlasKit öffnen“. GlasKit öffnet dann gleich dieses Projekt – das Gebäude aus Glas mit allen Proben, bei gezeichneten Skizzen mit gläsernen Wänden, und den Fotos aus FotoKit in der Probenkarte. Fragt der Browser nach dem Zugriff, reicht dort ein Klick; GlasKit liest nur und ändert nichts im Projekt. Der Knopf unter „⋯ Büro & Apps“ bleibt (ohne Projekt). Sonst unverändert.'],
   ['1.46.0', '12.11.2026', 'Neu unter „⋯ Büro & Apps“: GlasKit – das Gebäude aus Glas. Öffnet in einem eigenen Fenster; dort den Projektordner wählen, und die Geschosse aus PlanKit erscheinen als gläsernes 3D-Modell mit allen Proben in der Farbe ihrer Bewertung, Brandherd und Rundgang. GlasKit liest nur und ändert nichts im Projekt. Sonst unverändert.'],
@@ -1228,6 +1236,10 @@ const PJ_PFLICHT = ['objekt', 'nutzung', 'auftraggeber', 'schadendatum', 'ortste
 /* Datumsfelder, die „nicht bekannt“ sein dürfen: gespeichert wird dann der Text „unbekannt“ (statt JJJJ-MM-TT), angezeigt
    „nicht bekannt“; die Pflichtangabe gilt damit als erledigt. Gleiche Regel in FotoKit (Schadendatum) und PlanKit (Anlage). */
 const PJ_UNBEKANNT = ['schadendatum'], UNBEKANNT = 'unbekannt';
+/* 1.49: Kurznamen für Hinweis und Meldung („Fehlt: Nutzung · Schadendatum“); ohne Eintrag: Feldname ohne Klammerzusatz.
+   Bis PJ_INLINE_MAX fehlende Pflichtangaben stehen zum Ausfüllen unter der zugeklappten Karte, darüber nur genannt. */
+const PJ_KURZ = { objekt: 'Objekt', sachverstaendiger: 'Sachverständiger' }, PJ_INLINE_MAX = 3;
+const pjKurz = k => PJ_KURZ[k] || String((PJ_FIELDS.find(f => f[0] === k) || [k, k])[1]).replace(/\s*\(.*\)\s*$/, '');
 /** Aktueller Wert eines Projektdaten-Felds im Formular (bei „nicht bekannt“ der gespeicherte Text). */
 const pjFeldWert = k => { const nb = $('pj_' + k + '_nb'); return nb && nb.getAttribute('aria-pressed') === 'true' ? UNBEKANNT : $('pj_' + k) ? $('pj_' + k).value : ''; };
 const PJ_FIELDS = [
@@ -1292,7 +1304,7 @@ function pjBauen(name, data, patch){
 
 /* ---------- state ---------- */
 const S = { archive: null, ma: null, projects: [], others: [], sel: null, year: '', q: '', scanToken: 0, pj: null, pjDirty: {}, pjTimer: null, pjWriting: Promise.resolve(),
-  azMeldung: new Map(), azKand: new Map(), azZu: new Set(), azLaeuft: new Set(), azGeprueft: new Map() };   // 1.48: Arbeitszettel aus dem Projektordner (Meldung je Projekt, Fund, geschlossene Meldungen)
+  azMeldung: new Map(), azKand: new Map(), azZu: new Set(), azLaeuft: new Set(), azGeprueft: new Map(), pjInline: new Set() };   // 1.48: Arbeitszettel aus dem Projektordner (Meldung je Projekt, Fund, geschlossene Meldungen)
 /* ---------- Sprung aus einer App ----------
    #projekt=<Ordnername> öffnet das Projekt; &uebergabe=<Pfad der Word-Datei> (BerichtKit „Ans Büro übergeben →“) klappt
    dazu „Gutachten ans Büro übergeben“ auf, mit genau dieser Word-Datei und den Prüfberichten, die BerichtKit vermerkt hat.
@@ -2105,7 +2117,7 @@ async function selectProject(p){
     const namen = offen.map(k => (PJ_FIELDS.find(f => f[0] === k) || [k, k])[1]);
     if (!(await confirmDialog('Änderungen nicht gespeichert', `In „${esc(S.sel.name)}“ konnten diese Angaben nicht gespeichert werden: <b>${namen.map(esc).join(', ')}</b>.<br>Beim Wechsel gehen sie verloren.`, 'Trotzdem wechseln'))) return;
   }
-  S.sel = p; S.pj = null; S.pjDirty = {}; S.anl = null;
+  S.sel = p; S.pj = null; S.pjDirty = {}; S.pjInline = new Set(); S.anl = null;
   if ($('heuteLink')) $('heuteLink').classList.remove('active');
   $('list').querySelectorAll('.proj').forEach(el => { el.classList.toggle('active', el.dataset.name === p.name); el.setAttribute('aria-pressed', String(el.dataset.name === p.name)); });
   if (!p.st){ p.scanning = true; p.st = await scanProject(p); p.scanning = false; updateRow(p); }
@@ -2535,15 +2547,55 @@ function weitereApps(){
     <a class="app" id="goRueck" href="${rueckmeldungUrl()}" target="rueckmeldung" rel="noopener" title="Öffnet das Rückmeldeformular in einem eigenen Fenster – Programm, Version und (falls gewählt) Projektnummer sind schon eingetragen"><span class="ic" aria-hidden="true">💬</span><span><span class="name">Rückmeldung</span><small>Fehler oder Wunsch melden</small></span><span class="go" aria-hidden="true">↗</span></a>
     <a class="more-link" href="archiv/" target="spektron-archiv" rel="noopener" title="Messwerte aller Projekte aus den Prüfberichten vergleichen – liest nur, öffnet in einem eigenen Fenster">Datenarchiv ↗</a></div>`;
 }
-/** Leere Pflichtfelder hervorheben und im Kopf der Karte zählen – nach dem Zeichnen und bei jeder Eingabe. */
-function pflichtZeigen(ro){
+/** Leere Pflichtfelder hervorheben, oben nennen (bis PJ_INLINE_MAX mit Namen) und unter der zugeklappten Karte zum Ausfüllen
+    zeigen – nach dem Zeichnen und bei jeder Eingabe. halte: Feld, in dem gerade geschrieben wird (bleibt stehen, auch wenn schon gefüllt). */
+function pflichtZeigen(ro, halte){
   const leer = ro ? [] : PJ_PFLICHT.filter(k => $('pj_' + k) && !String(pjFeldWert(k)).trim());
   for (const k of PJ_PFLICHT){ const el = $('pj_' + k); if (el) el.closest('label').classList.toggle('pflicht-offen', leer.includes(k)); }
   const chip = $('pflichtFehlt'); if (!chip) return;
   chip.hidden = !leer.length;
-  chip.textContent = leer.length === 1 ? '1 Pflichtangabe fehlt' : `${leer.length} Pflichtangaben fehlen`;
+  chip.textContent = !leer.length ? '' : leer.length <= PJ_INLINE_MAX ? 'Fehlt: ' + leer.map(pjKurz).join(' · ') : `${leer.length} Pflichtangaben fehlen`;
   chip.title = 'Fehlt: ' + leer.map(k => PJ_FIELDS.find(f => f[0] === k)[1]).join(', ') + ' – hier klicken zum Eintragen';
+  pflichtZeile(leer, halte);
+  azHandZeigen(leer);
   if (S.sel) stufenZeichnen(S.sel);
+}
+/** 1.49: Zeile unter der zugeklappten Karte „Projektdaten“. Die Felder dort sind nur ein zweiter Zugang zu den Formularfeldern:
+    Eingaben gehen an das Formularfeld (gleiches Speichern, gleiche Fehlermeldungen), angezeigt wird immer dessen Wert.
+    Auswahl und „nicht bekannt“ verschwinden sofort, Text- und Datumsfelder erst beim Verlassen. */
+function pflichtZeile(leer, halte){
+  const box = $('pjPflicht'); if (!box) return;
+  const ae = document.activeElement;
+  const schreibt = k => { const q = $('pjq_' + k); return !!q && q.tagName !== 'SELECT' && (k === halte || ae === q); };
+  const zeigen = leer.length <= PJ_INLINE_MAX ? PJ_PFLICHT.filter(k => leer.includes(k) || schreibt(k)) : [];
+  let fokusWeg = false;
+  for (const k of PJ_PFLICHT){
+    const q = $('pjq_' + k), el = $('pj_' + k); if (!q || !el) continue;
+    const lab = q.closest('label'), nb = $('pjq_' + k + '_nb'), nbF = $('pj_' + k + '_nb'), an = !!nbF && nbF.getAttribute('aria-pressed') === 'true';
+    if (lab.contains(ae) && !zeigen.includes(k)) fokusWeg = true;
+    lab.hidden = !zeigen.includes(k);
+    lab.classList.toggle('pflicht-offen', leer.includes(k));
+    if (ae !== q && q.value !== el.value) q.value = el.value;
+    if (nb){ nb.setAttribute('aria-pressed', String(an)); q.disabled = an; }
+  }
+  box.querySelector('.pfl-felder').hidden = !zeigen.length;
+  const viele = box.querySelector('.pfl-viele');
+  viele.hidden = leer.length <= PJ_INLINE_MAX;
+  viele.querySelector('span').textContent = 'Fehlt: ' + leer.map(pjKurz).join(' · ');
+  box.hidden = !zeigen.length && viele.hidden;
+  // Feld ausgefüllt und verschwunden: weiter zum nächsten offenen, sonst zur Karte (Tastatur bleibt in der Nähe)
+  if (fokusWeg){ const n = box.querySelector('label:not([hidden]) select, label:not([hidden]) input:not(:disabled)'); (n || $('pjBox').querySelector('summary')).focus({ preventScroll: true }); }
+}
+/** 1.49: In der Meldung „Arbeitszettel … übernommen“: was danach noch von Hand fehlt – Klick springt dorthin wie der Hinweis oben. */
+function azHandZeigen(leer){
+  const el = $('azHand'); if (!el || !S.sel) return;
+  if (!leer) leer = S.pj && (S.pj.error || S.pj.newer) ? [] : PJ_PFLICHT.filter(k => $('pj_' + k) && !String(pjFeldWert(k)).trim());
+  const text = leer.length <= PJ_INLINE_MAX ? leer.map(pjKurz).join(', ') : `${leer.length} Pflichtangaben`;
+  if (!leer.length){ el.innerHTML = ''; return; }
+  if (el.dataset.t === text && el.firstChild) return;
+  el.dataset.t = text;
+  el.innerHTML = ` · noch von Hand: <button type="button" title="Zum ersten fehlenden Feld">${esc(text)}</button>`;
+  const p = S.sel; el.querySelector('button').onclick = e => { e.preventDefault(); stufeAktion(p, 'daten'); };
 }
 function renderDetail(){
   const p = S.sel;
@@ -2554,19 +2606,20 @@ function renderDetail(){
   if (ms && ms.daten && ms.daten.abrechnung) stand.beleg = { text: `Abrechnungsstand vom ${deDatum(ms.daten.abrechnung)}` };
   // Wird neu gezeichnet, während jemand in den Projektdaten schreibt (Ordner fertig gelesen, Anlage erstellt …), bleibt der Cursor im Feld.
   const ae = document.activeElement, fokus = ae && /^pj_/.test(ae.id) && $('detail').contains(ae) ? { id: ae.id, a: ae.selectionStart, b: ae.selectionEnd } : null;
+  const fokusQ = ae && /^pjq_/.test(ae.id) && $('detail').contains(ae) ? { id: ae.id, k: /_nb$/.test(ae.id) ? null : ae.id.slice(4), a: ae.selectionStart, b: ae.selectionEnd } : null;   // 1.49: Zeile unter der Karte
   const ok = p.st && !p.st.err, fehlend = ok ? SUBS.filter(([k]) => !p.st.subs[k]).map(([, n]) => n) : [];
   const summe = ['objekt', 'auftraggeber', 'schadennummer'].map(k => String(d[k] || '').trim()).filter(Boolean).join(' · ');
   S.pjOpen = S.pjOpen || {}; S.ordOpen = S.ordOpen || {}; S.vtOpen = S.vtOpen || {}; S.pmOpen = S.pmOpen || {};
   const vst = verteilerStand(d.verteiler);
   const pflichtLeer = ro ? [] : PJ_PFLICHT.filter(k => !String(k in S.pjDirty ? S.pjDirty[k] : (d[k] || '')).trim());
   // Projektdaten zugeklappt – fehlende Pflichtangaben stehen oben als Hinweis und in Stufe 1; aufgeklappt nur bei Problemen mit der Datei
-  const pjAuf = fokus || Object.keys(S.pjDirty).length ? true : p.name in S.pjOpen ? S.pjOpen[p.name] : (!!nrWarn || !!pj.error || !!pj.newer);
-  const feld = k => { const [, label, type, wide, ph] = PJ_FIELDS.find(f => f[0] === k);
-    return `<label class="${[wide ? 'wide' : '', PJ_PFLICHT.includes(k) && !ro ? 'pflicht' : ''].filter(Boolean).join(' ')}"><span>${esc(label)}${PJ_PFLICHT.includes(k) && !ro ? '<span class="pflicht-tag">Pflicht</span>' : ''}</span>
-        ${type === 'area' ? `<textarea id="pj_${k}" rows="3" ${ro ? 'readonly' : ''}></textarea>`
-          : type === 'select' ? `<select id="pj_${k}" ${ro ? 'disabled' : ''}><option value="">– wählen –</option>${PJ_OPTIONEN[k].map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join('')}${d[k] && !PJ_OPTIONEN[k].some(([v]) => v === d[k]) ? `<option value="${esc(d[k])}">${esc(d[k])}</option>` : ''}</select>`
-          : PJ_UNBEKANNT.includes(k) ? `<span class="datum-nb"><input type="${type}" id="pj_${k}" ${ro ? 'readonly' : ''}><button type="button" class="nb" id="pj_${k}_nb" aria-pressed="false" title="Datum ist nicht bekannt – erscheint in den Anlagen als „nicht bekannt“" ${ro ? 'disabled' : ''}>nicht bekannt</button></span>`
-          : `<input type="${type}" id="pj_${k}" placeholder="${esc(ph)}" ${ro ? 'readonly' : ''}>`}</label>`; };
+  const pjAuf = fokus || Object.keys(S.pjDirty).some(k => !S.pjInline.has(k)) ? true : p.name in S.pjOpen ? S.pjOpen[p.name] : (!!nrWarn || !!pj.error || !!pj.newer);
+  const feld = (k, id = 'pj_') => { const [, label, type, wide, ph] = PJ_FIELDS.find(f => f[0] === k);
+    return `<label class="${[wide ? 'wide' : '', PJ_PFLICHT.includes(k) && !ro ? 'pflicht' : ''].filter(Boolean).join(' ')}"${id === 'pj_' ? '' : ' hidden'}><span>${esc(label)}${PJ_PFLICHT.includes(k) && !ro ? '<span class="pflicht-tag">Pflicht</span>' : ''}</span>
+        ${type === 'area' ? `<textarea id="${id}${k}" rows="3" ${ro ? 'readonly' : ''}></textarea>`
+          : type === 'select' ? `<select id="${id}${k}" ${ro ? 'disabled' : ''}><option value="">– wählen –</option>${PJ_OPTIONEN[k].map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join('')}${d[k] && !PJ_OPTIONEN[k].some(([v]) => v === d[k]) ? `<option value="${esc(d[k])}">${esc(d[k])}</option>` : ''}</select>`
+          : PJ_UNBEKANNT.includes(k) ? `<span class="datum-nb"><input type="${type}" id="${id}${k}" ${ro ? 'readonly' : ''}><button type="button" class="nb" id="${id}${k}_nb" aria-pressed="false" title="Datum ist nicht bekannt – erscheint in den Anlagen als „nicht bekannt“" ${ro ? 'disabled' : ''}>nicht bekannt</button></span>`
+          : `<input type="${type}" id="${id}${k}" placeholder="${esc(ph)}" ${ro ? 'readonly' : ''}>`}</label>`; };
   const same=S.renderedName===p.name&&S.renderedArchive===S.archive,scroll=$('detail').scrollTop,oldPanel=same?$('bueroPanel'):null,oldAlerts=same?$('bueroAttention'):null;
   const officeFocus=(oldPanel?.contains(document.activeElement)||oldAlerts?.contains(document.activeElement))?{el:document.activeElement,start:document.activeElement.selectionStart,end:document.activeElement.selectionEnd}:null;
   S.renderedName=p.name;S.renderedArchive=S.archive;
@@ -2599,10 +2652,13 @@ function renderDetail(){
             ${pj.newer ? `<div class="warn">„${PJ_FILE}“ stammt von einer neueren Version – bitte Projektzentrale aktualisieren. Nur Ansicht.</div>` : ''}
             ${ro ? '' : `<div class="azrow"><button id="azBtn" title="Arbeitszettel als PDF wählen – liest Objekt, Versicherung, Schaden-Nr., Termine und Beteiligte; vor dem Speichern wird jeder Wert angezeigt. Der Zettel im Ordner „Arbeitszettel“ wird beim Öffnen des Projekts von selbst gelesen.">📄 Andere Datei wählen …</button>
               <span class="m">${azZuletztText(d.arbeitszettel)}</span><input type="file" id="azFile" accept="application/pdf,.pdf" hidden></div>`}
-            <div class="form">${PJ_GRUPPEN.map(([g, ks]) => (g ? `<div class="grp">${esc(g)}</div>` : '') + ks.map(feld).join('')).join('')}</div>
+            <div class="form">${PJ_GRUPPEN.map(([g, ks]) => (g ? `<div class="grp">${esc(g)}</div>` : '') + ks.map(k => feld(k)).join('')).join('')}</div>
             <div class="save m" title="${esc(PJ_FILE)} im Projektordner (bei Spektron-Projekten in „${esc(SO.ORDNER)}“) – gilt für alle Apps">${pj.exists ? (d.geaendert ? `Zuletzt gespeichert ${esc(new Date(d.geaendert).toLocaleString('de-DE'))}${d.geaendertMit ? ' mit ' + esc(d.geaendertMit) : ''}` : '') : 'Noch keine Projektdaten – wird beim ersten Eintrag angelegt.'} · gilt für alle Apps</div>
           </div>
         </details>
+        ${ro || vorSpektron(p) ? '' : `<div class="pz-pflicht" id="pjPflicht" role="group" aria-label="Fehlende Pflichtangaben" hidden>
+          <div class="form pfl-felder">${PJ_PFLICHT.map(k => feld(k, 'pjq_')).join('')}</div>
+          <div class="pfl-viele" hidden><span></span><button type="button" class="sk" id="pjPflichtAuf" data-aktion="daten-auf" title="Projektdaten aufklappen – zum ersten fehlenden Feld">Angaben öffnen</button></div></div>`}
     </div>
     <div id="pjRecovery"></div>
     ${fehlend.length ? `<div class="warnbar"><span>Es fehlen Unterordner: <b>${fehlend.map(esc).join(', ')}</b></span><button id="mkSubs">Anlegen</button></div>` : ''}
@@ -2655,15 +2711,23 @@ function renderDetail(){
     const el = $('pj_' + k);
     el.value = k in S.pjDirty ? S.pjDirty[k] : (d[k] || '');   // noch nicht gespeicherte Eingaben nicht durch den alten Stand ersetzen
     if (k === 'sachverstaendiger'){ const zk = zustaendigVon(p, pj.error ? undefined : d).kuerzel; if (zk && maPerson(zk)) el.placeholder = 'Vorschlag: ' + maName(zk); }   // nur Vorschlag, nichts wird still eingetragen
-    if (!ro) el.addEventListener('input', () => { S.pjDirty[k] = el.value; schedulePJ(); if (PJ_PFLICHT.includes(k)) pflichtZeigen(ro); });
+    if (!ro) el.addEventListener('input', e => { if (e.isTrusted) S.pjInline.delete(k); S.pjDirty[k] = el.value; schedulePJ(); if (PJ_PFLICHT.includes(k)) pflichtZeigen(ro); });
     const nb = $('pj_' + k + '_nb');
     if (nb){
       const setzen = an => { nb.setAttribute('aria-pressed', String(an)); el.disabled = an; if (an) el.value = ''; };
       setzen(String(k in S.pjDirty ? S.pjDirty[k] : (d[k] || '')).trim() === UNBEKANNT);
-      if (!ro) nb.addEventListener('click', () => { const an = nb.getAttribute('aria-pressed') !== 'true'; setzen(an); S.pjDirty[k] = an ? UNBEKANNT : ''; schedulePJ(); if (PJ_PFLICHT.includes(k)) pflichtZeigen(ro); if (!an) el.focus(); });
+      if (!ro) nb.addEventListener('click', e => { if (e.isTrusted) S.pjInline.delete(k); const an = nb.getAttribute('aria-pressed') !== 'true'; setzen(an); S.pjDirty[k] = an ? UNBEKANNT : ''; schedulePJ(); if (PJ_PFLICHT.includes(k)) pflichtZeigen(ro); if (!an) el.focus(); });
     }
   }
-  pflichtZeigen(ro);
+  // 1.49: Zeile unter der Karte – Eingaben gehen an das Formularfeld (dort gespeichert wie jede Eingabe)
+  if ($('pjPflicht')) for (const k of PJ_PFLICHT){
+    const q = $('pjq_' + k), el = $('pj_' + k), nb = $('pjq_' + k + '_nb'); if (!q || !el) continue;
+    q.addEventListener(q.tagName === 'SELECT' ? 'change' : 'input', () => { S.pjInline.add(k); el.value = q.value; el.dispatchEvent(new Event('input')); });
+    q.addEventListener('blur', () => setTimeout(() => { if (S.sel === p) pflichtZeigen(ro); }, 0));
+    if (nb) nb.addEventListener('click', () => { S.pjInline.add(k); $('pj_' + k + '_nb').click(); });
+  }
+  pflichtZeigen(ro, fokusQ && fokusQ.k);
+  if (fokusQ && $(fokusQ.id) && !$(fokusQ.id).closest('label').hidden){ const el = $(fokusQ.id); el.focus({preventScroll:true}); try{ if (fokusQ.a != null) el.setSelectionRange(fokusQ.a, fokusQ.b); }catch(e){} }
   if (fokus && $(fokus.id)){ const el = $(fokus.id); el.focus({preventScroll:true}); try{ if (fokus.a != null) el.setSelectionRange(fokus.a, fokus.b); }catch(e){} }
   if (Object.keys(S.pjDirty).length){ $('pjSave').className = 'save'; $('pjSave').textContent = 'Änderungen werden gespeichert …'; }
   if ($('zust')) $('zust').onchange = e => zustaendigSetzen(p, e.target.value);
@@ -2794,7 +2858,12 @@ function stufeAktion(p, aktion){
       if (k && k.art === 'eins' && $('azFile')) return azDialogAusOrdner(p, k);
       if ($('azFile')) $('azFile').click(); else { $('pjBox').open = true; zeige($('pjBox')); } return; }
     case 'daten-auf': S.datenOffenLassen = true; return stufeAktion(p, 'daten');   // „Projektdaten ändern“: immer auf, nie zuklappen
-    case 'daten': { const box = $('pjBox'); const war = box.open && !S.datenOffenLassen; S.datenOffenLassen = false; box.open = true; S.pjOpen[p.name] = true;
+    case 'daten': { const box = $('pjBox'), zeile = $('pjPflicht');
+      if (!box.open && !S.datenOffenLassen && zeile && !zeile.hidden){   // 1.49: fehlende Angaben stehen unter der zugeklappten Karte
+        const q = [...zeile.querySelectorAll('label:not([hidden]) select, label:not([hidden]) input')].find(e => !e.disabled);
+        if (q){ q.focus({ preventScroll: true }); zeige(zeile); return; }
+      }
+      const war = box.open && !S.datenOffenLassen; S.datenOffenLassen = false; box.open = true; S.pjOpen[p.name] = true;
       const k = PJ_PFLICHT.find(k => $('pj_' + k) && !String(pjFeldWert(k)).trim()); if (k && !$('pj_' + k).disabled) $('pj_' + k).focus({ preventScroll: true }); zeige(k ? $('pj_' + k) : box);
       if (war && !k) { box.open = false; S.pjOpen[p.name] = false; } return; }
     case 'label': openApp(p, LABELKIT_URL, 'labelkit'); return;
@@ -3294,6 +3363,7 @@ function azMeldungZeichnen(p){
     case 'lese': t = `<b>${esc(m.text || 'Lese Arbeitszettel …')}</b>`; break;
     case 'ok': t = `<b>Arbeitszettel${rev} übernommen:</b> ${m.felder.length ? m.felder.length + ' Feld' + (m.felder.length === 1 ? '' : 'er') : 'keine neuen Werte (alles schon eingetragen)'}`
         + (m.felder.includes('arbeitsauftrag') ? (String((m.vorher || {}).notizen || '').trim() ? ' · Arbeitsauftrag an die Notizen angehängt' : ' · Arbeitsauftrag in die Notizen eingetragen') : '');
+      t += '<span class="az-hand" id="azHand"></span>';   // 1.49: was danach noch von Hand fehlt (azHandZeigen)
       knoepfe = k('ansehen', 'Ansehen') + k('zurueck', 'Rückgängig'); break;
     case 'nicht': t = `<b>Arbeitszettel${rev} nicht automatisch übernommen:</b> ${esc(m.grund)}`;
       knoepfe = m.ro ? '' : m.kand ? k('pruefen', 'Arbeitszettel prüfen und übernehmen') : k('datei', 'Datei wählen …'); break;
@@ -3305,6 +3375,7 @@ function azMeldungZeichnen(p){
   const zu = m.art === 'lese' ? '' : '<button type="button" class="az-zu" data-az="zu" title="Meldung schließen" aria-label="Meldung schließen">×</button>';
   el.innerHTML = `<span class="az-t">📄 ${t}</span><span class="az-k">${knoepfe}${zu}</span>`;
   el.querySelectorAll('[data-az]').forEach(b => b.onclick = e => { e.preventDefault(); azMeldungAktion(p, b.dataset.az); });
+  azHandZeigen();
 }
 
 /* ---------- Verteiler: wer bekommt das Gutachten, wann versandt ----------
