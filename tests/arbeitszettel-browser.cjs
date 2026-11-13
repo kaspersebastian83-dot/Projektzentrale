@@ -66,6 +66,9 @@ const TYP = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.c
     await leg('26.0143 Andere Nummer', 'Arbeitszettel/AZ2600558/Revision 001/AZ.pdf', 'arbeitszettel-voll.pdf');
     await leg('26.0144 Zwei PDFs', 'Arbeitszettel/AZ2600559/Revision 001/AZ.pdf', 'arbeitszettel-voll.pdf');
     await leg('26.0144 Zwei PDFs', 'Arbeitszettel/AZ2600559/Revision 001/Anhang.pdf', 'arbeitszettel-knapp.pdf');
+    // zweiter AZ-Ordner ohne Revision: trotzdem „mehrere Arbeitszettel“ (Codex-Review #82)
+    await leg('26.0142 Zwei AZ Teststadt', 'Arbeitszettel/AZ2600560/Revision 001/AZ.pdf', 'arbeitszettel-voll.pdf');
+    await (await (await (await archiv.getDirectoryHandle('26.0142 Zwei AZ Teststadt')).getDirectoryHandle('Arbeitszettel')).getDirectoryHandle('AZ2600561', { create: true }));
     window.showDirectoryPicker = async () => archiv;
   }, A);
   await page.locator('#btnStart, #btnArchive').first().click();
@@ -240,6 +243,19 @@ const TYP = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.c
   assert.equal(await meldung(), '');
   await oeffne(A); await oeffne(REV);
   assert.equal(await meldung(), '', 'gelesene Revision: keine Meldung');
+  // noch eine Revision, aber nicht eindeutig (zwei PDFs): nicht still – Grund und „Datei wählen …“ (Codex-Review #82)
+  await page.evaluate(async n => {
+    const p = await (await (await navigator.storage.getDirectory()).getDirectoryHandle('Mosaik Archivordner')).getDirectoryHandle(n);
+    const r = await (await (await p.getDirectoryHandle('Arbeitszettel')).getDirectoryHandle('AZ2600557')).getDirectoryHandle('Revision 003', { create: true });
+    for (const [name, quelle] of [['AZ.pdf', 'arbeitszettel-voll.pdf'], ['Anhang.pdf', 'arbeitszettel-knapp.pdf']]){
+      const w = await (await r.getFileHandle(name, { create: true })).createWritable();
+      await w.write(new Uint8Array(await (await fetch('tests/fixtures/' + quelle)).arrayBuffer())); await w.close();
+    }
+  }, REV);
+  await oeffne(A); await oeffne(REV);
+  assert.match(await meldung(), /Neuer Arbeitszettel \(Revision 003\) – In „Revision 003“ liegen 2 PDFs/);
+  assert.equal(await page.locator('#azMeldung [data-az=datei]').textContent(), 'Datei wählen …');
+  assert.equal((await leseIn(REV)).arbeitszettel.revision, 2, 'nichts übernommen');
 
   // 8) andere Projektnummer auf dem Zettel: nicht automatisch, nichts geschrieben; „prüfen und übernehmen“ = bisheriger Dialog
   const NR = '26.0143 Andere Nummer';
@@ -260,6 +276,12 @@ const TYP = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.c
   assert.match(await meldung(), /In „Revision 001“ liegen 2 PDFs/);
   assert.equal(await page.locator('#azMeldung [data-az=datei]').textContent(), 'Datei wählen …');
   assert.deepEqual(await inhalt(ZWEI), ['Arbeitszettel']);
+
+  // 9b) zweiter AZ-Ordner ohne Revision zählt mit: nicht automatisch
+  const ZWEIAZ = '26.0142 Zwei AZ Teststadt';
+  await oeffne(ZWEIAZ);
+  assert.match(await meldung(), /nicht automatisch übernommen: Im Ordner „Arbeitszettel“ liegen mehrere Arbeitszettel \(AZ2600560, AZ2600561\)/);
+  assert.deepEqual(await inhalt(ZWEIAZ), ['Arbeitszettel'], 'nichts geschrieben');
 
   // 10) ein zweites Fenster hält das Projekt: nie still – „Lese Arbeitszettel …“ sofort, nach höchstens 20 s klare Meldung, Eingaben bleiben
   await oeffne(A);

@@ -3097,13 +3097,14 @@ async function azOrdner(dir, test){
 async function azSuchen(p){
   const top = (await azOrdner(p.handle, n => n.toLowerCase() === 'arbeitszettel'))[0];
   if (!top) return { art: 'keiner' };
+  // Eindeutig heißt: genau ein AZ-Ordner – gezählt werden alle, auch solche ohne (richtig benannte) Revision
+  const azListe = await azOrdner(top.h, n => /^az/i.test(n));
+  if (azListe.length > 1) return { art: 'nicht', grund: `Im Ordner „${top.name}“ liegen mehrere Arbeitszettel (${azListe.map(a => a.name).join(', ')}).` };
   const revs = [];
-  for (const az of await azOrdner(top.h, n => /^az/i.test(n)))
+  for (const az of azListe)
     for (const r of await azOrdner(az.h, n => /^revision\s*\d+$/i.test(n)))
       revs.push({ az: az.name, rev: r.name, nr: +/\d+$/.exec(azN(r.name))[0], h: r.h });
   if (!revs.length) return { art: 'keiner' };
-  const azNamen = [...new Set(revs.map(r => r.az))];
-  if (azNamen.length > 1) return { art: 'nicht', grund: `Im Ordner „${top.name}“ liegen mehrere Arbeitszettel (${azNamen.join(', ')}).` };
   const max = Math.max(...revs.map(r => r.nr)), oben = revs.filter(r => r.nr === max);
   if (oben.length > 1) return { art: 'nicht', revision: max, grund: `Die Revision ${azRev(max)} gibt es mehrfach (${oben.map(r => r.rev).join(', ')}).` };
   const r = oben[0], pdfs = [];
@@ -3142,7 +3143,12 @@ async function azPruefenLauf(p){
   S.azKand.set(p.name, kand);
   // Schon gelesen (auch zurückgenommen): nie wieder automatisch – nur auf eine neue Revision oder anderen Inhalt hinweisen
   if (rec){
-    if (kand.art !== 'eins') return azLeise(p);
+    if (kand.art === 'keiner') return azLeise(p);
+    if (kand.art === 'nicht'){
+      // dieselbe (oder ältere) Revision wie gelesen: z. B. ein Anhang daneben – nichts Neues. Sonst Grund nennen, Datei selbst wählen.
+      if (kand.revision != null && rec.revision != null && kand.revision <= +rec.revision) return azLeise(p);
+      return azSetzen(p, { art: 'neu', revision: kand.revision, ro, grund: kand.grund });
+    }
     const sha = kand.sha = await sha256Hex(await (await kand.h.getFile()).arrayBuffer());
     if (!aktuell()) return;
     if (sha === rec.sha256) return azLeise(p);
@@ -3292,7 +3298,7 @@ function azMeldungZeichnen(p){
       knoepfe = m.ro ? '' : m.kand ? k('pruefen', 'Arbeitszettel prüfen und übernehmen') : k('datei', 'Datei wählen …'); break;
     case 'keiner': t = '<b>Kein Arbeitszettel im Ordner „Arbeitszettel“ gefunden.</b> Die Projektdaten fehlen noch.'; knoepfe = k('datei', 'Datei wählen …'); break;
     case 'unlesbar': t = `<b>Arbeitszettel${rev} nicht gelesen:</b> ${esc(m.grund)}`; knoepfe = m.ro ? '' : k('datei', 'Andere Datei wählen …'); break;
-    case 'neu': t = `<b>Neuer Arbeitszettel${rev ? ' (' + rev.trim() + ')' : ''}</b>${m.grund ? ' – ' + esc(m.grund) : ''}`; knoepfe = m.ro ? '' : k('aenderungen', 'Änderungen ansehen'); break;
+    case 'neu': t = `<b>Neuer Arbeitszettel${rev ? ' (' + rev.trim() + ')' : ''}</b>${m.grund ? ' – ' + esc(m.grund) : ''}`; knoepfe = m.ro ? '' : m.kand ? k('aenderungen', 'Änderungen ansehen') : k('datei', 'Datei wählen …'); break;
     case 'zurueck': t = `<b>Arbeitszettel${rev} zurückgenommen:</b> ${esc(m.text)}`; break;
   }
   const zu = m.art === 'lese' ? '' : '<button type="button" class="az-zu" data-az="zu" title="Meldung schließen" aria-label="Meldung schließen">×</button>';
