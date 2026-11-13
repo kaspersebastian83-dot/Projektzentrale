@@ -134,5 +134,32 @@ async function all(d){const r={};async function walk(p){for(const e of await fs.
    for(let i=0;i<42;i++)await app.save(new Directory(d),{objekt:'Stand '+i});
    const v=await app.ProjectStore.versions(new Directory(d));assert.equal(v.items.length,42,'all old distinct versions found, no arbitrary truncation/deletion');
  });
+ // 1.48: Sperre nie endlos – hält ein anderes Fenster sie, nach ProjectStore.WARTEN (20 s) Fehler „belegt“; nichts wird geschrieben.
+ // Uhr 1000× schneller, Web Locks nachgebaut (wie der Browser: request mit signal, Abbruch → AbortError).
+ if(app.app==='Projektzentrale')await fixture(async d=>{
+   const helper=await fs.readFile(path.join(root,'project-store.js'),'utf8');
+   const gehalten=new Set(),warteschlange=[];
+   const locks={request(name,opt,fn){return new Promise((res,rej)=>{
+     const los=()=>{gehalten.add(name);Promise.resolve().then(fn).then(res,rej).finally(()=>{gehalten.delete(name);const n=warteschlange.findIndex(w=>w.name===name);if(n>=0)warteschlange.splice(n,1)[0].los();});};
+     if(!gehalten.has(name))return los();
+     const w={name,los};warteschlange.push(w);
+     opt&&opt.signal&&opt.signal.addEventListener('abort',()=>{const n=warteschlange.indexOf(w);if(n>=0){warteschlange.splice(n,1);rej(Object.assign(Error('aborted'),{name:'AbortError'}));}});
+   });}};
+   let gemessen=0;
+   const c=vm.createContext({crypto:webcrypto,TextEncoder,TextDecoder,Uint8Array,console,AbortController,navigator:{locks},setTimeout:(f,ms)=>{gemessen=ms;return setTimeout(f,ms/1000);},clearTimeout});
+   vm.runInContext(helper,c);const PS=c.ProjectStore;
+   assert.equal(PS.WARTEN,20000);
+   const vorher=(await bytes(d)).toString();
+   let freigeben;locks.request('mosaik:projekt:'+name,{},()=>new Promise(r=>freigeben=r));
+   let lief=false;
+   const e=await PS.update(new Directory(d),name,data=>{lief=true;return {...data,objekt:'SOLL NICHT'};}).then(()=>null,e=>e);
+   assert.ok(e&&e.belegt,'belegt-Fehler');assert.equal(gemessen,20000);
+   assert.equal(e.message,'Das Projekt ist gerade in einem anderen Projektzentrale-Fenster belegt – bitte das andere Fenster schließen und erneut versuchen.');
+   assert.equal(lief,false,'fn läuft nicht ohne Sperre');assert.equal((await bytes(d)).toString(),vorher,'nichts geschrieben');
+   freigeben();await new Promise(r=>setTimeout(r,10));
+   await PS.update(new Directory(d),name,data=>({...data,objekt:'FREI'}));assert.equal(JSON.parse(await bytes(d)).objekt,'FREI','nach Freigabe normal');
+   const f=await PS.update(new Directory(d),name,()=>{throw Object.assign(Error('eigener'),{name:'AbortError'});}).then(()=>null,e=>e);
+   assert.ok(f&&!f.belegt,'ein Fehler in fn ist kein „belegt“');
+ });
  console.log('OK',checks,'F3 synthetic filesystem cases for',app.app);
 })().catch(e=>{console.error(e);process.exitCode=1;});
