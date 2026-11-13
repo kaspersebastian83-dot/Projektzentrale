@@ -273,6 +273,13 @@ table.vt button{padding:2px 8px;font-size:12px;margin-left:6px}
 @media (max-width:860px){ main{flex-direction:column} #listWrap{flex:0 0 auto;max-height:22vh} #detail{border-left:0;border-top:1px solid var(--line)} .form{grid-template-columns:1fr} }
 
 .project-summary{margin:6px 0 10px;color:var(--muted);overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.az-meldung:empty{display:none}
+.az-meldung{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0;padding:9px 12px;border-left:3px solid var(--accent);background:var(--panel2);border-radius:8px}
+.az-meldung.ok,.az-meldung.zurueck{border-left-color:var(--ok)}
+.az-meldung.nicht,.az-meldung.unlesbar,.az-meldung.keiner{border-left-color:var(--warn)}
+.az-meldung .az-t{flex:1;min-width:0}
+.az-meldung .az-k{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.az-meldung .az-zu{border:0;background:none;font-size:18px;line-height:1;cursor:pointer;color:var(--muted);padding:2px 6px}
 #pjAttention:empty{display:none} #pjAttention{margin:10px 0;padding:10px;border-left:3px solid var(--warn);background:var(--panel2)}
 .more a.app{border-left:1px solid var(--line2);padding:8px 12px;margin:5px 0}.more a.app .name{font-size:15px;font-weight:500}
 @media(max-width:1100px){.steps{grid-template-columns:1fr}}
@@ -987,9 +994,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.47.0';
+const APP_VERSION = '1.48.0';
 const APP_DATE = '2026-11-12';
 const CHANGELOG = [
+  ['1.48.0', '13.11.2026', 'Arbeitszettel von selbst: Liegt im Projektordner unter „Arbeitszettel“ ein Zettel aus MOS\'aik (Arbeitszettel › AZ… › Revision …, darin das PDF), liest die Projektzentrale ihn beim ersten Öffnen des Projekts und trägt ihn ein – nur in leere Felder, nur wenn alles eindeutig ist (genau ein PDF in der höchsten Revision, Projektnummer auf dem Zettel = Ordner, Spektron-Projekt). Über „Jetzt dran“ steht dann immer eine Zeile, die bleibt, bis man sie schließt: übernommen (mit „Ansehen“ und „Rückgängig“ – danach wird der Zettel nicht wieder übernommen), nicht übernommen mit dem Grund (z. B. andere Projektnummer, Felder haben schon andere Werte, mehrere PDFs, Projekt aus der Zeit vor Spektron) und „Arbeitszettel prüfen und übernehmen“, oder „Kein Arbeitszettel gefunden“ mit „Datei wählen …“, solange Projektdaten fehlen. Kommt später eine neue Revision dazu, steht dort „Neuer Arbeitszettel (Revision 002) – Änderungen ansehen“; übernommen wird sie nur von Hand, und der Dialog zeigt nur die Felder, die sich ändern. Der Knopf in den Projektdaten heißt jetzt „Andere Datei wählen …“. Behoben: Hielt ein zweites Projektzentrale-Fenster das Projekt, passierte beim Einlesen und Speichern still nichts. Jetzt erscheint sofort „Lese Arbeitszettel …“ und nach spätestens 20 Sekunden „Das Projekt ist gerade in einem anderen Projektzentrale-Fenster belegt – bitte das andere Fenster schließen und erneut versuchen.“ Getippte Eingaben bleiben dabei stehen.'],
   ['1.47.0', '12.11.2026', 'Unter „Mehr zum Projekt …“ neu: „GlasKit öffnen“. GlasKit öffnet dann gleich dieses Projekt – das Gebäude aus Glas mit allen Proben, bei gezeichneten Skizzen mit gläsernen Wänden, und den Fotos aus FotoKit in der Probenkarte. Fragt der Browser nach dem Zugriff, reicht dort ein Klick; GlasKit liest nur und ändert nichts im Projekt. Der Knopf unter „⋯ Büro & Apps“ bleibt (ohne Projekt). Sonst unverändert.'],
   ['1.46.0', '12.11.2026', 'Neu unter „⋯ Büro & Apps“: GlasKit – das Gebäude aus Glas. Öffnet in einem eigenen Fenster; dort den Projektordner wählen, und die Geschosse aus PlanKit erscheinen als gläsernes 3D-Modell mit allen Proben in der Farbe ihrer Bewertung, Brandherd und Rundgang. GlasKit liest nur und ändert nichts im Projekt. Sonst unverändert.'],
   ['1.45.1', '11.11.2026', 'Datenarchiv 1.3.1 (Audit o41): Wie ResultKit 2.5 gehört die Einheit nicht mehr zum Vergleich der Werte – eine neuere Fassung eines Prüfberichts (-02) ersetzt die ältere auch dann, wenn sie den Wert in einer anderen Einheit angibt (z. B. µg/cm² statt mg/m²); zwei verschiedene Berichte mit Werten für dieselbe Probe und denselben Parameter zählen auch in verschiedenen Einheiten nicht. Umgerechnet wird nichts. Enthält eine ältere ResultKit-Übernahme noch den Wert der älteren Fassung, nennt „Zu prüfen“ beide Werte mit Einheit.'],
@@ -1261,27 +1269,30 @@ async function readPJ(dir){
 /* Gemeinsame Regeln für _Projekt.json (in Projektzentrale und FotoKit identisch halten): eine Sperre je Projekt, ein Hinweistext. */
 const PJ_HINWEIS = 'Gemeinsame Projektdaten (Projektzentrale, FotoKit, PlanKit, LabelKit). Bitte nicht löschen oder umbenennen.';
 function patchPJ(dir, name, patch, expected){
-  return ProjectStore.update(dir, name, data => {
-    const cur = {data};
-    const p = parseProjName(name) || {};
-    const o = { ...cur.data, ...patch,
-      format: 'mosaik-projekt', version: 1, hinweis: PJ_HINWEIS,
-      projektnummer: p.nr || cur.data.projektnummer || '', schadenort: p.ort || cur.data.schadenort || '',
-      geaendert: new Date().toISOString(), geaendertMit: 'Projektzentrale ' + APP_VERSION
-    };
-    if ('zustaendig' in patch && patch.zustaendig === null) delete o.zustaendig;
-    if ('spektron' in patch && patch.spektron === null) delete o.spektron;   // zurück zu „Vor Spektron“   // „wie Ordnername“: manuelle Auswahl entfernen
-    const order = ['format', 'version', 'hinweis', 'projektnummer', 'schadenort', ...PJ_FIELDS.map(f => f[0]), 'geaendert', 'geaendertMit'];
-    const sorted = Object.create(null);
-    for (const k of order) if (k in o) sorted[k] = o[k];
-    for (const k of Object.keys(o)) if (!(k in sorted)) sorted[k] = o[k];   // unknown fields from other apps stay
-    return sorted;
-  }, {data:expected,keys:Object.keys(patch)});
+  return ProjectStore.update(dir, name, data => pjBauen(name, data, patch), {data:expected,keys:Object.keys(patch)});
+}
+/** Neuer Stand von _Projekt.json aus dem frisch gelesenen Stand (data) und den Änderungen (patch; null = Feld entfernen). */
+function pjBauen(name, data, patch){
+  const cur = {data};
+  const p = parseProjName(name) || {};
+  const o = { ...cur.data, ...patch,
+    format: 'mosaik-projekt', version: 1, hinweis: PJ_HINWEIS,
+    projektnummer: p.nr || cur.data.projektnummer || '', schadenort: p.ort || cur.data.schadenort || '',
+    geaendert: new Date().toISOString(), geaendertMit: 'Projektzentrale ' + APP_VERSION
+  };
+  // null entfernt das Feld: „wie Ordnername“ (zustaendig), zurück zu „Vor Spektron“ (spektron), Arbeitszettel zurückgenommen
+  for (const k of Object.keys(patch)) if (patch[k] === null) delete o[k];
+  const order = ['format', 'version', 'hinweis', 'projektnummer', 'schadenort', ...PJ_FIELDS.map(f => f[0]), 'geaendert', 'geaendertMit'];
+  const sorted = Object.create(null);
+  for (const k of order) if (k in o) sorted[k] = o[k];
+  for (const k of Object.keys(o)) if (!(k in sorted)) sorted[k] = o[k];   // unknown fields from other apps stay
+  return sorted;
 }
 
 
 /* ---------- state ---------- */
-const S = { archive: null, ma: null, projects: [], others: [], sel: null, year: '', q: '', scanToken: 0, pj: null, pjDirty: {}, pjTimer: null, pjWriting: Promise.resolve() };
+const S = { archive: null, ma: null, projects: [], others: [], sel: null, year: '', q: '', scanToken: 0, pj: null, pjDirty: {}, pjTimer: null, pjWriting: Promise.resolve(),
+  azMeldung: new Map(), azKand: new Map(), azZu: new Set(), azLaeuft: new Set(), azGeprueft: new Map() };   // 1.48: Arbeitszettel aus dem Projektordner (Meldung je Projekt, Fund, geschlossene Meldungen)
 /* ---------- Sprung aus einer App ----------
    #projekt=<Ordnername> öffnet das Projekt; &uebergabe=<Pfad der Word-Datei> (BerichtKit „Ans Büro übergeben →“) klappt
    dazu „Gutachten ans Büro übergeben“ auf, mit genau dieser Word-Datei und den Prüfberichten, die BerichtKit vermerkt hat.
@@ -2103,6 +2114,7 @@ async function selectProject(p){
   S.pjDirH = dirH; S.pj = pj;
   renderDetail();
   meilensteineLaden(p);
+  azPruefen(p);   // 1.48: Arbeitszettel im Projektordner – nur beim Öffnen, nie beim Hintergrund-Scan
 }
 /* ---------- Projektstand (Meilensteine) ----------
    Aus vorhandenen Spuren wie die Durchlaufzeiten (durchlauf.js): Ortstermin, Laborauftrag, Prüfbericht, Übergabe ans Büro,
@@ -2565,6 +2577,7 @@ function renderDetail(){
     <p class="project-summary">${esc([d.objekt,d.auftraggeber,/^\d{4}-\d{2}-\d{2}$/.test(d.ortstermin||'')?'Ortstermin '+deDatum(d.ortstermin):''].filter(Boolean).join(' · ')||'Objekt und Auftraggeber noch nicht eingetragen')}</p>
     <div class="kopfzeile">${zustHtml(p, zustaendigVon(p, pj.error ? undefined : d), ro)}<button type="button" class="pflichtFehlt" id="pflichtFehlt" hidden></button>${p.key < SPEKTRON_START_KEY && d.spektron === true && !ro ? `<span class="uebernommen-tag">In Spektron übernommen</span>` : ''}<button type="button" class="pj-aendern" id="pjAendern" data-aktion="daten-auf" title="Projektdaten aufklappen – Objekt, Auftraggeber, Termine, Beteiligte">${ro ? 'Projektdaten ansehen' : 'Projektdaten ändern'}</button></div>
     <div id="pjAttention" role="status"></div><div id="umzugAttention" role="status" style="display:none;margin:10px 0;padding:10px;border-left:3px solid var(--warn);background:var(--panel2)"></div><div id="bueroAttention" role="status"></div>
+    <div class="az-meldung" id="azMeldung" role="status" aria-live="polite"></div>
     <div class="jetzt" id="jetzt" role="status" aria-live="polite"></div>
     <div class="kacheln" id="kacheln" role="group" aria-label="Arbeitsschritte">${KACHELN.map(([key, id, name, app, aktion, farbe, tip]) =>
       `<button type="button" class="kachel" id="${id}" data-kachel="${key}" data-aktion="${aktion}"${key === 'labor' || key === 'abrechnung' ? ` data-stufe="${key}"` : ''} style="--ac:${farbe}" title="${esc(tip)}">${kachelSymbol(key)}<span class="kn">${esc(name)}</span><span class="ks" data-ktext${key === 'labor' || key === 'abrechnung' ? ' data-stext' : ''}></span></button>`).join('')}</div>
@@ -2584,8 +2597,8 @@ function renderDetail(){
             ${nrWarn}
             ${pj.error ? `<div class="warn">„${PJ_FILE}“ ist nicht lesbar (${esc(pj.error)}) und wird nicht überschrieben.</div>` : ''}
             ${pj.newer ? `<div class="warn">„${PJ_FILE}“ stammt von einer neueren Version – bitte Projektzentrale aktualisieren. Nur Ansicht.</div>` : ''}
-            ${ro ? '' : `<div class="azrow"><button id="azBtn" title="Liest Objekt, Versicherung, Schaden-Nr., Termine und Beteiligte aus dem PDF des Büro-Systems – vor dem Speichern wird jeder Wert angezeigt">📄 Arbeitszettel einlesen …</button>
-              <span class="m">${d.arbeitszettel && d.arbeitszettel.datei ? `Zuletzt: ${esc(d.arbeitszettel.datei)}` : 'PDF wählen oder auf diese Karte ziehen'}</span><input type="file" id="azFile" accept="application/pdf,.pdf" hidden></div>`}
+            ${ro ? '' : `<div class="azrow"><button id="azBtn" title="Arbeitszettel als PDF wählen – liest Objekt, Versicherung, Schaden-Nr., Termine und Beteiligte; vor dem Speichern wird jeder Wert angezeigt. Der Zettel im Ordner „Arbeitszettel“ wird beim Öffnen des Projekts von selbst gelesen.">📄 Andere Datei wählen …</button>
+              <span class="m">${azZuletztText(d.arbeitszettel)}</span><input type="file" id="azFile" accept="application/pdf,.pdf" hidden></div>`}
             <div class="form">${PJ_GRUPPEN.map(([g, ks]) => (g ? `<div class="grp">${esc(g)}</div>` : '') + ks.map(feld).join('')).join('')}</div>
             <div class="save m" title="${esc(PJ_FILE)} im Projektordner (bei Spektron-Projekten in „${esc(SO.ORDNER)}“) – gilt für alle Apps">${pj.exists ? (d.geaendert ? `Zuletzt gespeichert ${esc(new Date(d.geaendert).toLocaleString('de-DE'))}${d.geaendertMit ? ' mit ' + esc(d.geaendertMit) : ''}` : '') : 'Noch keine Projektdaten – wird beim ersten Eintrag angelegt.'} · gilt für alle Apps</div>
           </div>
@@ -2629,7 +2642,8 @@ function renderDetail(){
     const box = $('pjBox');
     box.addEventListener('dragover', e => { if ([...e.dataTransfer.types].includes('Files')){ e.preventDefault(); box.classList.add('drop'); } });
     box.addEventListener('dragleave', () => box.classList.remove('drop'));
-    box.addEventListener('drop', e => { e.preventDefault(); box.classList.remove('drop'); const f = e.dataTransfer.files[0]; if (f) arbeitszettelEinlesen(p, f); });
+    box.addEventListener('drop', e => { e.preventDefault(); box.classList.remove('drop'); const f = e.dataTransfer.files[0];
+      if (f) arbeitszettelEinlesen(p, f); else banner('err', 'Keine Datei erkannt – bitte den Arbeitszettel als PDF-Datei auf die Karte ziehen oder „Andere Datei wählen …“.'); });
     for (const tr of $('vtBox').querySelectorAll('tr[data-k]')){
       const k = tr.dataset.k;
       tr.querySelector('.vtAn').onchange = e => verteilerSetzen(p, k, { an: e.target.checked });
@@ -2663,6 +2677,7 @@ function renderDetail(){
     after: async () => { if(S.sel === p){ S.pj=await readPJ(await pjDir(p)); S.pjStatus=null; renderDetail(); } }
   });
   stufenZeichnen(p);
+  azMeldungZeichnen(p);
   berichtVorschlagZeigen(p);
   if(same)$('detail').scrollTop=scroll;
   if (p.st && !p.st.err) anlStatus(p);
@@ -2775,7 +2790,9 @@ function stufeAktion(p, aktion){
   if (!S.sel || S.sel.name !== p.name) return;
   const zeige = el => { if (el && el.scrollIntoView) el.scrollIntoView({ block: 'center', behavior: 'smooth' }); };
   switch (aktion){
-    case 'az': if ($('azFile')) $('azFile').click(); else { $('pjBox').open = true; zeige($('pjBox')); } return;
+    case 'az': { const k = S.azKand.get(p.name);
+      if (k && k.art === 'eins' && $('azFile')) return azDialogAusOrdner(p, k);
+      if ($('azFile')) $('azFile').click(); else { $('pjBox').open = true; zeige($('pjBox')); } return; }
     case 'daten-auf': S.datenOffenLassen = true; return stufeAktion(p, 'daten');   // „Projektdaten ändern“: immer auf, nie zuklappen
     case 'daten': { const box = $('pjBox'); const war = box.open && !S.datenOffenLassen; S.datenOffenLassen = false; box.open = true; S.pjOpen[p.name] = true;
       const k = PJ_PFLICHT.find(k => $('pj_' + k) && !String(pjFeldWert(k)).trim()); if (k && !$('pj_' + k).disabled) $('pj_' + k).focus({ preventScroll: true }); zeige(k ? $('pj_' + k) : box);
@@ -2959,7 +2976,7 @@ async function azTextstuecke(buf){
     return items.filter(i => i.str && i.str.trim()).map(i => ({ s: i.str, x: i.transform[4], y: h - i.transform[5] }));
   } finally { task.destroy(); }
 }
-window.MosaikArbeitszettel = { azLeser, azFelder, azTextstuecke };   // für Tests und Fehlersuche (nur lesen, schreibt nichts)
+window.MosaikArbeitszettel = { azLeser, azFelder, azTextstuecke, pruefungen: name => S.azGeprueft.get(name) || 0 };   // für Tests und Fehlersuche (nur lesen, schreibt nichts)
 const AZ_FELDER = [   // Reihenfolge im Dialog
   ['objekt', 'Objekt (RISKO)'], ['auftraggeber', 'Auftraggeber'], ['versicherer', 'Versicherer'], ['schadennummer', 'Schaden-Nr.'], ['auftragsdatum', 'Auftragsdatum'],
   ['versicherungsnehmer', 'Versicherungsnehmer'], ['sachverstaendigerBeteiligt', 'Beteiligter Sachverständiger'], ['sanierung', 'Sanierung'],
@@ -2968,9 +2985,46 @@ const AZ_FELDER = [   // Reihenfolge im Dialog
 ];
 const azZeig = (k, v) => !v ? '' : (PJ_FIELDS.find(f => f[0] === k) || [])[2] === 'date' ? deDatum(v) : v;
 function deDatum(iso){ if (String(iso || '').trim() === UNBEKANNT) return 'nicht bekannt'; const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? `${m[3]}.${m[2]}.${m[1]}` : String(iso || ''); }
-async function arbeitszettelEinlesen(p, file){
-  if (!p || S.sel !== p) return;
+const azRev = n => String(n).padStart(3, '0');
+/** Zeilen des Dialogs: je Feld neuer Wert, bisheriger Wert, Stand; an = true (anhaken) · false (überschreibt, nicht angehakt) · null (nichts zu tun). */
+function azZeilen(d, f){
+  return AZ_FELDER.map(([k, label]) => {
+    const neu = f[k] || '', ziel = k === 'arbeitsauftrag' ? 'notizen' : k, alt = String(d[ziel] || '').trim();
+    let st, an;
+    if (!neu){ st = 'leer auf dem Zettel'; an = null; }
+    else if (k === 'arbeitsauftrag'){ if (alt.includes(neu)){ st = 'schon in den Notizen'; an = null; } else { st = alt ? 'wird angehängt' : 'neu'; an = true; } }
+    else if (alt === neu){ st = 'gleich'; an = null; }
+    else if (!alt){ st = 'neu'; an = true; }
+    else { st = 'überschreibt: ' + azZeig(k, alt); an = false; }
+    return { k, label, neu, alt, st, an };
+  });
+}
+/** Änderungen für die gewählten Felder (Arbeitsauftrag wie bisher an die Notizen). */
+function azPatch(d, f, keys){
+  const patch = {};
+  for (const k of keys){
+    if (k === 'arbeitsauftrag'){ const alt = String(d.notizen || '').trim(); patch.notizen = alt ? alt + '\n\nArbeitsauftrag: ' + f[k] : 'Arbeitsauftrag: ' + f[k]; }
+    else patch[k] = f[k];
+  }
+  return patch;
+}
+/** Vermerk in _Projekt.json → arbeitszettel. */
+function azEintrag(datei, kand, sha, z, automatisch){
+  const e = { datei, sha256: sha, titel: z.titel, eingelesen: new Date().toISOString(), automatisch: !!automatisch };
+  if (kand){ e.pfad = kand.pfad; e.revision = kand.revision; }
+  return e;
+}
+function azZuletztText(rec){
+  if (!rec || typeof rec !== 'object' || !rec.datei) return 'Liegt der Zettel im Ordner „Arbeitszettel“, wird er beim Öffnen des Projekts gelesen – sonst PDF wählen oder auf diese Karte ziehen';
+  const rev = rec.revision != null ? ` (Revision ${azRev(rec.revision)})` : '';
+  return rec.abgelehnt ? `Zurückgenommen: ${esc(rec.datei)}${rev} – wird nicht wieder automatisch übernommen`
+    : `Zuletzt: ${esc(rec.datei)}${rev}${rec.automatisch ? ' · automatisch übernommen' : ''}`;
+}
+async function arbeitszettelEinlesen(p, file, opt = {}){
+  if (!p) return;
+  if (S.sel !== p){ banner('err', `Arbeitszettel nicht eingelesen: Inzwischen ist ein anderes Projekt geöffnet. Bitte „${esc(p.name)}“ öffnen und erneut versuchen.`); return; }
   if (S.pj && (S.pj.error || S.pj.newer)){ banner('err', `„${PJ_FILE}“ ist nicht beschreibbar – Arbeitszettel wird nicht übernommen.`); return; }
+  banner('info', 'Lese Arbeitszettel …');   // nie still: sofort sichtbar, auch wenn danach das Speichern offener Eingaben wartet
   let z, f, hinweise, sha;
   try{
     if (!/\.pdf$/i.test(file.name) && file.type !== 'application/pdf') throw new Error('Bitte den Arbeitszettel als PDF wählen.');
@@ -2979,27 +3033,29 @@ async function arbeitszettelEinlesen(p, file){
     z = azLeser(await azTextstuecke(buf));
     ({ f, hinweise } = azFelder(z));
   }catch(e){ banner('err', 'Arbeitszettel nicht gelesen: ' + esc(e.message)); return; }
-  await flushPJ();
+  await flushPJ();   // gibt nach 20 s auf, wenn ein anderes Fenster das Projekt hält – Eingaben bleiben dann erhalten
+  if (S.sel !== p){ banner('err', 'Arbeitszettel nicht eingelesen: Inzwischen ist ein anderes Projekt geöffnet.'); return; }
+  if (Object.keys(S.pjDirty).length){
+    const st = S.pjStatus && S.pjStatus.name === p.name && S.pjStatus.kind === 'err' ? S.pjStatus.text : 'Offene Eingaben sind noch nicht gespeichert.';
+    banner('err', 'Arbeitszettel nicht eingelesen – ' + esc(st)); return;
+  }
+  hideBanner();
+  const gemerkt = S.azKand.get(p.name);
+  const kand = opt.kand || (gemerkt && gemerkt.art === 'eins' && gemerkt.sha === sha ? gemerkt : null);   // dieselbe Datei wie im Ordner → Pfad und Revision merken
   const d = (S.pj && S.pj.data) || {};
   const andereNr = z.projektnummer && z.projektnummer !== p.nr;
-  const zeilen = AZ_FELDER.map(([k, label]) => {
-    const neu = f[k] || '', ziel = k === 'arbeitsauftrag' ? 'notizen' : k, alt = String(d[ziel] || '').trim();
-    let st, an;
-    if (!neu){ st = 'leer auf dem Zettel'; an = null; }
-    else if (k === 'arbeitsauftrag'){ if (alt.includes(neu)){ st = 'schon in den Notizen'; an = null; } else { st = alt ? 'wird angehängt' : 'neu'; an = true; } }
-    else if (alt === neu){ st = 'gleich'; an = null; }
-    else if (!alt){ st = 'neu'; an = true; }
-    else { st = 'überschreibt: ' + azZeig(k, alt); an = false; }
-    return `<tr data-k="${k}"><td>${an === null ? '' : `<input type="checkbox" id="az_${k}" ${an && !andereNr ? 'checked' : ''}>`}</td>
+  let zeilen = azZeilen(d, f);
+  if (opt.nurGeaendert) zeilen = zeilen.filter(r => r.an !== null);   // neue Revision: nur Felder, die sich ändern würden
+  const rows = zeilen.map(({ k, label, neu, st, an }) => `<tr data-k="${k}"><td>${an === null ? '' : `<input type="checkbox" id="az_${k}" ${an && !andereNr ? 'checked' : ''}>`}</td>
       <td><label for="az_${k}">${esc(label)}</label></td><td class="v">${neu ? esc(azZeig(k, neu)).replace(/\n/g, '<br>') : '<span class="m">–</span>'}</td>
-      <td class="st${an === false ? ' warn' : ''}">${esc(st)}</td></tr>`;
-  }).join('');
-  showDialog(`<h3>Arbeitszettel übernehmen</h3>
-    <div class="m">${esc(file.name)} · Zettel „${esc(z.titel || '?')}“ → Projekt <b>${esc(p.name)}</b></div>
+      <td class="st${an === false ? ' warn' : ''}">${esc(st)}</td></tr>`).join('');
+  const rev = kand && kand.revision != null ? 'Revision ' + azRev(kand.revision) : '';
+  showDialog(`<h3>${opt.nurGeaendert ? `Neuer Arbeitszettel${rev ? ' (' + rev + ')' : ''} – Änderungen` : 'Arbeitszettel übernehmen'}</h3>
+    <div class="m">${esc(kand ? kand.pfad : file.name)} · Zettel „${esc(z.titel || '?')}“ → Projekt <b>${esc(p.name)}</b></div>
     ${andereNr ? `<div class="azwarn"><b>Andere Projektnummer:</b> Der Zettel gehört zu ${esc(z.projektnummer)}, dieses Projekt ist ${esc(p.nr)}.
       <label><input type="checkbox" id="azTrotz"> Trotzdem in ${esc(p.nr)} übernehmen</label></div>` : ''}
     ${hinweise.map(h => `<div class="warn">${esc(h)}</div>`).join('')}
-    <div class="aztab"><table><tbody>${zeilen}</tbody></table></div>
+    ${zeilen.length ? `<div class="aztab"><table><tbody>${rows}</tbody></table></div>` : `<div class="m" id="azKeineAenderung">Keine Felder geändert – gespeichert wird nur der Vermerk, dass dieser Zettel gelesen ist.</div>`}
     <div class="m">Angehakte Werte werden in „${PJ_FILE}“ gespeichert. Bereits ausgefüllte Felder werden nur überschrieben, wenn du sie anhakst. Ordner werden nicht verändert.</div>
     <div class="btns"><button id="azAbbr">Abbrechen</button><button class="primary" id="azOk">Übernehmen</button></div>`);
   $('dialog').classList.add('az');
@@ -3008,24 +3064,240 @@ async function arbeitszettelEinlesen(p, file){
   sperr();
   $('azAbbr').onclick = closeDialog;
   ok.onclick = async () => {
-    const patch = {};
-    for (const [k] of AZ_FELDER){
-      const cb = $('az_' + k); if (!cb || !cb.checked) continue;
-      if (k === 'arbeitsauftrag'){ const alt = String(d.notizen || '').trim(); patch.notizen = alt ? alt + '\n\nArbeitsauftrag: ' + f[k] : 'Arbeitsauftrag: ' + f[k]; }
-      else patch[k] = f[k];
-    }
-    patch.arbeitszettel = { datei: file.name, sha256: sha, titel: z.titel, eingelesen: new Date().toISOString() };
+    const patch = azPatch(d, f, AZ_FELDER.map(([k]) => k).filter(k => $('az_' + k) && $('az_' + k).checked));
+    patch.arbeitszettel = azEintrag(file.name, kand, sha, z, false);
     closeDialog();
+    banner('info', 'Speichere Arbeitszettel …');
     await S.pjWriting;
     try{
       const o = await patchPJ(await pjDir(p, true), p.name, patch, d);
-      if (S.sel === p){ S.pj = { data: o, exists: true }; S.pjOpen[p.name] = true; renderDetail(); }
+      if (S.sel === p){ S.pj = { data: o, exists: true }; S.pjOpen[p.name] = true; S.azMeldung.delete(p.name); renderDetail(); }
       if (p.st) p.st.pj = true;
       const n = Object.keys(patch).length - 1;
       banner('ok', `Arbeitszettel übernommen: ${n} Feld${n === 1 ? '' : 'er'} in „${esc(PJ_FILE)}“ gespeichert.`);
       setTimeout(hideBanner, 5000);
     }catch(e){ banner('err', 'Nicht gespeichert: ' + esc(e.message)); }
   };
+}
+
+/* ---------- 1.48: Arbeitszettel aus dem Projektordner, automatisch beim ersten Öffnen ----------
+   Ablage (MOS'aik): <Projektordner>/Arbeitszettel/AZ<Nummer>/Revision <nnn>/<beliebiger Name>.pdf – Groß/klein egal, NFC.
+   Gilt die höchste Revision (Zahl). Automatisch übernommen wird nur beim Öffnen eines Projekts (Klick, Link, zuletzt geöffnet),
+   nie beim Hintergrund-Scan, und nur wenn alles eindeutig ist: noch kein Vermerk „arbeitszettel“ (auch kein zurückgenommener),
+   Spektron-Projekt, genau ein PDF, Projektnummer auf dem Zettel = Ordner, Daten lesbar, nur leere Felder werden gefüllt.
+   In der Projekt-Sperre wird frisch gelesen – hat ein anderes Fenster/ein anderer PC inzwischen übernommen, passiert nichts.
+   Immer eine Meldung über „Jetzt dran“ (bleibt, bis man sie schließt oder ansieht). Eine neue Revision wird nie automatisch übernommen. */
+const azN = s => String(s).normalize('NFC');
+async function azOrdner(dir, test){
+  const r = [];
+  for await (const [n, h] of dir.entries()) if (h.kind === 'directory' && test(azN(n))) r.push({ name: n, h });
+  return r.sort((a, b) => a.name.localeCompare(b.name));
+}
+/** {art:'keiner'} · {art:'nicht', grund, revision?} · {art:'eins', revision, pfad, name, h}. Nur lesen. */
+async function azSuchen(p){
+  const top = (await azOrdner(p.handle, n => n.toLowerCase() === 'arbeitszettel'))[0];
+  if (!top) return { art: 'keiner' };
+  const revs = [];
+  for (const az of await azOrdner(top.h, n => /^az/i.test(n)))
+    for (const r of await azOrdner(az.h, n => /^revision\s*\d+$/i.test(n)))
+      revs.push({ az: az.name, rev: r.name, nr: +/\d+$/.exec(azN(r.name))[0], h: r.h });
+  if (!revs.length) return { art: 'keiner' };
+  const azNamen = [...new Set(revs.map(r => r.az))];
+  if (azNamen.length > 1) return { art: 'nicht', grund: `Im Ordner „${top.name}“ liegen mehrere Arbeitszettel (${azNamen.join(', ')}).` };
+  const max = Math.max(...revs.map(r => r.nr)), oben = revs.filter(r => r.nr === max);
+  if (oben.length > 1) return { art: 'nicht', revision: max, grund: `Die Revision ${azRev(max)} gibt es mehrfach (${oben.map(r => r.rev).join(', ')}).` };
+  const r = oben[0], pdfs = [];
+  for await (const [n, h] of r.h.entries()) if (h.kind === 'file' && /\.pdf$/i.test(azN(n))) pdfs.push({ name: n, h });
+  if (!pdfs.length) return { art: 'nicht', revision: max, grund: `In „${r.rev}“ liegt kein PDF.` };
+  if (pdfs.length > 1) return { art: 'nicht', revision: max, grund: `In „${r.rev}“ liegen ${pdfs.length} PDFs – welches der Arbeitszettel ist, ist nicht eindeutig.` };
+  return { art: 'eins', revision: max, az: r.az, pfad: [top.name, r.az, r.rev, pdfs[0].name].join('/'), name: pdfs[0].name, h: pdfs[0].h };
+}
+async function azLesen(kand){
+  const file = await kand.h.getFile(), buf = await file.arrayBuffer(), sha = await sha256Hex(buf);
+  kand.sha = sha;
+  const z = azLeser(await azTextstuecke(buf)), { f, hinweise } = azFelder(z);
+  return { file, sha, z, f, hinweise };
+}
+/** Meldung des Projekts setzen (null: keine). Eine geschlossene Meldung kommt in dieser Sitzung nicht wieder. */
+function azSetzen(p, m){
+  if (m){ m.key = [p.name, m.art, m.sha || '', m.grund || ''].join('|'); if (S.azZu.has(m.key)) m = null; }
+  if (m) S.azMeldung.set(p.name, m); else S.azMeldung.delete(p.name);
+  azMeldungZeichnen(p);
+}
+/** Nichts zu melden: nur „Lese …“ und „Kein Arbeitszettel“ verschwinden – eine Übernahme-Meldung bleibt, bis man sie schließt. */
+function azLeise(p){ const x = S.azMeldung.get(p.name); if (x && (x.art === 'lese' || x.art === 'keiner')) azSetzen(p, null); }
+async function azPruefen(p){
+  if (!p || !p.handle || S.azLaeuft.has(p.name)) return;
+  S.azLaeuft.add(p.name);
+  try{ await azPruefenLauf(p); }
+  catch(e){ if (S.sel === p) azSetzen(p, { art: 'unlesbar', grund: e.message }); else S.azMeldung.delete(p.name); }
+  finally{ S.azLaeuft.delete(p.name); S.azGeprueft.set(p.name, (S.azGeprueft.get(p.name) || 0) + 1); }
+}
+async function azPruefenLauf(p){
+  const aktuell = () => S.sel === p;
+  const pj = S.pj || { data: {} }, d = pj.data || {}, ro = !!(pj.error || pj.newer);
+  const rec = d.arbeitszettel && typeof d.arbeitszettel === 'object' ? d.arbeitszettel : null;
+  const kand = await azSuchen(p);
+  if (!aktuell()) return;
+  S.azKand.set(p.name, kand);
+  // Schon gelesen (auch zurückgenommen): nie wieder automatisch – nur auf eine neue Revision oder anderen Inhalt hinweisen
+  if (rec){
+    if (kand.art !== 'eins') return azLeise(p);
+    const sha = kand.sha = await sha256Hex(await (await kand.h.getFile()).arrayBuffer());
+    if (!aktuell()) return;
+    if (sha === rec.sha256) return azLeise(p);
+    const hoeher = rec.revision != null && kand.revision > +rec.revision;
+    return azSetzen(p, { art: 'neu', revision: kand.revision, kand, sha, ro, grund: hoeher ? '' : 'anderer Inhalt als der zuletzt gelesene Zettel' });
+  }
+  if (vorSpektron(p)){
+    if (kand.art === 'keiner') return azLeise(p);
+    return azSetzen(p, { art: 'nicht', revision: kand.revision, kand: kand.art === 'eins' ? kand : null, ro,
+      grund: 'Projekt aus der Zeit vor Spektron – in alte Projektordner trägt die Projektzentrale nichts von selbst ein.' });
+  }
+  if (kand.art === 'keiner'){
+    const fehlt = PJ_PFLICHT.some(k => !String(d[k] || '').trim());
+    return fehlt && !ro ? azSetzen(p, { art: 'keiner' }) : azLeise(p);
+  }
+  if (pj.error) return azSetzen(p, { art: 'nicht', revision: kand.revision, ro: true, grund: 'Projektdaten nicht lesbar (' + pj.error + ').' });
+  if (kand.art === 'nicht') return azSetzen(p, { art: 'nicht', revision: kand.revision, grund: kand.grund });
+  azSetzen(p, { art: 'lese', revision: kand.revision, text: `Lese Arbeitszettel Revision ${azRev(kand.revision)} …` });
+  let les;
+  try{ les = await azLesen(kand); }
+  catch(e){ return aktuell() ? azSetzen(p, { art: 'unlesbar', revision: kand.revision, kand, grund: e.message }) : S.azMeldung.delete(p.name); }
+  if (!aktuell()) return S.azMeldung.delete(p.name);   // beim nächsten Öffnen wieder
+  const nicht = grund => azSetzen(p, { art: 'nicht', revision: kand.revision, kand, sha: les.sha, grund });
+  const nr = les.z.projektnummer;
+  if (!nr) return nicht('Auf dem Zettel ist keine Projektnummer lesbar.');
+  if (nr !== p.nr) return nicht(`Der Zettel gehört zu Projekt ${nr}, dieser Ordner ist ${p.nr}.`);
+  const datum = les.hinweise.filter(h => /kein Datum/.test(h));
+  if (datum.length) return nicht('Datum nicht lesbar – ' + datum.join(' '));
+  await S.pjWriting;
+  if (!aktuell()) return S.azMeldung.delete(p.name);
+  if (Object.keys(S.pjDirty).length) return nicht('Gerade werden Projektdaten eingegeben – bitte selbst prüfen.');
+  const konf = azZeilen((S.pj && S.pj.data) || {}, les.f).filter(r => r.an === false);
+  if (konf.length) return nicht('Felder haben schon andere Werte: ' + konf.map(r => r.label).join(', ') + '.');
+  azSetzen(p, { art: 'lese', revision: kand.revision, text: `Übernehme Arbeitszettel Revision ${azRev(kand.revision)} …` });
+  let r;
+  try{ r = await azAutoSpeichern(p, kand, les); }
+  catch(e){
+    if (e.azSchon){   // inzwischen in einem anderen Fenster / an einem anderen PC übernommen: nichts tun, nur neu lesen
+      const neu = await readPJ(await pjDir(p));
+      if (S.sel === p){ S.pj = neu; renderDetail(); }
+      return azLeise(p);
+    }
+    return nicht(e.azAnders ? 'Felder haben schon andere Werte: ' + e.azAnders.join(', ') + '.' : e.message);
+  }
+  if (p.st) p.st.pj = true;
+  if (S.sel === p){ S.pj = { data: r.o, exists: true }; renderDetail(); }
+  azSetzen(p, { art: 'ok', revision: kand.revision, kand, sha: les.sha, felder: r.felder, f: les.f, hinweise: les.hinweise, rec: r.rec, patch: r.patch, vorher: r.vorher });
+}
+/** Automatisch übernehmen – in der Projekt-Sperre frisch gelesen, nur leere Felder. */
+async function azAutoSpeichern(p, kand, les){
+  const rec = azEintrag(kand.name, kand, les.sha, les.z, true);
+  let felder = [], patch = null, vorher = null;
+  const o = await ProjectStore.update(await pjDir(p, true), p.name, data => {
+    if (data.arbeitszettel) throw Object.assign(Error('Arbeitszettel schon übernommen.'), { azSchon: true });
+    const zeilen = azZeilen(data, les.f), konf = zeilen.filter(r => r.an === false);
+    if (konf.length) throw Object.assign(Error('Felder haben schon andere Werte.'), { azAnders: konf.map(r => r.label) });
+    felder = zeilen.filter(r => r.an === true).map(r => r.k);
+    vorher = JSON.parse(JSON.stringify(data));
+    patch = { ...azPatch(data, les.f, felder), arbeitszettel: rec };
+    return pjBauen(p.name, data, patch);
+  });
+  return { o, felder, patch, vorher, rec };
+}
+/** Rückgängig: Stand vor der Übernahme aus „_Projekt_Sicherungen“ (vorher_…) für die übernommenen Felder; danach
+    arbeitszettel.abgelehnt, damit der Zettel beim nächsten Öffnen nicht wieder übernommen wird. Was seitdem jemand
+    anderes in einem dieser Felder geändert hat, bleibt stehen (und wird genannt). */
+async function azZuruecknehmen(p, m){
+  if (S.sel !== p) return;
+  S.azMeldung.set(p.name, Object.assign({}, m, { art: 'lese', text: 'Nehme Arbeitszettel zurück …' })); azMeldungZeichnen(p);
+  const zurueck = text => { S.azMeldung.set(p.name, m); azMeldungZeichnen(p); banner('err', 'Nicht zurückgenommen: ' + esc(text)); };
+  await flushPJ();
+  if (S.sel !== p) return zurueck('Inzwischen ist ein anderes Projekt geöffnet.');
+  if (Object.keys(S.pjDirty).length) return zurueck(S.pjStatus && S.pjStatus.kind === 'err' ? S.pjStatus.text : 'Offene Eingaben sind noch nicht gespeichert.');
+  try{
+    const dir = await pjDir(p, true);
+    let vorher = m.vorher, ausSicherung = false;
+    try{
+      const v = await ProjectStore.versions(dir), soll = JSON.stringify(m.vorher);
+      const x = v.items.find(i => i.name.startsWith('vorher_') && JSON.stringify(i.data) === soll);
+      if (x){ vorher = x.data; ausSicherung = true; }
+    }catch(e){ /* Sicherungen nicht lesbar: der beim Übernehmen gelesene Stand ist derselbe */ }
+    const behalten = [];
+    const o = await ProjectStore.update(dir, p.name, data => {
+      const az = data.arbeitszettel;
+      if (!az || az.sha256 !== m.rec.sha256 || az.eingelesen !== m.rec.eingelesen) throw Error('Der Arbeitszettel-Vermerk in den Projektdaten wurde inzwischen geändert – nichts zurückgenommen.');
+      const patch = {};
+      for (const k of Object.keys(m.patch)){
+        if (k === 'arbeitszettel') continue;
+        if (JSON.stringify(data[k]) === JSON.stringify(m.patch[k])) patch[k] = k in vorher ? vorher[k] : null;
+        else behalten.push(k);
+      }
+      patch.arbeitszettel = { ...m.rec, abgelehnt: true, abgelehntAm: new Date().toISOString() };
+      return pjBauen(p.name, data, patch);
+    });
+    if (p.st) p.st.pj = true;
+    if (S.sel === p){ S.pj = { data: o, exists: true }; renderDetail(); }
+    const namen = behalten.map(k => (PJ_FIELDS.find(f => f[0] === k) || [k, k])[1]);
+    azSetzen(p, { art: 'zurueck', revision: m.revision, sha: m.sha,
+      text: (ausSicherung ? 'Stand vorher aus „_Projekt_Sicherungen“ wiederhergestellt' : 'Stand vorher wiederhergestellt')
+        + (namen.length ? `; inzwischen geändert und deshalb behalten: ${namen.join(', ')}` : '') + '. Er wird nicht wieder automatisch übernommen.' });
+  }catch(e){ zurueck(e.message); }
+}
+/** „Ansehen“: übernommene Werte; Schließen gilt als gesehen (die Meldung verschwindet). */
+function azAnsehen(p, m){
+  const rev = m.revision != null ? ' Revision ' + azRev(m.revision) : '';
+  const zeilen = m.felder.map(k => `<tr data-k="${k}"><td>${esc((AZ_FELDER.find(x => x[0] === k) || [k, k])[1])}</td><td class="v">${esc(azZeig(k, m.f[k])).replace(/\n/g, '<br>')}</td></tr>`).join('');
+  showDialog(`<h3>Arbeitszettel${rev} automatisch übernommen</h3>
+    <div class="m">${esc(m.rec.pfad)} → Projekt <b>${esc(p.name)}</b> · nur leere Felder wurden gefüllt</div>
+    ${m.hinweise.map(h => `<div class="warn">${esc(h)}</div>`).join('')}
+    <div class="aztab"><table><tbody>${zeilen || '<tr><td class="m">Keine neuen Werte – alles war schon eingetragen.</td></tr>'}</tbody></table></div>
+    <div class="m">„Rückgängig“ stellt den Stand vor der Übernahme wieder her (aus „_Projekt_Sicherungen“); der Zettel wird danach nicht wieder automatisch übernommen.</div>
+    <div class="btns"><button id="azAnsZurueck">Rückgängig</button><button class="primary" id="azAnsOk">Schließen</button></div>`);
+  $('dialog').classList.add('az');
+  $('azAnsOk').onclick = () => { closeDialog(); if (S.azMeldung.get(p.name) === m){ S.azZu.add(m.key); S.azMeldung.delete(p.name); azMeldungZeichnen(p); } };
+  $('azAnsZurueck').onclick = () => { closeDialog(); azZuruecknehmen(p, m); };
+}
+async function azDialogAusOrdner(p, kand, opt = {}){
+  let file;
+  try{ file = await kand.h.getFile(); }catch(e){ banner('err', `Arbeitszettel „${esc(kand.pfad)}“ nicht lesbar: ${esc(e.message)}`); return; }
+  return arbeitszettelEinlesen(p, file, { ...opt, kand });
+}
+function azMeldungAktion(p, a){
+  const m = S.azMeldung.get(p.name);
+  if (!m || S.sel !== p) return;
+  if (a === 'zu'){ S.azZu.add(m.key); S.azMeldung.delete(p.name); return azMeldungZeichnen(p); }
+  if (a === 'datei'){ if ($('azFile')) $('azFile').click(); return; }
+  if (a === 'pruefen') return azDialogAusOrdner(p, m.kand);
+  if (a === 'aenderungen') return azDialogAusOrdner(p, m.kand, { nurGeaendert: true });
+  if (a === 'ansehen') return azAnsehen(p, m);
+  if (a === 'zurueck') return azZuruecknehmen(p, m);
+}
+/** Die Zeile über „Jetzt dran“. */
+function azMeldungZeichnen(p){
+  const el = $('azMeldung');
+  if (!el || !p || S.sel !== p) return;
+  const m = S.azMeldung.get(p.name);
+  el.className = 'az-meldung' + (m ? ' ' + m.art : '');
+  if (!m){ el.innerHTML = ''; return; }
+  const rev = m.revision != null ? ' Revision ' + azRev(m.revision) : '';
+  const k = (id, t) => `<button type="button" class="sk" data-az="${id}">${esc(t)}</button>`;
+  let t = '', knoepfe = '';
+  switch (m.art){
+    case 'lese': t = `<b>${esc(m.text || 'Lese Arbeitszettel …')}</b>`; break;
+    case 'ok': t = `<b>Arbeitszettel${rev} übernommen:</b> ${m.felder.length ? m.felder.length + ' Feld' + (m.felder.length === 1 ? '' : 'er') : 'keine neuen Werte (alles schon eingetragen)'}`;
+      knoepfe = k('ansehen', 'Ansehen') + k('zurueck', 'Rückgängig'); break;
+    case 'nicht': t = `<b>Arbeitszettel${rev} nicht automatisch übernommen:</b> ${esc(m.grund)}`;
+      knoepfe = m.ro ? '' : m.kand ? k('pruefen', 'Arbeitszettel prüfen und übernehmen') : k('datei', 'Datei wählen …'); break;
+    case 'keiner': t = '<b>Kein Arbeitszettel im Ordner „Arbeitszettel“ gefunden.</b> Die Projektdaten fehlen noch.'; knoepfe = k('datei', 'Datei wählen …'); break;
+    case 'unlesbar': t = `<b>Arbeitszettel${rev} nicht gelesen:</b> ${esc(m.grund)}`; knoepfe = m.ro ? '' : k('datei', 'Andere Datei wählen …'); break;
+    case 'neu': t = `<b>Neuer Arbeitszettel${rev ? ' (' + rev.trim() + ')' : ''}</b>${m.grund ? ' – ' + esc(m.grund) : ''}`; knoepfe = m.ro ? '' : k('aenderungen', 'Änderungen ansehen'); break;
+    case 'zurueck': t = `<b>Arbeitszettel${rev} zurückgenommen:</b> ${esc(m.text)}`; break;
+  }
+  const zu = m.art === 'lese' ? '' : '<button type="button" class="az-zu" data-az="zu" title="Meldung schließen" aria-label="Meldung schließen">×</button>';
+  el.innerHTML = `<span class="az-t">📄 ${t}</span><span class="az-k">${knoepfe}${zu}</span>`;
+  el.querySelectorAll('[data-az]').forEach(b => b.onclick = e => { e.preventDefault(); azMeldungAktion(p, b.dataset.az); });
 }
 
 /* ---------- Verteiler: wer bekommt das Gutachten, wann versandt ----------
@@ -3458,7 +3730,7 @@ function helpHtml(){
   ${helpDiagram()}
   <div class="cap">Durchgezogene Pfeile: Die App speichert dort. Gestrichelt: PlanKit liest die Proben aus LabelKit und die in ResultKit übernommenen Messwerte.</div>
   <ol>
-    <li><b>Projektzentrale:</b> Links stehen die Projekte in Gruppen: <b>„Braucht dich“</b> (der nächste Schritt liegt bei dir), <b>„Läuft“</b> (Labor oder Büro sind dran), <b>„Abgeschlossen“</b>. Rechts im Projekt steht oben <b>„Jetzt dran“</b> mit einem Knopf in der Farbe der App, in der es weitergeht, darunter <b>sechs Kacheln</b> – dieselben wie oben in jeder App: Proben · Fotos · Labor · Plan · Bericht · Abrechnung. Jede Kachel zeigt ✓ (die Datei der App ist da) und ihren Stand; ein Klick öffnet die App. Die Kacheln sind eine Orientierung aus dem Dateibestand – jede App geht jederzeit. Darunter <b>„Ans Büro übergeben“</b> und die <b>Projektdaten</b> (oben „Projektdaten ändern“; mit <b>„Arbeitszettel einlesen …“</b> das PDF des Büro-Systems übernehmen). Seltenes steht unter <b>„Mehr zum Projekt …“</b>: einen bestimmten Bericht öffnen, Anlage Probenahme, Ordner, frühere Versandangaben.</li>
+    <li><b>Projektzentrale:</b> Links stehen die Projekte in Gruppen: <b>„Braucht dich“</b> (der nächste Schritt liegt bei dir), <b>„Läuft“</b> (Labor oder Büro sind dran), <b>„Abgeschlossen“</b>. Rechts im Projekt steht oben <b>„Jetzt dran“</b> mit einem Knopf in der Farbe der App, in der es weitergeht, darunter <b>sechs Kacheln</b> – dieselben wie oben in jeder App: Proben · Fotos · Labor · Plan · Bericht · Abrechnung. Jede Kachel zeigt ✓ (die Datei der App ist da) und ihren Stand; ein Klick öffnet die App. Die Kacheln sind eine Orientierung aus dem Dateibestand – jede App geht jederzeit. Darunter <b>„Ans Büro übergeben“</b> und die <b>Projektdaten</b> (oben „Projektdaten ändern“). Den <b>Arbeitszettel</b> aus dem Ordner „Arbeitszettel“ liest die Projektzentrale beim ersten Öffnen eines Projekts von selbst und trägt ihn in leere Felder ein; die Zeile über „Jetzt dran“ sagt, was passiert ist (mit „Ansehen“ und „Rückgängig“), oder warum nicht. Ein anderes PDF geht über „Andere Datei wählen …“ in den Projektdaten. Seltenes steht unter <b>„Mehr zum Projekt …“</b>: einen bestimmten Bericht öffnen, Anlage Probenahme, Ordner, frühere Versandangaben.</li>
     <li><b>LabelKit – Kachel „Proben“:</b> Proben anlegen, Etiketten drucken, Laborübergabe erstellen, <b>Strg+S</b>. Alles landet in „Laboraufträge“.</li>
     <li><b>FotoKit – Kachel „Fotos“:</b> Fotos benennen und die Bilddokumentation als PDF erstellen (Ordner „Fotos“).</li>
     <li><b>ResultKit – Kachel „Labor“:</b> Zeigt, was beim Labor ist, was zurück ist und was fehlt. Kommt der Prüfbericht: XML und PDF dort importieren, prüfen und <b>„Ergebnisse übernehmen“</b>. FotoKits Ergebnistabelle nimmt die Werte von selbst.</li>
