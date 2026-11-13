@@ -64,6 +64,10 @@ const A = '26.0142 Teststadt', B = '26.0150 Köln';
     await page.click('#btnMehr');
     const [popup] = await Promise.all([page.waitForEvent('popup'), l.click()]);
     assert.match(popup.url(), /\/reisekosten-pro\/$/, 'öffnet ../reisekosten-pro/ ohne Parameter'); await popup.close().catch(() => {}); }
+  // LexiKit: ebenfalls ohne Projektbezug, eigenes Fenster
+  { const l = page.locator('#mehr .more a#goLexi');
+    assert.equal(await l.getAttribute('href'), '../lexikit/'); assert.equal(await l.getAttribute('target'), 'lexikit');
+    assert.equal(await page.locator('#kacheln #goLexi, #projektMehr #goLexi').count(), 0, 'LexiKit kein Teil der Projektseite'); }
 
   // ohne „zuletzt“: nichts vorgewählt
   await seed(null);
@@ -76,6 +80,7 @@ const A = '26.0142 Teststadt', B = '26.0150 Köln';
   assert.equal(await page.locator('#detail .empty').count(), 1, 'ohne Kürzel: Hinweis statt „Heute für dich“');
   assert.equal(await page.locator('#mehr a#goReise').count(), 1, 'SpesenKit auch ohne gewähltes Projekt erreichbar (⋯ Mehr)');
   assert.equal(await page.locator('#mehr a#goAid').getAttribute('href'), '../aidkit/', 'Handbuch (AidKit) auch ohne gewähltes Projekt erreichbar');
+  assert.equal(await page.locator('#mehr a#goLexi').getAttribute('href'), '../lexikit/', 'LexiKit auch ohne gewähltes Projekt erreichbar');
 
   // „zuletzt“ nennt ein Projekt, das es nicht mehr gibt: nichts vorgewählt, kein Fehler
   await seed(['99.0001 Weg', A]);
