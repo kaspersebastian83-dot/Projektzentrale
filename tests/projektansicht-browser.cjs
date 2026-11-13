@@ -170,20 +170,21 @@ if(!before){
  // 1.29: Projektdaten bleiben zugeklappt; fehlende Pflichtangaben stehen oben (Hinweis) und in Stufe 1
  assert.ok(!await page.locator('#pjBox').evaluate(d=>d.open),'Projektdaten zugeklappt');assert.match(await stext('projekt'),/Pflichtangaben fehlen$/);
  await page.locator('#pjBox > summary').click();
- assert.match(await page.locator('#pflichtFehlt').innerText(),/^\d+ Pflichtangaben fehlen$/);
+ assert.match(await page.locator('#pflichtFehlt').innerText(),/^(\d+ Pflichtangaben fehlen|Fehlt: .+)$/);
+ const fehltAnz=t=>/^Fehlt: /.test(t)?t.slice(7).split(' · ').length:Number(t.split(' ')[0]);   // 1.49: bis 3 mit Namen
  assert.equal(await page.locator('#pj_objekt').evaluate(e=>e.closest('label').classList.contains('pflicht-offen')),false,'Objekt ist ausgefüllt');
  assert.equal(await page.locator('#pj_nutzung').evaluate(e=>e.closest('label').classList.contains('pflicht-offen')),true,'Nutzung leer → hervorgehoben');
  assert.equal(await page.locator('#pj_notizen').evaluate(e=>e.closest('label').classList.contains('pflicht')),false,'Notizen sind keine Pflicht');
  await page.locator('#pflichtFehlt').click();assert.equal(await page.evaluate(()=>document.activeElement.id),'pj_nutzung','Klick springt zum ersten leeren Pflichtfeld');
  assert.equal(await page.locator('#pj_schadenereignis').evaluate(e=>e.closest('label').classList.contains('pflicht')),false,'Schadenereignis ist keine Pflicht');
- {const vorher=Number((await page.locator('#pflichtFehlt').innerText()).split(' ')[0]);await page.locator('#pj_sachverstaendiger').fill('Dr. Beispiel');
+ {const vorher=fehltAnz(await page.locator('#pflichtFehlt').innerText());await page.locator('#pj_sachverstaendiger').fill('Dr. Beispiel');
   assert.equal(await page.locator('#pj_sachverstaendiger').evaluate(e=>e.closest('label').classList.contains('pflicht-offen')),false,'ausgefüllt → normal');
-  assert.equal(Number((await page.locator('#pflichtFehlt').innerText()).split(' ')[0]),vorher-1,'Zähler sofort aktualisiert');}
+  assert.equal(fehltAnz(await page.locator('#pflichtFehlt').innerText()),vorher-1,'Zähler sofort aktualisiert');}
  // Schadendatum „nicht bekannt“: gilt als ausgefüllt, gespeichert als „unbekannt“; zurück auf Datum möglich
- {const vorher=Number((await page.locator('#pflichtFehlt').innerText()).split(' ')[0]);await page.locator('#pj_schadendatum_nb').click();
+ {const vorher=fehltAnz(await page.locator('#pflichtFehlt').innerText());await page.locator('#pj_schadendatum_nb').click();
   assert.equal(await page.locator('#pj_schadendatum_nb').getAttribute('aria-pressed'),'true');assert.ok(await page.locator('#pj_schadendatum').isDisabled(),'Datumsfeld gesperrt');
   assert.equal(await page.locator('#pj_schadendatum').evaluate(e=>e.closest('label').classList.contains('pflicht-offen')),false,'nicht bekannt → erledigt');
-  assert.equal(Number((await page.locator('#pflichtFehlt').innerText()).split(' ')[0]),vorher-1,'Zähler sofort aktualisiert');
+  assert.equal(fehltAnz(await page.locator('#pflichtFehlt').innerText()),vorher-1,'Zähler sofort aktualisiert');
   await page.locator('#pjSave.ok').waitFor();assert.equal(JSON.parse(await fs.readFile(path.join(tmp,A,'_Projekt.json'),'utf8')).schadendatum,'unbekannt');
   await page.locator('#pjBox > summary').click();await page.locator('#pjBox > summary').click();
   assert.equal(await page.locator('#pj_schadendatum_nb').getAttribute('aria-pressed'),'true','bleibt nach dem Neuzeichnen');

@@ -109,10 +109,11 @@ await page.screenshot({path:path.join(out,'heute.png')});
 await page.locator('.heute-karte[data-name="26.0105 Fiktivstadt SK"]').click();await page.locator('#jetztGo').waitFor();
 assert.equal(await page.locator('#jetztGo').innerText(),'Ergebnisse prüfen →');assert.equal(await page.locator('#detail button.primary:visible').count(),1);
 assert.match(await page.locator('[data-stufe=labor]').getAttribute('class'),/aktuell/);assert.match(await page.locator('[data-stufe=projekt]').getAttribute('class'),/z-hinweis/);
-assert.equal(await page.locator('#pflichtFehlt').innerText(),'3 Pflichtangaben fehlen');assert.ok(!await page.locator('#pjBox').evaluate(d=>d.open));
+assert.equal(await page.locator('#pflichtFehlt').innerText(),'Fehlt: Nutzung · Schadendatum · Sachverständiger');assert.ok(!await page.locator('#pjBox').evaluate(d=>d.open));
 {const [pop]=await Promise.all([page.waitForEvent('popup'),page.locator('#jetztGo').click()]);await pop.waitForURL(base+'/resultkit/**');assert.equal(new URLSearchParams(new URL(pop.url()).hash.slice(1)).get('projekt'),'26.0105 Fiktivstadt SK');await pop.close();}
-// „Angaben“ / Pflicht-Hinweis öffnet die Projektdaten am ersten leeren Pflichtfeld
-await page.locator('#pflichtFehlt').click();assert.ok(await page.locator('#pjBox').evaluate(d=>d.open));assert.equal(await page.evaluate(()=>document.activeElement.id),'pj_nutzung');
+// 1.49: Pflicht-Hinweis springt ins erste fehlende Feld unter der zugeklappten Karte; „Projektdaten ändern“ klappt das Formular auf
+await page.locator('#pflichtFehlt').click();assert.ok(!await page.locator('#pjBox').evaluate(d=>d.open));assert.equal(await page.evaluate(()=>document.activeElement.id),'pjq_nutzung');
+await page.locator('#pjAendern').click();assert.ok(await page.locator('#pjBox').evaluate(d=>d.open));assert.equal(await page.evaluate(()=>document.activeElement.id),'pj_nutzung');
 await page.screenshot({path:path.join(out,'projekt.png')});
 // Rückfrage: steht oben mit Antwortfeld; „Jetzt dran“ verschwindet dafür
 await page.locator('.proj[data-name="26.0104 Kontrollort SK"]').click();await page.locator('#bueroAttention [data-ab-antwort]').waitFor();

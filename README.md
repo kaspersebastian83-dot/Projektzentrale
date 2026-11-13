@@ -2,7 +2,15 @@
 
 Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung und GlasKit (Gebäude aus Glas, 3D-Ansicht der PlanKit-Pläne).
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.48.0** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.49.0** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Neu in 1.49.0 · 13.11.2026
+
+- **Fehlende Pflichtangaben unter der zugeklappten Karte „Projektdaten“** (`claude/projektzentrale-pflichtangaben-inline-plan.md`): Seit 1.48 füllt der Arbeitszettel fast alles; offen bleiben meist Nutzung und Schadendatum. `#pjPflicht` (nach `</details>` in `.pz-projektdaten`) zeigt bis `PJ_INLINE_MAX` = 3 fehlende Felder aus `PJ_PFLICHT` zum Ausfüllen – gleiche Beschriftung, gleiche Bedienelemente (`feld(k, 'pjq_')`), „nicht bekannt“ inklusive. Keine zweite Speicherlogik: Eingaben werden an das Formularfeld `pj_<k>` weitergegeben (`input`-Event bzw. Klick auf `pj_<k>_nb`), angezeigt wird dessen Wert. Auswahl und „nicht bekannt“ verschwinden sofort (Fokus weiter zum nächsten offenen Feld), Text und Datum beim Verlassen. Aufgeklappt per CSS ausgeblendet (`#pjBox[open] + .pz-pflicht`) – kein Feld doppelt. Mehr als 3: „Fehlt: …“ mit „Angaben öffnen“ (`daten-auf`). Nicht bei „Vor Spektron“ und nicht bei nur lesbaren Projektdaten.
+- **Hinweis oben** (`#pflichtFehlt`): „Fehlt: Nutzung · Schadendatum“ (Kurznamen `pjKurz`), ab 4 wie bisher „n Pflichtangaben fehlen“. `stufeAktion('daten')` springt bei zugeklappter Karte ins erste Feld der Zeile, statt aufzuklappen; sonst wie bisher.
+- **Arbeitszettel-Meldung** (`#azHand`, `azHandZeigen`): „… übernommen: 13 Felder · noch von Hand: Nutzung“, Klick springt wie der Hinweis; ohne Rest unverändert.
+- In der Zeile Eingetipptes klappt die Karte beim Neuzeichnen nicht auf (`S.pjInline`); Fokus in der Zeile bleibt beim Neuzeichnen erhalten. sw.js Cache v43.
+- Tests: neu `tests/pflicht-browser.cjs`; `heute-browser.cjs` und `projektansicht-browser.cjs` an den neuen Hinweistext angepasst.
 
 ## Neu in 1.48.0 · 13.11.2026
 

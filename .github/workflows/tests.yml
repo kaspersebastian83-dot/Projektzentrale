@@ -87,6 +87,8 @@ jobs:
       - name: Project list in groups, „Heute für dich“, „Jetzt dran“ and the „Mehr“ menu
         if: matrix.browser == 'chromium'
         run: node tests/heute-browser.cjs
+      - name: Missing required project data under the collapsed card (1.49)
+        run: node tests/pflicht-browser.cjs ${{ matrix.browser }}
       - name: Project switch after a failed save
         run: node tests/wechsel-browser.cjs ${{ matrix.browser }}
       - name: Independent F3 sessions and explicit recovery (synthetic shared disk)
