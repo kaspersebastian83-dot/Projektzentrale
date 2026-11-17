@@ -95,3 +95,11 @@ jobs:
         run: node tests/project-store-browser.cjs ${{ matrix.browser }}
       - name: Responsible person from the folder name, staff list and project data
         run: node tests/zustaendig-browser.cjs ${{ matrix.browser }}
+      - name: TeamKit daneben holen (Anbindung im Rahmen prüfen)
+        env:
+          ZWEIG: ${{ github.head_ref }}
+        run: git clone --quiet --depth 1 --branch "$ZWEIG" https://github.com/kaspersebastian83-dot/teamkit.git ../teamkit 2>/dev/null || git clone --quiet --depth 1 https://github.com/kaspersebastian83-dot/teamkit.git ../teamkit
+      - name: TeamKit in a hidden frame – button states, headline, open/close, Esc, focus
+        run: node tests/team-browser.cjs ${{ matrix.browser }}
+        env:
+          TEAMKIT_PFLICHT: '1'

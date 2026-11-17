@@ -491,6 +491,20 @@ summary.stufe-kopf::-webkit-details-marker{display:none}
 .ohne-archiv .listbar{display:none}
 .appbar{min-width:0}
 .appbar .brand{min-width:0;overflow:hidden}
+/* TEAMKIT-ANBINDUNG: Knopf „Team“, Schlagzeile, Rahmen (unter dem Kopf, über Liste/Detail, unter Kopf-Menü und Dialogen) */
+#btnTeam{position:relative;display:inline-flex;align-items:center}
+#btnTeam [hidden]{display:none}
+#btnTeam b svg{width:11px;height:11px;vertical-align:-1px}
+#btnTeam .tz{margin-left:6px;min-width:18px;padding:2px 5px;border-radius:9px;background:var(--sp-pille,#e4c04a);color:#17222c;font:700 11px/1 var(--sans);text-align:center}
+#btnTeam .tp{position:absolute;top:2px;right:2px;width:7px;height:7px;border-radius:50%;background:var(--sp-pille,#e4c04a)}
+#btnTeam.morgen,#btnTeam.morgen:hover{background:#fff;border-color:#fff;color:var(--head);font-weight:600}
+#btnTeam.morgen b{background:var(--head);color:#fff}
+#teamZeile{display:flex;align-items:center;gap:10px;padding:3px 16px;font-size:12.5px;background:color-mix(in srgb,#e4c04a 16%,var(--panel));border-bottom:1px solid var(--line)}
+#teamZeile[hidden]{display:none}
+#teamZeile span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#teamZeile button{font-size:12px;padding:2px 10px}
+#teamRahmen{position:fixed;left:0;right:0;top:52px;width:100%;height:calc(100dvh - 52px);border:0;background:#eeeeec;z-index:4}
+@media (max-width:860px){ #btnTeam{font-size:0} #btnTeam b{margin:0} .appbar .brand{min-width:26px} .hstatus{min-width:44px} }   /* schmal: das Zeichen ⬡ bleibt, der Archivname (gekürzt) gibt nach */
 @media (max-width:860px){ .appbar{gap:8px;padding:0 10px} .appbar .brand small{display:none} .hbadge.help{padding:4px 7px} #btnHelp{font-size:0} #btnHelp b{font-size:11px;margin:0} .hstatus{max-width:110px} }
 </style>
 <script src="spektron-ordner.js"></script>
@@ -510,6 +524,7 @@ summary.stufe-kopf::-webkit-details-marker{display:none}
     <div class="brand"><span class="hex">⬡</span> Projektzentrale <small>Spektron · Projekte &amp; Apps</small></div>
     <button id="btnInfo" class="hbadge" title="Version, Speicherorte, Änderungen">v1.15.0</button>
     <button id="btnHelp" class="hbadge help" title="Kurzanleitung für alle Projekt-Apps (F1)"><b>?</b> Kurzanleitung</button>
+    <button id="btnTeam" class="hbadge help" title="TeamKit: Was ist heute los, was gilt im Büro" aria-label="Team" aria-expanded="false"><b aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="8" r="3.4"/><circle cx="17" cy="9" r="2.7"/><path d="M2 20c.6-3.8 3.4-6 7-6s6.4 2.2 7 6z"/><path d="M15.6 14.2c3.3.1 5.8 2 6.4 5.8h-4.6c-.2-2.3-.8-4.2-1.8-5.8z"/></svg></b><span id="teamText">Team</span><span id="teamZahl" class="tz" hidden></span><span id="teamPunkt" class="tp" hidden></span></button>
     <button id="btnUpd" class="upd" hidden>Update verfügbar – neu laden</button>
     <span class="spacer"></span>
     <!-- Archiv als Status: grüner Punkt, Ordnername; Klick wählt einen anderen Archivordner -->
@@ -527,6 +542,7 @@ summary.stufe-kopf::-webkit-details-marker{display:none}
     </div>
   </div>
 </header>
+<div id="teamZeile" role="status" hidden></div>
 <div id="support">Dieser Browser unterstützt keinen Ordnerzugriff. Bitte <b>Google Chrome</b> oder <b>Microsoft Edge</b> verwenden.</div>
 <div id="banner"></div>
 
@@ -1001,9 +1017,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.50.0';
-const APP_DATE = '2026-11-13';
+const APP_VERSION = '1.51.0';
+const APP_DATE = '2026-11-17';
 const CHANGELOG = [
+  ['1.51.0', '17.11.2026', 'Neu oben neben der Kurzanleitung: „Team“ – TeamKit öffnet sich direkt hier, ohne eigenes Fenster: Was ist heute los, was gilt im Büro. Der Knopf zeigt, wie viele neue Mitteilungen es gibt (gelbe Zahl), einen Punkt, wenn heute etwas los ist, und morgens „Guten Morgen“. Wichtige Mitteilungen stehen als schmale Zeile unter dem Kopf („Ansehen“ · „Gesehen“). Zurück mit „Zurück“ oder Esc.'],
   ['1.50.0', '13.11.2026', 'Neu unter „⋯ Büro & Apps“: LexiKit – frühere Berichte nach Themen durchsuchen („Wie haben wir das früher gemacht?“). Öffnet in einem eigenen Fenster und nimmt denselben Archivordner wie die Projektzentrale. LexiKit liest nur und ändert nichts in den Projekten. Sonst unverändert.'],
   ['1.49.0', '13.11.2026', 'Fehlende Pflichtangaben gleich sichtbar: Seit der Arbeitszettel von selbst übernommen wird, bleiben meist nur Nutzung und Schadendatum offen – und die standen im zugeklappten Formular. Jetzt stehen fehlende Pflichtangaben (bis zu drei) direkt unter der zugeklappten Karte „Projektdaten“ zum Ausfüllen, „nicht bekannt“ inklusive; ausgefüllt verschwinden sie, gespeichert wird wie im Formular. Fehlen mehr, steht dort, welche, mit „Angaben öffnen“. Der gelbe Hinweis oben nennt die Felder („Fehlt: Nutzung · Schadendatum“) und springt beim Klick ins erste. Die Meldung „Arbeitszettel … übernommen“ sagt, was noch von Hand fehlt. Das Formular unter „Angaben“ ist unverändert.'],
   ['1.48.0', '13.11.2026', 'Arbeitszettel von selbst: Liegt im Projektordner unter „Arbeitszettel“ ein Zettel aus MOS\'aik (Arbeitszettel › AZ… › Revision …, darin das PDF), liest die Projektzentrale ihn beim ersten Öffnen des Projekts und trägt ihn ein – nur in leere Felder, nur wenn alles eindeutig ist (genau ein PDF in der höchsten Revision, Projektnummer auf dem Zettel = Ordner, Spektron-Projekt). Über „Jetzt dran“ steht dann immer eine Zeile, die bleibt, bis man sie schließt: übernommen (mit „Ansehen“ und „Rückgängig“ – danach wird der Zettel nicht wieder übernommen; der Arbeitsauftrag kommt wie bisher an die Notizen, die Zeile sagt es, und steht er dort schon, wird nichts angehängt; hat jemand die Notizen danach geändert, lässt „Rückgängig“ sie stehen und nennt sie), nicht übernommen mit dem Grund (z. B. andere Projektnummer, Felder haben schon andere Werte, mehrere PDFs, Projekt aus der Zeit vor Spektron) und „Arbeitszettel prüfen und übernehmen“, oder „Kein Arbeitszettel gefunden“ mit „Datei wählen …“, solange Projektdaten fehlen. Kommt später eine neue Revision dazu, steht dort „Neuer Arbeitszettel (Revision 002) – Änderungen ansehen“; übernommen wird sie nur von Hand, und der Dialog zeigt nur die Felder, die sich ändern. Der Knopf in den Projektdaten heißt jetzt „Andere Datei wählen …“. Behoben: Hielt ein zweites Projektzentrale-Fenster das Projekt, passierte beim Einlesen und Speichern still nichts. Jetzt erscheint sofort „Lese Arbeitszettel …“ und nach spätestens 20 Sekunden „Das Projekt ist gerade in einem anderen Projektzentrale-Fenster belegt – bitte das andere Fenster schließen und erneut versuchen.“ Getippte Eingaben bleiben dabei stehen.'],
@@ -1223,6 +1240,7 @@ const AIDKIT_URL = '../aidkit/';   // AidKit: Handbuch der Suite – Abläufe un
 /** Hilfe-Link ins Handbuch: feste Kapiteladresse aus AidKit (hilfe-anker.json), immer dasselbe Fenster „aidkit“. */
 const handbuchLink = (anker, text, titel) => `<a class="hilfe-link" href="${AIDKIT_URL}#${anker}" target="aidkit" rel="noopener" title="${esc(titel)} – öffnet das Handbuch (AidKit) in einem eigenen Fenster">📘 ${esc(text)}</a>`;
 const RUECKMELDUNG_URL = '../rueckmeldung/';   // Rückmeldung: Fehler oder Wunsch an den Betreuer – Programm, Version und Projektnummer werden vorbelegt
+const TEAMKIT_URL = '../teamkit/';   // TeamKit: Was ist heute los, was gilt im Büro – unsichtbar im Rahmen (TEAMKIT-ANBINDUNG)
 const LEXIKIT_URL = '../lexikit/';   // LexiKit: Themensuche in den fertigen Word-Berichten aller Projekte – liest nur, ohne Projektbezug
 const GLASKIT_URL = '../glaskit/';   // GlasKit: Gebäude aus Glas – Geschosse und Proben aus PlanKit als 3D-Ansicht, liest nur
 const REISEKOSTEN_URL = '../reisekosten-pro/';   // SpesenKit: Spesenabrechnung je Kollege und Monat – ohne Projektbezug, darum kein Schritt und kein ?projekt=
@@ -1399,6 +1417,7 @@ async function useArchive(dir){
   await maLaden();
   await listProjects();
   maWarnung();
+  teamStart();   // TEAMKIT-ANBINDUNG: Rahmen erst mit Archivordner
 }
 function maWarnung(){
   if (S.ma && S.ma.error) banner('err', `„${esc(MA_FILE)}“ im Archivordner ist nicht lesbar (${esc(S.ma.error)}). Ordnernamen werden ohne Kürzel gelesen; die Datei wird nicht überschrieben.`);
@@ -3727,7 +3746,7 @@ async function anlErstellen(p, o){
 }
 
 /* ---------- dialogs / banner ---------- */
-function showDialog(html){ $('dialog').innerHTML = html; $('dlgBack').classList.add('show'); }
+function showDialog(html){ teamZu(true); $('dialog').innerHTML = html; $('dlgBack').classList.add('show'); }
 function closeDialog(){ S.au = null; $('dlgBack').classList.remove('show'); $('dialog').innerHTML = ''; $('dialog').className = 'dialog'; }
 function confirmDialog(title, html, ok){
   return new Promise(res => {
@@ -3887,6 +3906,61 @@ $('btnMeine').onclick = () => { lsSet(MEINE_KEY, meineAktiv() ? '' : '1'); maUi(
 $('q').addEventListener('input', () => { S.q = $('q').value; renderList(); });
 $('dlgBack').addEventListener('click', e => { if (e.target === $('dlgBack')) closeDialog(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('dlgBack').classList.contains('show')) closeDialog(); });
+
+/* ===== TEAMKIT-ANBINDUNG ===== TeamKit (TEAMKIT_URL, gleiche Adresse) liegt unsichtbar in einem Rahmen unter dem Kopf und meldet per
+   postMessage seinen Stand; Protokoll: TeamKit-README „Einbettung“. Rahmen erst, wenn der Archivordner verbunden ist (useArchive). */
+const TEAM = { rahmen: null, offen: false };
+function teamStart(){
+  if (TEAM.rahmen){ TEAM.rahmen.contentWindow.location.reload(); return; }   // anderer Archivordner: TeamKit liest neu
+  const f = document.createElement('iframe'); f.id = 'teamRahmen'; f.title = 'TeamKit'; f.hidden = true;
+  f.src = TEAMKIT_URL + '?eingebettet=1' + (new URLSearchParams(location.search).has('teamprobe') ? '&probe=1' : '');   // teamprobe: nur für Tests
+  document.body.append(f); TEAM.rahmen = f;
+}
+/** Oberkante des Rahmens: unter Kopf, Schlagzeile, Hinweis „Browser“ und Banner – gemessen, nicht fest. */
+function teamOben(){
+  let y = 0; for (const el of [document.querySelector('header'), $('teamZeile'), $('support'), $('banner')]){ const r = el.getBoundingClientRect(); if (r.height) y = Math.max(y, r.bottom); }
+  y = Math.max(0, Math.round(y)); TEAM.rahmen.style.top = y + 'px'; TEAM.rahmen.style.height = `calc(100dvh - ${y}px)`;   // ein iframe streckt sich nicht zwischen top und bottom
+}
+const teamAn = o => TEAM.rahmen.contentWindow.postMessage({ quelle: 'projektzentrale', ...o }, location.origin);
+function teamAuf(id){
+  if (!TEAM.rahmen){ window.open(TEAMKIT_URL, 'teamkit', 'noopener'); return; }   // noch kein Archivordner: eigenes Fenster wie BüroKit
+  teamOben(); TEAM.rahmen.hidden = false; TEAM.offen = true; $('btnTeam').setAttribute('aria-expanded', 'true');
+  teamAn({ art: 'oeffnen', projekt: S.sel ? S.sel.nr : '', ...(id ? { id } : {}) }); TEAM.rahmen.focus();
+}
+function teamZu(senden, fokus){
+  if (!TEAM.offen) return;
+  TEAM.rahmen.hidden = true; TEAM.offen = false; $('btnTeam').setAttribute('aria-expanded', 'false');
+  if (senden) teamAn({ art: 'zu' });
+  if (fokus) $('btnTeam').focus();
+}
+function teamStand(d){
+  const b = $('btnTeam'), n = d.bereit && d.neuGilt > 0 ? d.neuGilt : 0, morgen = !!(d.bereit && d.morgenFaellig), heute = d.bereit && d.heute > 0;
+  b.classList.toggle('morgen', morgen); $('teamText').textContent = morgen ? 'Guten Morgen' : 'Team';
+  $('teamZahl').textContent = n || ''; $('teamZahl').hidden = !n; $('teamPunkt').hidden = !(heute && !n);
+  b.title = d.bereit ? 'TeamKit: Was ist heute los, was gilt im Büro' : 'TeamKit braucht einmal deine Erlaubnis – klicken';
+  const worte = [!d.bereit && 'braucht einmal deine Erlaubnis', morgen && 'Guten Morgen', n && `${n} neue Mitteilung${n > 1 ? 'en' : ''}`, heute && 'heute ist etwas los'].filter(Boolean);
+  b.setAttribute('aria-label', 'Team' + (worte.length ? ' – ' + worte.join(', ') : ''));
+  const sz = d.bereit && d.schlagzeile, z = $('teamZeile');
+  if (sz && sz.wichtig && sz.id && sz.id !== lsGet('pz-team-gesehen')){
+    z.dataset.id = sz.id; z.hidden = false;
+    z.innerHTML = `<span>📌 <b>${esc(sz.titel)}</b> – ${esc(sz.von)}</span><button type="button" data-team="ansehen">Ansehen</button><button type="button" data-team="gesehen">Gesehen</button>`;
+  } else { z.hidden = true; z.innerHTML = ''; }
+  if (TEAM.offen) teamOben();
+}
+window.addEventListener('message', ev => {
+  if (!TEAM.rahmen || ev.source !== TEAM.rahmen.contentWindow || ev.origin !== location.origin || !ev.data || ev.data.quelle !== 'teamkit') return;
+  if (ev.data.art === 'stand') teamStand(ev.data);
+  else if (ev.data.art === 'schliessen') teamZu(false, true);
+});
+$('btnTeam').onclick = () => TEAM.offen ? teamZu(true, true) : teamAuf();
+$('teamZeile').addEventListener('click', e => {
+  const k = e.target.closest('[data-team]'); if (!k) return;
+  if (k.dataset.team === 'ansehen') teamAuf($('teamZeile').dataset.id);
+  else { lsSet('pz-team-gesehen', $('teamZeile').dataset.id); $('teamZeile').hidden = true; if (TEAM.offen) teamOben(); }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && TEAM.offen && !$('dlgBack').classList.contains('show')) teamZu(true, true); });   // Esc im Rahmen regelt TeamKit selbst
+window.addEventListener('resize', () => { if (TEAM.offen) teamOben(); });
+/* ===== Ende TEAMKIT-ANBINDUNG ===== */
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushPJ(); });
 window.addEventListener('beforeunload', e => { if (Object.keys(S.pjDirty).length){ flushPJ(); e.preventDefault(); e.returnValue = ''; } });
 window.addEventListener('focus', () => { S.pjRecoveryRefresh?.(); const p = S.sel; if (p && !Object.keys(S.pjDirty).length) pjDir(p).then(readPJ).then(pj => {   // pick up changes from Bildumbenenner / coworkers

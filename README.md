@@ -2,7 +2,15 @@
 
 Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung, GlasKit (Gebäude aus Glas, 3D-Ansicht der PlanKit-Pläne) und LexiKit (Themensuche in den fertigen Berichten).
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.50.0** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.51.0** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Neu in 1.51.0 · 17.11.2026
+
+- **TeamKit angebunden** (Block `TEAMKIT-ANBINDUNG`, `TEAMKIT_URL = '../teamkit/'`): Knopf „Team“ (`#btnTeam`) direkt nach der Kurzanleitung, bis 860 px nur Zeichen und Zahl. Sobald der Archivordner verbunden ist (`useArchive` → `teamStart`), lädt TeamKit unsichtbar in `#teamRahmen` (`?eingebettet=1`; Testschalter `?teamprobe=1` lädt TeamKit im Probe-Modus). Vorher öffnet „Team“ TeamKit in einem eigenen Fenster.
+- **Stand am Knopf** aus TeamKits Meldung `stand`: gelbe Zahl = neue „Gilt jetzt“-Mitteilungen, Punkt = heute ist etwas los, gefüllt „Guten Morgen“ = Guten-Morgen-Seite fällig; ohne Zugriff nur „Team“ („braucht einmal deine Erlaubnis – klicken“). `aria-label` sagt alles in Worten.
+- **Schlagzeile** `#teamZeile` (nicht `#banner`) unter dem Kopf nur für „Wichtig“: „📌 Titel – Name · Ansehen · Gesehen“; „Gesehen“ merkt die ID in `localStorage` `pz-team-gesehen`.
+- **Öffnen/Schließen:** Klick auf „Team“ zeigt den Rahmen und schickt `oeffnen` (mit Nummer des offenen Projekts), noch ein Klick oder Esc schließt (`zu`); TeamKits „Zurück“/Esc schickt `schliessen`, der Fokus kehrt zu „Team“ zurück. Ein Dialog der Projektzentrale blendet den Rahmen vorher aus. Oberkante gemessen (Kopf, Schlagzeile, Banner), Ebene unter Kopf-Menü und Dialogen. Protokoll: TeamKit-README „Einbettung“. sw.js Cache v45.
+- Tests: neu `tests/team-browser.cjs` (Projektzentrale und TeamKit nebeneinander ausgeliefert, TeamKit im Probe-Modus; CI holt `teamkit` daneben). `tests/spektron-start-test.cjs` gibt allen anderen Browsertests für `/teamkit/` eine leere Testseite, damit kein 404 in der Konsole steht.
 
 ## Neu in 1.50.0 · 13.11.2026
 
@@ -296,6 +304,7 @@ node tests/arbeitszettel-browser.cjs chromium   # PDF lesen, Dialog, Speichern, 
 node tests/zuletzt-browser.cjs chromium         # zuletzt geöffnete Projekte, Vorwahl beim Start
 node tests/zustaendig-browser.cjs chromium      # Mitarbeiterliste, Zuständig, Meine Projekte, unlesbare Liste, Konflikt
 node tests/wechsel-browser.cjs chromium         # Projektwechsel nach gescheitertem Speichern: nichts geht still verloren
+node tests/team-browser.cjs chromium            # TeamKit im Rahmen (braucht ../teamkit): Knopf, Schlagzeile, Öffnen/Schließen, Esc, Fokus
 ```
 
 Die Test-Arbeitszettel in `tests/fixtures/` sind frei erfunden (gleiche Form wie das Original, keine echten Daten).
