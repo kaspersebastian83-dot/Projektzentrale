@@ -2,7 +2,12 @@
 
 Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung, GlasKit (Gebäude aus Glas, 3D-Ansicht der PlanKit-Pläne) und LexiKit (Themensuche in den fertigen Berichten).
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.51.0** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.51.1** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Neu in 1.51.1 · 20.11.2026
+
+- **Sperr-Meldung neutral** (Audit 2026-11 Lauf 1, A11): `project-store.js` meldet „Das Projekt ist gerade in einem anderen **Spektron**-Fenster belegt …“ (bisher „Projektzentrale-Fenster“) – die Sperre kann auch FotoKit halten. Damit ist `project-store.js` wieder byte-gleich mit FotoKit (FotoKit prüft das ab 2.5.0 in der CI). sw.js Cache v46.
+- **CI auch bei Push auf main** (A20): `tests.yml` läuft zusätzlich bei `push` auf `main` – bisher nur bei Pull Requests; Versionen direkt auf main (1.46.0, 1.47.0, 1.51.0) liefen nie durch die Tests.
 
 ## Neu in 1.51.0 · 17.11.2026
 

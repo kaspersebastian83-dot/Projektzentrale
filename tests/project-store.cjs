@@ -154,7 +154,7 @@ async function all(d){const r={};async function walk(p){for(const e of await fs.
    let lief=false;
    const e=await PS.update(new Directory(d),name,data=>{lief=true;return {...data,objekt:'SOLL NICHT'};}).then(()=>null,e=>e);
    assert.ok(e&&e.belegt,'belegt-Fehler');assert.equal(gemessen,20000);
-   assert.equal(e.message,'Das Projekt ist gerade in einem anderen Projektzentrale-Fenster belegt – bitte das andere Fenster schließen und erneut versuchen.');
+   assert.equal(e.message,'Das Projekt ist gerade in einem anderen Spektron-Fenster belegt – bitte das andere Fenster schließen und erneut versuchen.');
    assert.equal(lief,false,'fn läuft nicht ohne Sperre');assert.equal((await bytes(d)).toString(),vorher,'nichts geschrieben');
    freigeben();await new Promise(r=>setTimeout(r,10));
    await PS.update(new Directory(d),name,data=>({...data,objekt:'FREI'}));assert.equal(JSON.parse(await bytes(d)).objekt,'FREI','nach Freigabe normal');
