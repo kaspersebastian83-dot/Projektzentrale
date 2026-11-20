@@ -332,10 +332,10 @@ const TYP = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.c
   const t0 = Date.now();
   await page.locator('#azFile').setInputFiles(path.join(__dirname, 'fixtures', 'arbeitszettel-voll.pdf'));
   await page.waitForFunction(() => /Lese Arbeitszettel/.test(document.querySelector('#banner').textContent), null, { timeout: 3000 });
-  await page.waitForFunction(() => /in einem anderen Projektzentrale-Fenster belegt/.test(document.querySelector('#banner.err')?.textContent || ''), null, { timeout: 25000 });
+  await page.waitForFunction(() => /in einem anderen Spektron-Fenster belegt/.test(document.querySelector('#banner.err')?.textContent || ''), null, { timeout: 25000 });
   const dauer = Date.now() - t0;
   assert.ok(dauer < 24000, 'Meldung nach höchstens ~20 s, war ' + dauer + ' ms');
-  assert.match(await page.locator('#banner').textContent(), /Arbeitszettel nicht eingelesen – Projektdaten nicht gespeichert: Das Projekt ist gerade in einem anderen Projektzentrale-Fenster belegt – bitte das andere Fenster schließen und erneut versuchen\./);
+  assert.match(await page.locator('#banner').textContent(), /Arbeitszettel nicht eingelesen – Projektdaten nicht gespeichert: Das Projekt ist gerade in einem anderen Spektron-Fenster belegt – bitte das andere Fenster schließen und erneut versuchen\./);
   assert.equal(await page.locator('#pj_objekt').inputValue(), 'Neu getippt', 'Eingabe bleibt stehen');
   assert.match(await page.locator('#pjSave').textContent(), /belegt/);
   assert.equal(await page.locator('#azOk').count(), 0, 'kein Dialog ohne gespeicherte Eingaben');

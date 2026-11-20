@@ -85,7 +85,7 @@
   // Never wait forever for the project lock (another window may hold it): give up after WARTEN ms
   // with a clear message (belegt: true); fn does not run then. Same pattern as spektron-umzug.js.
   const WARTEN = 20000;
-  const BELEGT = 'Das Projekt ist gerade in einem anderen Projektzentrale-Fenster belegt – bitte das andere Fenster schließen und erneut versuchen.';
+  const BELEGT = 'Das Projekt ist gerade in einem anderen Spektron-Fenster belegt – bitte das andere Fenster schließen und erneut versuchen.';
   function locked(name, fn){
     const L = root.navigator?.locks;
     if(!L) return fn();
