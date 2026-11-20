@@ -1017,9 +1017,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.51.2';
+const APP_VERSION = '1.51.3';
 const APP_DATE = '2026-11-20';
 const CHANGELOG = [
+  ['1.51.3', '20.11.2026', 'Ans Büro übergeben ohne Abrechnungsstand: statt der gelben Warnung eine ruhige Zeile – der Stand kommt, sobald die PDF des Büros in „Mitteilungen“ liegt; übergeben geht schon jetzt (Audit Lauf 4, D6; Reihenfolge wie BelegKit 1.17.0). Nach dem Versand ohne Stand bleibt der Hinweis „kein Abrechnungsstand – in BelegKit „Stand speichern““.'],
   ['1.51.2', '20.11.2026', 'Datenarchiv 1.3.2 (Audit Lauf 2, B3): Steht in der Auftragsreferenz eines Prüfberichts ein Datum („Ortstermin 18.11.2026“), gilt daraus keine Projektnummer mehr – bisher zählte der Bericht als „anderes Projekt“ („11.2026“) und seine Werte fehlten. Stehen mehrere Projektnummern da, gilt die des Projekts. Gleiche Regel wie ResultKit 2.6.'],
   ['1.51.1', '20.11.2026', 'Ist ein Projekt gerade in einem anderen Fenster belegt, heißt die Meldung jetzt „… in einem anderen Spektron-Fenster belegt …“ – die Sperre kann auch FotoKit halten, nicht nur eine zweite Projektzentrale. Gleicher Text wie in FotoKit.'],
   ['1.51.0', '17.11.2026', 'Neu oben neben der Kurzanleitung: „Team“ – TeamKit öffnet sich direkt hier, ohne eigenes Fenster: Was ist heute los, was gilt im Büro. Der Knopf zeigt, wie viele neue Mitteilungen es gibt (gelbe Zahl), einen Punkt, wenn heute etwas los ist, und morgens „Guten Morgen“. Wichtige Mitteilungen stehen als schmale Zeile unter dem Kopf („Ansehen“ · „Gesehen“). Zurück mit „Zurück“ oder Esc.'],
@@ -2405,10 +2406,11 @@ function bueroZeigen(p){
   anlEl.querySelectorAll('[data-ab-anl-rel]').forEach(el => { const x = anl.find(y => y.rel === el.dataset.abAnlRel); el.checked = d.anl[x.rel] === undefined ? abAnlVorschlag(x, bk) : d.anl[x.rel]; });
   q('[data-ab-anl-text]').readOnly = ro;
   const abrEl = q('[data-ab-abr]');
-  const abrHtml = st.abr === undefined && !st.r ? '' : st.abr ? `✓ Abrechnungsstand aus BelegKit vom ${esc(deDatum(st.abr.datum))} – danach schreibt das Büro die Rechnung. Neue Zeiten? Vorher in BelegKit neu „Stand speichern“.`
-    : st.abr === null ? `⚠ Noch kein Abrechnungsstand. Das Büro braucht ihn für die Rechnung: <button type="button" class="linkbtn" data-ab-beleg>BelegKit öffnen</button> → Zeiten prüfen → „💾 Stand speichern“.`
+  const abrHtml = st.abr === undefined && !st.r ? '' : st.abr ? `✓ Abrechnungsstand aus BelegKit vom ${esc(deDatum(st.abr.datum))} – danach schreibt das Büro die Rechnung. Kommen noch Zeiten dazu: in BelegKit neu „Stand speichern“, spätestens wenn die PDF des Büros da ist.`
+    // Audit Lauf 4, D6: der Stand kommt nach „Ans Büro übergeben“, sobald die PDF des Büros da ist (BelegKit 1.17.0) – darum hier ruhig, nicht gelb
+    : st.abr === null ? `Noch kein Abrechnungsstand – der kommt, sobald die PDF des Büros in „Mitteilungen“ liegt. Übergeben geht schon jetzt. Danach in <button type="button" class="linkbtn" data-ab-beleg>BelegKit</button> Zeiten prüfen und „💾 Stand speichern“.`
     : 'Abrechnung nicht lesbar.';
-  if (abrEl.dataset.html !== abrHtml){ abrEl.innerHTML = abrHtml; abrEl.dataset.html = abrHtml; abrEl.classList.toggle('warn', st.abr !== undefined && !st.abr); abrEl.hidden = !abrHtml; }
+  if (abrEl.dataset.html !== abrHtml){ abrEl.innerHTML = abrHtml; abrEl.dataset.html = abrHtml; abrEl.classList.toggle('warn', st.abr !== undefined && st.abr !== null && !st.abr); abrEl.hidden = !abrHtml; }
   // Empfänger: Vorschlag aus den Projektdaten, solange nicht selbst geändert
   const vorschlag = abVorschlag();
   vorschlag.forEach((v, i) => {
