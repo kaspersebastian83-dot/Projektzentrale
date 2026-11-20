@@ -78,7 +78,7 @@
       b.bk = await datei('berichtkit', BK);
     }
     b.xml.sort((x, y) => x.name.localeCompare(y.name)); b.lk.sort((x, y) => x[0].localeCompare(y[0]));
-    b.sig = JSON.stringify(['v4',   // v4 (1.3.1, o41): Wertschlüssel ohne Einheit – zwischengespeicherte Projekte neu auswerten
+    b.sig = JSON.stringify(['v5',   // v5 (1.3.2, Audit Lauf 2 B3): Datum in der Auftragsreferenz ist keine Projektnummer – neu auswerten; v4 (1.3.1, o41): Wertschlüssel ohne Einheit
        b.pj && [b.pj.size, b.pj.t], b.xml.map(x => [x.name, x.size, x.t]), b.pdf, b.oben.map(x => [x.name, x.size, x.t]), b.erg && [b.erg.size, b.erg.t], b.lk, b.bk && [b.bk.size, b.bk.t]]);
     return b;
   }

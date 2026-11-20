@@ -1,4 +1,9 @@
-# Spektron · Datenarchiv, Version 1.3.1
+# Spektron · Datenarchiv, Version 1.3.2
+
+## Neu in 1.3.2 (Audit Lauf 2, B3 – 20.11.2026)
+
+- **Ein Datum in der Auftragsreferenz ist nie eine Projektnummer** (wie ResultKit 2.6, Block `PROJEKTNUMMER v1`, zeichengleich – `tests/archiv.cjs` vergleicht mit `../resultkit/src/labreport.ts`, in der CI Pflicht): Aus „Ortstermin 18.11.2026“ wurde „11.2026“, der Bericht galt als „anderes Projekt“ und zählte nicht. Stehen mehrere Nummern da, gilt die des Projekts. Gilt für die eigene Auswertung der XML und für die Werte aus `_Ergebnisse.json`.
+- Zwischenspeicher: Signatur `v5` (einmal neu eingelesen).
 
 ## Neu in 1.3.1 (Audit Kernkette o41 – 11.11.2026)
 

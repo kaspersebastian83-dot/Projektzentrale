@@ -96,8 +96,14 @@
     const t = tidy(bericht).replace(/[‐-―−]/g, '-').replace(/\s+/g, '').toUpperCase(), m = /^(.*[^-])-(\d{2})$/.exec(t);
     return m ? { grund: m[1], fassung: Number(m[2]) } : { grund: t, fassung: null };
   }
-  /** Projektnummer „26.0142“ aus einer Auftragsreferenz (wie ResultKit). */
-  const projektnummer = s => (String(s || '').match(/\b\d{2}\.\d{3,6}\b/) || [''])[0];
+  /* ===== PROJEKTNUMMER v1 – in ResultKit (src/labreport.ts), Projektzentrale (archiv/auswertung.js) und PlanKit (src/labreport.ts) gleich halten =====
+     Projektnummern „26.0142“ in einer Auftragsreferenz (Freitext im Eurofins-Portal). Ein Datum ist nie eine Projektnummer: in „18.11.2026“
+     steht „11.2026“ direkt hinter „18.“ und zählt nicht (Audit Lauf 2, B3, Entscheidung 20.11.2026). Stehen mehrere Nummern da, gilt die des
+     Projekts; sonst die erste (→ anderes Projekt). Keine Nummer → '' (kein Projektbezug, wie bisher). */
+  const PROJEKTNUMMER = /(?<!\d)(?<!\d\.)\d{2}\.\d{3,6}(?!\d)/g;
+  const projektnummern = text => [...String(text ?? '').matchAll(PROJEKTNUMMER)].map(m => m[0]);
+  function projektnummerIn(text, projekt = ''){ const l = projektnummern(text); return projekt && l.includes(projekt) ? projekt : l[0] || ''; }
+  /* ===== Ende PROJEKTNUMMER v1 ===== */
 
   /** Ein Messwert wie in der Auswertung (probe = Labornummer, sonst Referenz – Schlüssel der Rollen-Korrekturen). */
   function messung(b, pr, w, key){
@@ -121,7 +127,7 @@
     }
     const liste = [...nachCode.values()].map(b => ({ b, ...(tidy(b.bericht) ? berichtsFassung(b.bericht) : { grund: '?' + b.datei, fassung: null }) }));
     const fremd = [];
-    for (const x of liste){ const nr = projektnummer(x.b.auftragsreferenz); if (projektNr && nr && nr !== projektNr){ x.fremd = nr;
+    for (const x of liste){ const nr = projektnummerIn(x.b.auftragsreferenz, projektNr); if (projektNr && nr && nr !== projektNr){ x.fremd = nr;
       fremd.push({ bericht: tidy(x.b.bericht) || x.b.datei, nr, ref: tidy(x.b.auftragsreferenz), n: (x.b.proben || []).reduce((s, pr) => s + (pr.werte || []).length, 0) }); } }
     const besser = (a, b) => (a.b.vorlaeufig ? 0 : 1) - (b.b.vorlaeufig ? 0 : 1) || (a.fassung ?? -1) - (b.fassung ?? -1) || (a.b.geaendert || 0) - (b.b.geaendert || 0);
     const kandidaten = new Map();
@@ -151,7 +157,7 @@
   /** Werte aus ResultKits „_Ergebnisse.json“ (berichte[].proben[].werte) als Map key → Messung. pdf: Bericht ohne XML (nur aus der PDF gelesen). */
   function ergebnisWerte(datei, projektNr){
     const m = new Map();
-    for (const b of Array.isArray(datei && datei.berichte) ? datei.berichte : []) if (!(projektNr && projektnummer(b && b.auftragsreferenz) && projektnummer(b.auftragsreferenz) !== projektNr)) for (const pr of Array.isArray(b && b.proben) ? b.proben : [])
+    for (const b of Array.isArray(datei && datei.berichte) ? datei.berichte : []) if (!(projektNr && projektnummerIn(b && b.auftragsreferenz, projektNr) && projektnummerIn(b.auftragsreferenz, projektNr) !== projektNr)) for (const pr of Array.isArray(b && b.proben) ? b.proben : [])
       for (const w of Array.isArray(pr && pr.werte) ? pr.werte : []){ if (!w || !tidy(w.p) || !tidy(w.r)) continue;
         const k = wertKey(pr, w), x = { ...messung(b, pr, w, k), pdf: !(b.sources && b.sources.xml), pdfName: (b.sources && b.sources.pdf) || '' }, alt = m.get(k);
         // ab 1.3.1 (o41): mehrere Werte je Schlüssel (Übernahme vor ResultKit 2.5 mit -01 neben -02 in anderer Einheit, oder ein
@@ -312,7 +318,7 @@
       .map(r => r.map(zelle).join(';')).join('\r\n') + '\r\n';
   }
 
-  const api = Object.freeze({ zahl, ergebnis, einheit, PAK16, pakIndex, QUOTIENTEN, QUELLE, MIN_N, projektKopf, projektMessungen, projektAuswerten, ergebnisWerte, mitErgebnisDatei, berichtsFassung, probeLabel, zaehlt, unterBG, statistik, parameterListe, profile, medianProfil, csv, norm, tidy,
+  const api = Object.freeze({ zahl, ergebnis, einheit, PAK16, pakIndex, QUOTIENTEN, QUELLE, MIN_N, projektKopf, projektMessungen, projektAuswerten, ergebnisWerte, mitErgebnisDatei, berichtsFassung, projektnummern, projektnummerIn, probeLabel, zaehlt, unterBG, statistik, parameterListe, profile, medianProfil, csv, norm, tidy,
     ROLLEN, ROLLE_NAME, rolleAuto, rolleWirksam, bkSicht, berichtkitRollen, standKennung, freiBasis, berlinTag, tageNachBrand, tageKlasse, gemeinsam, aufMenge, kosinus, medianVektor });
   root.ArchivAuswertung = api;
   if (typeof module !== 'undefined') module.exports = api;
