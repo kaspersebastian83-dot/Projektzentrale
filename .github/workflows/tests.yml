@@ -45,7 +45,14 @@ jobs:
       - run: node tests/project-store.cjs
       - run: node tests/ordnername.cjs
       - run: node tests/durchlauf.cjs
+      - name: ResultKit daneben holen (Block PROJEKTNUMMER v1 zeichengleich prüfen)
+        env:
+          ZWEIG: ${{ github.head_ref }}
+        # gleichnamiger Zweig in ResultKit, falls es ihn gibt, sonst main
+        run: git clone --quiet --depth 1 --branch "$ZWEIG" https://github.com/kaspersebastian83-dot/resultkit.git ../resultkit 2>/dev/null || git clone --quiet --depth 1 https://github.com/kaspersebastian83-dot/resultkit.git ../resultkit
       - run: node tests/archiv.cjs
+        env:
+          RESULTKIT_PFLICHT: '1'
       - run: node tests/hilfe-links.cjs
       - run: node tests/rueckmeldung-link.cjs
       - run: node tests/stufen.cjs

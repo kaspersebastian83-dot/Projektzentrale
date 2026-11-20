@@ -1017,9 +1017,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.51.1';
+const APP_VERSION = '1.51.2';
 const APP_DATE = '2026-11-20';
 const CHANGELOG = [
+  ['1.51.2', '20.11.2026', 'Datenarchiv 1.3.2 (Audit Lauf 2, B3): Steht in der Auftragsreferenz eines Prüfberichts ein Datum („Ortstermin 18.11.2026“), gilt daraus keine Projektnummer mehr – bisher zählte der Bericht als „anderes Projekt“ („11.2026“) und seine Werte fehlten. Stehen mehrere Projektnummern da, gilt die des Projekts. Gleiche Regel wie ResultKit 2.6.'],
   ['1.51.1', '20.11.2026', 'Ist ein Projekt gerade in einem anderen Fenster belegt, heißt die Meldung jetzt „… in einem anderen Spektron-Fenster belegt …“ – die Sperre kann auch FotoKit halten, nicht nur eine zweite Projektzentrale. Gleicher Text wie in FotoKit.'],
   ['1.51.0', '17.11.2026', 'Neu oben neben der Kurzanleitung: „Team“ – TeamKit öffnet sich direkt hier, ohne eigenes Fenster: Was ist heute los, was gilt im Büro. Der Knopf zeigt, wie viele neue Mitteilungen es gibt (gelbe Zahl), einen Punkt, wenn heute etwas los ist, und morgens „Guten Morgen“. Wichtige Mitteilungen stehen als schmale Zeile unter dem Kopf („Ansehen“ · „Gesehen“). Zurück mit „Zurück“ oder Esc.'],
   ['1.50.0', '13.11.2026', 'Neu unter „⋯ Büro & Apps“: LexiKit – frühere Berichte nach Themen durchsuchen („Wie haben wir das früher gemacht?“). Öffnet in einem eigenen Fenster und nimmt denselben Archivordner wie die Projektzentrale. LexiKit liest nur und ändert nichts in den Projekten. Sonst unverändert.'],

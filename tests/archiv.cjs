@@ -112,4 +112,26 @@ check('Messungen tragen Beschreibung und BG auch bei gemessenen Werten', () => {
   const m = A.projektMessungen([{ datei: 'a.xml', geaendert: 1, bericht: 'AR-1', proben: [{ labNr: '1', ref: 'P1', desc: 'Brandraum', art: 'Wischprobe', datum: '2026-10-08', werte: [{ p: 'BaP', r: '12', u: 'µg/m²', loq: '0,5' }] }] }]);
   assert.equal(m[0].desc, 'Brandraum'); assert.equal(m[0].bg, 0.5); assert.equal(m[0].v, 12);
 });
+check('Auftragsreferenz: ein Datum ist nie eine Projektnummer, bei mehreren gilt die des Projekts (Audit Lauf 2, B3 – wie ResultKit 2.6)', () => {
+  const bericht = (code, ref) => ({ datei: code + '.xml', geaendert: 1, bericht: code, auftragsreferenz: ref, proben: [{ labNr: '1', ref: 'Probe 1', werte: [{ p: 'Chlorid', r: '12', u: 'µg/cm²' }] }] });
+  const fremd = ref => A.projektAuswerten([bericht('AR-7-01', ref)], '99.9001').fremd.map(f => f.nr);
+  for (const ref of ['99.9001 Musterort', '99.9001 vom 18.11.2026', 'Brandschaden 18.11.2026', 'Musterort, Ortstermin 18.11.2026', 'Ortstermin 18.11.2026 / 99.9001', '1.11.2026', '18.11.26', 'Probenahme 8.11.2026', '25.0100 / 99.9001'])
+    assert.deepEqual(fremd(ref), [], ref);
+  assert.deepEqual(fremd('25.0100 Anderswo'), ['25.0100']); assert.deepEqual(fremd('Ortstermin 18.11.2026 / 25.0100'), ['25.0100'], 'Datum übersprungen, fremde Nummer zählt');
+  assert.equal(A.projektAuswerten([bericht('AR-7-01', 'Brandschaden 18.11.2026')], '99.9001').werte.size, 1, 'Wert zählt');
+  assert.deepEqual(A.projektnummern('Ortstermin 18.11.2026, 26.0604 und 25.0100'), ['26.0604', '25.0100']);
+  assert.equal(A.projektnummerIn('25.0100 / 26.0604', '26.0604'), '26.0604'); assert.equal(A.projektnummerIn('25.0100 / 26.0604'), '25.0100');
+  // Werte aus „_Ergebnisse.json“: gleiche Regel
+  const datei = r => ({ berichte: [{ bericht: 'AR-8-01', auftragsreferenz: r, sources: { xml: 'a.xml' }, proben: [{ ref: 'Probe 1', labNr: '1', werte: [{ p: 'Chlorid', r: '12', u: 'µg/cm²' }] }] }] });
+  assert.equal(A.ergebnisWerte(datei('Ortstermin 18.11.2026'), '99.9001').size, 1);
+  assert.equal(A.ergebnisWerte(datei('25.0100'), '99.9001').size, 0);
+  // Block zeichengleich mit ResultKit (src/labreport.ts) – in der CI Pflicht (RESULTKIT_PFLICHT), lokal nur mit ../resultkit daneben
+  const fs = require('node:fs'), path = require('node:path'), rk = path.join(__dirname, '..', '..', 'resultkit', 'src', 'labreport.ts');
+  if (fs.existsSync(rk)) {
+    const re = q => (q.match(/const PROJEKTNUMMER\s*=\s*(\/.*\/g);/) || [])[1];
+    const hier = re(fs.readFileSync(path.join(__dirname, '..', 'archiv', 'auswertung.js'), 'utf8')), dort = re(fs.readFileSync(rk, 'utf8'));
+    assert.ok(hier && dort, 'PROJEKTNUMMER in beiden gefunden'); assert.equal(hier, dort, 'PROJEKTNUMMER v1 wie ResultKit');
+    console.log('   (ResultKit labreport.ts daneben: PROJEKTNUMMER gleich)');
+  } else assert.ok(!process.env.RESULTKIT_PFLICHT, '../resultkit fehlt (RESULTKIT_PFLICHT)');
+});
 console.log(n + ' Prüfungen Datenarchiv bestanden');
