@@ -109,6 +109,11 @@ const MT = '1._Mitteilung_26.0600.docx', fixture = n => fs.readFile(path.join(__
     assert.equal(await page.locator('.proj.active').getAttribute('data-name'), P, 'Projekt aus dem Link gewählt');
     assert.ok(await page.locator('#bueroPanel [data-ab-form]').evaluate(e => e.open), 'Übergabe aufgeklappt');
     assert.equal(await page.evaluate(() => location.hash), '', 'Fragment wirkt einmal');
+    // Audit Lauf 4, D6: ohne BelegKit-Stand eine ruhige Zeile – der Stand kommt nach der PDF des Büros (BelegKit 1.17.0), keine gelbe Warnung
+    await page.waitForFunction(() => !!document.querySelector('#bueroPanel [data-ab-abr]')?.textContent);
+    {const z = page.locator('#bueroPanel [data-ab-abr]');
+      assert.match(await z.innerText(), /^Noch kein Abrechnungsstand – der kommt, sobald die PDF des Büros in „Mitteilungen“ liegt\. Übergeben geht schon jetzt\./, 'ruhige Zeile ohne Stand');
+      assert.equal(await z.evaluate(e => e.classList.contains('warn')), false, 'ohne Stand nicht gelb');}
     assert.deepEqual(await anl(), [['Gutachten alt.docx Mitteilungen', false], ['Notizen neu.docx Mitteilungen', false],
       ['AR-777-2026-1-01.pdf Laborergebnisse · Prüfbericht laut BerichtKit', true], ['AR-777-2026-2-01.pdf Laborergebnisse', false]],
       'Prüfbericht aus dem neuesten BerichtKit-Eintrag zur Datei angehakt; in „Mitteilungen“ alles außer der gewählten Datei');
