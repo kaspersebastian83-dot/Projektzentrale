@@ -70,7 +70,11 @@ if(!before){
  assert.match(await stext('abrechnung'),/Abrechnungsstand vom 22\.10\./);
  await page.waitForFunction(()=>/Gutachten übergeben \d\d\.\d\d\./.test(document.querySelector('[data-kachel=bericht] [data-ktext]').textContent),null,{timeout:10000});
  assert.match(await stext('buero'),/^Beim Büro · noch offen: Gegenlesen · PDF · Versand$/);
- await page.locator(`.proj[data-name="${B}"]`).focus();await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelector('.proj.active')?.dataset.name==='26.9999 Kontrollort');
+ // E5 (Audit Lauf 5): Neuzeichnen der Liste (wie nach einem Gruppenwechsel im Hintergrund-Scan) lässt den Fokus, wo er ist
+ // Neuzeichnen hier über das Suchfeld ausgelöst (Ereignis ohne Fokuswechsel, Suchtext unverändert) – derselbe renderList wie nach dem Scan
+ await page.locator(`.proj[data-name="${B}"]`).focus();await page.evaluate(()=>document.getElementById('q').dispatchEvent(new Event('input')));
+ assert.equal(await page.evaluate(()=>document.activeElement?.dataset?.name),B,'Fokus bleibt nach dem Neuzeichnen auf dem Projekt');
+ await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelector('.proj.active')?.dataset.name==='26.9999 Kontrollort');
   assert.ok(await page.locator('#azQuick').isVisible());
  // ResultKit-Karte: XML+PDF gleichen Namens = ein Bericht, PDF allein zählt mit; nach der Übernahme in ResultKit beim Zurückkehren aktualisiert
  await page.waitForFunction(()=>/^2 Prüfberichte eingegangen, noch nicht geprüft$/.test(document.querySelector('[data-stufe=labor] [data-stext]').textContent));   // Zeile ist schon aktiv, bevor die Ansicht gezeichnet ist

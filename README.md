@@ -2,7 +2,14 @@
 
 Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung, GlasKit (Gebäude aus Glas, 3D-Ansicht der PlanKit-Pläne) und LexiKit (Themensuche in den fertigen Berichten).
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.51.1** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.51.4** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Neu in 1.51.4 · 21.11.2026 – Fokus in der Projektliste (Audit Lauf 5)
+
+Plan `claude/spektron-audit-2026-11-5-gesamt-plan.md` (Spektron-Projekt), PR 3; braucht TeamKit 0.5.2 (teamkit#2, gemergt).
+- **E5:** `renderList` merkt sich, was in der Liste den Fokus hatte (Projekt über `data-name`, sonst `id` wie `vorToggle`/`heuteLink`), und setzt ihn nach dem Neuzeichnen wieder. Der Hintergrund-Scan zeichnet die Liste 300 ms nach einem Gruppenwechsel neu (`updateRow`) – wer mit der Tastatur in der Liste stand, verlor seine Stelle; Enter ging ins Leere. Ursache der gelegentlich roten `projektansicht-browser.cjs:73`. Ebenso beim Auf-/Zuklappen von „Vor Spektron“ mit der Tastatur.
+- **Tests:** `projektansicht-browser.cjs` zeichnet die Liste mit fokussiertem Projekt neu und prüft den Fokus (auf 1.51.3 rot). `team-browser.cjs` wartet nach dem Öffnen, bis TeamKit „öffnen“ verarbeitet hat (Fokus im Rahmen auf „Los geht’s“ bzw. dem Eingabefeld), bevor Esc/F1 in der PZ gedrückt werden (E6; TeamKit 0.5.2 holt den Fokus nicht mehr in den Rahmen, wenn man schon zurück ist).
+- **E8:** Tooltip von „💬 Rückmeldung“ beginnt mit „Fehler oder Wunsch melden“ (Kachel und Text sonst unverändert – sie zeigen schon „💬 Rückmeldung“ mit ↗).
 
 ## Neu in 1.51.1 · 20.11.2026
 
