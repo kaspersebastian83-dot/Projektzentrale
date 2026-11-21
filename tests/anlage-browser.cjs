@@ -57,6 +57,10 @@ const daten = {
     const proj = await archiv.getDirectoryHandle('26.0142 Teststadt', { create: true });
     const lab = await proj.getDirectoryHandle('Laboraufträge', { create: true });
     const schreibe = async (dir, n, txt) => { const w = await (await dir.getFileHandle(n, { create: true })).createWritable(); await w.write(txt); await w.close(); };
+    // 1.52: LagerKit-Übersicht (nur gelesen) – Teststadt hat zwei Proben im Lager (eine fällig) und eine entsorgte
+    const lk = await archiv.getDirectoryHandle('_LagerKit', { create: true });
+    await schreibe(lk, 'Index.json', JSON.stringify({ format: 'spektron-lagerkit-index', version: 1, projekte: [{ id: '26.0142 Teststadt', proben: [
+      { id: 'a', nr: 1, bis: '2020-01-31' }, { id: 'b', nr: 2, bis: '2099-02-28' }, { id: 'c', nr: 3, bis: '2020-01-31', entsorgt: { wer: 'Dr. Ka', am: '2020-02-01' } }] }] }));
     await schreibe(lab, '26.0142_15.10.2026_Daten.json', JSON.stringify({ projekt: { nr: '26.0142' }, pn98Proben: [] }));
     await new Promise(res => setTimeout(res, 30));
     await schreibe(lab, '26.0142_16.10.2026_Daten.json', JSON.stringify(d, null, 2));
@@ -78,7 +82,7 @@ const daten = {
   // Projektdaten: Neuzeichnen der Ansicht, bevor die Eingabe gespeichert ist (hier: fehlende Unterordner anlegen), behält die Eingabe
   // Projektansicht 1.42: sechs Kacheln wie das Kopfband; Asbest-/Brandbericht ausdrücklich und Anlage Probenahme unter „Mehr zum Projekt …“; Projektdaten zugeklappt (leer: einladend hervorgehoben)
   assert.deepEqual(await page.locator('#kacheln .kachel').evaluateAll(b => b.map(x => x.id)), ['goLabel', 'goFotos', 'goErgebnis', 'goPlan', 'kBericht', 'goAufwand']);
-  assert.deepEqual(await page.locator('#projektMehr button.sk').evaluateAll(b => b.map(x => x.id)), ['goBericht', 'goBrand', 'anlPlan', 'glasProjekt']);   // 1.47: GlasKit mit #projekt=
+  assert.deepEqual(await page.locator('#projektMehr button.sk').evaluateAll(b => b.map(x => x.id)), ['goBericht', 'goBrand', 'anlPlan', 'lagerProjekt', 'glasProjekt']);   // 1.47: GlasKit mit #projekt=, 1.52: LagerKit
   assert.equal(await page.locator('[data-stufe=projekt] #azQuick').count(), 1); assert.equal(await page.locator('[data-stufe=buero] #goUebergabe').count(), 1);
   await mehrAuf();
   // 1.40: Brandgeruch-Proben in LabelKit → „Brandbericht“ hervorgehoben, „Asbestbericht“ bleibt daneben
@@ -149,7 +153,7 @@ const daten = {
   // Zweites Projekt ohne LabelKit-Datei: kein Bericht hervorgehoben (auch nicht der vom vorigen Projekt)
   await page.waitForFunction(n => document.getElementById('goBrand')?.dataset.probenGelesen === n, special);   // anlStatus hat das Projekt ohne LabelKit-Datei gelesen
   assert.equal(await page.locator('#goBrand.vorschlag, #goBericht.vorschlag').count(), 0, 'ohne Proben keiner hervorgehoben');
-  for (const id of ['goLabel','goFotos','goErgebnis','goPlan','goAufwand','anlPlan','goBrand','glasProjekt']){
+  for (const id of ['goLabel','goFotos','goErgebnis','goPlan','goAufwand','anlPlan','goBrand','glasProjekt','lagerProjekt']){
     await page.evaluate(() => {
       window.__sprung = null;
       window.open = (_, target) => ({location:{href:target === 'plankit' ? new URL('../Probenplan/#projekt=alt',location.href).href : 'about:blank',assign:url=>{window.__sprung={url,target};}},focus(){}});
@@ -159,12 +163,19 @@ const daten = {
     assert.equal(link.search, '');
     assert.equal(new URLSearchParams(link.hash.slice(1)).get('projekt'), special);
     if (id === 'anlPlan') assert.equal(new URLSearchParams(link.hash.slice(1)).get('aktion'), 'anlage');
+    if (id === 'lagerProjekt'){ assert.equal(sprung.target, 'lagerkit'); assert.ok(link.pathname.endsWith('/Lagerkit/'), 'LagerKit im eigenen Fenster'); }
     if (id === 'glasProjekt'){ assert.equal(sprung.target, 'glaskit'); assert.ok(link.pathname.endsWith('/glaskit/'), 'GlasKit im eigenen Fenster'); }
     if (id === 'goBrand') assert.equal(new URLSearchParams(link.hash.slice(1)).get('art'), 'brand', 'Sonderzeichen im Ordnernamen bleiben im Projekt, art eigenes Feld');
     if (sprung.target === 'plankit') assert.ok(link.pathname.endsWith('/Probenplan/index.html'), 'Bereits offenes PlanKit lädt neu');
   }
   await page.locator('.proj[data-name="26.0142 Teststadt"]').click();
   await page.locator('#anlPn98').waitFor();
+  { const z = page.locator('#lagerStand'); await page.waitForFunction(() => { const e = document.getElementById('lagerStand'); return e && !e.hidden; });
+    assert.equal((await z.textContent()).trim(), 'Rückstellproben im Lager: 2 · 1 fällig · nächste fällig 28.02.2099', 'Zeile aus der LagerKit-Übersicht, entsorgte zählen nicht'); }
+  await page.locator('.proj').filter({hasText:special}).click(); await page.locator('#anlPlan').waitFor({ state: 'attached' });
+  await page.waitForTimeout(300);
+  assert.equal(await page.locator('#lagerStand').isHidden(), true, 'ohne Eintrag in der Übersicht keine Zeile');
+  await page.locator('.proj[data-name="26.0142 Teststadt"]').click(); await page.locator('#anlPn98').waitFor();
   const status = await page.locator('#anl').textContent();
   assert.match(status, /1 PN 98-Protokoll · 1 Brandgeruch-Probe/);
   assert.match(status, /26\.0142_16\.10\.2026_Daten\.json/, 'neueste Projektdatei');

@@ -531,7 +531,7 @@ summary.stufe-kopf::-webkit-details-marker{display:none}
     <button id="btnArchive" class="hstatus" title="Archivordner wählen oder wechseln"><span class="pkt" aria-hidden="true"></span><span id="archiveName">Archivordner wählen …</span></button>
     <button id="btnRescan" class="hicon" disabled title="Ordner neu einlesen (z. B. nachdem Kollegen etwas geändert haben)" aria-label="Neu einlesen">⟳</button>
     <div class="mehr-wrap">
-      <button id="btnMehr" class="hbadge help" aria-haspopup="true" aria-expanded="false" title="Büro: Mitarbeiter, Auslastung, Spektron-Ordner · weitere Apps: Handbuch, LexiKit, BüroKit, Durchlaufzeiten, GlasKit, SpesenKit, Rückmeldung">⋯ Büro &amp; Apps</button>
+      <button id="btnMehr" class="hbadge help" aria-haspopup="true" aria-expanded="false" title="Büro: Mitarbeiter, Auslastung, Spektron-Ordner · weitere Apps: Handbuch, LexiKit, LagerKit, BüroKit, Durchlaufzeiten, GlasKit, SpesenKit, Rückmeldung">⋯ Büro &amp; Apps</button>
       <div class="mehr" id="mehr" hidden>
         <div class="mh">Büro</div>
         <button id="btnMa" disabled title="Mitarbeiterliste: Kürzel am Ende der Projektordner und die zugehörigen Namen">👥 Mitarbeiter</button>
@@ -1017,9 +1017,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.51.6';
+const APP_VERSION = '1.52.0';
 const APP_DATE = '2026-11-21';
 const CHANGELOG = [
+  ['1.52.0', '21.11.2026', 'Neu: LagerKit – Rückstellproben im Büro. Unter „⋯ Büro & Apps“ öffnet „LagerKit“ die Übersicht (was liegt wo, was ist fällig); im Projekt unter „Mehr zum Projekt …“ öffnet „Rückstellproben (LagerKit)“ das Projekt direkt in LagerKit. Gibt es für das Projekt Rückstellproben, steht dort eine Zeile mit Anzahl und nächster Frist (aus der LagerKit-Übersicht, nur gelesen). Sonst unverändert.'],
   ['1.51.6', '21.11.2026', 'Durchlaufzeiten: Wurde „Neu einlesen“ geklickt, während die Durchlaufzeiten noch im Hintergrund gelesen wurden, und war dabei ein Projekt kurz nicht lesbar, meldete die Projektzentrale im Hintergrund einen Fehler („Cannot read properties of null“). Ergebnisse zur verworfenen Auswertung werden jetzt nicht mehr eingetragen; beim nächsten Öffnen liest der Dialog neu. Sonst unverändert (Audit Lauf 5).'],
   ['1.51.5', '21.11.2026', 'Projektstand: Wurde „Neu einlesen“ geklickt, während der Stand eines Projekts noch gelesen wurde, meldete die Projektzentrale im Hintergrund einen Fehler („Cannot read properties of null“). Das alte Ergebnis wird jetzt verworfen, der Stand wie gewohnt neu gelesen. Sonst unverändert (Audit Lauf 5, gefunden von der Spektron-Kette).'],
   ['1.51.4', '21.11.2026', 'Projektliste mit der Tastatur: Wird die Liste im Hintergrund neu sortiert (ein Projekt wechselt die Gruppe, z. B. Labor eingegangen) oder „Vor Spektron“ auf- und zugeklappt, bleibt der Fokus auf demselben Projekt bzw. Knopf – bisher war er danach weg und Enter tat nichts (Audit Lauf 5, E5). „💬 Rückmeldung“ unter „Weitere Apps“ nennt im Tooltip zuerst „Fehler oder Wunsch melden“. Die Tests für TeamKit und die Projektansicht warten jetzt auf das richtige Zeichen (zuvor gelegentlich rot).'],
@@ -1248,6 +1249,7 @@ const handbuchLink = (anker, text, titel) => `<a class="hilfe-link" href="${AIDK
 const RUECKMELDUNG_URL = '../rueckmeldung/';   // Rückmeldung: Fehler oder Wunsch an den Betreuer – Programm, Version und Projektnummer werden vorbelegt
 const TEAMKIT_URL = '../teamkit/';   // TeamKit: Was ist heute los, was gilt im Büro – unsichtbar im Rahmen (TEAMKIT-ANBINDUNG)
 const LEXIKIT_URL = '../lexikit/';   // LexiKit: Themensuche in den fertigen Word-Berichten aller Projekte – liest nur, ohne Projektbezug
+const LAGERKIT_URL = '../Lagerkit/';   // LagerKit: Rückstellproben im Büro – Regal, Etiketten mit QR, Fristen; schreibt nur in _Spektron/LagerKit und _LagerKit
 const GLASKIT_URL = '../glaskit/';   // GlasKit: Gebäude aus Glas – Geschosse und Proben aus PlanKit als 3D-Ansicht, liest nur
 const REISEKOSTEN_URL = '../reisekosten-pro/';   // SpesenKit: Spesenabrechnung je Kollege und Monat – ohne Projektbezug, darum kein Schritt und kein ?projekt=
 
@@ -2578,6 +2580,7 @@ function weitereApps(){
   return `<div class="more"><h3>Weitere Apps</h3>
     <a class="app" id="goAid" href="${AIDKIT_URL}" target="aidkit" rel="noopener" title="Öffnet das Handbuch in einem eigenen Fenster – Abläufe Schritt für Schritt und gemeinsame Regeln (z. B. Probenbezeichnung Bohrkerne)"><span class="ic" aria-hidden="true">📘</span><span><span class="name">Handbuch (AidKit)</span><small>Abläufe Schritt für Schritt und gemeinsame Regeln</small></span><span class="go" aria-hidden="true">↗</span></a>
     <a class="app" id="goLexi" href="${LEXIKIT_URL}" target="lexikit" rel="noopener" title="Öffnet LexiKit in einem eigenen Fenster – Themensuche in den fertigen Word-Berichten aller Projekte: Wie haben wir das früher gemacht? Liest nur, ändert nichts in den Projekten"><span class="ic" aria-hidden="true">🔎</span><span><span class="name">LexiKit</span><small>Frühere Berichte nach Themen durchsuchen</small></span><span class="go" aria-hidden="true">↗</span></a>
+    <a class="app" id="goLager" href="${LAGERKIT_URL}" target="lagerkit" rel="noopener" title="Öffnet LagerKit in einem eigenen Fenster – Rückstellproben im Büro: was liegt wo, bis wann, was ist fällig"><span class="ic" aria-hidden="true">📦</span><span><span class="name">LagerKit</span><small>Rückstellproben im Regal – was ist fällig?</small></span><span class="go" aria-hidden="true">↗</span></a>
     <a class="app" id="goBuero" href="${BUEROKIT_URL}" target="buerokit" rel="noopener" title="Öffnet BüroKit in einem eigenen Fenster – die Tagesliste des Büros"><span class="ic" aria-hidden="true">▤</span><span><span class="name">BüroKit</span><small>Aufgaben des Büros: Gutachten gegenlesen, PDF, Versand</small></span><span class="go" aria-hidden="true">↗</span></a>
     <a class="app" id="goDurch" href="#durchlaufzeiten" role="button" title="Wie lange dauert es vom Ortstermin bis zum Versand? Aus vorhandenen Daten, nichts wird eingegeben"><span class="ic" aria-hidden="true">📈</span><span><span class="name">Durchlaufzeiten</span><small>Vom Ortstermin bis zum Versand – je Abschnitt und Labor</small></span><span class="go" aria-hidden="true">›</span></a>
     <a class="app" id="goGlas" href="${GLASKIT_URL}" target="glaskit" rel="noopener" title="Öffnet GlasKit in einem eigenen Fenster – das Gebäude aus Glas: Geschosse und Proben aus PlanKit dreidimensional, mit Rundgang. Liest nur, ändert nichts im Projekt"><span class="ic" aria-hidden="true">🧊</span><span><span class="name">GlasKit</span><small>Das Gebäude aus Glas – Proben in 3D</small></span><span class="go" aria-hidden="true">↗</span></a>
@@ -2702,12 +2705,14 @@ function renderDetail(){
     <div id="pjRecovery"></div>
     ${fehlend.length ? `<div class="warnbar"><span>Es fehlen Unterordner: <b>${fehlend.map(esc).join(', ')}</b></span><button id="mkSubs">Anlegen</button></div>` : ''}
     <details class="pz-mehr" id="projektMehr" ${S.pmOpen[p.name] ? 'open' : ''}>
-      <summary><span>Mehr zum Projekt …</span><small>Bericht einer bestimmten Art, Anlage Probenahme, GlasKit, Ordner, frühere Versandangaben</small></summary>
+      <summary><span>Mehr zum Projekt …</span><small>Bericht einer bestimmten Art, Anlage Probenahme, Rückstellproben, GlasKit, Ordner, frühere Versandangaben</small></summary>
       <div class="pm-knoepfe">${knopf('goBericht', 'Asbestbericht öffnen', 'bericht', TIP_BERICHT.asbest) + knopf('goBrand', 'Brandbericht öffnen', 'brandbericht', TIP_BERICHT.brand)
         + (stand.plan.present ? knopf('anlPlan', 'Anlage Probenahme …', 'anlage', 'Öffnet PlanKit gleich im Export „Word · Anlage Probenahme“: Lagepläne, Probenverzeichnis, Fotos, Laborwerte') : '')
+        + knopf('lagerProjekt', 'Rückstellproben (LagerKit)', 'lagerkit', 'Öffnet dieses Projekt in LagerKit (eigenes Fenster): Rückstellproben erfassen, Etiketten mit QR drucken, Fristen und Regalplätze. Schreibt nur in „_Spektron/LagerKit“')
         + knopf('glasProjekt', 'GlasKit öffnen', 'glaskit', 'Öffnet dieses Projekt in GlasKit (eigenes Fenster): das Gebäude aus Glas – Geschosse und Proben aus PlanKit dreidimensional, mit Fotos aus FotoKit und Rundgang. Liest nur, ändert nichts im Projekt')
         + (p.key < SPEKTRON_START_KEY && d.spektron === true && !ro && !spektronSpur(p.st) ? `<button type="button" class="sk" id="spektronAus" title="Wieder unter „Vor Spektron“ einordnen">Zurück zu „Vor Spektron“</button>` : '')
         + (p.key < SPEKTRON_START_KEY && !vorSpektron(p) && p.st && !p.st.spektronDa && !ro ? `<button type="button" class="sk" id="spektronOrdner" title="Die App-Dateien dieses älteren Projekts in den Ordner „${esc(SO.ORDNER)}“ umziehen – wie bei Projekten ab ${esc(SO.AB)}">Ordner „${esc(SO.ORDNER)}“ anlegen</button>` : '')}</div>
+      <div class="m" id="lagerStand" hidden></div>
       <div class="pz-fuss">
       <details class="card" id="ordBox" ${S.ordOpen[p.name] ? 'open' : ''}>
         <summary><span class="t">Ordner</span><span class="sum">${ok ? esc(ordnerKurz(p)) : p.st && p.st.err ? 'nicht lesbar' : 'wird gelesen …'}</span></summary>
@@ -2731,6 +2736,7 @@ function renderDetail(){
   $('vtBox').addEventListener('toggle', () => { S.vtOpen[p.name] = $('vtBox').open; });
   // Zustand vom Element, das umgeschaltet wurde (toggle kommt verzögert – ist die Seite inzwischen neu gezeichnet, gilt er für die neue „Mehr“-Karte)
   $('projektMehr').addEventListener('toggle', e => { const d = e.target, jetzt = $('projektMehr'); S.pmOpen[p.name] = d.open; if (jetzt && jetzt !== d && S.sel === p) jetzt.open = d.open; });
+  lagerStandZeigen(p);
   if (!ro){
     $('azBtn').onclick = () => $('azFile').click();
     $('azFile').onchange = () => { const f = $('azFile').files[0]; $('azFile').value = ''; if (f) arbeitszettelEinlesen(p, f); };
@@ -2918,6 +2924,7 @@ function stufeAktion(p, aktion){
       return; }
     case 'beleg': openApp(p, AUFWANDKIT_URL, 'aufwandkit'); return;
     case 'glaskit': openApp(p, GLASKIT_URL, 'glaskit'); return;   // GlasKit liest nur (#projekt=<Ordner>, ab GlasKit 1.1.0)
+    case 'lagerkit': openApp(p, LAGERKIT_URL, 'lagerkit'); return;   // LagerKit: #projekt=<Ordnername>
     case 'buerokit': window.open(BUEROKIT_URL, 'buerokit', 'noopener'); return;
     case 'uebergeben': { const panel = $('bueroPanel'), form = panel && panel.querySelector('[data-ab-form]'); if (!form) return;
       abEntwurf(p).offen = true; form.open = true; zeige(form); const w = form.querySelector('[data-ab-word]'); if (w && !w.disabled) w.focus({ preventScroll: true }); return; }
@@ -3546,6 +3553,38 @@ function projektLink(base, name, aktion){
   if (aktion){ url.searchParams.delete('aktion'); teile.push('aktion=' + encodeURIComponent(aktion)); }
   url.hash = teile.join('&');
   return url.href;
+}
+/** 1.52: Rückstellproben aus der LagerKit-Übersicht (_LagerKit/Index.json im Archivordner, nur lesen, Zwischenspeicher von LagerKit).
+    Zeigt unter „Mehr zum Projekt …“ eine Zeile, wenn es für das Projekt Proben im Lager gibt. Fehlt die Datei oder ist sie nicht lesbar: nichts. */
+const LAGER = { mtime: -1, size: -1, daten: null };
+async function lagerIndex(){
+  if (!S.archive) return null;
+  const d = await S.archive.getDirectoryHandle('_LagerKit').catch(() => null); if (!d) return null;
+  const fh = await d.getFileHandle('Index.json').catch(() => null); if (!fh) return null;
+  const f = await fh.getFile();
+  if (f.lastModified === LAGER.mtime && f.size === LAGER.size) return LAGER.daten;
+  let o = null; try { o = JSON.parse(await f.text()); } catch {}
+  LAGER.mtime = f.lastModified; LAGER.size = f.size;
+  LAGER.daten = o && o.format === 'spektron-lagerkit-index' && Array.isArray(o.projekte) ? o : null;
+  return LAGER.daten;
+}
+function lagerKurz(eintrag, heute){
+  const im = (eintrag && Array.isArray(eintrag.proben) ? eintrag.proben : []).filter(k => k && !k.entsorgt);
+  if (!im.length) return null;
+  const bis = im.map(k => k.bis).filter(b => /^\d{4}-\d{2}-\d{2}$/.test(String(b || ''))).sort();
+  const faellig = bis.filter(b => b < heute).length;
+  return { anzahl: im.length, faellig, naechste: bis.find(b => b >= heute) || '' };
+}
+async function lagerStandZeigen(p){
+  const el = () => $('lagerStand');
+  let k = null;
+  try { const ix = await lagerIndex(); const e = ix && ix.projekte.find(x => x && x.id === p.name); const t = new Date(); k = lagerKurz(e, `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`); } catch {}
+  const z = el(); if (!z || S.sel !== p) return;
+  if (!k){ z.hidden = true; z.textContent = ''; return; }
+  const dt = s => s ? s.slice(8, 10) + '.' + s.slice(5, 7) + '.' + s.slice(0, 4) : '';
+  z.textContent = `Rückstellproben im Lager: ${k.anzahl}` + (k.faellig ? ` · ${k.faellig} fällig` : '') + (k.naechste ? ` · nächste fällig ${dt(k.naechste)}` : '');
+  z.title = 'Stand der LagerKit-Übersicht (wird in LagerKit aktualisiert) – „Rückstellproben (LagerKit)“ öffnet das Projekt dort';
+  z.hidden = false;
 }
 async function openApp(p, base, target){
   await flushPJ();
