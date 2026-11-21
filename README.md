@@ -2,7 +2,14 @@
 
 Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung, GlasKit (Gebäude aus Glas, 3D-Ansicht der PlanKit-Pläne) und LexiKit (Themensuche in den fertigen Berichten).
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.51.5** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.51.6** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Neu in 1.51.6 · 21.11.2026 – „Neu einlesen“ während die Durchlaufzeiten gelesen werden (Audit Lauf 5)
+
+Gleiches Muster wie 1.51.5, im Dialog „Durchlaufzeiten“.
+- Die Durchlaufzeiten lesen alle Projekte im Hintergrund weiter, auch wenn der Dialog schon zu ist. Verwarf „Neu einlesen“ (oder der Umzug) in der Zeit die Auswertung (`S.dl = null`) und scheiterte danach das Lesen eines Projekts (z. B. Datei gesperrt), warf die Projektzentrale „Cannot read properties of null (reading 'werte')“. Jetzt merkt sich jeder Leser die Auswertung, für die er liest; ist sie verworfen, trägt er nichts mehr ein – auch nicht in eine neu begonnene. Für Nutzer nur ein Fehler im Hintergrund.
+- Ein erfolgreiches Lesen warf vorher nicht (die alte Auswertung war beim Aufruf schon festgelegt), schrieb aber in die verworfene – ohne Wirkung.
+- **Test:** `tests/durchlauf-neu-browser.cjs` erzwingt die Reihenfolge mit denselben zwei Sperren wie `meilensteine-browser.cjs`, das Lesen scheitert mit „Datei gesperrt“ – auf 1.51.5 rot, mit dem Fix grün.
 
 ## Neu in 1.51.5 · 21.11.2026 – „Neu einlesen“ während der Projektstand gelesen wird (Audit Lauf 5)
 
