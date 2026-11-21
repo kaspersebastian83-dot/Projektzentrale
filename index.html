@@ -1017,9 +1017,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.51.3';
-const APP_DATE = '2026-11-20';
+const APP_VERSION = '1.51.4';
+const APP_DATE = '2026-11-21';
 const CHANGELOG = [
+  ['1.51.4', '21.11.2026', 'Projektliste mit der Tastatur: Wird die Liste im Hintergrund neu sortiert (ein Projekt wechselt die Gruppe, z. B. Labor eingegangen) oder „Vor Spektron“ auf- und zugeklappt, bleibt der Fokus auf demselben Projekt bzw. Knopf – bisher war er danach weg und Enter tat nichts (Audit Lauf 5, E5). „💬 Rückmeldung“ unter „Weitere Apps“ nennt im Tooltip zuerst „Fehler oder Wunsch melden“. Die Tests für TeamKit und die Projektansicht warten jetzt auf das richtige Zeichen (zuvor gelegentlich rot).'],
   ['1.51.3', '20.11.2026', 'Ans Büro übergeben ohne Abrechnungsstand: statt der gelben Warnung eine ruhige Zeile – der Stand kommt, sobald die PDF des Büros in „Mitteilungen“ liegt; übergeben geht schon jetzt (Audit Lauf 4, D6; Reihenfolge wie BelegKit 1.17.0). Nach dem Versand ohne Stand bleibt der Hinweis „kein Abrechnungsstand – in BelegKit „Stand speichern““.'],
   ['1.51.2', '20.11.2026', 'Datenarchiv 1.3.2 (Audit Lauf 2, B3): Steht in der Auftragsreferenz eines Prüfberichts ein Datum („Ortstermin 18.11.2026“), gilt daraus keine Projektnummer mehr – bisher zählte der Bericht als „anderes Projekt“ („11.2026“) und seine Werte fehlten. Stehen mehrere Projektnummern da, gilt die des Projekts. Gleiche Regel wie ResultKit 2.6.'],
   ['1.51.1', '20.11.2026', 'Ist ein Projekt gerade in einem anderen Fenster belegt, heißt die Meldung jetzt „… in einem anderen Spektron-Fenster belegt …“ – die Sperre kann auch FotoKit halten, nicht nur eine zweite Projektzentrale. Gleicher Text wie in FotoKit.'],
@@ -2059,7 +2060,11 @@ function renderList(){
   if (S.others.length && !S.q && !S.year){
     html += `<div class="group">Andere Ordner (kein Projektnummer-Schema)</div><div class="count">${S.others.map(o => esc(o.name)).join(' · ')}</div>`;
   }
+  // E5 (Audit Lauf 5): Der Hintergrund-Scan zeichnet die Liste neu, wenn ein Projekt die Gruppe wechselt. Wer mit der Tastatur in
+  // der Liste steht, behält seine Stelle – sonst läge der Fokus danach auf der Seite und Enter ginge ins Leere.
+  const f = document.activeElement, fokus = f && f !== $('list') && $('list').contains(f) ? (f.dataset.name != null ? `.proj[data-name="${CSS.escape(f.dataset.name)}"]` : f.id ? '#' + CSS.escape(f.id) : '') : '';
   $('list').innerHTML = html;
+  if (fokus){ const neu = $('list').querySelector(fokus); if (neu) neu.focus({ preventScroll: true }); }
   $('list').querySelectorAll('.proj').forEach(el => el.onclick = () => selectProject(S.projects.find(p => p.name === el.dataset.name)));
   if ($('heuteLink')) $('heuteLink').onclick = zeigeHeute;
   if ($('vorToggle')) $('vorToggle').onclick = () => { S.vorOffen = $('vorToggle').getAttribute('aria-expanded') !== 'true'; renderList(); };
@@ -2570,7 +2575,7 @@ function weitereApps(){
     <a class="app" id="goGlas" href="${GLASKIT_URL}" target="glaskit" rel="noopener" title="Öffnet GlasKit in einem eigenen Fenster – das Gebäude aus Glas: Geschosse und Proben aus PlanKit dreidimensional, mit Rundgang. Liest nur, ändert nichts im Projekt"><span class="ic" aria-hidden="true">🧊</span><span><span class="name">GlasKit</span><small>Das Gebäude aus Glas – Proben in 3D</small></span><span class="go" aria-hidden="true">↗</span></a>
     <a class="app" id="goReise" href="${REISEKOSTEN_URL}" target="reisekosten" rel="noopener" title="Öffnet SpesenKit in einem eigenen Fenster – Reisekosten- und Spesenabrechnung je Monat, unabhängig vom Projekt">
       <span class="ic" aria-hidden="true">🧾</span><span><span class="name">SpesenKit</span><small>Spesenabrechnung für den Monat</small></span><span class="go" aria-hidden="true">↗</span></a>
-    <a class="app" id="goRueck" href="${rueckmeldungUrl()}" target="rueckmeldung" rel="noopener" title="Öffnet das Rückmeldeformular in einem eigenen Fenster – Programm, Version und (falls gewählt) Projektnummer sind schon eingetragen"><span class="ic" aria-hidden="true">💬</span><span><span class="name">Rückmeldung</span><small>Fehler oder Wunsch melden</small></span><span class="go" aria-hidden="true">↗</span></a>
+    <a class="app" id="goRueck" href="${rueckmeldungUrl()}" target="rueckmeldung" rel="noopener" title="Fehler oder Wunsch melden – öffnet das Rückmeldeformular in einem eigenen Fenster – Programm, Version und (falls gewählt) Projektnummer sind schon eingetragen"><span class="ic" aria-hidden="true">💬</span><span><span class="name">Rückmeldung</span><small>Fehler oder Wunsch melden</small></span><span class="go" aria-hidden="true">↗</span></a>
     <a class="more-link" href="archiv/" target="spektron-archiv" rel="noopener" title="Messwerte aller Projekte aus den Prüfberichten vergleichen – liest nur, öffnet in einem eigenen Fenster">Datenarchiv ↗</a></div>`;
 }
 /** Leere Pflichtfelder hervorheben, oben nennen (bis PJ_INLINE_MAX mit Namen) und unter der zugeklappten Karte zum Ausfüllen

@@ -70,6 +70,9 @@ const A = '26.0142 Teststadt';
   const rahmen = () => page.frameLocator('#teamRahmen');
   const offen = () => page.evaluate(() => !document.getElementById('teamRahmen').hidden);
   const fokusTeam = () => page.evaluate(() => document.activeElement.id);
+  // E6 (Audit Lauf 5): erst weiter, wenn TeamKit „öffnen“ verarbeitet hat – sein Fokus steht im Rahmen auf dem erwarteten Element.
+  // Vorher wartete der Test auf ein Element, das vom letzten Öffnen noch sichtbar war; kam „öffnen“ später, gingen Esc/F1 an TeamKit.
+  const teamBereit = sel => page.frames().find(f => /\/teamkit\//.test(f.url())).waitForFunction(s => !!document.activeElement && document.activeElement.matches(s), sel, { timeout: 5000 });
 
   // 1) vor dem Archivordner: kein Rahmen, „Team“ öffnet ein eigenes Fenster
   await page.waitForTimeout(500);
@@ -134,7 +137,7 @@ const A = '26.0142 Teststadt';
   await page.click('#btnTeam');
   assert.equal(await offen(), false, 'zweiter Klick schließt');
   // Esc in der Projektzentrale schließt
-  await page.click('#btnTeam'); await rahmen().locator('#morgen .los').waitFor();
+  await page.click('#btnTeam'); await rahmen().locator('#morgen .los').waitFor(); await teamBereit('#morgen .los');
   await page.focus('#btnTeam'); await page.keyboard.press('Escape');
   assert.equal(await offen(), false, 'Esc in der PZ'); assert.equal(await fokusTeam(), 'btnTeam');
   // Esc im Rahmen (TeamKit): „Los geht’s“-Weg, schließt, Fokus zurück
@@ -144,7 +147,7 @@ const A = '26.0142 Teststadt';
   assert.equal(await fokusTeam(), 'btnTeam', 'Fokus nach Esc im Rahmen');
   await page.waitForFunction(() => !document.getElementById('btnTeam').classList.contains('morgen'), null, { timeout: 5000 });
   // Dialog der Projektzentrale (F1, Kurzanleitung) blendet den Rahmen aus und liegt oben
-  await page.click('#btnTeam'); await rahmen().locator('#team:not([hidden])').waitFor();
+  await page.click('#btnTeam'); await rahmen().locator('#team:not([hidden])').waitFor(); await teamBereit('#kText');
   await page.focus('#btnTeam'); await page.keyboard.press('F1');
   await page.locator('#dlgBack.show').waitFor();
   assert.equal(await offen(), false, 'Dialog blendet den Rahmen aus');

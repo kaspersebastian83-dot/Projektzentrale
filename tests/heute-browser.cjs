@@ -90,6 +90,10 @@ await page.locator('#vorToggle').click();await page.locator('.proj[data-gruppe=v
 assert.deepEqual(await Promise.all(['26.0105 Fiktivstadt SK','26.0104 Kontrollort SK','26.0103 Haus Nord SK','26.0102 Beispielweg SK','26.0101 Musterstadt SK','21.0007 Früher SK','26.0050 Altbestand SK'].map(gruppe)),['dich','dich','laeuft','laeuft','fertig','vor','vor']);
 assert.notEqual(await gruppe('26.0090 Altspur Ben'),'vor','älteres Projekt mit Laborauftrag aus LabelKit gilt als Spektron-Projekt');
 await page.locator('#vorToggle').click();assert.equal(await page.locator('.proj[data-gruppe=vor]').count(),0);
+// E5 (Audit Lauf 5): mit der Tastatur auf- und zuklappen – der Fokus bleibt auf dem Knopf (bisher nach dem Neuzeichnen weg)
+await page.locator('#vorToggle').focus();await page.keyboard.press('Enter');await page.locator('.proj[data-gruppe=vor]').first().waitFor();
+assert.equal(await page.evaluate(()=>document.activeElement.id),'vorToggle','Fokus nach dem Aufklappen');
+await page.keyboard.press('Enter');assert.equal(await page.locator('.proj[data-gruppe=vor]').count(),0);assert.equal(await page.evaluate(()=>document.activeElement.id),'vorToggle','Fokus nach dem Zuklappen');
 const stand=n=>page.locator(`.proj[data-name="${n}"] .stand`).textContent();
 assert.equal(await stand('26.0105 Fiktivstadt SK'),'Labor · Ergebnisse da');assert.equal(await stand('26.0104 Kontrollort SK'),'Rückfrage vom Büro');
 assert.equal(await stand('26.0103 Haus Nord SK'),'Beim Büro');assert.equal(await stand('26.0102 Beispielweg SK'),'Beim Labor');assert.equal(await stand('26.0101 Musterstadt SK'),'Versandt und abgerechnet');
