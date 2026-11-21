@@ -1017,9 +1017,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.51.4';
+const APP_VERSION = '1.51.5';
 const APP_DATE = '2026-11-21';
 const CHANGELOG = [
+  ['1.51.5', '21.11.2026', 'Projektstand: Wurde „Neu einlesen“ geklickt, während der Stand eines Projekts noch gelesen wurde, meldete die Projektzentrale im Hintergrund einen Fehler („Cannot read properties of null“). Das alte Ergebnis wird jetzt verworfen, der Stand wie gewohnt neu gelesen. Sonst unverändert (Audit Lauf 5, gefunden von der Spektron-Kette).'],
   ['1.51.4', '21.11.2026', 'Projektliste mit der Tastatur: Wird die Liste im Hintergrund neu sortiert (ein Projekt wechselt die Gruppe, z. B. Labor eingegangen) oder „Vor Spektron“ auf- und zugeklappt, bleibt der Fokus auf demselben Projekt bzw. Knopf – bisher war er danach weg und Enter tat nichts (Audit Lauf 5, E5). „💬 Rückmeldung“ unter „Weitere Apps“ nennt im Tooltip zuerst „Fehler oder Wunsch melden“. Die Tests für TeamKit und die Projektansicht warten jetzt auf das richtige Zeichen (zuvor gelegentlich rot).'],
   ['1.51.3', '20.11.2026', 'Ans Büro übergeben ohne Abrechnungsstand: statt der gelben Warnung eine ruhige Zeile – der Stand kommt, sobald die PDF des Büros in „Mitteilungen“ liegt; übergeben geht schon jetzt (Audit Lauf 4, D6; Reihenfolge wie BelegKit 1.17.0). Nach dem Versand ohne Stand bleibt der Hinweis „kein Abrechnungsstand – in BelegKit „Stand speichern““.'],
   ['1.51.2', '20.11.2026', 'Datenarchiv 1.3.2 (Audit Lauf 2, B3): Steht in der Auftragsreferenz eines Prüfberichts ein Datum („Ortstermin 18.11.2026“), gilt daraus keine Projektnummer mehr – bisher zählte der Bericht als „anderes Projekt“ („11.2026“) und seine Werte fehlten. Stehen mehrere Projektnummern da, gilt die des Projekts. Gleiche Regel wie ResultKit 2.6.'],
@@ -2161,10 +2162,13 @@ async function selectProject(p){
    Aus vorhandenen Spuren wie die Durchlaufzeiten (durchlauf.js): Ortstermin, Laborauftrag, Prüfbericht, Übergabe ans Büro,
    Versand, Abrechnungsstand aus BelegKit. Nur lesen; Ergebnis je Projekt gemerkt bis „Neu einlesen“ oder Zurückkehren ins Fenster. */
 async function meilensteineLaden(p, neu){
-  S.ms = S.ms || new Map();
-  if (S.ms.has(p.name) && !neu) return;
+  const ms = S.ms = S.ms || new Map();
+  if (ms.has(p.name) && !neu) return;
   let r = null; try{ r = await dlLesen(p); }catch(e){ r = null; }
-  S.ms.set(p.name, r);
+  // Inzwischen „Neu einlesen“ (oder Umzug): der gemerkte Stand wurde verworfen. Dieses Ergebnis gehört zum alten Stand –
+  // nicht eintragen; das Neu-Einlesen wählt das Projekt wieder aus und liest die Meilensteine selbst.
+  if (S.ms !== ms) return;
+  ms.set(p.name, r);
   if (S.sel !== p) return;
   stufenZeichnen(p);
 }

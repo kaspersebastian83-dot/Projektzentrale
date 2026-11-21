@@ -2,7 +2,13 @@
 
 Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung, GlasKit (Gebäude aus Glas, 3D-Ansicht der PlanKit-Pläne) und LexiKit (Themensuche in den fertigen Berichten).
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.51.4** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.51.5** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Neu in 1.51.5 · 21.11.2026 – „Neu einlesen“ während der Projektstand gelesen wird (Audit Lauf 5)
+
+Gefunden von der Spektron-Kette in ResultKit (resultkit#40, 1 von 5 Läufen rot).
+- `meilensteineLaden` wartet auf `dlLesen`. Setzte „Neu einlesen“ (oder der Spektron-Umzug) in der Zeit `S.ms = null`, warf das zurückkommende Lesen „Cannot read properties of null (reading 'set')“. Jetzt wird ein Ergebnis zum verworfenen Stand nicht mehr eingetragen; das Neu-Einlesen liest den Stand selbst. Für Nutzer nur ein Fehler im Hintergrund, sonst keine Wirkung.
+- **Test:** `tests/meilensteine-browser.cjs` erzwingt die Reihenfolge mit zwei Sperren im Browser-Dateisystem (Lesen der BelegKit-Datei, Lesen der Mitarbeiterliste) – auf 1.51.4 fünfmal von fünf rot, mit dem Fix grün.
 
 ## Neu in 1.51.4 · 21.11.2026 – Fokus in der Projektliste (Audit Lauf 5)
 

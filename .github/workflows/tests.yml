@@ -102,6 +102,8 @@ jobs:
         run: node tests/pflicht-browser.cjs ${{ matrix.browser }}
       - name: Project switch after a failed save
         run: node tests/wechsel-browser.cjs ${{ matrix.browser }}
+      - name: Milestones read while „Neu einlesen“ discards them (no script error, read again)
+        run: node tests/meilensteine-browser.cjs ${{ matrix.browser }}
       - name: Independent F3 sessions and explicit recovery (synthetic shared disk)
         run: node tests/project-store-browser.cjs ${{ matrix.browser }}
       - name: Responsible person from the folder name, staff list and project data
