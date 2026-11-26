@@ -222,6 +222,22 @@ label.pflicht-offen>input,label.pflicht-offen>select,label.pflicht-offen>textare
 @media (max-width:860px){.pz-pflicht{padding-left:14px}}
 @media (prefers-color-scheme:dark){.pflicht-tag{color:#f0c850}label.pflicht-offen>input,label.pflicht-offen>select,label.pflicht-offen>textarea,label.pflicht-offen>.datum-nb>input{background:rgba(217,164,0,.12)}}
 .save{font-size:12.5px;color:var(--muted);margin-top:8px;min-height:18px}
+/* 1.53: weitere Ortstermine – ein Termin: nur der Link; ab zwei Terminen eine kleine Tabelle Datum · Bezeichnung · Wer war da */
+.form .ot{grid-column:1 / -1;margin-top:-4px;font-size:12.5px}
+.form .ot:empty{display:none}
+.ot-liste{display:grid;gap:5px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+.ot-kopf,.ot-zeile{display:grid;grid-template-columns:22px minmax(118px,150px) 1fr 1fr 92px;gap:6px 8px;align-items:center}
+.ot-kopf{color:var(--muted);font-size:11.5px}
+.ot-nr{color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+.ot-zeile input{min-width:0;width:100%;box-sizing:border-box}
+.ot-t1{color:var(--muted);padding-left:2px}
+.ot-t1.ot-fehlt,.ot-ohne-datum input[type=date]{color:#8a6500}
+.ot-ohne-datum input[type=date],.ot-entwurf input[type=date]{border-color:#d9a400!important;background:#fff8e1}
+.ot-akt .sk{padding:3px 9px;font-size:12px}
+.ot-hinweis{font-size:12px;padding-left:30px}
+.ot-liste .ot-neu{justify-self:start;margin-left:30px}
+@media (max-width:860px){.ot-kopf{display:none}.ot-zeile{grid-template-columns:22px 1fr 1fr}.ot-zeile .ot-t1,.ot-zeile input[type=date]{grid-column:2 / -1}.ot-akt{grid-column:2 / -1}.ot-liste .ot-neu,.ot-hinweis{margin-left:0;padding-left:0}}
+@media (prefers-color-scheme:dark){.ot-ohne-datum input[type=date],.ot-entwurf input[type=date]{background:rgba(217,164,0,.12)}.ot-t1.ot-fehlt{color:#f0c850}}
 .save.err{color:var(--err)}
 .save.ok{color:var(--ok)}
 .warn{color:var(--warn)}
@@ -513,6 +529,7 @@ summary.stufe-kopf::-webkit-details-marker{display:none}
 <script src="durchlauf.js"></script>
 <script src="buero-aufgaben.js"></script>
 <script src="stufen.js"></script>
+<script src="ortstermine.js"></script>
 <script src="word-luecken.js"></script>
 <script src="word-wahl.js"></script>
 </head>
@@ -1017,9 +1034,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.52.0';
-const APP_DATE = '2026-11-21';
+const APP_VERSION = '1.53.0';
+const APP_DATE = '2026-11-26';
 const CHANGELOG = [
+  ['1.53.0', '26.11.2026', 'Mehrere Ortstermine in einem Projekt: In den Projektdaten unter „Ortstermin“ steht ein kleiner Link „+ Weiterer Ortstermin“. Ab zwei Terminen zeigt die Karte je Termin eine Zeile mit Datum, Bezeichnung (frei, mit Vorschlägen Erstbegehung · Nachbeprobung · Freimessung) und „Wer war da“; Termin 1 ist weiter das bekannte Feld „Ortstermin“ (Pflichtangabe, Arbeitszettel und alle Apps lesen es wie bisher). Ein neuer Termin wird gespeichert, sobald sein Datum eingetragen ist. „Entfernen“ fragt nach und nennt, was FotoKit diesem Termin zugeordnet hat (Foto-Ordner werden dort wieder gelb, eine gemerkte Bilddokumentation bleibt liegen). Hat ein anderes Fenster die Termine inzwischen geändert, wird nichts überschrieben – es erscheint die bekannte Meldung. Im Kopf steht dann „Ortstermine 12.08. · 20.08.2026“. Dazu: „n Bilder“ zählt auch Fotos in Unterordnern von „Fotos“ (eine Ebene, ohne Ordner mit „_“ vorn), und bei mehreren Terminen hakt „Ans Büro übergeben“ PDFs aus „Fotos“ nur noch vor, wenn BerichtKit sie als Anlage der gewählten Mitteilung nennt. Ein Projekt mit einem Termin sieht aus wie bisher (bis auf den Link) und bekommt kein neues Feld.'],
   ['1.52.0', '21.11.2026', 'Neu: LagerKit – Rückstellproben im Büro. Unter „⋯ Büro & Apps“ öffnet „LagerKit“ die Übersicht (was liegt wo, was ist fällig); im Projekt unter „Mehr zum Projekt …“ öffnet „Rückstellproben (LagerKit)“ das Projekt direkt in LagerKit. Gibt es für das Projekt Rückstellproben, steht dort eine Zeile mit Anzahl und nächster Frist (aus der LagerKit-Übersicht, nur gelesen). Sonst unverändert.'],
   ['1.51.6', '21.11.2026', 'Durchlaufzeiten: Wurde „Neu einlesen“ geklickt, während die Durchlaufzeiten noch im Hintergrund gelesen wurden, und war dabei ein Projekt kurz nicht lesbar, meldete die Projektzentrale im Hintergrund einen Fehler („Cannot read properties of null“). Ergebnisse zur verworfenen Auswertung werden jetzt nicht mehr eingetragen; beim nächsten Öffnen liest der Dialog neu. Sonst unverändert (Audit Lauf 5).'],
   ['1.51.5', '21.11.2026', 'Projektstand: Wurde „Neu einlesen“ geklickt, während der Stand eines Projekts noch gelesen wurde, meldete die Projektzentrale im Hintergrund einen Fehler („Cannot read properties of null“). Das alte Ergebnis wird jetzt verworfen, der Stand wie gewohnt neu gelesen. Sonst unverändert (Audit Lauf 5, gefunden von der Spektron-Kette).'],
@@ -1969,6 +1987,11 @@ async function scanProject(p){
       if (!sub){ st.extra.push(h.name); continue; }
       const info = { handle: h, name: h.name, files: 0, images: 0, pdfDoc: [], probenplan: 0, sicherungen: 0, daten: [], bu: false, berichte: 0, ergebnisse: null };
       for await (const f of h.values()){
+        // 1.53: Bilder in Unterordnern von „Fotos“ zählen mit (eine Ebene, ohne „_…“/„.…“ wie _aussortiert, _Originale) – Fotos je Person und Termin
+        if (f.kind === 'directory' && sub[0] === 'fotos' && !/^[_.]/.test(f.name)){
+          try{ for await (const g of f.values()) if (g.kind === 'file' && !g.name.startsWith('~$') && IMG_EXT.test(g.name)) info.images++; }catch(e){}
+          continue;
+        }
         if (f.kind !== 'file' || f.name.startsWith('~$')) continue;
         info.files++;
         if (IMG_EXT.test(f.name)) info.images++;
@@ -2225,7 +2248,7 @@ async function abAnlagenLesen(p){
     let dir; try{ dir = await p.handle.getDirectoryHandle(ordner); }catch(e){ continue; }
     const hier = [];
     for await (const f of dir.values()) if (f.kind === 'file' && !/^(~\$|\.)/.test(f.name) && muster.test(f.name)) hier.push({ name: f.name, rel: dir.name + '/' + f.name, ordner: dir.name,
-      vorschlag: /anlage|bilddoku/i.test(f.name) || (ordner === 'Fotos') });
+      vorschlag: /anlage|bilddoku/i.test(f.name) || (ordner === 'Fotos'), fotos: ordner === 'Fotos' });
     liste.push(...hier.sort((a, b) => a.name.localeCompare(b.name, 'de', { numeric: true })));
   }
   return liste;
@@ -2274,7 +2297,10 @@ function abBkAnlagen(st, wahl){
   return e && Array.isArray(e.anlagen) ? new Set(e.anlagen.map(abKey)) : null;
 }
 /** Angehakt, solange nicht selbst geändert: „Anlage“/„Bilddokumentation“ im Namen, PDFs in „Fotos“ und die Prüfberichte laut BerichtKit. */
-const abAnlVorschlag = (x, bk) => x.vorschlag || !!(bk && bk.has(abKey(x.rel)));
+/** 1.53: Gibt es weitere Ortstermine, liegen in „Fotos“ meist mehrere Bilddokus (je Termin) – dann ist eine PDF dort nur
+    vorgehakt, wenn BerichtKit sie zur gewählten Word-Datei als Anlage nennt (berichte[].anlagen), nicht mehr nach Ordner oder Namen. */
+const abNameVorschlag = x => x.vorschlag && !(x.fotos && Ortstermine.mehrere((S.pj && S.pj.data) || {}));
+const abAnlVorschlag = (x, bk) => abNameVorschlag(x) || !!(bk && bk.has(abKey(x.rel)));
 /** Sprung aus BerichtKit (#uebergabe=Mitteilungen/<Datei>): diese Word-Datei wählen, sobald die Liste gelesen ist. */
 function abWunschAnwenden(st, d){
   if (d.wunsch === undefined || !st.word) return false;
@@ -2411,7 +2437,7 @@ function bueroZeigen(p){
   if (wEl.textContent !== wText){ wEl.textContent = wText; wEl.hidden = !wText; }
   // Anlagen: ohne die gewählte Word-Datei (das ist das Gutachten selbst); Prüfberichte, die BerichtKit zu dieser Datei vermerkt hat, sind angehakt
   const anlEl = q('[data-ab-anl]'), anl = (st.anl || []).filter(x => x.rel !== wahl), bk = abBkAnlagen(st, wahl);
-  const ausBk = x => !x.vorschlag && !!bk && bk.has(abKey(x.rel));
+  const ausBk = x => !abNameVorschlag(x) && !!bk && bk.has(abKey(x.rel));
   const anlKey = JSON.stringify([anl.map(x => [x.rel, ausBk(x)]), ro]);
   if (anlEl.dataset.key !== anlKey){
     anlEl.innerHTML = st.anl === null ? '<span class="ab-klein">Wird gelesen …</span>' : anl.length ? anl.map(x => `<label><input type="checkbox" data-ab-anl-rel="${esc(x.rel)}"${ro ? ' disabled' : ''}> ${esc(x.name)} <small>${esc(x.ordner)}${ausBk(x) ? (/^laborergebnisse\//i.test(x.rel) ? ' · Prüfbericht laut BerichtKit' : ' · Anlage laut BerichtKit') : ''}</small></label>`).join('')
@@ -2565,6 +2591,131 @@ function arbeitsstand(p){
 /* Projektdaten in drei Gruppen; Projektnummer und Schadenort stehen im Kopf (aus dem Ordnernamen). */
 const PJ_GRUPPEN = [['Objekt und Auftrag', ['objekt', 'nutzung', 'auftraggeber', 'versicherer', 'schadennummer', 'auftragsdatum']], ['Schaden und Termine', ['schadenereignis', 'brandgut', 'schadendatum', 'ortstermin', 'sachverstaendiger']],
   ['Beteiligte', ['versicherungsnehmer', 'sachverstaendigerBeteiligt', 'sanierung', 'kontakte']], ['', ['notizen']]];
+
+/* ---------- 1.53: Weitere Ortstermine (Entscheidungen O1, O9, O12; claude/fotokit-ortstermine-plan.md 4.1) ----------
+   „ortstermin“ bleibt Termin 1 (Feld, Pflichtangabe, Arbeitszettel, durchlauf.js unverändert). Erst „+ Weiterer Ortstermin“
+   zeigt die Liste: Termin 1 bekommt Bezeichnung und „Wer war da“ (ortsterminBezeichnung, ortsterminWer), jeder weitere Termin
+   eine Zeile in weitereOrtstermine. Gespeichert wird wie jedes Feld über S.pjDirty → flushPJ → patchPJ: die ganze Liste ist
+   ein Feld – hat ein anderes Fenster sie inzwischen geändert, meldet ProjectStore einen Widerspruch und überschreibt nichts.
+   Ein neuer Termin ist ein Entwurf, bis sein Datum eingetragen ist (kein Termin ohne Datum in der Datei).
+   FotoKits Datei wird nur gelesen (nächste Kennung, Rückfrage beim Entfernen) – nie geschrieben. */
+const OT_NACH = 'sachverstaendiger';   // Block als ganze Zeile direkt unter der Zeile „Ortstermin · Sachverständiger“
+/** Stand der Projektdaten mit noch nicht gespeicherten Eingaben (null = Feld wird entfernt). */
+const otStand = () => ({ ...((S.pj && S.pj.data) || {}), ...S.pjDirty });
+const otRoh = d => Array.isArray(d.weitereOrtstermine) ? d.weitereOrtstermine : [];
+function kopfSumme(d){
+  return [d.objekt, d.auftraggeber, Ortstermine.zusammenfassung(d)].map(x => String(x || '').trim()).filter(Boolean).join(' · ') || 'Objekt und Auftraggeber noch nicht eingetragen';
+}
+/** FotoKits _Bildumbenenner.json (nur lesen): { data } – data null, wenn es sie nicht gibt; { fehler }, wenn sie nicht lesbar ist. */
+async function otFotoKitLesen(p){
+  try{
+    const r = await SO.ort(p.handle, 'fotokit'); if (!r.dir) return { data: null };
+    let fh; try{ fh = await r.dir.getFileHandle('_Bildumbenenner.json'); }catch(e){ if (e.name === 'NotFoundError') return { data: null }; throw e; }
+    const o = JSON.parse(await (await fh.getFile()).text());
+    return { data: o && typeof o === 'object' && !Array.isArray(o) ? o : null, pfad: r.pfad };
+  }catch(e){ return { data: null, fehler: e.message || String(e) }; }
+}
+/** Datum von Termin 1 in der Liste (kommt aus dem Feld „Ortstermin“ darüber). */
+function otT1Datum(){
+  const el = $('otT1Datum'); if (!el) return;
+  const v = $('pj_ortstermin') ? $('pj_ortstermin').value : '';
+  el.textContent = Ortstermine.gueltig(v) ? deDatum(v) : 'Datum fehlt';
+  el.classList.toggle('ot-fehlt', !Ortstermine.gueltig(v));
+}
+function otZeichnen(p, ro){
+  const box = $('otBlock'); if (!box || S.sel !== p) return;
+  const d = otStand(), l = Ortstermine.liste(d), e = S.otEntwurf && S.otEntwurf.name === p.name ? S.otEntwurf : null;
+  const bez = String(d.ortsterminBezeichnung || ''), wer = String(d.ortsterminWer || '');
+  const ae = document.activeElement, fokus = ae && box.contains(ae) && ae.id ? { id: ae.id, a: ae.selectionStart, b: ae.selectionEnd } : null;
+  const neuKnopf = ro || e ? '' : `<button type="button" class="linkbtn ot-neu" id="otNeu" title="Zweiter, dritter … Besuch im selben Projekt (z. B. Nachbeprobung, Freimessung) – FotoKit ordnet die Foto-Ordner später je Termin zu">+ Weiterer Ortstermin</button>`;
+  // Ein Termin, keine Zusatzangaben: wie bisher, nur der Link
+  if (!l.length && !e && !bez.trim() && !wer.trim()){ box.innerHTML = neuKnopf; box.classList.remove('ot-liste'); otKnoepfe(p, ro); return; }
+  box.classList.add('ot-liste');
+  const ein = (id, feld, wert, label, extra = '') => `<input id="pj_ot_${esc(id)}_${feld}" data-ot="${esc(id)}" data-ot-feld="${feld}" aria-label="${esc(label)}" ${extra} ${ro ? 'readonly' : ''}>`;
+  const zeile = (nr, id, datumHtml, weg, klasse = '') => `<div class="ot-zeile${klasse}" data-ot-zeile="${esc(id)}"><span class="ot-nr">${nr}</span>${datumHtml}
+      ${ein(id, 'bezeichnung', '', `Bezeichnung Termin ${nr}`, 'type="text" list="otVorschlag" placeholder="z. B. Nachbeprobung" autocomplete="off"')}
+      ${ein(id, 'wer', '', `Wer war da – Termin ${nr}`, 'type="text" placeholder="z. B. Ka, Ste" autocomplete="off"')}
+      <span class="ot-akt">${weg}</span></div>`;
+  const weg = (id, nr, entwurf) => ro ? '' : `<button type="button" class="sk ot-weg" data-ot-weg="${esc(id)}"${entwurf ? ' data-ot-entwurf="1"' : ''} title="${entwurf ? 'Neuen Termin verwerfen (noch nicht gespeichert)' : `Termin ${nr} aus den Projektdaten entfernen – mit Rückfrage`}">Entfernen</button>`;
+  box.innerHTML = `<div class="ot-kopf" aria-hidden="true"><span></span><span>Datum</span><span>Bezeichnung</span><span>Wer war da</span><span></span></div>
+    ${zeile(1, 't1', '<span class="ot-t1" id="otT1Datum" title="Datum von Termin 1 = Feld „Ortstermin“ darüber"></span>', '')}
+    ${l.map((t, i) => zeile(i + 2, t.id, ein(t.id, 'datum', '', `Datum Termin ${i + 2}`, 'type="date"'), weg(t.id, i + 2, false), Ortstermine.gueltig(String(t.datum || '')) ? '' : ' ot-ohne-datum')).join('')}
+    ${e ? zeile(l.length + 2, e.id, ein(e.id, 'datum', '', `Datum Termin ${l.length + 2}`, 'type="date"'), weg(e.id, l.length + 2, true), ' ot-entwurf') + '<div class="ot-hinweis m" id="otEntwurfHinweis">Neuer Termin – wird gespeichert, sobald das Datum eingetragen ist.</div>' : ''}
+    <datalist id="otVorschlag">${Ortstermine.VORSCHLAEGE.map(v => `<option value="${esc(v)}"></option>`).join('')}</datalist>
+    ${neuKnopf}`;
+  // Werte über .value (kein Escaping im Attribut nötig); Termin 1 aus ortsterminBezeichnung/-Wer
+  const setz = (id, feld, v) => { const el = $(`pj_ot_${id}_${feld}`); if (el) el.value = String(v == null ? '' : v); };
+  setz('t1', 'bezeichnung', bez); setz('t1', 'wer', wer);
+  for (const t of l) for (const f of ['datum', 'bezeichnung', 'wer']) setz(t.id, f, t[f]);
+  if (e) for (const f of ['datum', 'bezeichnung', 'wer']) setz(e.id, f, e[f]);
+  otT1Datum();
+  otKnoepfe(p, ro);
+  if (fokus && $(fokus.id)){ const el = $(fokus.id); el.focus({ preventScroll: true }); try{ if (fokus.a != null) el.setSelectionRange(fokus.a, fokus.b); }catch(_){} }
+}
+function otKnoepfe(p, ro){
+  const box = $('otBlock'); if (!box || ro) return;
+  if ($('otNeu')) $('otNeu').onclick = () => otNeu(p);
+  box.querySelectorAll('input[data-ot]').forEach(el => el.addEventListener('input', () => otEingabe(p, el)));
+  box.querySelectorAll('[data-ot-weg]').forEach(b => b.onclick = () => b.dataset.otEntwurf ? otEntwurfWeg(p) : otEntfernen(p, b.dataset.otWeg));
+}
+/** Eingabe in der Liste: Termin 1 → ortsterminBezeichnung/-Wer; weiterer Termin → ganze Liste; Entwurf → erst mit Datum in die Liste. */
+function otEingabe(p, el){
+  if (S.sel !== p) return;
+  const id = el.dataset.ot, feld = el.dataset.otFeld, v = el.value;
+  const e = S.otEntwurf && S.otEntwurf.name === p.name && S.otEntwurf.id === id ? S.otEntwurf : null;
+  if (id === 't1'){ S.pjDirty[feld === 'wer' ? 'ortsterminWer' : 'ortsterminBezeichnung'] = v.trim() ? v : null; schedulePJ(); return; }
+  if (e){
+    e[feld] = v;
+    if (feld !== 'datum' || !Ortstermine.gueltig(v)) return;   // Entwurf bleibt, bis ein gültiges Datum da ist
+    S.otEntwurf = null;
+    // Inzwischen hat ein anderes Fenster (oder FotoKit) dieselbe Kennung vergeben und dieses Fenster hat es schon gelesen: nächste freie nehmen
+    let neu = e.id;
+    if (Ortstermine.inGebrauch(otStand()).has(Ortstermine.nummer(neu))) neu = Ortstermine.naechsteKennung(otStand(), null, [neu]);
+    S.pjDirty.weitereOrtstermine = [...otRoh(otStand()), { id: neu, datum: e.datum, bezeichnung: e.bezeichnung, wer: e.wer }];
+    schedulePJ(); otZeichnen(p, false);
+    if (neu !== e.id && $(`pj_ot_${neu}_datum`)) $(`pj_ot_${neu}_datum`).focus({ preventScroll: true });
+    return;
+  }
+  S.pjDirty.weitereOrtstermine = otRoh(otStand()).map(t => t && t.id === id ? { ...t, [feld]: v } : t);
+  schedulePJ();
+  if (feld === 'datum'){ const z = el.closest('.ot-zeile'); if (z) z.classList.toggle('ot-ohne-datum', !Ortstermine.gueltig(v)); }
+}
+/** „+ Weiterer Ortstermin“: Entwurfszeile mit der nächsten freien Kennung (auch in FotoKit noch stehende zählen mit). */
+async function otNeu(p){
+  if (S.sel !== p || S.otEntwurf) return;
+  const fk = await otFotoKitLesen(p);
+  if (S.sel !== p) return;
+  if (fk.fehler){ banner('err', `Weiterer Ortstermin nicht angelegt: FotoKits „_Bildumbenenner.json“ ist nicht lesbar (${esc(fk.fehler)}). Ohne sie lässt sich nicht sicher prüfen, welche Termin-Kennung frei ist.`); return; }
+  const id = Ortstermine.naechsteKennung(otStand(), fk.data);
+  S.otEntwurf = { name: p.name, id, datum: '', bezeichnung: '', wer: '' };
+  otZeichnen(p, false);
+  const el = $(`pj_ot_${id}_datum`); if (el) el.focus();
+}
+function otEntwurfWeg(p){ S.otEntwurf = null; otZeichnen(p, false); if ($('otNeu')) $('otNeu').focus(); }
+/** „Entfernen“ (O12): Rückfrage nennt, was FotoKit diesem Termin zugeordnet hat; FotoKits Datei bleibt unberührt. */
+async function otEntfernen(p, id){
+  if (S.sel !== p) return;
+  const l = Ortstermine.liste(otStand()), i = l.findIndex(t => t.id === id); if (i < 0) return;
+  const t = l[i], nr = i + 2, fk = await otFotoKitLesen(p), r = Ortstermine.inFotoKit(fk.data, id);
+  if (S.sel !== p) return;
+  const was = [Ortstermine.gueltig(String(t.datum || '')) ? deDatum(t.datum) : 'ohne Datum', String(t.bezeichnung || '').trim()].filter(Boolean).join(' · ');
+  const teile = [`<p><b>Termin ${nr}</b> (${esc(was)}) wird aus den Projektdaten entfernt.</p>`];
+  if (fk.fehler) teile.push(`<p class="warn">FotoKits „_Bildumbenenner.json“ ist nicht lesbar (${esc(fk.fehler)}) – ob dort Foto-Ordner oder eine Bilddokumentation diesem Termin zugeordnet sind, ist unbekannt.</p>`);
+  else {
+    teile.push(r.ordner.length || r.fotos
+      ? `<p>In FotoKit sind diesem Termin zugeordnet: ${r.ordner.length ? `Foto-Ordner ${r.ordner.map(o => '„' + esc(o) + '“').join(', ')}` : ''}${r.ordner.length && r.fotos ? ' und ' : ''}${r.fotos ? `${r.fotos} Foto${r.fotos === 1 ? '' : 's'}` : ''}. Sie werden in FotoKit wieder gelb (ohne Termin), bis jemand sie einem Termin zuordnet.</p>`
+      : `<p>Foto-Ordner, die diesem Termin in FotoKit zugeordnet sind, werden dort wieder gelb (ohne Termin).</p>`);
+    if (r.bilddoku.length) teile.push(`<p>Für diesen Termin hat FotoKit eine Bilddokumentation gemerkt: ${r.bilddoku.map(x => '„' + esc(x) + '“').join(', ')}. Die Datei bleibt liegen und bleibt in FotoKit unter der Kennung ${esc(id)} gemerkt.</p>`);
+  }
+  teile.push(`<p class="m">Die Kennung ${esc(id)} wird nicht neu vergeben.${l.length === 1 ? ' Danach hat das Projekt wieder einen Ortstermin' + (String(otStand().ortsterminBezeichnung || otStand().ortsterminWer || '').trim() ? '; Bezeichnung und „Wer war da“ von Termin 1 bleiben stehen.' : '.') : ''}</p>`);
+  if (!await confirmDialog(`Ortstermin ${nr} entfernen?`, teile.join(''), 'Entfernen')) return;
+  if (S.sel !== p) return;
+  const rest = otRoh(otStand()).filter(x => !(x && x.id === id));
+  S.pjDirty.weitereOrtstermine = rest.length ? rest : null;
+  otZeichnen(p, false);
+  await flushPJ();
+  if (S.sel === p) renderDetail();   // Kopfzeile, Übergabe (Vorhaken in „Fotos“) und Liste neu
+}
 function ordnerKurz(p){
   const s = p.st.subs, da = SUBS.filter(([k]) => s[k]).length, dateien = SUBS.reduce((n, [k]) => n + (s[k] ? s[k].files : 0), 0);
   return `${da} von ${SUBS.length} Unterordnern · ${dateien} Datei${dateien === 1 ? '' : 'en'}`;
@@ -2669,7 +2820,7 @@ function renderDetail(){
   const knopf = (id, text, aktion, tip) => `<button type="button" class="sk" id="${id}" data-aktion="${aktion}" title="${esc(tip || '')}">${esc(text)}</button>`;
   $('detail').innerHTML = `<div class="pz">
     <h2><span class="nr">${esc(p.nr)}</span> ${esc(p.ort)}</h2>
-    <p class="project-summary">${esc([d.objekt,d.auftraggeber,/^\d{4}-\d{2}-\d{2}$/.test(d.ortstermin||'')?'Ortstermin '+deDatum(d.ortstermin):''].filter(Boolean).join(' · ')||'Objekt und Auftraggeber noch nicht eingetragen')}</p>
+    <p class="project-summary" id="pjSumme">${esc(kopfSumme(d))}</p>
     <div class="kopfzeile">${zustHtml(p, zustaendigVon(p, pj.error ? undefined : d), ro)}<button type="button" class="pflichtFehlt" id="pflichtFehlt" hidden></button>${p.key < SPEKTRON_START_KEY && d.spektron === true && !ro ? `<span class="uebernommen-tag">In Spektron übernommen</span>` : ''}<button type="button" class="pj-aendern" id="pjAendern" data-aktion="daten-auf" title="Projektdaten aufklappen – Objekt, Auftraggeber, Termine, Beteiligte">${ro ? 'Projektdaten ansehen' : 'Projektdaten ändern'}</button></div>
     <div id="pjAttention" role="status"></div><div id="umzugAttention" role="status" style="display:none;margin:10px 0;padding:10px;border-left:3px solid var(--warn);background:var(--panel2)"></div><div id="bueroAttention" role="status"></div>
     <div class="az-meldung" id="azMeldung" role="status" aria-live="polite"></div>
@@ -2694,7 +2845,7 @@ function renderDetail(){
             ${pj.newer ? `<div class="warn">„${PJ_FILE}“ stammt von einer neueren Version – bitte Projektzentrale aktualisieren. Nur Ansicht.</div>` : ''}
             ${ro ? '' : `<div class="azrow"><button id="azBtn" title="Arbeitszettel als PDF wählen – liest Objekt, Versicherung, Schaden-Nr., Termine und Beteiligte; vor dem Speichern wird jeder Wert angezeigt. Der Zettel im Ordner „Arbeitszettel“ wird beim Öffnen des Projekts von selbst gelesen.">📄 Andere Datei wählen …</button>
               <span class="m">${azZuletztText(d.arbeitszettel)}</span><input type="file" id="azFile" accept="application/pdf,.pdf" hidden></div>`}
-            <div class="form">${PJ_GRUPPEN.map(([g, ks]) => (g ? `<div class="grp">${esc(g)}</div>` : '') + ks.map(k => feld(k)).join('')).join('')}</div>
+            <div class="form">${PJ_GRUPPEN.map(([g, ks]) => (g ? `<div class="grp">${esc(g)}</div>` : '') + ks.map(k => feld(k) + (k === OT_NACH ? '<div class="ot" id="otBlock" role="group" aria-label="Ortstermine"></div>' : '')).join('')).join('')}</div>
             <div class="save m" title="${esc(PJ_FILE)} im Projektordner (bei Spektron-Projekten in „${esc(SO.ORDNER)}“) – gilt für alle Apps">${pj.exists ? (d.geaendert ? `Zuletzt gespeichert ${esc(new Date(d.geaendert).toLocaleString('de-DE'))}${d.geaendertMit ? ' mit ' + esc(d.geaendertMit) : ''}` : '') : 'Noch keine Projektdaten – wird beim ersten Eintrag angelegt.'} · gilt für alle Apps</div>
           </div>
         </details>
@@ -2764,6 +2915,8 @@ function renderDetail(){
       if (!ro) nb.addEventListener('click', e => { if (e.isTrusted) S.pjInline.delete(k); const an = nb.getAttribute('aria-pressed') !== 'true'; setzen(an); S.pjDirty[k] = an ? UNBEKANNT : ''; schedulePJ(); if (PJ_PFLICHT.includes(k)) pflichtZeigen(ro); if (!an) el.focus(); });
     }
   }
+  otZeichnen(p, ro);   // 1.53: weitere Ortstermine unter „Ortstermin“
+  if (!ro) $('pj_ortstermin').addEventListener('input', () => otT1Datum());
   // 1.49: Zeile unter der Karte – Eingaben gehen an das Formularfeld (dort gespeichert wie jede Eingabe)
   if ($('pjPflicht')) for (const k of PJ_PFLICHT){
     const q = $('pjq_' + k), el = $('pj_' + k), nb = $('pjq_' + k + '_nb'); if (!q || !el) continue;
@@ -2949,12 +3102,14 @@ function flushPJ(){
   const p = S.sel, patch = S.pjDirty;
   if (!p || !Object.keys(patch).length) return S.pjWriting;
   S.pjDirty = {};
-  for (const k of Object.keys(patch)) patch[k] = patch[k].trim();
+  // Texte getrimmt; die Liste der weiteren Ortstermine je Eintrag (ortstermine.js), null entfernt ein Feld (pjBauen)
+  for (const k of Object.keys(patch)) patch[k] = k === 'weitereOrtstermine' ? Ortstermine.bereinigt(patch[k]) : typeof patch[k] === 'string' ? patch[k].trim() : patch[k];
   S.pjWriting = S.pjWriting.then(async () => {
     try{
       const o = await patchPJ(await pjDir(p, true), p.name, patch, S.pj?.data);
       if (S.sel === p){
         S.pj = { data: o, exists: true };S.pjStatus={name:p.name,kind:'ok'};showPJAttention();S.pjRecoveryRefresh?.();
+        if ($('pjSumme')) $('pjSumme').textContent = kopfSumme(o);
         const el = $('pjSave'); if (el){ el.className = 'save ok'; el.textContent = `✓ Gespeichert ${new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`; el.title = `in ${PJ_FILE} im Projektordner`; }
       }
       if (p.st) p.st.pj = true;

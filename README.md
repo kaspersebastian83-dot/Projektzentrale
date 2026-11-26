@@ -2,7 +2,20 @@
 
 Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung, GlasKit (Gebäude aus Glas, 3D-Ansicht der PlanKit-Pläne) und LexiKit (Themensuche in den fertigen Berichten).
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.51.6** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.53.0** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Neu in 1.53.0 · 26.11.2026 – Mehrere Ortstermine in einem Projekt (FotoKit-Ortstermine, Plan 4.1)
+
+Plan `claude/fotokit-ortstermine-plan.md` Abschnitt 4.1, Entscheidungen O1, O9, O12 (`claude/fotokit-ortstermine-entscheidungen.md`, Spektron-Projekt).
+- **`_Projekt.json`** (`format`/`version` unverändert): `ortstermin` bleibt allein Termin 1 – Feld, Pflichtangabe, Arbeitszettel (`azFelder`), `durchlauf.js` und alle Apps lesen es wie bisher. Neu nur, wenn es einen zweiten Termin gibt: `weitereOrtstermine: [{ id: "t2", datum, bezeichnung, wer }, …]`, optional `ortsterminBezeichnung`, `ortsterminWer` (Termin 1 = `t1`). Ein Projekt mit einem Termin bekommt kein neues Feld; wird der letzte weitere Termin entfernt, verschwindet `weitereOrtstermine` wieder.
+- **Kennungen** (`ortstermine.js`, nur rechnen): nächste = höchste + 1. „Höchste“ zählt auch Kennungen, die noch in FotoKits `_Bildumbenenner.json` stehen (`bilddokus`, `dokuGeaendertJe`, `ordnerTermine`, `bilder[].termin`) und künftig in `weitereMitteilungen[].termine` – sonst bekäme nach dem Entfernen des höchsten Termins ein neuer dessen Kennung und erbte dessen Bilddoku. Ist FotoKits Datei nicht lesbar, wird kein Termin angelegt (Meldung).
+- **Oberfläche** (Karte „Schaden und Termine“): als ganze Zeile unter „Ortstermin · Sachverständiger“ der Link „+ Weiterer Ortstermin“ (`#otBlock`). Ab zwei Terminen je Zeile Datum · Bezeichnung (`<datalist>` Erstbegehung · Nachbeprobung · Freimessung) · Wer war da · „Entfernen“; Termin 1 zeigt das Datum aus „Ortstermin“ und bekommt Bezeichnung und „Wer war da“. Ein neuer Termin ist ein Entwurf, bis sein Datum eingetragen ist – erst dann wird gespeichert. Gespeichert wird wie jedes Feld (`S.pjDirty` → `flushPJ` → `patchPJ`); die Liste ist ein Feld, also meldet `ProjectStore.update` einen Widerspruch, wenn ein anderes Fenster sie inzwischen geändert hat, und überschreibt nichts. `flushPJ` trimmt nur noch Texte (die Liste je Eintrag über `Ortstermine.bereinigt`).
+- **Entfernen** (O12) mit Rückfrage: nennt die Foto-Ordner und Fotos, die FotoKit diesem Termin zugeordnet hat (werden dort wieder gelb), und eine unter `bilddokus[<Kennung>]` gemerkte Bilddoku (bleibt liegen und gemerkt). FotoKits Datei wird nur gelesen. Die Sperre für Termine in versandten Mitteilungen kommt mit der Mitteilungen-Ebene.
+- **Kopf:** „Ortstermine 12.08. · 20.08.2026“ (nach Datum, ohne leere; ein Termin wie bisher „Ortstermin 12.08.2026“).
+- **Bestand „n Bilder“** zählt Bilder in Unterordnern von `Fotos/` mit (eine Ebene, ohne Ordner mit „_“ oder „.“ vorn).
+- **Übergabe:** Gibt es `weitereOrtstermine`, sind PDFs in `Fotos/` nur noch vorgehakt, wenn BerichtKit sie zur gewählten Word-Datei in `berichte[].anlagen` nennt (Zusatz „Anlage laut BerichtKit“) – nicht mehr nach Ordner oder Namen „Bilddoku…“.
+- Geprüft (nachgestellt, nicht im Repo): FotoKit 2.6.0 speichert das Deckblatt und lässt `weitereOrtstermine`, `ortsterminBezeichnung`, `ortsterminWer` stehen; LabelKit 5.4.0 schreibt `_Projekt.json` nie (Datei nach Öffnen und zweimal Speichern byte-gleich).
+- Tests: neu `tests/ortstermine.cjs` (Node) und `tests/ortstermine-browser.cjs`. sw.js Cache v50 (mit `ortstermine.js`).
 
 ## Neu in 1.51.6 · 21.11.2026 – „Neu einlesen“ während die Durchlaufzeiten gelesen werden (Audit Lauf 5)
 
