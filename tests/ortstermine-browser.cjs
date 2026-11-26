@@ -14,6 +14,7 @@ const name = process.argv[2] || 'chromium';
 const root = path.join(__dirname, '..');
 const EINS = '26.0701 Termine Teststadt', BILDER = '26.0702 Bilder Teststadt', UEB1 = '26.0703 Eins Teststadt', UEB2 = '26.0704 Zwei Teststadt';
 const ZAEHL = '26.0705 Zaehler Teststadt', BESTAND = '26.0706 Bestand Teststadt', KAPUTT = '26.0707 Kaputt Teststadt';
+const LANGSAM = '26.0708 Langsam Teststadt', UEB3 = '26.0709 Drei Teststadt';
 const TYP = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.pdf': 'application/pdf' };
 const errors = [];
 let schritt = 'Start', seite = null;
@@ -47,7 +48,7 @@ let schritt = 'Start', seite = null;
   const PJ1 = { format: 'mosaik-projekt', version: 1, hinweis: 'Gemeinsame Projektdaten', objekt: 'EFH, Testweg 1', auftraggeber: 'Muster Versicherung AG', ortstermin: '2026-08-12' };
   const EINS_TEXT = JSON.stringify(PJ1, null, 2) + '\n';
   // Archiv: EINS (ein Termin) · BILDER (Fotos in Unterordnern) · UEB1/UEB2 (Übergabe mit zwei Bilddokus, ein bzw. zwei Termine)
-  await page.evaluate(async ([eins, einsText, bilder, ueb1, ueb2, pj1, zaehl, bestand, kaputt]) => {
+  await page.evaluate(async ([eins, einsText, bilder, ueb1, ueb2, pj1, zaehl, bestand, kaputt, langsam, ueb3]) => {
     const r = await navigator.storage.getDirectory();
     for await (const [n] of r.entries()) await r.removeEntry(n, { recursive: true });
     const archiv = await r.getDirectoryHandle('Mosaik Archivordner', { create: true });
@@ -75,12 +76,21 @@ let schritt = 'Start', seite = null;
     await put(await sub(pBe, 'Fotos'), '_Bildumbenenner.json', JSON.stringify({ format: 1, version: '2.7.0', bilder: {}, bilddokus: { t5: { dateien: ['alt.pdf'] } } }));
     const pK = await sub(archiv, kaputt); await put(pK, '_Projekt.json', JSON.stringify({ ...pj1, weitereOrtstermine: [{ id: 't2', datum: '2026-08-20', bezeichnung: '', wer: '' }] }));
     await put(await sub(pK, 'Fotos'), '_Bildumbenenner.json', '{ kaputt');
-  }, [EINS, EINS_TEXT, BILDER, UEB1, UEB2, PJ1, ZAEHL, BESTAND, KAPUTT]);
+    // 1.53.1 (Review #92): LANGSAM für verzögertes Schreiben; UEB3 Übergabe mit offenem Formular
+    await put(await sub(archiv, langsam), '_Projekt.json', JSON.stringify(pj1));
+    const p3 = await sub(archiv, ueb3), f3 = await sub(p3, 'Fotos');
+    await put(p3, '_Projekt.json', JSON.stringify(pj1));
+    for (const n of ['Bilddokumentation_26.0709_Teststadt_2026-08-12.pdf', 'Bilddokumentation_26.0709_Teststadt_2026-08-20.pdf', 'Skizze.pdf']) await put(f3, n, '%PDF');
+    const m3 = await sub(p3, 'Mitteilungen'); await put(m3, '2._Mitteilung_26.0709.docx', 'Synthetic placeholder');
+    await put(m3, '_BerichtKit.json', JSON.stringify({ format: 'spektron-bericht', version: 1, projekt: '26.0709', form: {},
+      berichte: [{ datei: '2._Mitteilung_26.0709.docx', am: '2026-11-26T09:00:00.000Z', anlagen: ['Fotos/Bilddokumentation_26.0709_Teststadt_2026-08-20.pdf'] }] }));
+  }, [EINS, EINS_TEXT, BILDER, UEB1, UEB2, PJ1, ZAEHL, BESTAND, KAPUTT, LANGSAM, UEB3]);
 
   const start = async pg => { await pg.locator('#btnStart, #btnArchive').first().click(); await pg.locator(`.proj[data-name="${EINS}"]`).waitFor(); };
   await start(page);
-  const leseText = n => page.evaluate(async n => { const p = await (await (await navigator.storage.getDirectory()).getDirectoryHandle('Mosaik Archivordner')).getDirectoryHandle(n);
-    return await (await (await p.getFileHandle('_Projekt.json')).getFile()).text(); }, n);
+  // Lesen, während die App gerade schreibt, wirft im Browser NotReadableError – dann kurz warten und erneut lesen
+  const leseText = async n => { for (let i = 0; ; i++){ try{ return await page.evaluate(async n => { const p = await (await (await navigator.storage.getDirectory()).getDirectoryHandle('Mosaik Archivordner')).getDirectoryHandle(n);
+    return await (await (await p.getFileHandle('_Projekt.json')).getFile()).text(); }, n); }catch(e){ if (i > 20 || !/NotReadable|NotFound/.test(e.message)) throw e; await page.waitForTimeout(100); } } };
   const lese = async n => JSON.parse(await leseText(n));
   const oeffne = async (pg, n) => {
     await pg.locator(`.proj[data-name="${n}"]`).click();
@@ -284,6 +294,108 @@ let schritt = 'Start', seite = null;
   // Projekte, die nie einen zweiten Termin hatten, bekommen den Zähler nicht
   for (const n of [BILDER, UEB1]) assert.ok(!('ortsterminZaehler' in await lese(n)), n);
 
+  // 4e) Review #92, P1: Schreiben dauert länger als die 600 ms – Änderungen in der Zeit bauen auf dem Patch auf, der gerade geschrieben wird
+  schritt = 'P1 – Änderung während des Speicherns';
+  await page.evaluate(() => {
+    window.__halt = false; window.__wartend = 0; window.__frei = []; window.__fehler = 0;
+    const cw = FileSystemFileHandle.prototype.createWritable;
+    FileSystemFileHandle.prototype.createWritable = async function(...a){
+      if (this.name === '_Projekt.json' && window.__halt){ window.__wartend++; await new Promise(r => window.__frei.push(r)); }
+      if (this.name === '_Projekt.json' && window.__fehler > 0){ window.__fehler--; throw new DOMException('Datei gesperrt (Test)', 'NoModificationAllowedError'); }
+      return cw.apply(this, a);
+    };
+  });
+  const halten = () => page.evaluate(() => { window.__halt = true; window.__wartend = 0; });
+  const loslassen = () => page.evaluate(() => { window.__halt = false; window.__frei.splice(0).forEach(r => r()); });
+  const gehalten = () => page.waitForFunction(() => window.__wartend > 0, null, { timeout: 8000 });
+  await oeffne(page, LANGSAM); await auf(page);
+  // a) Termin anlegen (wird geschrieben, hängt), sofort Bezeichnung ändern und einen zweiten Termin anlegen
+  await halten();
+  await anlegen(page, 't2', '2026-08-20'); await gehalten();
+  await page.locator('#pj_ot_t2_bezeichnung').fill('Nachbeprobung');
+  await page.waitForTimeout(800);   // zweiter Patch steht in der Schlange
+  await page.locator('#otNeu').click();
+  await page.locator('#pj_ot_t3_datum').waitFor({ timeout: 5000 });   // Kennung aus dem Zähler, der gerade geschrieben wird (sonst t2 doppelt)
+  await page.locator('#pj_ot_t3_datum').fill('2026-08-21');
+  assert.deepEqual((await zeilen(page)).map(z => z[1]), ['t1', 't2', 't3'], 'Liste zeigt alles, auch während des Schreibens');
+  await loslassen();
+  await warte(async () => { const d = await lese(LANGSAM); return (d.weitereOrtstermine || []).length === 2 && d.weitereOrtstermine[0].bezeichnung === 'Nachbeprobung'; }, 'beide Änderungen in der Datei');
+  d = await lese(LANGSAM);
+  assert.deepEqual(d.weitereOrtstermine, [{ id: 't2', datum: '2026-08-20', bezeichnung: 'Nachbeprobung', wer: '' }, { id: 't3', datum: '2026-08-21', bezeichnung: '', wer: '' }]);
+  assert.equal(d.ortsterminZaehler, 3);
+  // b) Entfernen hängt beim Schreiben, in der Zeit „Wer war da“ an t2 → t3 kommt nicht zurück, Zähler bleibt
+  schritt = 'P1 – Entfernen während des Speicherns';
+  await halten();
+  await page.locator('[data-ot-weg="t3"]').click(); await page.locator('#dlgBack.show #dYes').click(); await gehalten();
+  await page.locator('#pj_ot_t2_wer').fill('Ka');
+  await page.waitForTimeout(800);
+  await loslassen();
+  await warte(async () => { const d = await lese(LANGSAM); return d.weitereOrtstermine.length === 1 && d.weitereOrtstermine[0].wer === 'Ka'; }, 't3 bleibt weg, Wer gespeichert');
+  await page.waitForTimeout(500);
+  d = await lese(LANGSAM);
+  assert.deepEqual(d.weitereOrtstermine, [{ id: 't2', datum: '2026-08-20', bezeichnung: 'Nachbeprobung', wer: 'Ka' }]); assert.equal(d.ortsterminZaehler, 3);
+  // c) Das erste Schreiben schlägt fehl, das zweite (baut darauf auf) gelingt: neuere Eingaben gewinnen je Termin – nichts Altes kommt zurück
+  schritt = 'P1 – erstes Schreiben scheitert';
+  await halten(); await page.evaluate(() => { window.__fehler = 1; });
+  await anlegen(page, 't4', '2026-09-01'); await gehalten();
+  await page.locator('#pj_ot_t4_bezeichnung').fill('Freimessung');
+  await page.waitForTimeout(800);
+  await loslassen();
+  await warte(async () => ((await lese(LANGSAM)).weitereOrtstermine || []).length === 2, 'zweites Schreiben');
+  await page.waitForTimeout(500);
+  await page.locator('#pj_ot_t2_bezeichnung').fill('Nachbeprobung 2');   // noch ein Speichern: darf den alten Patch nicht zurückbringen
+  await gespeichert(page); await warte(async () => (await lese(LANGSAM)).weitereOrtstermine[0].bezeichnung === 'Nachbeprobung 2', 'drittes Schreiben');
+  d = await lese(LANGSAM);
+  assert.deepEqual(d.weitereOrtstermine.map(t => [t.id, t.bezeichnung]), [['t2', 'Nachbeprobung 2'], ['t4', 'Freimessung']]);
+  assert.equal(d.ortsterminZaehler, 4);
+
+  // 4f) Review #92, P2: Entwurf ohne Datum in einem Projekt sperrt „+ Weiterer Ortstermin“ in einem anderen nicht; er bleibt beim alten Projekt
+  schritt = 'P2 – Entwurf je Projekt';
+  await oeffne(page, ZAEHL); await auf(page);
+  await page.locator('#otNeu').click(); await page.locator('#otBlock .ot-entwurf').waitFor();
+  const entwurfId = await page.locator('#otBlock .ot-entwurf').getAttribute('data-ot-zeile');
+  await page.locator(`#pj_ot_${entwurfId}_bezeichnung`).fill('Entwurf A');
+  await oeffne(page, BESTAND); await auf(page);
+  await page.locator('#otNeu').click();
+  await page.locator('#otBlock .ot-entwurf').waitFor({ timeout: 5000 });
+  await page.locator('#otBlock .ot-entwurf [data-ot-weg]').click();
+  await oeffne(page, ZAEHL); await auf(page);
+  assert.equal(await page.locator(`#pj_ot_${entwurfId}_bezeichnung`).inputValue(), 'Entwurf A', 'Entwurf bleibt beim Projekt');
+  await page.locator('#otBlock .ot-entwurf [data-ot-weg]').click();
+
+  // 4g) Review #92, P2: Übergabe offen, zweiter Termin wird gespeichert → Liste neu gezeichnet, Zeile sagt es, Haken von Hand bleiben;
+  //     abgesendet wird genau, was angehakt ist
+  schritt = 'P2 – Übergabe';
+  await page.evaluate(() => localStorage.setItem('spektron-ich', 'Ste'));
+  await oeffne(page, UEB3);
+  await page.locator('#goUebergabe').click();
+  const reihe = n => page.locator(`#bueroPanel [data-ab-anl] input[data-ab-anl-rel="Fotos/${n}"]`);
+  const B12 = 'Bilddokumentation_26.0709_Teststadt_2026-08-12.pdf', B20 = 'Bilddokumentation_26.0709_Teststadt_2026-08-20.pdf', SK = 'Skizze.pdf';
+  await reihe(SK).waitFor();
+  await page.waitForFunction(() => /2\._Mitteilung_/.test(document.querySelector('#bueroPanel [data-ab-word]')?.value || ''));
+  assert.deepEqual([await reihe(B12).isChecked(), await reihe(B20).isChecked(), await reihe(SK).isChecked()], [true, true, true], 'ein Termin: alle PDFs in Fotos');
+  await reihe(B20).uncheck();   // von Hand
+  await auf(page); await anlegen(page, 't2', '2026-08-20'); await gespeichert(page);
+  await page.waitForFunction(() => /^Vorauswahl geändert: weiterer Ortstermin/.test(document.querySelector('#bueroPanel [data-ab-anl-hinweis]')?.textContent || ''), null, { timeout: 8000 });
+  assert.deepEqual([await reihe(B12).isChecked(), await reihe(B20).isChecked(), await reihe(SK).isChecked()], [false, false, false], 'neu gerechnet; B20 bleibt von Hand abgehakt');
+  await reihe(SK).check();   // von Hand
+  const angehakt = await page.locator('#bueroPanel [data-ab-anl] input[data-ab-anl-rel]').evaluateAll(l => l.filter(e => e.checked).map(e => e.dataset.abAnlRel));
+  assert.deepEqual(angehakt, ['Fotos/' + SK]);
+  await page.locator('[data-ab-los]').click();
+  for (let i = 0; i < 40; i++){
+    if (await page.locator('#dlgBack.show #dYes').count()) await page.locator('#dlgBack.show #dYes').click();
+    if (/✓ Ans Büro übergeben|Nicht übergeben/.test(await page.locator('#bueroPanel [data-ab-msg]').textContent())) break;
+    await page.waitForTimeout(150);
+  }
+  assert.match(await page.locator('#bueroPanel [data-ab-msg]').textContent(), /✓ Ans Büro übergeben/);
+  const auftrag = await page.evaluate(async n => {
+    const suche = async d => { for await (const [k, h] of d.entries()){ if (h.kind === 'directory'){ if (k === 'aufgaben'){ for await (const [, f] of h.entries()) return JSON.parse(await (await f.getFile()).text()); } const r = await suche(h); if (r) return r; } } return null; };
+    return suche(await (await (await navigator.storage.getDirectory()).getDirectoryHandle('Mosaik Archivordner')).getDirectoryHandle(n));
+  }, UEB3);
+  const inAufgabe = JSON.stringify(auftrag);
+  assert.ok(inAufgabe.includes(JSON.stringify('Fotos/' + SK)), 'angehakte Zeile in der Aufgabe');
+  for (const n of [B12, B20]) assert.ok(!inAufgabe.includes(JSON.stringify('Fotos/' + n)), 'nicht angehakt, nicht in der Aufgabe: ' + n);
+
   // 5) Bestand „n Bilder“: direkt in Fotos und eine Ebene darunter, ohne „_…“/„.…“, ohne zweite Ebene
   schritt = 'Bilder zählen';
   await oeffne(page, BILDER);
@@ -309,7 +421,7 @@ let schritt = 'Start', seite = null;
 
   assert.deepEqual(errors, []);
   await browser.close(); server.close();
-  console.log(`OK (${name}): 1.53 weitere Ortstermine – ein Termin unverändert (Datei byte-gleich), Entwurf erst mit Datum gespeichert, ändern (auch Termin 1), Kopf „Ortstermine …“, Entfernen mit Rückfrage (FotoKit-Ordner und Bilddoku genannt, Abbrechen ändert nichts, FotoKit-Datei unberührt), Kennung nicht neu vergeben (Zähler ortsterminZaehler: sinkt nie, bleibt ohne weitere Termine, Bestand ohne Zähler, FotoKit-Datei mit Zähler nicht nötig), letzter entfernt → Feld weg, zwei Fenster ändern bzw. legen gleichzeitig an → Widerspruch ohne Überschreiben, „n Bilder“ mit Unterordnern, Übergabe hakt Bilddokus nach BerichtKit vor`);
+  console.log(`OK (${name}): 1.53 weitere Ortstermine – ein Termin unverändert (Datei byte-gleich), Entwurf erst mit Datum gespeichert, ändern (auch Termin 1), Kopf „Ortstermine …“, Entfernen mit Rückfrage (FotoKit-Ordner und Bilddoku genannt, Abbrechen ändert nichts, FotoKit-Datei unberührt), Kennung nicht neu vergeben (Zähler ortsterminZaehler: sinkt nie, bleibt ohne weitere Termine, Bestand ohne Zähler, FotoKit-Datei mit Zähler nicht nötig), letzter entfernt → Feld weg, zwei Fenster ändern bzw. legen gleichzeitig an → Widerspruch ohne Überschreiben, Schreiben verzögert: Anlegen/Ändern/Entfernen bauen auf dem laufenden Patch auf (auch wenn er scheitert), Entwurf je Projekt, offene Übergabe zeichnet die Vorauswahl neu und sendet genau die angehakten Zeilen, „n Bilder“ mit Unterordnern, Übergabe hakt Bilddokus nach BerichtKit vor`);
 })().catch(async e => {
   console.error(e);
   let zustand = '';
