@@ -1034,9 +1034,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.53.0';
+const APP_VERSION = '1.53.1';
 const APP_DATE = '2026-11-26';
 const CHANGELOG = [
+  ['1.53.1', '26.11.2026', 'Weitere Ortstermine, drei Korrekturen: (1) Wer schnell hintereinander Termine anlegt, ändert oder entfernt, während das Speichern noch läuft (langsames Netzlaufwerk), verliert nichts mehr – bisher konnte die zweite Änderung die erste überschreiben und ein gerade angelegter Termin wieder verschwinden. Scheitert ein Speichern, bleibt die neuere Eingabe je Termin erhalten, Älteres kommt nicht zurück. (2) Ein angefangener Termin ohne Datum in einem Projekt sperrt „+ Weiterer Ortstermin“ in anderen Projekten nicht mehr; er bleibt beim Projekt, bis man ihn fertig macht oder entfernt. (3) „Ans Büro übergeben“ sendet genau die Anlagen, die angehakt sind. Wird bei offener Übergabe ein weiterer Ortstermin gespeichert (oder entfernt), wird die Liste neu vorgewählt und eine Zeile sagt es; von Hand gesetzte Haken bleiben.'],
   ['1.53.0', '26.11.2026', 'Mehrere Ortstermine in einem Projekt: In den Projektdaten unter „Ortstermin“ steht ein kleiner Link „+ Weiterer Ortstermin“. Ab zwei Terminen zeigt die Karte je Termin eine Zeile mit Datum, Bezeichnung (frei, mit Vorschlägen Erstbegehung · Nachbeprobung · Freimessung) und „Wer war da“; Termin 1 ist weiter das bekannte Feld „Ortstermin“ (Pflichtangabe, Arbeitszettel und alle Apps lesen es wie bisher). Ein neuer Termin wird gespeichert, sobald sein Datum eingetragen ist. Eine Termin-Kennung wird nie ein zweites Mal vergeben – auch nicht nach dem Entfernen (Zähler in den Projektdaten). „Entfernen“ fragt nach und nennt, was FotoKit diesem Termin zugeordnet hat (Foto-Ordner werden dort wieder gelb, eine gemerkte Bilddokumentation bleibt liegen). Hat ein anderes Fenster die Termine inzwischen geändert, wird nichts überschrieben – es erscheint die bekannte Meldung. Im Kopf steht dann „Ortstermine 12.08. · 20.08.2026“. Dazu: „n Bilder“ zählt auch Fotos in Unterordnern von „Fotos“ (eine Ebene, ohne Ordner mit „_“ vorn), und bei mehreren Terminen hakt „Ans Büro übergeben“ PDFs aus „Fotos“ nur noch vor, wenn BerichtKit sie als Anlage der gewählten Mitteilung nennt. Ein Projekt mit einem Termin sieht aus wie bisher (bis auf den Link) und bekommt kein neues Feld.'],
   ['1.52.0', '21.11.2026', 'Neu: LagerKit – Rückstellproben im Büro. Unter „⋯ Büro & Apps“ öffnet „LagerKit“ die Übersicht (was liegt wo, was ist fällig); im Projekt unter „Mehr zum Projekt …“ öffnet „Rückstellproben (LagerKit)“ das Projekt direkt in LagerKit. Gibt es für das Projekt Rückstellproben, steht dort eine Zeile mit Anzahl und nächster Frist (aus der LagerKit-Übersicht, nur gelesen). Sonst unverändert.'],
   ['1.51.6', '21.11.2026', 'Durchlaufzeiten: Wurde „Neu einlesen“ geklickt, während die Durchlaufzeiten noch im Hintergrund gelesen wurden, und war dabei ein Projekt kurz nicht lesbar, meldete die Projektzentrale im Hintergrund einen Fehler („Cannot read properties of null“). Ergebnisse zur verworfenen Auswertung werden jetzt nicht mehr eingetragen; beim nächsten Öffnen liest der Dialog neu. Sonst unverändert (Audit Lauf 5).'],
@@ -1349,7 +1350,7 @@ function pjBauen(name, data, patch){
 
 
 /* ---------- state ---------- */
-const S = { archive: null, ma: null, projects: [], others: [], sel: null, year: '', q: '', scanToken: 0, pj: null, pjDirty: {}, pjTimer: null, pjWriting: Promise.resolve(),
+const S = { pjUnterwegs: [], otEntwuerfe: new Map(), archive: null, ma: null, projects: [], others: [], sel: null, year: '', q: '', scanToken: 0, pj: null, pjDirty: {}, pjTimer: null, pjWriting: Promise.resolve(),
   azMeldung: new Map(), azKand: new Map(), azZu: new Set(), azLaeuft: new Set(), azGeprueft: new Map(), pjInline: new Set() };   // 1.48: Arbeitszettel aus dem Projektordner (Meldung je Projekt, Fund, geschlossene Meldungen)
 /* ---------- Sprung aus einer App ----------
    #projekt=<Ordnername> öffnet das Projekt; &uebergabe=<Pfad der Word-Datei> (BerichtKit „Ans Büro übergeben →“) klappt
@@ -2375,7 +2376,7 @@ function abGeruest(p, d){
         <div><label>Word-Datei (Ordner „Mitteilungen“)<select data-ab-word><option value="">– keine Word-Datei –</option></select></label>
           <div class="ab-klein" data-ab-word-hinweis hidden></div></div>
         <div><div class="ab-klein">Empfänger – anhaken, wer das Gutachten bekommt</div><div class="ab-empf">${rows}</div></div>
-        <div><div class="ab-klein">Anlagen – anhaken, was mit dem Gutachten mitgeht</div><div class="ab-anl" data-ab-anl></div>
+        <div><div class="ab-klein">Anlagen – anhaken, was mit dem Gutachten mitgeht</div><div class="ab-klein warn" data-ab-anl-hinweis role="status" hidden></div><div class="ab-anl" data-ab-anl></div>
           <input type="text" data-ab-anl-text maxlength="400" aria-label="Weitere Anlagen" placeholder="Weitere Anlagen, z. B. Laborberichte Eurofins (mehrere mit ; trennen)"></div>
         <div class="ab-abr" data-ab-abr></div>
         <div class="ab-zwei"><label>Fällig bis (optional)<input type="date" data-ab-faellig></label><label>Hinweis fürs Büro (optional)<textarea data-ab-hinweis rows="2"></textarea></label></div>
@@ -2444,7 +2445,16 @@ function bueroZeigen(p){
       : '<span class="ab-klein">Keine Dateien in Mitteilungen, Fotos (PDF), Pläne oder Laborergebnisse (PDF) – Anlagen ggf. unten eintragen.</span>';
     anlEl.dataset.key = anlKey;
   }
-  anlEl.querySelectorAll('[data-ab-anl-rel]').forEach(el => { const x = anl.find(y => y.rel === el.dataset.abAnlRel); el.checked = d.anl[x.rel] === undefined ? abAnlVorschlag(x, bk) : d.anl[x.rel]; });
+  // 1.53.1: Ändert sich die Vorauswahl bei offener Übergabe (weiterer Ortstermin gespeichert oder entfernt), sagt es eine Zeile;
+  // von Hand gesetzte Haken (d.anl) bleiben. Abgesendet wird, was hier angehakt ist (abUebergeben, Review #92, P2).
+  const mehrere = Ortstermine.mehrere((S.pj && S.pj.data) || {}), neuGezeigt = {};
+  for (const x of anl) neuGezeigt[x.rel] = d.anl[x.rel] === undefined ? abAnlVorschlag(x, bk) : d.anl[x.rel];
+  if (d.anlMehrere !== undefined && d.anlMehrere !== mehrere && st.anl && Object.keys(neuGezeigt).some(r => d.anlGezeigt && r in d.anlGezeigt && d.anlGezeigt[r] !== neuGezeigt[r]))
+    d.anlHinweis = mehrere ? 'Vorauswahl geändert: weiterer Ortstermin – PDFs in „Fotos“ sind nur noch angehakt, wenn BerichtKit sie zur gewählten Mitteilung nennt. Von Hand gesetzte Haken bleiben.'
+      : 'Vorauswahl geändert: nur noch ein Ortstermin – PDFs in „Fotos“ sind wieder angehakt. Von Hand gesetzte Haken bleiben.';
+  if (st.anl){ d.anlMehrere = mehrere; d.anlGezeigt = neuGezeigt; }
+  const anlH = q('[data-ab-anl-hinweis]'); if (anlH.textContent !== (d.anlHinweis || '')){ anlH.textContent = d.anlHinweis || ''; } anlH.hidden = !d.anlHinweis;
+  anlEl.querySelectorAll('[data-ab-anl-rel]').forEach(el => { el.checked = !!neuGezeigt[el.dataset.abAnlRel]; });
   q('[data-ab-anl-text]').readOnly = ro;
   const abrEl = q('[data-ab-abr]');
   const abrHtml = st.abr === undefined && !st.r ? '' : st.abr ? `✓ Abrechnungsstand aus BelegKit vom ${esc(deDatum(st.abr.datum))} – danach schreibt das Büro die Rechnung. Kommen noch Zeiten dazu: in BelegKit neu „Stand speichern“, spätestens wenn die PDF des Büros da ist.`
@@ -2519,6 +2529,9 @@ async function abUebergeben(p){
   if (!von){ st.msg = 'Bitte oben bei „Ich bin …“ dein Kürzel wählen – dann übergeben.'; st.msgErr = true; zeigen(); if ($('ich') && !$('ich').disabled) $('ich').focus(); return; }
   const vorschlag = abVorschlag();
   const empfaenger = vorschlag.map((v, i) => ({ gruppe: v.gruppe, label: v.label, details: abDetails(d, v, i), an: abAn(d, v, i) })).filter(r => r.an).map(({ gruppe, label, details }) => ({ gruppe, label, details }));
+  // 1.53.1: Anlagen = genau die Zeilen, die beim Klick angehakt sind (nicht neu gerechnet – Review #92, P2)
+  const anlBox = document.querySelector('#bueroPanel [data-ab-anl]');
+  const angehakt = anlBox && st.anl ? [...anlBox.querySelectorAll('input[data-ab-anl-rel]')].filter(el => el.checked).map(el => el.dataset.abAnlRel) : null;
   if (abWordOffen(st, d)){ st.msg = 'Bitte die Mitteilung auswählen (oder „– keine Word-Datei –“, wenn ohne Word-Datei übergeben wird).'; st.msgErr = true; zeigen();
     const sel = document.querySelector('#bueroPanel [data-ab-word]'); if (sel && !sel.disabled) sel.focus(); return; }
   st.busy = true; st.msg = ''; st.msgErr = false; zeigen();
@@ -2533,7 +2546,7 @@ async function abUebergeben(p){
     const word = abWordWahl(st, d), bk = abBkAnlagen(st, word);
     // Lücken erst prüfen, wenn sonst alles passt (ohne Empfänger meldet aufgabeAnlegen das Nötige – keine Rückfrage vorher)
     if (empfaenger.some(r => String(r.details || '').trim()) && !(await abLueckenOk(st, word))){ st.busy = false; zeigen(); return; }
-    const anlagen = [...(st.anl || []).filter(x => x.rel !== word && (d.anl[x.rel] === undefined ? abAnlVorschlag(x, bk) : d.anl[x.rel])).map(x => x.rel),
+    const anlagen = [...(angehakt ? angehakt.filter(r => r !== word) : (st.anl || []).filter(x => x.rel !== word && (d.anl[x.rel] === undefined ? abAnlVorschlag(x, bk) : d.anl[x.rel])).map(x => x.rel)),
       ...String(d.anlText || '').split(/[;\n]/).map(x => x.trim()).filter(Boolean)];
     await BueroAufgaben.aufgabeAnlegen(p.handle, { art: 'gutachten', titel: 'Gutachten', von, word, faellig: d.faellig || '', hinweis: d.hinweis, empfaenger, anlagen });
     ok = true;
@@ -2601,7 +2614,17 @@ const PJ_GRUPPEN = [['Objekt und Auftrag', ['objekt', 'nutzung', 'auftraggeber',
    FotoKits Datei wird nur gelesen (nächste Kennung, Rückfrage beim Entfernen) – nie geschrieben. */
 const OT_NACH = 'sachverstaendiger';   // Block als ganze Zeile direkt unter der Zeile „Ortstermin · Sachverständiger“
 /** Stand der Projektdaten mit noch nicht gespeicherten Eingaben (null = Feld wird entfernt). */
-const otStand = () => ({ ...((S.pj && S.pj.data) || {}), ...S.pjDirty });
+const otStand = () => ({ ...((S.pj && S.pj.data) || {}),
+  ...S.pjUnterwegs.filter(x => S.sel && x.name === S.sel.name).reduce((a, x) => ({ ...a, ...x.patch }), {}),   // gerade geschrieben (1.53.1)
+  ...S.pjDirty });
+/** Liste der weiteren Termine ändern – immer mit dem Zähler im selben Patch (O13; Widerspruchsprüfung für beide). */
+function otListeSetzen(liste, zaehler){
+  const z = zaehler || Ortstermine.zaehler(otStand());
+  if (z) S.pjDirty.ortsterminZaehler = z;
+  S.pjDirty.weitereOrtstermine = liste;
+}
+/** 1.53.1: Entwurf je Projekt (Review #92, P2) – beim Projektwechsel bleibt er beim alten Projekt, wie dort offene Eingaben. */
+const otEntwurfVon = p => S.otEntwuerfe.get(p.name) || null;
 const otRoh = d => Array.isArray(d.weitereOrtstermine) ? d.weitereOrtstermine : [];
 function kopfSumme(d){
   return [d.objekt, d.auftraggeber, Ortstermine.zusammenfassung(d)].map(x => String(x || '').trim()).filter(Boolean).join(' · ') || 'Objekt und Auftraggeber noch nicht eingetragen';
@@ -2624,7 +2647,7 @@ function otT1Datum(){
 }
 function otZeichnen(p, ro){
   const box = $('otBlock'); if (!box || S.sel !== p) return;
-  const d = otStand(), l = Ortstermine.liste(d), e = S.otEntwurf && S.otEntwurf.name === p.name ? S.otEntwurf : null;
+  const d = otStand(), l = Ortstermine.liste(d), e = otEntwurfVon(p);
   const bez = String(d.ortsterminBezeichnung || ''), wer = String(d.ortsterminWer || '');
   const ae = document.activeElement, fokus = ae && box.contains(ae) && ae.id ? { id: ae.id, a: ae.selectionStart, b: ae.selectionEnd } : null;
   const neuKnopf = ro || e ? '' : `<button type="button" class="linkbtn ot-neu" id="otNeu" title="Zweiter, dritter … Besuch im selben Projekt (z. B. Nachbeprobung, Freimessung) – FotoKit ordnet die Foto-Ordner später je Termin zu">+ Weiterer Ortstermin</button>`;
@@ -2662,41 +2685,41 @@ function otKnoepfe(p, ro){
 function otEingabe(p, el){
   if (S.sel !== p) return;
   const id = el.dataset.ot, feld = el.dataset.otFeld, v = el.value;
-  const e = S.otEntwurf && S.otEntwurf.name === p.name && S.otEntwurf.id === id ? S.otEntwurf : null;
+  const e = otEntwurfVon(p) && otEntwurfVon(p).id === id ? otEntwurfVon(p) : null;
   if (id === 't1'){ S.pjDirty[feld === 'wer' ? 'ortsterminWer' : 'ortsterminBezeichnung'] = v.trim() ? v : null; schedulePJ(); return; }
   if (e){
     e[feld] = v;
     if (feld !== 'datum' || !Ortstermine.gueltig(v)) return;   // Entwurf bleibt, bis ein gültiges Datum da ist
-    S.otEntwurf = null;
+    S.otEntwuerfe.delete(p.name);
     // Inzwischen hat ein anderes Fenster (oder FotoKit) dieselbe Kennung vergeben und dieses Fenster hat es schon gelesen: nächste freie nehmen
     // (nimmt den Zähler, falls es ihn gibt – FotoKits Datei braucht es dafür nicht)
     let neu = e.id;
     if (Ortstermine.inGebrauch(otStand()).has(Ortstermine.nummer(neu)) || Ortstermine.nummer(neu) <= (Ortstermine.zaehler(otStand()) || 0))
       neu = Ortstermine.naechsteKennung(otStand(), null, [neu]);
     // Liste und Zähler in einem Patch: die Widerspruchsprüfung gilt für beide; ohne Zähler wird er hier angelegt
-    S.pjDirty.ortsterminZaehler = Ortstermine.zaehlerNach(otStand(), neu);
-    S.pjDirty.weitereOrtstermine = [...otRoh(otStand()), { id: neu, datum: e.datum, bezeichnung: e.bezeichnung, wer: e.wer }];
+    otListeSetzen([...otRoh(otStand()), { id: neu, datum: e.datum, bezeichnung: e.bezeichnung, wer: e.wer }], Ortstermine.zaehlerNach(otStand(), neu));
     schedulePJ(); otZeichnen(p, false);
     if (neu !== e.id && $(`pj_ot_${neu}_datum`)) $(`pj_ot_${neu}_datum`).focus({ preventScroll: true });
     return;
   }
-  S.pjDirty.weitereOrtstermine = otRoh(otStand()).map(t => t && t.id === id ? { ...t, [feld]: v } : t);
+  otListeSetzen(otRoh(otStand()).map(t => t && t.id === id ? { ...t, [feld]: v } : t));
   schedulePJ();
   if (feld === 'datum'){ const z = el.closest('.ot-zeile'); if (z) z.classList.toggle('ot-ohne-datum', !Ortstermine.gueltig(v)); }
 }
 /** „+ Weiterer Ortstermin“: Entwurfszeile mit der nächsten Kennung = ortsterminZaehler + 1. Ohne Zähler (erster weiterer
     Termin, Bestand) aus allem, was irgendwo steht – dann muss FotoKits Datei lesbar sein, sonst wird nichts angelegt. */
 async function otNeu(p){
-  if (S.sel !== p || S.otEntwurf) return;
+  if (S.sel !== p || otEntwurfVon(p)) return;   // nur ein Entwurf dieses Projekts sperrt (Review #92, P2)
   const fk = Ortstermine.zaehler(otStand()) ? { data: null } : await otFotoKitLesen(p);
   if (S.sel !== p) return;
   if (fk.fehler){ banner('err', `Weiterer Ortstermin nicht angelegt: FotoKits „_Bildumbenenner.json“ ist nicht lesbar (${esc(fk.fehler)}). Ohne sie lässt sich nicht sicher prüfen, welche Termin-Kennung frei ist.`); return; }
+  if (otEntwurfVon(p)) return;   // inzwischen doppelt geklickt
   const id = Ortstermine.naechsteKennung(otStand(), fk.data);
-  S.otEntwurf = { name: p.name, id, datum: '', bezeichnung: '', wer: '' };
+  S.otEntwuerfe.set(p.name, { name: p.name, id, datum: '', bezeichnung: '', wer: '' });
   otZeichnen(p, false);
   const el = $(`pj_ot_${id}_datum`); if (el) el.focus();
 }
-function otEntwurfWeg(p){ S.otEntwurf = null; otZeichnen(p, false); if ($('otNeu')) $('otNeu').focus(); }
+function otEntwurfWeg(p){ S.otEntwuerfe.delete(p.name); otZeichnen(p, false); if ($('otNeu')) $('otNeu').focus(); }
 /** „Entfernen“ (O12): Rückfrage nennt, was FotoKit diesem Termin zugeordnet hat; FotoKits Datei bleibt unberührt. */
 async function otEntfernen(p, id){
   if (S.sel !== p) return;
@@ -2717,8 +2740,8 @@ async function otEntfernen(p, id){
   if (S.sel !== p) return;
   const rest = otRoh(otStand()).filter(x => !(x && x.id === id));
   // Zähler bleibt (sinkt nie); fehlt er (Bestand), wird er jetzt angelegt – sonst wäre die Kennung danach wieder frei
-  if (!Ortstermine.zaehler(otStand())) S.pjDirty.ortsterminZaehler = Math.max(...Ortstermine.inGebrauch(otStand(), fk.data));
-  S.pjDirty.weitereOrtstermine = rest.length ? rest : null;
+  // (rest und Zähler aus otStand: auch ein gerade geschriebener Patch zählt – Review #92, P1 trifft diesen Weg genauso)
+  otListeSetzen(rest.length ? rest : null, Ortstermine.zaehler(otStand()) || Math.max(...Ortstermine.inGebrauch(otStand(), fk.data)));
   otZeichnen(p, false);
   await flushPJ();
   if (S.sel === p) renderDetail();   // Kopfzeile, Übergabe (Vorhaken in „Fotos“) und Liste neu
@@ -3111,6 +3134,10 @@ function flushPJ(){
   S.pjDirty = {};
   // Texte getrimmt; die Liste der weiteren Ortstermine je Eintrag (ortstermine.js), null entfernt ein Feld (pjBauen)
   for (const k of Object.keys(patch)) patch[k] = k === 'weitereOrtstermine' ? Ortstermine.bereinigt(patch[k]) : typeof patch[k] === 'string' ? patch[k].trim() : patch[k];
+  // 1.53.1: Solange der Patch geschrieben wird, gehört er zum Stand, auf dem weitere Eingaben aufbauen (otStand) – sonst baut
+  // eine zweite Änderung an den Ortsterminen die Liste aus dem alten Stand und überschreibt die erste (Codex-Review #92, P1).
+  const unterwegs = { name: p.name, patch };
+  S.pjUnterwegs.push(unterwegs);
   S.pjWriting = S.pjWriting.then(async () => {
     try{
       const o = await patchPJ(await pjDir(p, true), p.name, patch, S.pj?.data);
@@ -3118,12 +3145,20 @@ function flushPJ(){
         S.pj = { data: o, exists: true };S.pjStatus={name:p.name,kind:'ok'};showPJAttention();S.pjRecoveryRefresh?.();
         if ($('pjSumme')) $('pjSumme').textContent = kopfSumme(o);
         const el = $('pjSave'); if (el){ el.className = 'save ok'; el.textContent = `✓ Gespeichert ${new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`; el.title = `in ${PJ_FILE} im Projektordner`; }
+        if ('weitereOrtstermine' in patch) bueroZeigen(p);   // 1.53.1: Vorauswahl der Anlagen hängt daran (Review #92, P2)
       }
       if (p.st) p.st.pj = true;
     }catch(e){
-      S.pjDirty = Object.assign({}, patch, S.pjDirty);   // newer edits win
+      // Neuere Eingaben gewinnen – auch die, die schon unterwegs sind (sie bauen auf diesem Patch auf). Für die Ortstermine heißt
+      // das je Termin: die neuere Liste enthält jeden Termin dieses Patches in seiner neuesten Fassung (oder er wurde danach entfernt).
+      const spaeter = S.pjUnterwegs.slice(S.pjUnterwegs.indexOf(unterwegs) + 1).filter(x => x.name === p.name);
+      const zurueck = {};
+      for (const k of Object.keys(patch)) if (!(k in S.pjDirty) && !spaeter.some(x => k in x.patch)) zurueck[k] = patch[k];
+      S.pjDirty = Object.assign(zurueck, S.pjDirty);
       S.pjStatus={name:p.name,kind:'err',text:'Projektdaten nicht gespeichert: '+e.message};showPJAttention();
       const el = $('pjSave'); if (el && S.sel === p){ el.className = 'save err'; el.textContent = 'Nicht gespeichert: ' + e.message; }
+    }finally{
+      S.pjUnterwegs.splice(S.pjUnterwegs.indexOf(unterwegs), 1);
     }
   });
   return S.pjWriting;

@@ -2,7 +2,14 @@
 
 Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung, GlasKit (Gebäude aus Glas, 3D-Ansicht der PlanKit-Pläne) und LexiKit (Themensuche in den fertigen Berichten).
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.53.0** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.53.1** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Neu in 1.53.1 · 26.11.2026 – Ortstermine: drei Befunde aus dem Codex-Review zu #92
+
+- **Speichern läuft noch (P1):** `flushPJ` leert `S.pjDirty`, bevor geschrieben ist. Neu `S.pjUnterwegs` (Patches, die gerade geschrieben werden, je Projekt); `otStand()` = gespeicherter Stand + unterwegs + `S.pjDirty`. Damit bauen Anlegen, Ändern, Entfernen und der Zähler (`ortsterminZaehler`) immer auf dem Patch auf, der gerade geschrieben wird – vorher konnte eine zweite Änderung die Liste aus dem alten Stand bauen (Termin weg, Kennung doppelt, entfernter Termin wieder da). Jede Änderung der Liste schreibt den Zähler mit (`otListeSetzen`). Scheitert ein Schreiben, kommt ein Feld nur zurück in die offenen Eingaben, wenn weder eine offene Eingabe noch ein späterer Patch unterwegs es enthält („neuere Eingaben gewinnen“ – für die Liste je Termin, weil jede neuere Liste auf der älteren aufbaut). Gilt für alle Felder; bisher konnte ein gescheiterter Patch einen späteren überschreiben.
+- **Entwurf je Projekt (P2):** `S.otEntwuerfe` (Map nach Projekt) statt eines Entwurfs; nur ein Entwurf desselben Projekts sperrt „+ Weiterer Ortstermin“. Beim Projektwechsel bleibt er beim alten Projekt – wie dort offene Eingaben, die der Wechsel nicht verwirft (ein Entwurf ohne Datum lässt sich nicht speichern).
+- **Übergabe (P2):** Nach dem Speichern von `weitereOrtstermine` wird die Übergabe neu gezeichnet; ändert sich die Vorauswahl bei offenem Formular, steht darüber „Vorauswahl geändert: weiterer Ortstermin …“ (bzw. „nur noch ein Ortstermin …“), von Hand gesetzte Haken bleiben. Abgesendet werden genau die beim Klick angehakten Zeilen (nicht neu gerechnet).
+- Tests in `tests/ortstermine-browser.cjs` (Schreiben künstlich verzögert bzw. einmal scheiternd; Entwurf in A, Wechsel zu B; Übergabe offen, Termin speichern, absenden). Jeder Teil ist ohne seine Korrektur rot. sw.js Cache v51.
 
 ## Neu in 1.53.0 · 26.11.2026 – Mehrere Ortstermine in einem Projekt (FotoKit-Ortstermine, Plan 4.1)
 
