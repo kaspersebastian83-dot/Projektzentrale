@@ -58,6 +58,7 @@ jobs:
       - run: node tests/hilfe-links.cjs
       - run: node tests/rueckmeldung-link.cjs
       - run: node tests/stufen.cjs
+      - run: node tests/ortstermine.cjs
       - run: node tests/word-luecken.cjs
       - run: node tests/word-wahl.cjs
 
@@ -106,6 +107,8 @@ jobs:
         run: node tests/meilensteine-browser.cjs ${{ matrix.browser }}
       - name: Lead times read in the background while „Neu einlesen“ discards them (no script error)
         run: node tests/durchlauf-neu-browser.cjs ${{ matrix.browser }}
+      - name: Further site visits in the project data – add, change, remove, two windows, photo count, hand-over (1.53)
+        run: node tests/ortstermine-browser.cjs ${{ matrix.browser }}
       - name: Independent F3 sessions and explicit recovery (synthetic shared disk)
         run: node tests/project-store-browser.cjs ${{ matrix.browser }}
       - name: Responsible person from the folder name, staff list and project data
