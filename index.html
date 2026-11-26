@@ -1037,7 +1037,7 @@ const ANLAGE = (() => {
 const APP_VERSION = '1.53.0';
 const APP_DATE = '2026-11-26';
 const CHANGELOG = [
-  ['1.53.0', '26.11.2026', 'Mehrere Ortstermine in einem Projekt: In den Projektdaten unter „Ortstermin“ steht ein kleiner Link „+ Weiterer Ortstermin“. Ab zwei Terminen zeigt die Karte je Termin eine Zeile mit Datum, Bezeichnung (frei, mit Vorschlägen Erstbegehung · Nachbeprobung · Freimessung) und „Wer war da“; Termin 1 ist weiter das bekannte Feld „Ortstermin“ (Pflichtangabe, Arbeitszettel und alle Apps lesen es wie bisher). Ein neuer Termin wird gespeichert, sobald sein Datum eingetragen ist. „Entfernen“ fragt nach und nennt, was FotoKit diesem Termin zugeordnet hat (Foto-Ordner werden dort wieder gelb, eine gemerkte Bilddokumentation bleibt liegen). Hat ein anderes Fenster die Termine inzwischen geändert, wird nichts überschrieben – es erscheint die bekannte Meldung. Im Kopf steht dann „Ortstermine 12.08. · 20.08.2026“. Dazu: „n Bilder“ zählt auch Fotos in Unterordnern von „Fotos“ (eine Ebene, ohne Ordner mit „_“ vorn), und bei mehreren Terminen hakt „Ans Büro übergeben“ PDFs aus „Fotos“ nur noch vor, wenn BerichtKit sie als Anlage der gewählten Mitteilung nennt. Ein Projekt mit einem Termin sieht aus wie bisher (bis auf den Link) und bekommt kein neues Feld.'],
+  ['1.53.0', '26.11.2026', 'Mehrere Ortstermine in einem Projekt: In den Projektdaten unter „Ortstermin“ steht ein kleiner Link „+ Weiterer Ortstermin“. Ab zwei Terminen zeigt die Karte je Termin eine Zeile mit Datum, Bezeichnung (frei, mit Vorschlägen Erstbegehung · Nachbeprobung · Freimessung) und „Wer war da“; Termin 1 ist weiter das bekannte Feld „Ortstermin“ (Pflichtangabe, Arbeitszettel und alle Apps lesen es wie bisher). Ein neuer Termin wird gespeichert, sobald sein Datum eingetragen ist. Eine Termin-Kennung wird nie ein zweites Mal vergeben – auch nicht nach dem Entfernen (Zähler in den Projektdaten). „Entfernen“ fragt nach und nennt, was FotoKit diesem Termin zugeordnet hat (Foto-Ordner werden dort wieder gelb, eine gemerkte Bilddokumentation bleibt liegen). Hat ein anderes Fenster die Termine inzwischen geändert, wird nichts überschrieben – es erscheint die bekannte Meldung. Im Kopf steht dann „Ortstermine 12.08. · 20.08.2026“. Dazu: „n Bilder“ zählt auch Fotos in Unterordnern von „Fotos“ (eine Ebene, ohne Ordner mit „_“ vorn), und bei mehreren Terminen hakt „Ans Büro übergeben“ PDFs aus „Fotos“ nur noch vor, wenn BerichtKit sie als Anlage der gewählten Mitteilung nennt. Ein Projekt mit einem Termin sieht aus wie bisher (bis auf den Link) und bekommt kein neues Feld.'],
   ['1.52.0', '21.11.2026', 'Neu: LagerKit – Rückstellproben im Büro. Unter „⋯ Büro & Apps“ öffnet „LagerKit“ die Übersicht (was liegt wo, was ist fällig); im Projekt unter „Mehr zum Projekt …“ öffnet „Rückstellproben (LagerKit)“ das Projekt direkt in LagerKit. Gibt es für das Projekt Rückstellproben, steht dort eine Zeile mit Anzahl und nächster Frist (aus der LagerKit-Übersicht, nur gelesen). Sonst unverändert.'],
   ['1.51.6', '21.11.2026', 'Durchlaufzeiten: Wurde „Neu einlesen“ geklickt, während die Durchlaufzeiten noch im Hintergrund gelesen wurden, und war dabei ein Projekt kurz nicht lesbar, meldete die Projektzentrale im Hintergrund einen Fehler („Cannot read properties of null“). Ergebnisse zur verworfenen Auswertung werden jetzt nicht mehr eingetragen; beim nächsten Öffnen liest der Dialog neu. Sonst unverändert (Audit Lauf 5).'],
   ['1.51.5', '21.11.2026', 'Projektstand: Wurde „Neu einlesen“ geklickt, während der Stand eines Projekts noch gelesen wurde, meldete die Projektzentrale im Hintergrund einen Fehler („Cannot read properties of null“). Das alte Ergebnis wird jetzt verworfen, der Stand wie gewohnt neu gelesen. Sonst unverändert (Audit Lauf 5, gefunden von der Spektron-Kette).'],
@@ -2669,8 +2669,12 @@ function otEingabe(p, el){
     if (feld !== 'datum' || !Ortstermine.gueltig(v)) return;   // Entwurf bleibt, bis ein gültiges Datum da ist
     S.otEntwurf = null;
     // Inzwischen hat ein anderes Fenster (oder FotoKit) dieselbe Kennung vergeben und dieses Fenster hat es schon gelesen: nächste freie nehmen
+    // (nimmt den Zähler, falls es ihn gibt – FotoKits Datei braucht es dafür nicht)
     let neu = e.id;
-    if (Ortstermine.inGebrauch(otStand()).has(Ortstermine.nummer(neu))) neu = Ortstermine.naechsteKennung(otStand(), null, [neu]);
+    if (Ortstermine.inGebrauch(otStand()).has(Ortstermine.nummer(neu)) || Ortstermine.nummer(neu) <= (Ortstermine.zaehler(otStand()) || 0))
+      neu = Ortstermine.naechsteKennung(otStand(), null, [neu]);
+    // Liste und Zähler in einem Patch: die Widerspruchsprüfung gilt für beide; ohne Zähler wird er hier angelegt
+    S.pjDirty.ortsterminZaehler = Ortstermine.zaehlerNach(otStand(), neu);
     S.pjDirty.weitereOrtstermine = [...otRoh(otStand()), { id: neu, datum: e.datum, bezeichnung: e.bezeichnung, wer: e.wer }];
     schedulePJ(); otZeichnen(p, false);
     if (neu !== e.id && $(`pj_ot_${neu}_datum`)) $(`pj_ot_${neu}_datum`).focus({ preventScroll: true });
@@ -2680,10 +2684,11 @@ function otEingabe(p, el){
   schedulePJ();
   if (feld === 'datum'){ const z = el.closest('.ot-zeile'); if (z) z.classList.toggle('ot-ohne-datum', !Ortstermine.gueltig(v)); }
 }
-/** „+ Weiterer Ortstermin“: Entwurfszeile mit der nächsten freien Kennung (auch in FotoKit noch stehende zählen mit). */
+/** „+ Weiterer Ortstermin“: Entwurfszeile mit der nächsten Kennung = ortsterminZaehler + 1. Ohne Zähler (erster weiterer
+    Termin, Bestand) aus allem, was irgendwo steht – dann muss FotoKits Datei lesbar sein, sonst wird nichts angelegt. */
 async function otNeu(p){
   if (S.sel !== p || S.otEntwurf) return;
-  const fk = await otFotoKitLesen(p);
+  const fk = Ortstermine.zaehler(otStand()) ? { data: null } : await otFotoKitLesen(p);
   if (S.sel !== p) return;
   if (fk.fehler){ banner('err', `Weiterer Ortstermin nicht angelegt: FotoKits „_Bildumbenenner.json“ ist nicht lesbar (${esc(fk.fehler)}). Ohne sie lässt sich nicht sicher prüfen, welche Termin-Kennung frei ist.`); return; }
   const id = Ortstermine.naechsteKennung(otStand(), fk.data);
@@ -2711,6 +2716,8 @@ async function otEntfernen(p, id){
   if (!await confirmDialog(`Ortstermin ${nr} entfernen?`, teile.join(''), 'Entfernen')) return;
   if (S.sel !== p) return;
   const rest = otRoh(otStand()).filter(x => !(x && x.id === id));
+  // Zähler bleibt (sinkt nie); fehlt er (Bestand), wird er jetzt angelegt – sonst wäre die Kennung danach wieder frei
+  if (!Ortstermine.zaehler(otStand())) S.pjDirty.ortsterminZaehler = Math.max(...Ortstermine.inGebrauch(otStand(), fk.data));
   S.pjDirty.weitereOrtstermine = rest.length ? rest : null;
   otZeichnen(p, false);
   await flushPJ();

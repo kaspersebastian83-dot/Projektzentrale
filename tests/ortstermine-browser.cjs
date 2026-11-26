@@ -13,6 +13,7 @@ const playwright = require('playwright');
 const name = process.argv[2] || 'chromium';
 const root = path.join(__dirname, '..');
 const EINS = '26.0701 Termine Teststadt', BILDER = '26.0702 Bilder Teststadt', UEB1 = '26.0703 Eins Teststadt', UEB2 = '26.0704 Zwei Teststadt';
+const ZAEHL = '26.0705 Zaehler Teststadt', BESTAND = '26.0706 Bestand Teststadt', KAPUTT = '26.0707 Kaputt Teststadt';
 const TYP = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.pdf': 'application/pdf' };
 const errors = [];
 let schritt = 'Start', seite = null;
@@ -46,7 +47,7 @@ let schritt = 'Start', seite = null;
   const PJ1 = { format: 'mosaik-projekt', version: 1, hinweis: 'Gemeinsame Projektdaten', objekt: 'EFH, Testweg 1', auftraggeber: 'Muster Versicherung AG', ortstermin: '2026-08-12' };
   const EINS_TEXT = JSON.stringify(PJ1, null, 2) + '\n';
   // Archiv: EINS (ein Termin) · BILDER (Fotos in Unterordnern) · UEB1/UEB2 (Übergabe mit zwei Bilddokus, ein bzw. zwei Termine)
-  await page.evaluate(async ([eins, einsText, bilder, ueb1, ueb2, pj1]) => {
+  await page.evaluate(async ([eins, einsText, bilder, ueb1, ueb2, pj1, zaehl, bestand, kaputt]) => {
     const r = await navigator.storage.getDirectory();
     for await (const [n] of r.entries()) await r.removeEntry(n, { recursive: true });
     const archiv = await r.getDirectoryHandle('Mosaik Archivordner', { create: true });
@@ -68,7 +69,13 @@ let schritt = 'Start', seite = null;
       await put(m, '_BerichtKit.json', JSON.stringify({ format: 'spektron-bericht', version: 1, projekt: nr, form: {},
         berichte: [{ datei: `2._Mitteilung_${nr}.docx`, am: '2026-11-26T09:00:00.000Z', anlagen: [`Fotos/Bilddokumentation_${nr}_Teststadt_2026-08-20.pdf`] }] }));
     }
-  }, [EINS, EINS_TEXT, BILDER, UEB1, UEB2, PJ1]);
+    // Zähler: ZAEHL ohne FotoKit-Datei; BESTAND mit t2 ohne Zähler, FotoKit nennt t5; KAPUTT mit t2 ohne Zähler, FotoKit-Datei nicht lesbar
+    await put(await sub(archiv, zaehl), '_Projekt.json', JSON.stringify(pj1));
+    const pBe = await sub(archiv, bestand); await put(pBe, '_Projekt.json', JSON.stringify({ ...pj1, weitereOrtstermine: [{ id: 't2', datum: '2026-08-20', bezeichnung: '', wer: '' }] }));
+    await put(await sub(pBe, 'Fotos'), '_Bildumbenenner.json', JSON.stringify({ format: 1, version: '2.7.0', bilder: {}, bilddokus: { t5: { dateien: ['alt.pdf'] } } }));
+    const pK = await sub(archiv, kaputt); await put(pK, '_Projekt.json', JSON.stringify({ ...pj1, weitereOrtstermine: [{ id: 't2', datum: '2026-08-20', bezeichnung: '', wer: '' }] }));
+    await put(await sub(pK, 'Fotos'), '_Bildumbenenner.json', '{ kaputt');
+  }, [EINS, EINS_TEXT, BILDER, UEB1, UEB2, PJ1, ZAEHL, BESTAND, KAPUTT]);
 
   const start = async pg => { await pg.locator('#btnStart, #btnArchive').first().click(); await pg.locator(`.proj[data-name="${EINS}"]`).waitFor(); };
   await start(page);
@@ -118,6 +125,7 @@ let schritt = 'Start', seite = null;
   await warte(async () => Array.isArray((await lese(EINS)).weitereOrtstermine), 'Liste gespeichert');
   assert.deepEqual((await lese(EINS)).weitereOrtstermine, [{ id: 't2', datum: '2026-08-20', bezeichnung: 'Nachbeprobung', wer: '' }]);
   assert.equal((await lese(EINS)).ortstermin, '2026-08-12', 'Termin 1 unverändert');
+  assert.equal((await lese(EINS)).ortsterminZaehler, 2, 'Zähler im selben Patch angelegt');
   assert.equal(await page.locator('#pjSumme').textContent(), 'EFH, Testweg 1 · Muster Versicherung AG · Ortstermine 12.08. · 20.08.2026');
   assert.equal(await page.evaluate(() => document.activeElement.id), 'pj_ot_t2_datum', 'Fokus bleibt im Feld');
   // ändern: Wer war da, Datum; Termin 1 Bezeichnung und Wer
@@ -173,6 +181,7 @@ let schritt = 'Start', seite = null;
   await page.locator('#dlgBack.show #dYes').click();
   await warte(async () => (await lese(EINS)).weitereOrtstermine.length === 1, 't3 entfernt');
   assert.deepEqual((await lese(EINS)).weitereOrtstermine.map(t => t.id), ['t2']);
+  assert.equal((await lese(EINS)).ortsterminZaehler, 3, 'Zähler sinkt nicht beim Entfernen');
   assert.equal(await page.evaluate(async () => { const p = await (await (await navigator.storage.getDirectory()).getDirectoryHandle('Mosaik Archivordner')).getDirectoryHandle('26.0701 Termine Teststadt');
     return await (await (await (await p.getDirectoryHandle('Fotos')).getFileHandle('_Bildumbenenner.json')).getFile()).text(); }), FK, 'FotoKits Datei unverändert');
   await page.locator('#otBlock .ot-zeile').nth(1).waitFor();
@@ -192,6 +201,7 @@ let schritt = 'Start', seite = null;
   await warte(async () => !('weitereOrtstermine' in await lese(EINS)), 'Feld entfernt');
   d = await lese(EINS);
   assert.equal(d.ortsterminBezeichnung, 'Erstbegehung'); assert.equal(d.ortstermin, '2026-08-13');
+  assert.equal(d.ortsterminZaehler, 3, 'Zähler bleibt, wenn der letzte weitere Termin entfernt wird');
   await page.waitForFunction(() => document.getElementById('pjSumme').textContent.endsWith('Ortstermin 13.08.2026'));
   assert.deepEqual((await zeilen(page)).map(z => z[1]), ['t1'], 'Termin 1 mit seinen Angaben bleibt sichtbar');
   // Termin 1 Angaben leeren → wieder wie ein Projekt mit einem Termin (Felder entfernt, nur der Link)
@@ -216,12 +226,63 @@ let schritt = 'Start', seite = null;
   d = await lese(EINS);
   assert.deepEqual(d.weitereOrtstermine, [{ id: 't4', datum: '2026-10-01', bezeichnung: '', wer: 'Ka' }], 'A bleibt, B überschreibt nichts');
   assert.equal(await zweite.locator('#pj_ot_t4_bezeichnung').inputValue(), 'Nachbeprobung', 'Eingabe in B bleibt stehen');
-  // B legt außerdem einen Termin an (neue Kennung aus seinem alten Stand) – auch das überschreibt nichts
+  // B legt außerdem einen Termin an (Kennung aus seinem alten Stand) – auch das überschreibt nichts
   await zweite.locator('#otNeu').click(); await zweite.locator('#pj_ot_t5_datum').waitFor(); await zweite.locator('#pj_ot_t5_datum').fill('2026-10-02');
   await zweite.waitForTimeout(1200);
   assert.deepEqual((await lese(EINS)).weitereOrtstermine, d.weitereOrtstermine, 'immer noch nichts überschrieben');
   if (process.env.SHOT){ await page.locator('#detail h2').scrollIntoViewIfNeeded(); await page.screenshot({ path: process.env.SHOT + '-liste.png' }); await zweite.screenshot({ path: process.env.SHOT + '-widerspruch.png' }); }
   await zweite.close();
+
+  // 4b) Zähler: entfernen → neu anlegen ergibt nie dieselbe Kennung, auch wenn nichts sie mehr nennt (keine FotoKit-Datei)
+  schritt = 'Zähler – nie dieselbe Kennung';
+  const anlegen = async (pg, id, datum) => { await pg.locator('#otNeu').click(); await pg.locator(`#pj_ot_${id}_datum`).waitFor(); await pg.locator(`#pj_ot_${id}_datum`).fill(datum); };
+  const entfernen = async (pg, id) => { await pg.locator(`[data-ot-weg="${id}"]`).click(); await pg.locator('#dlgBack.show #dYes').click(); };
+  await oeffne(page, ZAEHL); await auf(page);
+  await anlegen(page, 't2', '2026-08-20'); await gespeichert(page); await warte(async () => (await lese(ZAEHL)).ortsterminZaehler === 2, 'Z t2');
+  await anlegen(page, 't3', '2026-08-21'); await gespeichert(page); await warte(async () => (await lese(ZAEHL)).ortsterminZaehler === 3, 'Z t3');
+  await entfernen(page, 't3'); await warte(async () => (await lese(ZAEHL)).weitereOrtstermine.length === 1, 'Z t3 weg');
+  assert.equal((await lese(ZAEHL)).ortsterminZaehler, 3);
+  await anlegen(page, 't4', '2026-08-22'); await gespeichert(page); await warte(async () => (await lese(ZAEHL)).ortsterminZaehler === 4, 'Z t4');
+  assert.equal(await page.locator('#pj_ot_t3_datum').count(), 0, 't3 nicht wieder vergeben');
+  await entfernen(page, 't4'); await warte(async () => (await lese(ZAEHL)).weitereOrtstermine.length === 1, 'Z t4 weg');
+  await entfernen(page, 't2'); await warte(async () => !('weitereOrtstermine' in await lese(ZAEHL)), 'Z alle weg');
+  assert.equal((await lese(ZAEHL)).ortsterminZaehler, 4, 'Zähler bleibt ohne weitere Termine');
+  await anlegen(page, 't5', '2026-09-01'); await gespeichert(page); await warte(async () => (await lese(ZAEHL)).ortsterminZaehler === 5, 'Z t5');
+  assert.deepEqual((await lese(ZAEHL)).weitereOrtstermine.map(t => t.id), ['t5'], 'nach allem Entfernen t5, nicht t2');
+
+  // 4c) Zwei Fenster legen gleichzeitig an (beide Entwürfe mit derselben Kennung) → das zweite bekommt einen Widerspruch
+  schritt = 'zwei Fenster legen an';
+  const b2 = await neueSeite(); await start(b2); await oeffne(b2, ZAEHL); await auf(b2);
+  await page.locator('#otNeu').click(); await page.locator('#pj_ot_t6_datum').waitFor();
+  await b2.locator('#otNeu').click(); await b2.locator('#pj_ot_t6_datum').waitFor();
+  await page.locator('#pj_ot_t6_datum').fill('2026-09-02'); await gespeichert(page); await warte(async () => (await lese(ZAEHL)).ortsterminZaehler === 6, 'A t6');
+  const nachA = await leseText(ZAEHL);
+  await b2.locator('#pj_ot_t6_bezeichnung').fill('Freimessung');
+  await b2.locator('#pj_ot_t6_datum').fill('2026-09-03');
+  await b2.waitForFunction(() => /Projektdaten nicht gespeichert: Die Projektdaten wurden während des Speicherns geändert/.test(document.getElementById('pjAttention').textContent), null, { timeout: 8000 });
+  assert.equal(await leseText(ZAEHL), nachA, 'B überschreibt weder Liste noch Zähler');
+  assert.deepEqual((await lese(ZAEHL)).weitereOrtstermine.map(t => [t.id, t.datum]), [['t5', '2026-09-01'], ['t6', '2026-09-02']]);
+  await b2.close();
+
+  // 4d) Bestand ohne Zähler: aus allem rechnen (FotoKit nennt t5 → t6) und Zähler anlegen
+  schritt = 'Bestand ohne Zähler';
+  await oeffne(page, BESTAND); await auf(page);
+  await anlegen(page, 't6', '2026-09-10'); await gespeichert(page); await warte(async () => (await lese(BESTAND)).ortsterminZaehler === 6, 'Bestand Zähler');
+  assert.deepEqual((await lese(BESTAND)).weitereOrtstermine.map(t => t.id), ['t2', 't6']);
+  // Bestand ohne Zähler, FotoKit-Datei nicht lesbar → nichts angelegt; mit Zähler → angelegt (FotoKit nicht mehr nötig)
+  schritt = 'FotoKit nicht lesbar';
+  await oeffne(page, KAPUTT); await auf(page);
+  await page.locator('#otNeu').click();
+  await page.waitForFunction(() => /Weiterer Ortstermin nicht angelegt: FotoKits „_Bildumbenenner\.json“ ist nicht lesbar/.test(document.getElementById('banner').textContent));
+  assert.equal(await page.locator('#otBlock .ot-entwurf').count(), 0, 'kein Entwurf ohne Zähler');
+  await page.evaluate(async n => { const p = await (await (await navigator.storage.getDirectory()).getDirectoryHandle('Mosaik Archivordner')).getDirectoryHandle(n);
+    const h = await p.getFileHandle('_Projekt.json'); const o = JSON.parse(await (await h.getFile()).text()); o.ortsterminZaehler = 4;
+    const w = await h.createWritable(); await w.write(JSON.stringify(o)); await w.close(); }, KAPUTT);
+  await oeffne(page, BESTAND); await oeffne(page, KAPUTT); await auf(page);
+  await anlegen(page, 't5', '2026-09-11'); await gespeichert(page); await warte(async () => (await lese(KAPUTT)).ortsterminZaehler === 5, 'Kaputt mit Zähler');
+  assert.deepEqual((await lese(KAPUTT)).weitereOrtstermine.map(t => t.id), ['t2', 't5']);
+  // Projekte, die nie einen zweiten Termin hatten, bekommen den Zähler nicht
+  for (const n of [BILDER, UEB1]) assert.ok(!('ortsterminZaehler' in await lese(n)), n);
 
   // 5) Bestand „n Bilder“: direkt in Fotos und eine Ebene darunter, ohne „_…“/„.…“, ohne zweite Ebene
   schritt = 'Bilder zählen';
@@ -248,7 +309,7 @@ let schritt = 'Start', seite = null;
 
   assert.deepEqual(errors, []);
   await browser.close(); server.close();
-  console.log(`OK (${name}): 1.53 weitere Ortstermine – ein Termin unverändert (Datei byte-gleich), Entwurf erst mit Datum gespeichert, ändern (auch Termin 1), Kopf „Ortstermine …“, Entfernen mit Rückfrage (FotoKit-Ordner und Bilddoku genannt, Abbrechen ändert nichts, FotoKit-Datei unberührt), Kennung nicht neu vergeben, letzter entfernt → Feld weg, zwei Fenster → Widerspruch ohne Überschreiben, „n Bilder“ mit Unterordnern, Übergabe hakt Bilddokus nach BerichtKit vor`);
+  console.log(`OK (${name}): 1.53 weitere Ortstermine – ein Termin unverändert (Datei byte-gleich), Entwurf erst mit Datum gespeichert, ändern (auch Termin 1), Kopf „Ortstermine …“, Entfernen mit Rückfrage (FotoKit-Ordner und Bilddoku genannt, Abbrechen ändert nichts, FotoKit-Datei unberührt), Kennung nicht neu vergeben (Zähler ortsterminZaehler: sinkt nie, bleibt ohne weitere Termine, Bestand ohne Zähler, FotoKit-Datei mit Zähler nicht nötig), letzter entfernt → Feld weg, zwei Fenster ändern bzw. legen gleichzeitig an → Widerspruch ohne Überschreiben, „n Bilder“ mit Unterordnern, Übergabe hakt Bilddokus nach BerichtKit vor`);
 })().catch(async e => {
   console.error(e);
   let zustand = '';

@@ -34,6 +34,29 @@ ok('Kennungen: höchste + 1, nie neu vergeben – auch nicht nach dem Entfernen,
   assert.equal(O.naechsteKennung(zwei, null, ['t3']), 't4', 'zusätzlich ausgeschlossene Kennung');
   assert.equal(O.naechsteKennung({ weitereOrtstermine: [{ id: 'x' }, null, 'kaputt'] }, { bilddokus: { alle: {} } }), 't2', 'fremde Werte zählen nicht');
 });
+ok('Zähler ortsterminZaehler: nächste = Zähler + 1, auch wenn nichts die Kennung mehr nennt; FotoKit dann egal; sinkt nie', () => {
+  // t3 entfernt, nichts nennt t3 mehr – mit Zähler 3 trotzdem t4
+  assert.equal(O.naechsteKennung({ ...zwei, ortsterminZaehler: 3 }), 't4');
+  // alle weiteren Termine entfernt, Zähler bleibt 5 → t6 (nicht t2)
+  assert.equal(O.naechsteKennung({ ortstermin: '2026-08-12', ortsterminZaehler: 5 }), 't6');
+  // mit Zähler wird FotoKit nicht gebraucht (und nicht gezählt)
+  assert.equal(O.naechsteKennung({ ...zwei, ortsterminZaehler: 2 }, { bilddokus: { t9: {} } }), 't3');
+  // Sicherheit: eine Kennung in der Liste über dem Zähler (fremder Schreiber ohne Zähler) wird nicht noch einmal vergeben
+  assert.equal(O.naechsteKennung({ ortsterminZaehler: 2, weitereOrtstermine: [{ id: 't2' }, { id: 't4' }] }), 't5');
+  assert.equal(O.naechsteKennung({ ortsterminZaehler: 4 }, null, ['t4']), 't5', 'schon belegt beim Speichern');
+  // ungültiger Zähler zählt nicht (Bestand-Regel greift)
+  for (const z of [0, -1, 2.5, '7', null]) assert.equal(O.zaehler({ ortsterminZaehler: z }), null, String(z));
+  assert.equal(O.naechsteKennung({ ...zwei, ortsterminZaehler: '9' }), 't3');
+  // zaehlerNach: nie kleiner
+  assert.equal(O.zaehlerNach({ ortsterminZaehler: 7 }, 't3'), 7);
+  assert.equal(O.zaehlerNach({}, 't4'), 4);
+  assert.equal(O.zaehlerNach({ ortsterminZaehler: 4 }, 't5'), 5);
+});
+ok('Bestand ohne Zähler: aus allem, was irgendwo steht', () => {
+  assert.equal(O.zaehler(zwei), null);
+  assert.equal(O.naechsteKennung(zwei, { bilddokus: { t5: {} } }), 't6');
+  assert.equal(O.zaehlerNach(zwei, O.naechsteKennung(zwei, { bilddokus: { t5: {} } })), 6, 'Zähler wird dabei angelegt');
+});
 ok('bereinigt: trimmt die vier Felder, behält unbekannte Felder und fremde Einträge; leere Liste → null', () => {
   const roh = [{ id: ' t2 ', datum: '2026-08-20', bezeichnung: ' Nachbeprobung ', wer: ' Ka ', vonFotoKit: { am: 'x' } }, 'kaputt', { id: 't3', datum: 5 }];
   assert.deepEqual(O.bereinigt(roh), [{ id: 't2', datum: '2026-08-20', bezeichnung: 'Nachbeprobung', wer: 'Ka', vonFotoKit: { am: 'x' } }, 'kaputt', { id: 't3', datum: 5 }]);

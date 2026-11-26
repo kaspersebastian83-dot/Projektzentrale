@@ -2,9 +2,15 @@
    Entscheidungen O1, O9, O12 (claude/fotokit-ortstermine-entscheidungen.md):
    - „ortstermin“ (JJJJ-MM-TT) bleibt allein Termin 1, Kennung fest „t1“; optional „ortsterminBezeichnung“, „ortsterminWer“.
    - Weitere Termine nur, wenn es einen zweiten gibt: weitereOrtstermine: [{ id: "t2", datum, bezeichnung, wer }, …].
-   - Kennungen werden nie neu vergeben: nächste = höchste + 1. „Höchste“ zählt auch Kennungen, die noch woanders stehen
-     (FotoKit: bilddokus, dokuGeaendertJe, ordnerTermine, bilder[].termin; künftig weitereMitteilungen[].termine) – sonst
-     bekäme nach dem Entfernen des höchsten Termins ein neuer Termin dessen Kennung und erbte z. B. die gemerkte Bilddoku.
+   - Kennungen werden nie neu vergeben (Basti, 26.11.2026): Zähler „ortsterminZaehler“ (Zahl) = höchste je vergebene
+     Termin-Nummer. Nächste Kennung = Zähler + 1. Der Zähler wird im selben Patch wie „weitereOrtstermine“ geschrieben (die
+     Widerspruchsprüfung gilt für beide), sinkt nie und bleibt, wenn der letzte weitere Termin entfernt wird. Ein Projekt,
+     das nie einen zweiten Termin hatte, bekommt ihn nicht.
+   - Fehlt der Zähler (erster weiterer Termin, Bestand), wird aus allem gerechnet, was irgendwo steht – weitereOrtstermine,
+     FotoKit (bilddokus, dokuGeaendertJe, ordnerTermine, bilder[].termin), weitereMitteilungen[].termine – und der Zähler
+     dabei angelegt. Nur dann braucht die Projektzentrale FotoKits Datei.
+   - DIESELBE REGEL gilt für FotoKit 2.7.0 (legt Termine an, O9: Zähler lesen, +1, im selben Patch schreiben) und später für
+     die Mitteilungen (weitereMitteilungen, M3 – mit eigenem Zähler nach demselben Muster).
    Unbekannte Felder in einem Eintrag bleiben erhalten (andere Apps dürfen dort mehr ablegen). */
 (function(root){
   'use strict';
@@ -49,12 +55,22 @@
     }
     return n;
   }
-  /** Nächste Kennung: höchste vergebene bzw. noch irgendwo stehende + 1 (mindestens „t2“). */
+  /** Zähler aus den Projektdaten (ganze Zahl ≥ 1) oder null, wenn es keinen (gültigen) gibt. */
+  function zaehler(pj){
+    const z = pj ? pj.ortsterminZaehler : null;
+    return typeof z === 'number' && Number.isInteger(z) && z >= 1 ? z : null;
+  }
+  /** Nächste Kennung: Zähler + 1. Ohne Zähler: höchste irgendwo stehende + 1 (mindestens „t2“); fk dann nötig.
+      Zur Sicherheit nie unter einer Kennung, die schon in der Liste steht (auch mit Zähler). */
   function naechsteKennung(pj, fk, auchDiese = []){
-    const n = inGebrauch(pj, fk);
+    const z = zaehler(pj);
+    const n = z ? new Set([z]) : inGebrauch(pj, fk);
+    if (z) for (const e of (pj && Array.isArray(pj.weitereOrtstermine) ? pj.weitereOrtstermine : [])) if (e && nummer(e.id)) n.add(nummer(e.id));
     for (const id of auchDiese) { const x = nummer(id); if (x) n.add(x); }
     return 't' + (Math.max(...n) + 1);
   }
+  /** Zählerstand nach dem Vergeben von id: nie kleiner als vorher. */
+  const zaehlerNach = (pj, id) => Math.max(zaehler(pj) || 0, nummer(id));
 
   /** Was FotoKit zu einer Kennung gemerkt hat (für die Rückfrage beim Entfernen). */
   function inFotoKit(fk, id){
@@ -81,7 +97,7 @@
   }
   function de(iso){ const m = ISO.exec(iso) ? iso.split('-') : null; return m ? `${m[2]}.${m[1]}.${m[0]}` : text(iso); }
 
-  const api = Object.freeze({ liste, mehrere, bereinigt, inGebrauch, naechsteKennung, inFotoKit, zusammenfassung, gueltig, nummer, VORSCHLAEGE });
+  const api = Object.freeze({ liste, mehrere, bereinigt, inGebrauch, zaehler, zaehlerNach, naechsteKennung, inFotoKit, zusammenfassung, gueltig, nummer, VORSCHLAEGE });
   root.Ortstermine = api;
   if (typeof module !== 'undefined') module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
