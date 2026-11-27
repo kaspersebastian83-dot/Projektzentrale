@@ -1,0 +1,695 @@
+{
+  "format": "spektron-ergebnisse",
+  "version": 1,
+  "projekt": "26.0999",
+  "uebernommen": "2026-08-26T10:00:00.000Z",
+  "app": {
+    "name": "ResultKit",
+    "version": "2.7.0"
+  },
+  "vollstaendig": true,
+  "stand": "STAND|0|0",
+  "dateien": [
+    {
+      "name": "STAND",
+      "size": 0,
+      "t": 0
+    }
+  ],
+  "auftrag": {
+    "quelle": "26.0999_Daten.json",
+    "proben": [
+      {
+        "label": "P1",
+        "typ": "PAK",
+        "ref": "Probe 1",
+        "desc": "EG Raum 1 Decke, verrußt, Untersicht, 600 cm²",
+        "surface": "ceiling",
+        "raum": "EG Raum 1 Decke",
+        "auftrag": "a1"
+      },
+      {
+        "label": "P2",
+        "typ": "PAK",
+        "ref": "Probe 2",
+        "desc": "EG Raum 2 Decke, verrußt, Untersicht, 600 cm²",
+        "surface": "ceiling",
+        "raum": "EG Raum 2 Decke",
+        "auftrag": "a1"
+      },
+      {
+        "label": "P3",
+        "typ": "PAK",
+        "ref": "Probe 3",
+        "desc": "EG Raum 3 Decke, verrußt, Untersicht, 600 cm²",
+        "surface": "ceiling",
+        "raum": "EG Raum 3 Decke",
+        "auftrag": "a1"
+      },
+      {
+        "label": "P4",
+        "typ": "PAK",
+        "ref": "Probe 4",
+        "desc": "EG Raum 4 Decke, verrußt, Untersicht, 600 cm²",
+        "surface": "ceiling",
+        "raum": "EG Raum 4 Decke",
+        "auftrag": "a1"
+      },
+      {
+        "label": "P5",
+        "typ": "PAK",
+        "ref": "Probe 5",
+        "desc": "EG Raum 5 Decke, verrußt, Untersicht, 600 cm²",
+        "surface": "ceiling",
+        "raum": "EG Raum 5 Decke",
+        "auftrag": "a1"
+      },
+      {
+        "label": "P6",
+        "typ": "PAK",
+        "ref": "Probe 6",
+        "desc": "EG Raum 6 Decke, verrußt, Untersicht, 600 cm²",
+        "surface": "ceiling",
+        "raum": "EG Raum 6 Decke",
+        "auftrag": "a1"
+      },
+      {
+        "label": "P7",
+        "typ": "PAK",
+        "ref": "Probe 7",
+        "desc": "EG Raum 7 Decke, verrußt, Untersicht, 600 cm²",
+        "surface": "ceiling",
+        "raum": "EG Raum 7 Decke",
+        "auftrag": "a1"
+      },
+      {
+        "label": "P8",
+        "typ": "PAK",
+        "ref": "Probe 8",
+        "desc": "EG Raum 8 Decke, verrußt, Untersicht, 600 cm²",
+        "surface": "ceiling",
+        "raum": "EG Raum 8 Decke",
+        "auftrag": "a1"
+      },
+      {
+        "label": "P9",
+        "typ": "Chlorid",
+        "ref": "Probe 9",
+        "desc": "EG Raum 1 Wand, verrußt, Ansicht, 100 cm²",
+        "surface": "wall",
+        "raum": "EG Raum 1 Wand",
+        "auftrag": "a1"
+      },
+      {
+        "label": "P10",
+        "typ": "Chlorid",
+        "ref": "Probe 10",
+        "desc": "EG Raum 2 Wand, verrußt, Ansicht, 100 cm²",
+        "surface": "wall",
+        "raum": "EG Raum 2 Wand",
+        "auftrag": "a1"
+      },
+      {
+        "label": "P11",
+        "typ": "Chlorid",
+        "ref": "Probe 11",
+        "desc": "EG Raum 3 Wand, verrußt, Ansicht, 100 cm²",
+        "surface": "wall",
+        "raum": "EG Raum 3 Wand",
+        "auftrag": "a1"
+      },
+      {
+        "label": "P12",
+        "typ": "Chlorid",
+        "ref": "Probe 12",
+        "desc": "EG Raum 4 Wand, verrußt, Ansicht, 100 cm²",
+        "surface": "wall",
+        "raum": "EG Raum 4 Wand",
+        "auftrag": "a1"
+      },
+      {
+        "label": "P13",
+        "typ": "Chlorid",
+        "ref": "Probe 13",
+        "desc": "EG Raum 5 Wand, verrußt, Ansicht, 100 cm²",
+        "surface": "wall",
+        "raum": "EG Raum 5 Wand",
+        "auftrag": "a1"
+      },
+      {
+        "label": "P14",
+        "typ": "PAK",
+        "ref": "Probe 14",
+        "desc": "OG Raum 1 Decke, verrußt, Untersicht, 600 cm²",
+        "surface": "ceiling",
+        "raum": "OG Raum 1 Decke",
+        "auftrag": "a2"
+      },
+      {
+        "label": "P15",
+        "typ": "PAK",
+        "ref": "Probe 15",
+        "desc": "OG Raum 2 Decke, verrußt, Untersicht, 600 cm²",
+        "surface": "ceiling",
+        "raum": "OG Raum 2 Decke",
+        "auftrag": "a2"
+      },
+      {
+        "label": "P16",
+        "typ": "PAK",
+        "ref": "Probe 16",
+        "desc": "OG Raum 3 Decke, verrußt, Untersicht, 600 cm²",
+        "surface": "ceiling",
+        "raum": "OG Raum 3 Decke",
+        "auftrag": "a2"
+      },
+      {
+        "label": "P17",
+        "typ": "PAK",
+        "ref": "Probe 17",
+        "desc": "OG Raum 4 Decke, verrußt, Untersicht, 600 cm²",
+        "surface": "ceiling",
+        "raum": "OG Raum 4 Decke",
+        "auftrag": "a2"
+      },
+      {
+        "label": "P18",
+        "typ": "Asbest",
+        "ref": "Probe 18",
+        "desc": "OG Raum 1, Putz",
+        "raum": "OG Raum 1",
+        "auftrag": "a2"
+      },
+      {
+        "label": "P19",
+        "typ": "Asbest",
+        "ref": "Probe 19",
+        "desc": "OG Raum 2, Putz",
+        "raum": "OG Raum 2",
+        "auftrag": "a2"
+      },
+      {
+        "label": "P20",
+        "typ": "Asbest",
+        "ref": "Probe 20",
+        "desc": "OG Raum 3, Putz",
+        "raum": "OG Raum 3",
+        "auftrag": "a2"
+      },
+      {
+        "label": "P21",
+        "typ": "Asbest",
+        "ref": "Probe 21",
+        "desc": "OG Raum 4, Putz",
+        "raum": "OG Raum 4",
+        "auftrag": "a2"
+      }
+    ]
+  },
+  "berichte": [
+    {
+      "id": "b1",
+      "bericht": "AR-26-0002-01",
+      "labor": "Eurofins",
+      "auftragsreferenz": "26.0999 Teststadt Ka",
+      "sources": {
+        "xml": "AR-26-0002-01.xml",
+        "pdf": "AR-26-0002-01.pdf"
+      },
+      "proben": [
+        {
+          "label": "P1",
+          "ref": "Probe 1",
+          "desc": "",
+          "art": "Wischprobe",
+          "labNr": "999-1",
+          "datum": "2026-08-25",
+          "werte": [
+            {
+              "p": "Summe 16 EPA-PAK exkl. BG",
+              "r": "1",
+              "u": "µg/m²",
+              "loq": "0,5"
+            }
+          ],
+          "bericht": "AR-26-0002-01",
+          "typ": "PAK",
+          "surface": "ceiling",
+          "raum": "EG Raum 1 Decke",
+          "reportId": "b1"
+        },
+        {
+          "label": "P2",
+          "ref": "Probe 2",
+          "desc": "",
+          "art": "Wischprobe",
+          "labNr": "999-2",
+          "datum": "2026-08-25",
+          "werte": [
+            {
+              "p": "Summe 16 EPA-PAK exkl. BG",
+              "r": "2",
+              "u": "µg/m²",
+              "loq": "0,5"
+            }
+          ],
+          "bericht": "AR-26-0002-01",
+          "typ": "PAK",
+          "surface": "ceiling",
+          "raum": "EG Raum 2 Decke",
+          "reportId": "b1"
+        },
+        {
+          "label": "P3",
+          "ref": "Probe 3",
+          "desc": "",
+          "art": "Wischprobe",
+          "labNr": "999-3",
+          "datum": "2026-08-25",
+          "werte": [
+            {
+              "p": "Summe 16 EPA-PAK exkl. BG",
+              "r": "3",
+              "u": "µg/m²",
+              "loq": "0,5"
+            }
+          ],
+          "bericht": "AR-26-0002-01",
+          "typ": "PAK",
+          "surface": "ceiling",
+          "raum": "EG Raum 3 Decke",
+          "reportId": "b1"
+        },
+        {
+          "label": "P4",
+          "ref": "Probe 4",
+          "desc": "",
+          "art": "Wischprobe",
+          "labNr": "999-4",
+          "datum": "2026-08-25",
+          "werte": [
+            {
+              "p": "Summe 16 EPA-PAK exkl. BG",
+              "r": "4",
+              "u": "µg/m²",
+              "loq": "0,5"
+            }
+          ],
+          "bericht": "AR-26-0002-01",
+          "typ": "PAK",
+          "surface": "ceiling",
+          "raum": "EG Raum 4 Decke",
+          "reportId": "b1"
+        },
+        {
+          "label": "P5",
+          "ref": "Probe 5",
+          "desc": "",
+          "art": "Wischprobe",
+          "labNr": "999-5",
+          "datum": "2026-08-25",
+          "werte": [
+            {
+              "p": "Summe 16 EPA-PAK exkl. BG",
+              "r": "5",
+              "u": "µg/m²",
+              "loq": "0,5"
+            }
+          ],
+          "bericht": "AR-26-0002-01",
+          "typ": "PAK",
+          "surface": "ceiling",
+          "raum": "EG Raum 5 Decke",
+          "reportId": "b1"
+        },
+        {
+          "label": "P6",
+          "ref": "Probe 6",
+          "desc": "",
+          "art": "Wischprobe",
+          "labNr": "999-6",
+          "datum": "2026-08-25",
+          "werte": [
+            {
+              "p": "Summe 16 EPA-PAK exkl. BG",
+              "r": "6",
+              "u": "µg/m²",
+              "loq": "0,5"
+            }
+          ],
+          "bericht": "AR-26-0002-01",
+          "typ": "PAK",
+          "surface": "ceiling",
+          "raum": "EG Raum 6 Decke",
+          "reportId": "b1"
+        },
+        {
+          "label": "P7",
+          "ref": "Probe 7",
+          "desc": "",
+          "art": "Wischprobe",
+          "labNr": "999-7",
+          "datum": "2026-08-25",
+          "werte": [
+            {
+              "p": "Summe 16 EPA-PAK exkl. BG",
+              "r": "7",
+              "u": "µg/m²",
+              "loq": "0,5"
+            }
+          ],
+          "bericht": "AR-26-0002-01",
+          "typ": "PAK",
+          "surface": "ceiling",
+          "raum": "EG Raum 7 Decke",
+          "reportId": "b1"
+        },
+        {
+          "label": "P8",
+          "ref": "Probe 8",
+          "desc": "",
+          "art": "Wischprobe",
+          "labNr": "999-8",
+          "datum": "2026-08-25",
+          "werte": [
+            {
+              "p": "Summe 16 EPA-PAK exkl. BG",
+              "r": "8",
+              "u": "µg/m²",
+              "loq": "0,5"
+            }
+          ],
+          "bericht": "AR-26-0002-01",
+          "typ": "PAK",
+          "surface": "ceiling",
+          "raum": "EG Raum 8 Decke",
+          "reportId": "b1"
+        },
+        {
+          "label": "P9",
+          "ref": "Probe 9",
+          "desc": "",
+          "art": "Wischprobe",
+          "labNr": "999-9",
+          "datum": "2026-08-25",
+          "werte": [
+            {
+              "p": "Summe 16 EPA-PAK exkl. BG",
+              "r": "9",
+              "u": "µg/m²",
+              "loq": "0,5"
+            }
+          ],
+          "bericht": "AR-26-0002-01",
+          "typ": "Chlorid",
+          "surface": "wall",
+          "raum": "EG Raum 1 Wand",
+          "reportId": "b1"
+        },
+        {
+          "label": "P10",
+          "ref": "Probe 10",
+          "desc": "",
+          "art": "Wischprobe",
+          "labNr": "999-10",
+          "datum": "2026-08-25",
+          "werte": [
+            {
+              "p": "Summe 16 EPA-PAK exkl. BG",
+              "r": "10",
+              "u": "µg/m²",
+              "loq": "0,5"
+            }
+          ],
+          "bericht": "AR-26-0002-01",
+          "typ": "Chlorid",
+          "surface": "wall",
+          "raum": "EG Raum 2 Wand",
+          "reportId": "b1"
+        },
+        {
+          "label": "P11",
+          "ref": "Probe 11",
+          "desc": "",
+          "art": "Wischprobe",
+          "labNr": "999-11",
+          "datum": "2026-08-25",
+          "werte": [
+            {
+              "p": "Summe 16 EPA-PAK exkl. BG",
+              "r": "11",
+              "u": "µg/m²",
+              "loq": "0,5"
+            }
+          ],
+          "bericht": "AR-26-0002-01",
+          "typ": "Chlorid",
+          "surface": "wall",
+          "raum": "EG Raum 3 Wand",
+          "reportId": "b1"
+        },
+        {
+          "label": "P12",
+          "ref": "Probe 12",
+          "desc": "",
+          "art": "Wischprobe",
+          "labNr": "999-12",
+          "datum": "2026-08-25",
+          "werte": [
+            {
+              "p": "Summe 16 EPA-PAK exkl. BG",
+              "r": "12",
+              "u": "µg/m²",
+              "loq": "0,5"
+            }
+          ],
+          "bericht": "AR-26-0002-01",
+          "typ": "Chlorid",
+          "surface": "wall",
+          "raum": "EG Raum 4 Wand",
+          "reportId": "b1"
+        },
+        {
+          "label": "P13",
+          "ref": "Probe 13",
+          "desc": "",
+          "art": "Wischprobe",
+          "labNr": "999-13",
+          "datum": "2026-08-25",
+          "werte": [
+            {
+              "p": "Summe 16 EPA-PAK exkl. BG",
+              "r": "13",
+              "u": "µg/m²",
+              "loq": "0,5"
+            }
+          ],
+          "bericht": "AR-26-0002-01",
+          "typ": "Chlorid",
+          "surface": "wall",
+          "raum": "EG Raum 5 Wand",
+          "reportId": "b1"
+        },
+        {
+          "label": "P14",
+          "ref": "Probe 14",
+          "desc": "",
+          "art": "Wischprobe",
+          "labNr": "999-14",
+          "datum": "2026-08-25",
+          "werte": [
+            {
+              "p": "Summe 16 EPA-PAK exkl. BG",
+              "r": "14",
+              "u": "µg/m²",
+              "loq": "0,5"
+            }
+          ],
+          "bericht": "AR-26-0002-01",
+          "typ": "PAK",
+          "surface": "ceiling",
+          "raum": "OG Raum 1 Decke",
+          "reportId": "b1"
+        },
+        {
+          "label": "P15",
+          "ref": "Probe 15",
+          "desc": "",
+          "art": "Wischprobe",
+          "labNr": "999-15",
+          "datum": "2026-08-25",
+          "werte": [
+            {
+              "p": "Summe 16 EPA-PAK exkl. BG",
+              "r": "15",
+              "u": "µg/m²",
+              "loq": "0,5"
+            }
+          ],
+          "bericht": "AR-26-0002-01",
+          "typ": "PAK",
+          "surface": "ceiling",
+          "raum": "OG Raum 2 Decke",
+          "reportId": "b1"
+        },
+        {
+          "label": "P16",
+          "ref": "Probe 16",
+          "desc": "",
+          "art": "Wischprobe",
+          "labNr": "999-16",
+          "datum": "2026-08-25",
+          "werte": [
+            {
+              "p": "Summe 16 EPA-PAK exkl. BG",
+              "r": "16",
+              "u": "µg/m²",
+              "loq": "0,5"
+            }
+          ],
+          "bericht": "AR-26-0002-01",
+          "typ": "PAK",
+          "surface": "ceiling",
+          "raum": "OG Raum 3 Decke",
+          "reportId": "b1"
+        },
+        {
+          "label": "P17",
+          "ref": "Probe 17",
+          "desc": "",
+          "art": "Wischprobe",
+          "labNr": "999-17",
+          "datum": "2026-08-25",
+          "werte": [
+            {
+              "p": "Summe 16 EPA-PAK exkl. BG",
+              "r": "17",
+              "u": "µg/m²",
+              "loq": "0,5"
+            }
+          ],
+          "bericht": "AR-26-0002-01",
+          "typ": "PAK",
+          "surface": "ceiling",
+          "raum": "OG Raum 4 Decke",
+          "reportId": "b1"
+        },
+        {
+          "label": "P18",
+          "ref": "Probe 18",
+          "desc": "",
+          "art": "Wischprobe",
+          "labNr": "999-18",
+          "datum": "2026-08-25",
+          "werte": [
+            {
+              "p": "Summe 16 EPA-PAK exkl. BG",
+              "r": "18",
+              "u": "µg/m²",
+              "loq": "0,5"
+            }
+          ],
+          "bericht": "AR-26-0002-01",
+          "typ": "Asbest",
+          "raum": "OG Raum 1",
+          "reportId": "b1"
+        },
+        {
+          "label": "P19",
+          "ref": "Probe 19",
+          "desc": "",
+          "art": "Wischprobe",
+          "labNr": "999-19",
+          "datum": "2026-08-25",
+          "werte": [
+            {
+              "p": "Summe 16 EPA-PAK exkl. BG",
+              "r": "19",
+              "u": "µg/m²",
+              "loq": "0,5"
+            }
+          ],
+          "bericht": "AR-26-0002-01",
+          "typ": "Asbest",
+          "raum": "OG Raum 2",
+          "reportId": "b1"
+        },
+        {
+          "label": "P20",
+          "ref": "Probe 20",
+          "desc": "",
+          "art": "Wischprobe",
+          "labNr": "999-20",
+          "datum": "2026-08-25",
+          "werte": [
+            {
+              "p": "Summe 16 EPA-PAK exkl. BG",
+              "r": "20",
+              "u": "µg/m²",
+              "loq": "0,5"
+            }
+          ],
+          "bericht": "AR-26-0002-01",
+          "typ": "Asbest",
+          "raum": "OG Raum 3",
+          "reportId": "b1"
+        },
+        {
+          "label": "P21",
+          "ref": "Probe 21",
+          "desc": "",
+          "art": "Wischprobe",
+          "labNr": "999-21",
+          "datum": "2026-08-25",
+          "werte": [
+            {
+              "p": "Summe 16 EPA-PAK exkl. BG",
+              "r": "21",
+              "u": "µg/m²",
+              "loq": "0,5"
+            }
+          ],
+          "bericht": "AR-26-0002-01",
+          "typ": "Asbest",
+          "raum": "OG Raum 4",
+          "reportId": "b1"
+        }
+      ]
+    }
+  ],
+  "ersetzt": [],
+  "storniertMitWert": [],
+  "offen": [],
+  "hinweise": [
+    "P1: Probenahmedatum: LabelKit 2026-08-12, Bericht AR-26-0002-01 2026-08-25.",
+    "P2: Probenahmedatum: LabelKit 2026-08-12, Bericht AR-26-0002-01 2026-08-25.",
+    "P3: Probenahmedatum: LabelKit 2026-08-12, Bericht AR-26-0002-01 2026-08-25.",
+    "P4: Probenahmedatum: LabelKit 2026-08-12, Bericht AR-26-0002-01 2026-08-25.",
+    "P5: Probenahmedatum: LabelKit 2026-08-12, Bericht AR-26-0002-01 2026-08-25.",
+    "P6: Probenahmedatum: LabelKit 2026-08-12, Bericht AR-26-0002-01 2026-08-25.",
+    "P7: Probenahmedatum: LabelKit 2026-08-12, Bericht AR-26-0002-01 2026-08-25.",
+    "P8: Probenahmedatum: LabelKit 2026-08-12, Bericht AR-26-0002-01 2026-08-25.",
+    "P9: Probenahmedatum: LabelKit 2026-08-12, Bericht AR-26-0002-01 2026-08-25.",
+    "P9: Chlorid beauftragt – der Bericht enthält dazu keinen Wert.",
+    "P10: Probenahmedatum: LabelKit 2026-08-12, Bericht AR-26-0002-01 2026-08-25.",
+    "P10: Chlorid beauftragt – der Bericht enthält dazu keinen Wert.",
+    "P11: Probenahmedatum: LabelKit 2026-08-12, Bericht AR-26-0002-01 2026-08-25.",
+    "P11: Chlorid beauftragt – der Bericht enthält dazu keinen Wert.",
+    "P12: Probenahmedatum: LabelKit 2026-08-12, Bericht AR-26-0002-01 2026-08-25.",
+    "P12: Chlorid beauftragt – der Bericht enthält dazu keinen Wert.",
+    "P13: Probenahmedatum: LabelKit 2026-08-12, Bericht AR-26-0002-01 2026-08-25.",
+    "P13: Chlorid beauftragt – der Bericht enthält dazu keinen Wert.",
+    "P14: Probenahmedatum: LabelKit 2026-08-20, Bericht AR-26-0002-01 2026-08-25.",
+    "P15: Probenahmedatum: LabelKit 2026-08-20, Bericht AR-26-0002-01 2026-08-25.",
+    "P16: Probenahmedatum: LabelKit 2026-08-20, Bericht AR-26-0002-01 2026-08-25.",
+    "P17: Probenahmedatum: LabelKit 2026-08-20, Bericht AR-26-0002-01 2026-08-25.",
+    "P18: Probenahmedatum: LabelKit 2026-08-20, Bericht AR-26-0002-01 2026-08-25.",
+    "P18: Asbest beauftragt – der Bericht enthält dazu keinen Wert.",
+    "P19: Probenahmedatum: LabelKit 2026-08-20, Bericht AR-26-0002-01 2026-08-25.",
+    "P19: Asbest beauftragt – der Bericht enthält dazu keinen Wert.",
+    "P20: Probenahmedatum: LabelKit 2026-08-20, Bericht AR-26-0002-01 2026-08-25.",
+    "P20: Asbest beauftragt – der Bericht enthält dazu keinen Wert.",
+    "P21: Probenahmedatum: LabelKit 2026-08-20, Bericht AR-26-0002-01 2026-08-25.",
+    "P21: Asbest beauftragt – der Bericht enthält dazu keinen Wert."
+  ]
+}

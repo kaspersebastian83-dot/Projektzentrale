@@ -214,9 +214,15 @@ console.log('OK stufen: Brandbericht in „Mitteilungen“ wie der Asbestbericht
   for (const f of faelle){
     const a = S.kacheln(f), b = S.kacheln(f, null, je);
     assert.deepEqual(b.map(k => [k.key, k.fertig, k.zustand, k.jetzt, k.aktion, k.name]), a.map(k => [k.key, k.fertig, k.zustand, k.jetzt, k.aktion, k.name]));
-    for (const k of b) if (je[k.key] && ['fotos', 'labor', 'plan', 'bericht'].includes(k.key)) assert.deepEqual([k.text, k.luecke], [je[k.key].text, !!je[k.key].luecke]);
+    // 1.55.0 (P7): auch „Proben“ je Mitteilung – nur, wenn je.proben gesetzt ist (kachelTexte liefert es nur mit Laboraufträgen in LabelKit)
+    for (const k of b) if (je[k.key] && ['proben', 'fotos', 'labor', 'plan', 'bericht'].includes(k.key)) assert.deepEqual([k.text, k.luecke], [je[k.key].text, !!je[k.key].luecke]);
       else assert.deepEqual(k, a.find(x => x.key === k.key));
   }
   assert.ok(!S.kacheln(faelle[1]).some(k => 'luecke' in k), 'ohne je kein neues Feld');
-  console.log('OK stufen: kacheln ohne drittes Argument wie 1.53.1, mit je nur Text und gelbe Lücke');
+  // 1.55.0: je ohne „proben“ (eine Mitteilung bzw. ein Laborauftrag) → Proben-Kachel genau wie ohne je
+  const ohneProben = { ...je }; delete ohneProben.proben;
+  for (const f of faelle) assert.deepEqual(S.kacheln(f, null, ohneProben).find(k => k.key === 'proben'), S.kacheln(f).find(k => k.key === 'proben'), 'Proben ohne je.proben wie bisher');
+  const mitProben = S.kacheln(faelle[0], null, { proben: { text: '8 Proben · Auftrag 2 vom 22.08.', luecke: false } }).find(k => k.key === 'proben');
+  assert.deepEqual([mitProben.text, mitProben.luecke, mitProben.fertig], ['8 Proben · Auftrag 2 vom 22.08.', false, S.kacheln(faelle[0]).find(k => k.key === 'proben').fertig], 'Proben-Text je Mitteilung, ✓ bleibt Projektfakt');
+  console.log('OK stufen: kacheln ohne drittes Argument wie 1.53.1, mit je nur Text und gelbe Lücke (ab 1.55.0 auch Proben, nur mit je.proben)');
 }

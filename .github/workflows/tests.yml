@@ -68,6 +68,14 @@ jobs:
         env:
           BERICHTKIT_PFLICHT: '1'
       - run: node tests/mitteilungen.cjs
+      - name: LabelKit daneben holen (Regel „gilt das Merkmal?“ gegen LabelKits echte Funktionen prüfen)
+        env:
+          ZWEIG: ${{ github.head_ref }}
+        # gleichnamiger Zweig in LabelKit, falls es ihn gibt (Änderung in beiden Repos), sonst main
+        run: git clone --quiet --depth 1 --branch "$ZWEIG" https://github.com/kaspersebastian83-dot/labelkit.git ../labelkit 2>/dev/null || git clone --quiet --depth 1 https://github.com/kaspersebastian83-dot/labelkit.git ../labelkit
+      - run: node tests/laborauftraege-labelkit.cjs
+        env:
+          LABELKIT_PFLICHT: '1'
       - run: node tests/word-luecken.cjs
       - run: node tests/word-wahl.cjs
 
@@ -122,7 +130,7 @@ jobs:
         env:
           ZWEIG: ${{ github.head_ref }}
         run: git clone --quiet --depth 1 --branch "$ZWEIG" https://github.com/kaspersebastian83-dot/Bildumbenenner.git ../Bildumbenenner 2>/dev/null || git clone --quiet --depth 1 https://github.com/kaspersebastian83-dot/Bildumbenenner.git ../Bildumbenenner
-      - name: Notices as a level (1.54) – row, choice, tiles, attachment list, hand-over in number order, two windows, slow write, one notice unchanged, FotoKit keeps the field
+      - name: Notices as a level (1.54) and lab orders per notice (1.55) – row, choice, tiles, attachment list, hand-over in number order, two windows, slow write, one notice unchanged, FotoKit keeps the field
         run: node tests/mitteilungen-browser.cjs ${{ matrix.browser }}
         env:
           FOTOKIT_PFLICHT: '1'

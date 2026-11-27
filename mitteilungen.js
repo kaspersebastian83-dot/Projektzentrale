@@ -12,7 +12,17 @@
    - Anlagen-Liste je Mitteilung (M15–M18): Vorschlag wird gerechnet (BerichtKit-Eintrag zur Word-Datei, sonst aus dem Bezug),
      gespeichert wird nur, was von Hand abweicht (anlagenDazu/anlagenWeg). Fest wird die Liste mit der Übergabe – in der
      Büroaufgabe (anlagen, einmal geschrieben). Nummern nach der Hausreihenfolge aus BerichtKits anlagen.js (Entscheidung 8).
-   Unbekannte Felder in Einträgen bleiben erhalten. Byte-gleich später nach BerichtKit (Stufe 4). */
+   Unbekannte Felder in Einträgen bleiben erhalten. Byte-gleich später nach BerichtKit (Stufe 4).
+   Laboraufträge je Mitteilung (ab 1.55.0, claude/projektzentrale-auftraege-plan.md 4.1–4.5, P1–P9) – Lesart von `auftraege`:
+   - Hat LabelKit keine Kennung (ein Auftrag, laborauftraege.js mehrere = false) → `auftraege` wird weder gezeigt noch ausgewertet,
+     alles wie bis 1.54.0 (auftragsLage → null).
+   - Sonst heißt „leer oder fehlt“ „kein Auftrag zugeordnet“ (gelbe Zeile „Gehört zu keiner Mitteilung … – zuordnen …“).
+   - Eine übergebene Mitteilung hat zusätzlich die Aufträge ihrer festen Prüfberichte – gerechnet (auftraegeVon), nie gespeichert.
+   - Ein Auftrag darf in mehreren Mitteilungen stehen (wie ein Termin).
+   - Eine Kennung, die es in LabelKit nicht (mehr) gibt, bleibt im Eintrag und wird gelb „gibt es in LabelKit nicht mehr“, bis ein
+     Mensch sie entfernt. Kennungen kommen nur aus LabelKit – die Projektzentrale vergibt und ändert keine.
+   - Prüfbericht → Aufträge nur über den genauen PDF-Namen in `_Ergebnisse.json` (berichte[].sources.pdf, NFC, klein) und nur bei
+     passendem Stand der Übernahme und gleichen Kennungen wie aus LabelKit gerechnet; sonst „Auftrag unbekannt“ mit Grund – nie raten. */
 (function(root){
   'use strict';
   const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -154,13 +164,25 @@
       die neue). Bestehende Einträge behalten ihre Termine (nicht neu gerechnet). Termine, die in keinem Eintrag stehen, gehen
       bei Spalten ohne Eintrag nach dem Datum: zur ersten Mitteilung, deren Ende am Termintag oder später liegt (ohne Ende:
       offen); hat die erste Mitteilung kein Ende, geht nur der neueste Termin an die letzte Spalte (3.2). Gibt es schon Einträge,
-      bekommt die neue Spalte alles, was in keinem Eintrag steht (M6, Regel 3.3). → { <schluessel>: [Termin-Kennungen] } */
+      bekommt die neue Spalte alles, was in keinem Eintrag steht (M6, Regel 3.3). Haben alle Spalten Einträge (ab 1.55 „zuordnen …“),
+      geht ein freier Termin nach dem Datum an die erste nicht übergebene passende Mitteilung. → { <schluessel>: [Termin-Kennungen] } */
   function vorwahlTermine(pj, spalten, o = {}){
     const t = termine(pj), out = {};
     const inEintrag = new Set(); for (const s of spalten) if (s.eintrag && Array.isArray(s.eintrag.termine)) s.eintrag.termine.forEach(x => inEintrag.add(text(x)));
     for (const s of spalten) out[s.schluessel] = s.eintrag && Array.isArray(s.eintrag.termine) ? s.eintrag.termine.map(text).filter(x => t.some(y => y.id === x)) : [];
     const frei = t.filter(x => !inEintrag.has(x.id)), offen = spalten.filter(s => !s.eintrag);
-    if (!frei.length || !offen.length) return out;
+    if (!frei.length) return out;
+    if (!offen.length){
+      // ab 1.55 (P3, „zuordnen …“ aus der gelben Zeile): alle Spalten haben Einträge – ein neuer Termin nach dem Datum: zur ersten
+      // Mitteilung, deren Ende am Termintag oder später liegt (ohne Ende: dorthin), sonst zur neuesten; nie in eine übergebene
+      const enden = spalten.map(s => ende(s.m, o));
+      for (const x of frei){
+        if (!x.datum) continue;
+        let i = enden.findIndex(e => !e || x.datum <= e.datum); if (i < 0) i = spalten.length - 1;
+        if (!spalten[i].gesperrt && !(spalten[i].m && spalten[i].m.fest)) out[spalten[i].schluessel].push(x.id);
+      }
+      return out;
+    }
     if (spalten.some(s => s.eintrag)){ out[offen[offen.length - 1].schluessel].push(...frei.map(x => x.id)); return out; }
     const enden = offen.map(s => ende(s.m, o));
     if (!enden[0] && frei.length > 1 && offen.length > 1){
@@ -173,6 +195,153 @@
       out[offen[i < 0 ? offen.length - 1 : i].schluessel].push(x.id);
     }
     return out;
+  }
+
+  /* ---------- Laboraufträge (ab 1.55.0) ---------- */
+  const gross = v => text(v).trim().toUpperCase();
+  /** Was die Projektzentrale aus „_Ergebnisse.json“ (ResultKit, format spektron-ergebnisse, version 1) behält – nur im Speicher:
+      Kennung je Label (auftrag.proben[].auftrag), je geltendem Bericht sources.pdf und Labels, offen[], Namen in dateien[]. */
+  function ergebnisAuszug(o){
+    if (!o || typeof o !== 'object') return null;
+    const kennung = {}, proben = o.auftrag && Array.isArray(o.auftrag.proben) ? o.auftrag.proben : [];
+    for (const x of proben) if (x && typeof x.label === 'string' && typeof x.auftrag === 'string' && /^a\d+$/.test(x.auftrag)) kennung[gross(x.label)] = x.auftrag;
+    const berichte = (Array.isArray(o.berichte) ? o.berichte : []).filter(b => b && typeof b === 'object').map(b => ({ bericht: text(b.bericht),
+      pdf: b.sources && typeof b.sources.pdf === 'string' ? base(b.sources.pdf) : '', labels: (Array.isArray(b.proben) ? b.proben : []).map(x => x && gross(x.label)).filter(Boolean) }));
+    return { kennung, berichte, offen: (Array.isArray(o.offen) ? o.offen : []).map(gross).filter(Boolean),
+      dateien: (Array.isArray(o.dateien) ? o.dateien : []).map(d => d && typeof d.name === 'string' ? base(d.name) : '').filter(Boolean), mitAuftrag: !!(o.auftrag && proben.length) };
+  }
+  /** Sätze zum Grund „Auftrag unbekannt“ (F3). */
+  const GRUND = {
+    veraltet: 'ResultKit-Übernahme veraltet – in ResultKit erneut übernehmen',
+    keine: 'noch nicht in ResultKit übernommen',
+    fehler: 'Ergebnisdatei von ResultKit nicht lesbar – in ResultKit erneut übernehmen',
+    unklar: 'Stand der ResultKit-Übernahme nicht prüfbar',
+    kennung: 'Laboraufträge in ResultKit passen nicht zu LabelKit – in ResultKit erneut übernehmen',
+    ersetzt: 'ersetzt oder nicht als geltender Prüfbericht übernommen',
+    nicht: 'nicht in der ResultKit-Übernahme',
+    mehrdeutig: 'mehrere Prüfberichte der Übernahme nennen diese PDF',
+  };
+  const nummerA = id => { const m = /^a(\d+)$/.exec(text(id)); return m ? +m[1] : 0; };
+  const auftragWort = nrs => { const l = [...new Set(nrs)].sort((a, b) => a - b); return l.length === 1 ? `Auftrag ${l[0]}` : `Aufträge ${l.join(', ')}`; };
+  /** Lage der Laboraufträge im Projekt. lk = Laborauftraege.lesen(LabelKit-Datei) | null; erg = ergebnisAuszug(…) mit veraltet
+      (true/false; undefined = Stand nicht prüfbar) und fehler, oder null (keine Übernahme). → null, wenn LabelKit keine Kennung hat
+      (ein Auftrag: alles wie bis 1.54.0). Sonst { auftraege, neu, ok, grund, pdf(name) → { auftraege: [Kennungen] } | { grund },
+      offen(id) → Anzahl offener Proben des Auftrags (nur bei ok), auftrag(id), name(id) }. */
+  function auftragsLage(lk, erg){
+    if (!lk || !lk.mehrere) return null;
+    const je = new Map(lk.auftraege.map(a => [a.id, a]));
+    let grund = '';
+    if (!erg) grund = 'keine';
+    else if (erg.fehler) grund = 'fehler';
+    else if (erg.veraltet === true) grund = 'veraltet';
+    else if (erg.veraltet !== false) grund = 'unklar';
+    else {
+      const labels = new Set([...Object.keys(erg.kennung || {}), ...Object.keys(lk.kennungJe || {})]);
+      for (const l of labels) if (((erg.kennung || {})[l] || '') !== ((lk.kennungJe || {})[l] || '')){ grund = 'kennung'; break; }
+    }
+    const ok = !grund;
+    function pdf(name){
+      if (!ok) return { grund: GRUND[grund], art: grund };
+      const n = key(base(name)), treffer = erg.berichte.filter(b => b.pdf && key(b.pdf) === n);
+      if (treffer.length > 1) return { grund: GRUND.mehrdeutig, art: 'mehrdeutig' };
+      if (!treffer.length){
+        const zwilling = /^(.*?) \(\d+\)(\.pdf)$/i.exec(nfc(base(name)));
+        const b = zwilling ? erg.berichte.find(x => x.pdf && key(x.pdf) === key(zwilling[1] + zwilling[2])) : null;
+        if (b) return { grund: `nicht in der Übernahme – vielleicht eine Kopie von „${b.pdf}“`, art: 'kopie' };
+        if (erg.dateien.some(d => key(d) === n)) return { grund: GRUND.ersetzt, art: 'ersetzt' };
+        return { grund: GRUND.nicht, art: 'nicht' };
+      }
+      const b = treffer[0], ohne = b.labels.filter(l => !lk.kennungJe[l]);
+      if (ohne.length) return { grund: `enthält Proben ohne Laborauftrag in LabelKit (${ohne.slice(0, 4).join(', ')}${ohne.length > 4 ? ' …' : ''})`, art: 'ohneKennung' };
+      const ids = [...new Set(b.labels.map(l => lk.kennungJe[l]))].sort((x, y) => (je.has(x) ? je.get(x).nr : 0) - (je.has(y) ? je.get(y).nr : 0));
+      return ids.length ? { auftraege: ids } : { grund: GRUND.nicht, art: 'leer' };
+    }
+    const offen = id => ok ? erg.offen.filter(l => lk.kennungJe[l] === id).length : null;
+    const name = id => { const a = je.get(id), m = /^a(\d+)$/.exec(text(id)); return a ? `Auftrag ${a.nr}` : m ? `Auftrag ${m[1]}` : `Auftrag „${text(id)}“`; };
+    return { auftraege: lk.auftraege, neu: lk.neu, ok, grund: grund ? GRUND[grund] : '', grundArt: grund, pdf, offen, auftrag: id => je.get(id) || null, name, aufgebaut: !!lk.aufgebaut };
+  }
+  /** Aufträge einer Mitteilung: gespeichert (Eintrag) ∪ bei übergebenen aus den festen Prüfberichten gerechnet. → null ohne Lage;
+      sonst { ids: Set, gespeichert, gerechnet, unbekannt: gespeicherte Kennungen, die LabelKit nicht kennt, festUnbekannt: [{ pfad, grund }] } */
+  function auftraegeVon(m, lage){
+    if (!lage || !m) return null;
+    const gespeichert = m.eintrag && Array.isArray(m.eintrag.auftraege) ? [...new Set(m.eintrag.auftraege.map(text).map(x => x.trim()).filter(Boolean))] : [];
+    const gerechnet = [], festUnbekannt = [];
+    if (m.fest) for (const p of festeDateien(m)){
+      if (artVon(p) !== 'pruefbericht') continue;
+      const info = lage.pdf(base(p));
+      if (info.auftraege) for (const id of info.auftraege){ if (!gerechnet.includes(id)) gerechnet.push(id); }
+      else festUnbekannt.push({ pfad: p, grund: info.grund });
+    }
+    return { ids: new Set([...gespeichert, ...gerechnet]), gespeichert, gerechnet, unbekannt: gespeichert.filter(id => !lage.auftrag(id)), festUnbekannt };
+  }
+  /** Was zu keiner Mitteilung gehört (P3): Termine, die in keinem Eintrag stehen (nur, wenn es Einträge gibt), und Aufträge, die in
+      keiner Mitteilung stehen (nur mit Lage). Nur bei mehreren Mitteilungen. → { termine: [{ id, datum, nr }], auftraege, unklar, festUnbekannt } | null */
+  function frei(l, lage, pj){
+    const ms = (l && l.mitteilungen) || [];
+    if (!l || !l.mehrere) return null;
+    const ein = ms.filter(m => m.eintrag), t = termine(pj);
+    const tFrei = ein.length ? t.map((x, i) => ({ ...x, nr: i + 1 })).filter(x => !ein.some(m => Array.isArray(m.eintrag.termine) && m.eintrag.termine.map(text).includes(x.id))) : [];
+    const von = ms.map(m => auftraegeVon(m, lage));
+    // Sind die Aufträge einer übergebenen Mitteilung gerade nicht zu rechnen (z. B. Übernahme veraltet), gelten Aufträge bis zu ihrer
+    // Übergabe nicht als „frei“ (sie stehen vermutlich in ihr) – sie heißen „unklar“, mit dem Grund; zuordnen lässt sich dort nichts.
+    const unklarBis = ms.map((m, i) => von[i] && von[i].festUnbekannt.length ? ende(m) : null).filter(Boolean).map(g => g.datum).sort().pop() || '';
+    const nirgends = lage ? lage.auftraege.filter(a => !von.some(v => v && v.ids.has(a.id))) : [];
+    const unklar = nirgends.filter(a => unklarBis && a.am && a.am <= unklarBis);
+    return { termine: tFrei, auftraege: nirgends.filter(a => !unklar.includes(a)), unklar, festUnbekannt: von.flatMap((v, i) => v ? v.festUnbekannt.map(x => ({ ...x, m: ms[i] })) : []) };
+  }
+  /** „Termin 3 (05.09.) · Auftrag 3 (07.09.)“ */
+  const freiText = f => !f ? '' : [...f.termine.map(x => `Termin ${x.nr} (${x.datum ? de(x.datum) : 'ohne Datum'})`), ...f.auftraege.map(a => `Auftrag ${a.nr} (${a.am ? de(a.am) : 'ohne Datum'})`)].join(' · ');
+  /** Zeile der Rückfrage: „Auftrag 2 · 22.08. · 8 Proben (P14–P21) · Probenahme 20.08.“ */
+  function auftragText(a){
+    const n = a.proben.length, pn = a.probenahme || [];
+    return [`Auftrag ${a.nr}`, a.am ? de(a.am) : 'ohne Datum', `${n} ${n === 1 ? 'Probe' : 'Proben'}${n ? ` (${nrListe(a.proben)})` : ''}`,
+      pn.length ? `Probenahme ${pn[0] === pn[1] ? de(pn[0]) : de(pn[0]) + '–' + de(pn[1])}` : ''].filter(Boolean).join(' · ');
+  }
+  function nrListe(nrs){
+    const s = [...new Set(nrs)].sort((a, b) => a - b), teile = [];
+    for (let i = 0; i < s.length;){ let j = i; while (j + 1 < s.length && s[j + 1] === s[j] + 1) j++; teile.push(j > i ? 'P' + s[i] + '–P' + s[j] : 'P' + s[i]); i = j + 1; }
+    return teile.join(', ');
+  }
+  /** Vorwahl der Aufträge je Spalte (P2). spalten wie bei vorwahlTermine ({ schluessel, eintrag?, m?, nr, gesperrt? }, älteste zuerst);
+      o: { versandt, termine: Vorwahl der Termine je Spalte, pj }. Bestehende Einträge behalten ihre Aufträge, übergebene Mitteilungen
+      haben zusätzlich die gerechneten (gesperrt). Aufträge, die in keiner Spalte stehen, gehen nach dem DATUM DES AUFTRAGS – nie nach
+      dem Probenahmedatum: liegt es nach dem Ende einer Mitteilung (Übergabe, sonst frühere Versandangabe, sonst Dateizeit der
+      Word-Datei), zur nächsten; trifft das eine Mitteilung ohne Ende, entscheidet ab dort der späteste Termin am oder vor dem
+      Auftragsdatum. Fällt die Wahl auf eine übergebene Mitteilung, wird nichts vorgewählt (Satz). → { vor: { schluessel: [ids] }, saetze } */
+  function vorwahlAuftraege(lage, spalten, o = {}){
+    const vor = {}, saetze = [];
+    if (!lage) return { vor, saetze };
+    const belegt = new Set();
+    for (const s of spalten){
+      const v = s.m ? auftraegeVon(s.m, lage) : null, eigen = s.eintrag && Array.isArray(s.eintrag.auftraege) ? s.eintrag.auftraege.map(text).filter(Boolean) : [];
+      vor[s.schluessel] = [...new Set([...eigen, ...(v && s.m.fest ? v.gerechnet : [])])];
+      vor[s.schluessel].forEach(x => belegt.add(x));
+    }
+    const enden = spalten.map(s => ende(s.m, o)), tDatum = new Map(termine(o.pj).map(t => [t.id, t.datum]));
+    const nicht = e => e.text.replace(/^nach /, 'nicht nach ');
+    for (const a of lage.auftraege){
+      if (belegt.has(a.id)) continue;
+      const was = `Auftrag ${a.nr}${a.am ? ' vom ' + de(a.am) : ''}`;
+      if (!a.am){ saetze.push(`${was} hat kein Datum – bitte selbst zuordnen.`); continue; }
+      let i = enden.findIndex(e => !e || a.am <= e.datum), wie = '';
+      if (i < 0){ i = spalten.length - 1; wie = `liegt ${enden[i].text}`; }   // nach dem Ende aller Mitteilungen: die neueste
+      else if (!enden[i] && spalten.length - i > 1){
+        // ohne Grenze: ab hier die Mitteilung mit dem spätesten Termin am oder vor dem Auftragsdatum (gleicher Tag: die neuere)
+        let best = -1, tag = '';
+        for (let j = i; j < spalten.length; j++){
+          const d = ((o.termine || {})[spalten[j].schluessel] || []).map(id => tDatum.get(id)).filter(x => x && x <= a.am).sort().pop() || '';
+          if (d && d >= tag){ tag = d; best = j; }
+        }
+        if (best >= 0){ i = best; wie = `letzter Termin davor ${de(tag)}`; }
+        else wie = i > 0 ? `liegt ${enden[i - 1].text}` : 'kein Termin davor';
+      }
+      else wie = i > 0 && enden[i - 1] ? `liegt ${enden[i - 1].text}` : enden[i] ? `liegt ${nicht(enden[i])}` : 'kein Termin davor';
+      const s = spalten[i];
+      if (s.gesperrt || (s.m && s.m.fest)){ saetze.push(`${was} ${wie} – nach dem Datum die ${s.nr}. Mitteilung, die schon übergeben ist: nicht vorgewählt, bitte prüfen.`); continue; }
+      vor[s.schluessel].push(a.id);
+      saetze.push(`${was} ${wie} → ${s.nr}. Mitteilung`);
+    }
+    return { vor, saetze };
   }
 
   /* ---------- Anlagen ---------- */
@@ -266,7 +435,9 @@
 
   /** Anlagen-Liste jeder Mitteilung. l = liste(); e = { pj, fotos: [{name, t}] (PDFs in „Fotos“), plaene: [{name, t}],
       labor: [{name, t}], vorhanden: Set der Pfade (kleingeschrieben, „Ordner/Datei“), fk, bk: berichte[], plan, ordnerName,
-      projektNr }; A = BerichtAnlagen (anlagen.js).
+      projektNr, lage?: auftragsLage() (ab 1.55.0; ohne sie alles wie bis 1.54.0) }; A = BerichtAnlagen (anlagen.js).
+      Mit Lage zusätzlich je Zeile (nur wenn gesetzt): auftraege (Kennungen des Prüfberichts), hinweis (Satz, z. B. „Auftrag unbekannt: …“),
+      warnung (P9: BerichtKit nennt einen Prüfbericht, der laut Laborauftrag zu einer anderen Mitteilung gehört – nie still entfernt).
       → Map schluessel → { zeilen: [{ nr, art, titel, dateien, herkunft, herkunftText, fehlt, grund, veraltet, termin, auch }],
                            weg: [Pfade, von Hand entfernt], fest, quelle: 'buero'|'berichtkit'|'bezug', bk: Eintrag | null } */
   function anlagenListen(l, e, A){
@@ -275,6 +446,9 @@
     const vorhanden = e.vorhanden instanceof Set ? e.vorhanden : null;
     const festJe = new Map(ms.map(m => [m.schluessel, new Set(festeDateien(m).map(key))]));
     const inFestAnderer = (m, p) => ms.some(x => x !== m && festJe.get(x.schluessel).has(key(p)));
+    const lage = e.lage || null, vonJe = new Map(ms.map(m => [m.schluessel, auftraegeVon(m, lage)]));
+    const nrn = ids => ids.map(id => (lage.auftrag(id) || { nr: nummerA(id) }).nr);
+    const mitAuftrag = (id, ohne) => ms.filter(x => x !== ohne && vonJe.get(x.schluessel).ids.has(id));
     const out = new Map();
     for (const m of ms){
       if (m.fest){
@@ -306,11 +480,43 @@
       } else if (bkE && Array.isArray(bkE.anlagen) && bkE.anlagen.length){
         quelle = 'berichtkit';
         for (const d of bkE.anlagen) zeilen.push({ art: artVon(d), titel: titelVon(A, artVon(d)), dateien: [text(d)], herkunft: 'berichtkit', herkunftText: 'aus BerichtKit' });
-      } else {
+      }
+      if (quelle === 'berichtkit' && lage){
+        // P9: BerichtKit nennt bis Stufe 4 alle Prüfberichte des Projekts – gehört einer laut Laborauftrag zu einer ANDEREN Mitteilung
+        // (und zu keinem Auftrag dieser), wird die Zeile gelb. Sie bleibt stehen, bis jemand sie entfernt (nie still entfernen).
+        const eigene = vonJe.get(m.schluessel);
+        for (const z of zeilen){
+          if (z.art !== 'pruefbericht' || z.dateien.length !== 1) continue;
+          const info = lage.pdf(base(z.dateien[0]));
+          if (!info.auftraege || info.auftraege.some(id => eigene.ids.has(id))) continue;
+          const andere = ms.filter(x => x !== m && info.auftraege.some(id => vonJe.get(x.schluessel).ids.has(id)));
+          if (!andere.length) continue;
+          const n = nrn(info.auftraege);
+          z.auftraege = info.auftraege;
+          z.warnung = `laut ${n.length === 1 ? 'Laborauftrag ' + n[0] : 'Laboraufträgen ' + n.join(', ')} zur ${andere.map(x => x.nr + '. Mitteilung').join(' und ')} – in BerichtKit abwählen oder hier entfernen`;
+        }
+      }
+      if (quelle === 'bezug'){
         // eigener Vorschlag aus dem Bezug: Prüfberichte und Plan „noch in keiner Mitteilung“ (keiner festen Liste), Bilddoku je Termin
         for (const f of (e.labor || []).slice().sort((a, b) => nfc(a.name).localeCompare(nfc(b.name), 'de', { numeric: true }))){
           const p = 'Laborergebnisse/' + nfc(f.name);
-          if (!inFestAnderer(m, p)) zeilen.push({ art: 'pruefbericht', titel: 'Prüfbericht', dateien: [p], herkunft: 'frei', herkunftText: 'noch in keiner Mitteilung' });
+          if (inFestAnderer(m, p)) continue;
+          if (!lage){ zeilen.push({ art: 'pruefbericht', titel: 'Prüfbericht', dateien: [p], herkunft: 'frei', herkunftText: 'noch in keiner Mitteilung' }); continue; }
+          // ab 1.55.0 (P5, P6): nach den Aufträgen seiner Proben – nur, wenn die Übernahme passt; sonst wie bisher mit dem Grund
+          const info = lage.pdf(f.name);
+          if (!info.auftraege){ zeilen.push({ art: 'pruefbericht', titel: 'Prüfbericht', dateien: [p], herkunft: 'frei', herkunftText: 'noch in keiner Mitteilung', hinweis: `Auftrag unbekannt: ${info.grund}` }); continue; }
+          const eigene = vonJe.get(m.schluessel), hier = info.auftraege.filter(id => eigene.ids.has(id));
+          if (hier.length){
+            // weitere Aufträge des Berichts, die in keiner offenen anderen Mitteilung stehen (dort käme „auch in der …“ von selbst)
+            const extra = info.auftraege.filter(id => !eigene.ids.has(id) && !mitAuftrag(id, m).some(x => !x.fest)).map(id => {
+              const fest = mitAuftrag(id, m).filter(x => x.fest), nr = nrn([id])[0];
+              return `Auftrag ${nr}${fest.length ? ` (${fest.map(x => x.nr + '.').join(', ')} Mitteilung schon übergeben)` : ' (keiner Mitteilung zugeordnet)'}`;
+            });
+            zeilen.push({ art: 'pruefbericht', titel: 'Prüfbericht', dateien: [p], herkunft: 'auftrag', herkunftText: `aus ${auftragWort(nrn(hier))}`, auftraege: info.auftraege,
+              ...(extra.length ? { hinweis: `enthält auch Proben aus ${extra.join(', ')}` } : {}) });
+          } else if (info.auftraege.every(id => !mitAuftrag(id, null).length))
+            zeilen.push({ art: 'pruefbericht', titel: 'Prüfbericht', dateien: [p], herkunft: 'frei', herkunftText: `noch in keiner Mitteilung · ${auftragWort(nrn(info.auftraege))} keiner Mitteilung zugeordnet`, auftraege: info.auftraege });
+          // sonst gehört er laut Auftrag zu einer anderen Mitteilung – nicht vorgeschlagen
         }
         const bez = m.eintrag && Array.isArray(m.eintrag.termine) ? m.eintrag.termine.map(text) : null;
         if (bez) for (const id of bez){
@@ -367,8 +573,9 @@
     return { fehlen: b.filter(p => !lk.has(key(p))), mehr: liste.filter(p => !bkk.has(key(p))) };
   }
 
-  /** Texte unter den Kacheln für die gewählte Mitteilung (Plan 4.3) – nur Text und gelbe Lücke, nie das ✓ (Stufen.kacheln je). */
-  function kachelTexte(m, liste, pj){
+  /** Texte unter den Kacheln für die gewählte Mitteilung (Plan 4.3) – nur Text und gelbe Lücke, nie das ✓ (Stufen.kacheln je).
+      lage (ab 1.55.0, P7): nur bei Kennungen in LabelKit – dann zusätzlich „Proben“ und „Labor“ je Auftrag der Mitteilung; ohne sie wie 1.54.0. */
+  function kachelTexte(m, liste, pj, lage){
     if (!m || !liste) return null;
     const z = liste.zeilen, tJe = new Map(termine(pj).map(x => [x.id, x]));
     const anz = (n, e, v) => `${n} ${n === 1 ? e : v}`;
@@ -385,12 +592,28 @@
     }
     const pb = z.filter(x => x.art === 'pruefbericht' && x.dateien.length && !x.fehlt).length;
     const plan = z.some(x => x.art === 'probenplan' && x.dateien.length && !x.fehlt);
-    return {
+    const out = {
       fotos,
       labor: pb ? { text: `${anz(pb, 'Prüfbericht', 'Prüfberichte')} in der Liste`, luecke: false } : { text: 'kein Prüfbericht zugeordnet', luecke: true },
       plan: plan ? { text: 'Probenplan in der Liste', luecke: false } : { text: 'kein Plan zugeordnet', luecke: true },
       bericht: { text: `${m.nr}. Mitteilung · ${zustandText(m)}`, luecke: false },
     };
+    if (!lage) return out;
+    // Proben und Labor je Auftrag der Mitteilung (P7) – das ✓ und „Jetzt dran“ bleiben Projektfakt (Stufen.kacheln je)
+    const v = auftraegeVon(m, lage), bekannt = lage.auftraege.filter(a => v.ids.has(a.id)), neu = !m.fest && lage.neu.length ? ` · ${anz(lage.neu.length, 'neue Probe', 'neue Proben')} noch nicht beim Labor` : '';
+    if (!bekannt.length){
+      out.proben = v.unbekannt.length ? { text: `${v.unbekannt.map(lage.name).join(', ')} gibt es in LabelKit nicht mehr${neu}`, luecke: true } : { text: `kein Laborauftrag zugeordnet${neu}`, luecke: true };
+      return out;
+    }
+    const proben = new Set(bekannt.flatMap(a => a.proben));
+    out.proben = { text: `${anz(proben.size, 'Probe', 'Proben')} · ${bekannt.length === 1 ? `Auftrag ${bekannt[0].nr}${bekannt[0].am ? ' vom ' + de(bekannt[0].am) : ''}` : auftragWort(bekannt.map(a => a.nr))}${neu}`, luecke: !!v.unbekannt.length };
+    const liste2 = out.labor.text;
+    if (lage.ok){
+      const je = bekannt.map(a => { const o = lage.offen(a.id), n = a.proben.length; return `Auftrag ${a.nr}: ${n - o} von ${n} mit Ergebnis${o ? ` · ${o} offen` : ''}`; });
+      out.labor = { text: `${je.join(' · ')} · ${liste2}`, luecke: out.labor.luecke };
+    } else if (lage.grundArt !== 'keine')
+      out.labor = { text: `${auftragWort(bekannt.map(a => a.nr))}: ${lage.grundArt === 'veraltet' ? 'seit der Übernahme geändert – in ResultKit übernehmen' : lage.grund}`, luecke: true };
+    return out;
   }
 
   /** Angebot in „Jetzt dran“ (M5): nur eine Mitteilung, sie ist übergeben, danach ist etwas Neues da – ein Termin nach der
@@ -402,6 +625,9 @@
     const g = ende(ms[0]); if (!g) return null;
     const fest = new Set(festeDateien(ms[0]).map(key)), neu = [];
     for (const t of termine(e && e.pj)) if (t.datum && t.datum > g.datum) neu.push(`Ortstermin ${deLang(t.datum)}`);
+    // ab 1.55.0: ein Laborauftrag nach der Grenze, der nicht aus den festen Prüfberichten der 1. Mitteilung kommt, zählt als neu
+    const lage = e && e.lage, v = auftraegeVon(ms[0], lage);
+    if (lage) for (const a of lage.auftraege) if (a.am && a.am > g.datum && !v.ids.has(a.id)) neu.push(`Laborauftrag ${a.nr} vom ${deLang(a.am)}`);
     const neuere = (liste, ordner, re) => (liste || []).filter(f => re.test(nfc(f.name)) && tag(f.t) > g.datum && !fest.has(key(ordner + '/' + nfc(f.name)))).map(f => `„${nfc(f.name)}“`);
     neu.push(...neuere(e && e.fotos, 'Fotos', BILDDOKU), ...neuere(e && e.plaene, 'Pläne', /^Probenplan\b.*\.pdf$/i), ...neuere(e && e.labor, 'Laborergebnisse', /\.pdf$/i));
     if (!neu.length) return null;
@@ -411,7 +637,7 @@
 
   const api = Object.freeze({ MITTEILUNG, nrAusName, eintraege, zaehler, naechsteKennung, zaehlerNach, naechsteNr, bereinigt, termine, terminText,
     liste, zustandText, entfernbar, vorwahl, ende, grenze, vorwahlTermine, artVon, nummerieren, sortiert, bilddokuFuer, berichtEintrag, anlagenListen, pfade, vergleich,
-    kachelTexte, angebot, tag, nummer });
+    kachelTexte, angebot, tag, nummer, ergebnisAuszug, auftragsLage, auftraegeVon, frei, freiText, auftragText, vorwahlAuftraege, GRUND });
   root.Mitteilungen = api;
   if (typeof module !== 'undefined') module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

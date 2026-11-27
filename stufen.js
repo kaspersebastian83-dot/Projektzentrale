@@ -148,8 +148,9 @@
     if (!je || typeof je !== 'object') return out;
     return out.map(k => { const x = JE_KACHELN.includes(k.key) ? je[k.key] : null; return x && typeof x.text === 'string' ? { ...k, text: x.text, luecke: !!x.luecke } : k; });
   }
-  /** Kacheln mit Stand je Mitteilung (Plan 4.3) – Proben und Abrechnung bleiben je Projekt. */
-  const JE_KACHELN = ['fotos', 'labor', 'plan', 'bericht'];
+  /** Kacheln mit Stand je Mitteilung (Plan 4.3) – Abrechnung bleibt je Projekt; Proben ab 1.55.0 nur, wenn je.proben gesetzt ist
+      (Laboraufträge in LabelKit, Plan projektzentrale-auftraege-plan.md P7) – sonst wie bisher der Text des Projekts. */
+  const JE_KACHELN = ['proben', 'fotos', 'labor', 'plan', 'bericht'];
   /** Aktion von „Jetzt dran“ → Kachel (Projektdaten, Übergabe, Rückfrage, BüroKit haben keine Kachel) */
   const KACHEL_ZU = { label: 'proben', fotos: 'fotos', ergebnis: 'labor', plan: 'plan', bericht: 'bericht', brandbericht: 'bericht', berichtkit: 'bericht', beleg: 'abrechnung' };
 

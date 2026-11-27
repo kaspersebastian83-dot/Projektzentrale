@@ -1,0 +1,267 @@
+{
+  "version": "5.5.0",
+  "gespeichertAm": "2026-08-14T08:00:00.000Z",
+  "nrSchutz": 1,
+  "projekt": {
+    "nr": "26.0999"
+  },
+  "ui": {
+    "asbestProjektNr": "26.0999",
+    "sonstigeProjektNr": "26.0999",
+    "brandgeruchProjektNr": "26.0999",
+    "chloridProjektNr": "26.0999",
+    "chloridLoeschpulverparameter": false,
+    "bohrmehlAktiv": false,
+    "eiligeProben": false,
+    "auftragsscheinNotiz": "",
+    "pakPruefberichtNr": "",
+    "textblockLabor": "",
+    "textblockHeadings": false,
+    "textblockBrandTabelle": false
+  },
+  "proben": [
+    {
+      "id": 1,
+      "datum": "2026-08-12",
+      "z1": "26.0999",
+      "z2": "EG Raum 1 Decke",
+      "z3": "verrußt",
+      "z4": "Untersicht",
+      "matrix": "Wischprobe",
+      "cm2": "600",
+      "notiz": "",
+      "_nr": 1,
+      "nrFest": {
+        "am": "2026-08-14T08:00:00.000Z",
+        "anlass": "Abschluss"
+      }
+    },
+    {
+      "id": 2,
+      "datum": "2026-08-12",
+      "z1": "26.0999",
+      "z2": "EG Raum 2 Decke",
+      "z3": "verrußt",
+      "z4": "Untersicht",
+      "matrix": "Wischprobe",
+      "cm2": "600",
+      "notiz": "",
+      "_nr": 2,
+      "nrFest": {
+        "am": "2026-08-14T08:00:00.000Z",
+        "anlass": "Abschluss"
+      }
+    },
+    {
+      "id": 3,
+      "datum": "2026-08-12",
+      "z1": "26.0999",
+      "z2": "EG Raum 3 Decke",
+      "z3": "verrußt",
+      "z4": "Untersicht",
+      "matrix": "Wischprobe",
+      "cm2": "600",
+      "notiz": "",
+      "_nr": 3,
+      "nrFest": {
+        "am": "2026-08-14T08:00:00.000Z",
+        "anlass": "Abschluss"
+      }
+    },
+    {
+      "id": 4,
+      "datum": "2026-08-12",
+      "z1": "26.0999",
+      "z2": "EG Raum 4 Decke",
+      "z3": "verrußt",
+      "z4": "Untersicht",
+      "matrix": "Wischprobe",
+      "cm2": "600",
+      "notiz": "",
+      "_nr": 4,
+      "nrFest": {
+        "am": "2026-08-14T08:00:00.000Z",
+        "anlass": "Abschluss"
+      }
+    },
+    {
+      "id": 5,
+      "datum": "2026-08-12",
+      "z1": "26.0999",
+      "z2": "EG Raum 5 Decke",
+      "z3": "verrußt",
+      "z4": "Untersicht",
+      "matrix": "Wischprobe",
+      "cm2": "600",
+      "notiz": "",
+      "_nr": 5,
+      "nrFest": {
+        "am": "2026-08-14T08:00:00.000Z",
+        "anlass": "Abschluss"
+      }
+    },
+    {
+      "id": 6,
+      "datum": "2026-08-12",
+      "z1": "26.0999",
+      "z2": "EG Raum 6 Decke",
+      "z3": "verrußt",
+      "z4": "Untersicht",
+      "matrix": "Wischprobe",
+      "cm2": "600",
+      "notiz": "",
+      "_nr": 6,
+      "nrFest": {
+        "am": "2026-08-14T08:00:00.000Z",
+        "anlass": "Abschluss"
+      }
+    },
+    {
+      "id": 7,
+      "datum": "2026-08-12",
+      "z1": "26.0999",
+      "z2": "EG Raum 7 Decke",
+      "z3": "verrußt",
+      "z4": "Untersicht",
+      "matrix": "Wischprobe",
+      "cm2": "600",
+      "notiz": "",
+      "_nr": 7,
+      "nrFest": {
+        "am": "2026-08-14T08:00:00.000Z",
+        "anlass": "Abschluss"
+      }
+    },
+    {
+      "id": 8,
+      "datum": "2026-08-12",
+      "z1": "26.0999",
+      "z2": "EG Raum 8 Decke",
+      "z3": "verrußt",
+      "z4": "Untersicht",
+      "matrix": "Wischprobe",
+      "cm2": "600",
+      "notiz": "",
+      "_nr": 8,
+      "nrFest": {
+        "am": "2026-08-14T08:00:00.000Z",
+        "anlass": "Abschluss"
+      }
+    }
+  ],
+  "chloridProben": [
+    {
+      "id": 1786694400000,
+      "chloridNr": 9,
+      "datum": "2026-08-12",
+      "z1": "26.0999",
+      "z2": "EG Raum 1 Wand",
+      "z3": "verrußt",
+      "z4": "Ansicht",
+      "matrix": "Wischprobe",
+      "cm2": "100",
+      "notiz": "",
+      "loeschpulverparameter": false,
+      "_nr": 9,
+      "nrFest": {
+        "am": "2026-08-14T08:00:00.000Z",
+        "anlass": "Abschluss"
+      }
+    },
+    {
+      "id": 1786694400000,
+      "chloridNr": 10,
+      "datum": "2026-08-12",
+      "z1": "26.0999",
+      "z2": "EG Raum 2 Wand",
+      "z3": "verrußt",
+      "z4": "Ansicht",
+      "matrix": "Wischprobe",
+      "cm2": "100",
+      "notiz": "",
+      "loeschpulverparameter": false,
+      "_nr": 10,
+      "nrFest": {
+        "am": "2026-08-14T08:00:00.000Z",
+        "anlass": "Abschluss"
+      }
+    },
+    {
+      "id": 1786694400000,
+      "chloridNr": 11,
+      "datum": "2026-08-12",
+      "z1": "26.0999",
+      "z2": "EG Raum 3 Wand",
+      "z3": "verrußt",
+      "z4": "Ansicht",
+      "matrix": "Wischprobe",
+      "cm2": "100",
+      "notiz": "",
+      "loeschpulverparameter": false,
+      "_nr": 11,
+      "nrFest": {
+        "am": "2026-08-14T08:00:00.000Z",
+        "anlass": "Abschluss"
+      }
+    },
+    {
+      "id": 1786694400000,
+      "chloridNr": 12,
+      "datum": "2026-08-12",
+      "z1": "26.0999",
+      "z2": "EG Raum 4 Wand",
+      "z3": "verrußt",
+      "z4": "Ansicht",
+      "matrix": "Wischprobe",
+      "cm2": "100",
+      "notiz": "",
+      "loeschpulverparameter": false,
+      "_nr": 12,
+      "nrFest": {
+        "am": "2026-08-14T08:00:00.000Z",
+        "anlass": "Abschluss"
+      }
+    },
+    {
+      "id": 1786694400000,
+      "chloridNr": 13,
+      "datum": "2026-08-12",
+      "z1": "26.0999",
+      "z2": "EG Raum 5 Wand",
+      "z3": "verrußt",
+      "z4": "Ansicht",
+      "matrix": "Wischprobe",
+      "cm2": "100",
+      "notiz": "",
+      "loeschpulverparameter": false,
+      "_nr": 13,
+      "nrFest": {
+        "am": "2026-08-14T08:00:00.000Z",
+        "anlass": "Abschluss"
+      }
+    }
+  ],
+  "asbestProben": [],
+  "sonstigeProben": [],
+  "brandgeruchProben": [],
+  "pn98Proben": [],
+  "nextId": 9,
+  "sonstigeNextId": 1,
+  "asbestNextId": 1,
+  "probenStartNr": 1,
+  "brandgeruchNextId": 1,
+  "brandgeruchOrt": "",
+  "brandgeruchDatum": "",
+  "bgBlind": true,
+  "pn98NextId": 1,
+  "pn98Projekt": {
+    "schaden": "26.0999",
+    "schadendatum": "",
+    "pndatum": "",
+    "ort": "Teststadt Ka",
+    "grund": "",
+    "probenehmer": "",
+    "labor": ""
+  },
+  "feldprotokolle": []
+}
