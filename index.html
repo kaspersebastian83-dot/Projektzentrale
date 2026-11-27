@@ -2617,11 +2617,18 @@ async function abUebergeben(p){
       if (Object.keys(S.pjDirty).length) return halt('Nicht übergeben: Die Projektdaten sind noch nicht gespeichert (siehe Hinweis oben) – erst danach übergeben.');
       const frisch = await readPJ(await pjDir(p));
       let anlNeu = st.anl, wNeu = st.word, fkNeu = st.fk, bkNeu = st.bk;   // alles, woraus die Liste gerechnet wird (Runde 4)
-      try{ anlNeu = await abAnlagenLesen(p); }catch(e){} try{ wNeu = await abWordLesen(p); }catch(e){}
-      try{ const x = await otFotoKitLesen(p); if (!x.fehler) fkNeu = x.data; }catch(e){} try{ bkNeu = await abBerichtKitLesen(p); }catch(e){}
+      // Scheitert eines davon, wird nicht übergeben – nie mit einem alten Stand weiter (Runde 5)
+      const nichtLesbar = [];
+      try{ anlNeu = await abAnlagenLesen(p); }catch(e){ nichtLesbar.push('mögliche Anlagen (' + (e.message || e) + ')'); }
+      try{ wNeu = await abWordLesen(p); }catch(e){ nichtLesbar.push('„Mitteilungen“ (' + (e.message || e) + ')'); }
+      try{ const x = await otFotoKitLesen(p); if (x.fehler) nichtLesbar.push('FotoKits „_Bildumbenenner.json“ (' + x.fehler + ')'); else fkNeu = x.data; }catch(e){ nichtLesbar.push('FotoKit (' + (e.message || e) + ')'); }
+      try{ bkNeu = await abBerichtKitLesen(p); }catch(e){ nichtLesbar.push('BerichtKit (' + (e.message || e) + ')'); }
       const vorher = Mitteilungen.pfade(ms.listen.get(mt.schluessel).zeilen, mt.datei && mt.datei.rel);
       if (!S.sel || S.sel.name !== p.name){ st.busy = false; return; }
       if (frisch.error) return halt(`Nicht übergeben: Die Projektdaten sind nicht lesbar (${frisch.error}).`);
+      if (nichtLesbar.length) return halt(`Nicht übergeben: ${nichtLesbar.join(', ')} gerade nicht lesbar – ohne frischen Stand wird keine Anlagen-Liste festgeschrieben. Bitte gleich noch einmal.`);
+      if (r.fehler.length) return halt(`Nicht übergeben: Büroaufgaben nicht vollständig lesbar (${r.fehler.join(' · ')}).`);
+      st.r = r;   // frisch gelesene Büroaufgaben (z. B. inzwischen zurückgezogen) – die festen Listen hängen daran (Runde 5)
       const kenn = o => JSON.stringify([(o || {}).weitereMitteilungen ?? null, (o || {}).mitteilungZaehler ?? null]);
       st.anl = anlNeu; st.word = wNeu; st.fk = fkNeu; st.bk = bkNeu;
       if (kenn(frisch.data) !== kenn(S.pj && S.pj.data)){ S.pj = frisch; halt('Nicht übergeben: Die Mitteilungen wurden inzwischen in einem anderen Fenster geändert – die Liste ist neu gelesen. Bitte prüfen und noch einmal übergeben.'); renderDetail(); return; }

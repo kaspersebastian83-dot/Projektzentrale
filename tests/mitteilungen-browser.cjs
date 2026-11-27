@@ -262,6 +262,16 @@ let schritt = 'Start';
   await page.locator('#bueroPanel .ab-msg.err').filter({ hasText: 'Die Anlagen-Liste hat sich inzwischen geändert' }).waitFor();
   assert.equal((await aufgaben(page, KA)).length, 1, 'geänderte Liste erst zeigen, nicht übergeben');
   assert.ok((await liste(page)).some(r => r[2] === bdNeu), 'neue Bilddoku gezeigt');
+  // 4d (Runde 5): FotoKits Datei gerade nicht lesbar → nicht übergeben (nie mit dem alten Stand weiter); wieder lesbar → geht
+  const fkDatei = async inhalt => page.evaluate(async ([n, inhalt]) => { const f = await (await (await (await navigator.storage.getDirectory()).getDirectoryHandle('Mosaik Archivordner')).getDirectoryHandle(n)).getDirectoryHandle('Fotos');
+    const h = await f.getFileHandle('_Bildumbenenner.json'); if (inhalt == null) return (await h.getFile()).text(); const w = await h.createWritable(); await w.write(inhalt); await w.close(); }, [KA, inhalt]);
+  const fkInhalt = await fkDatei(null);
+  await fkDatei('{ kaputt');
+  await page.locator('#bueroPanel [data-ab-los]').click();
+  await page.locator('#bueroPanel .ab-msg.err').filter({ hasText: 'gerade nicht lesbar' }).waitFor();
+  assert.match(await page.locator('#bueroPanel [data-ab-msg]').innerText(), /^Nicht übergeben: FotoKits „_Bildumbenenner\.json“ \(.+\) gerade nicht lesbar/);
+  assert.equal((await aufgaben(page, KA)).length, 1, 'ohne frischen Stand nichts übergeben');
+  await fkDatei(fkInhalt);
   await page.locator('#bueroPanel [data-ab-los]').click();
   await page.locator('#bueroPanel [data-ab-msg]').filter({ hasText: '✓ Ans Büro übergeben' }).waitFor();
   const a = (await aufgaben(page, KA)).pop();
@@ -402,6 +412,25 @@ let schritt = 'Start';
   d = await warte(page, async () => { const x = await lese(page, FEHL); return x.weitereMitteilungen && x; }, 'mit der nächsten Eingabe gespeichert');
   assert.deepEqual([d.weitereMitteilungen.map(e => [e.id, e.termine]), d.mitteilungZaehler, d.notizen], [[['m1', ['t1']], ['m2', ['t2']]], 2, 'Notiz nach dem Fehler']);
   console.log('OK 6b Schreiben scheitert ohne Widerspruch → Eingabe bleibt, nächste Eingabe speichert sie');
+
+  // ---------- 6d. Inzwischen zieht das Büro die Übergabe der 1. Mitteilung zurück (Runde 5): die frisch gelesenen Büroaufgaben gelten ----------
+  schritt = '6d zurückgezogen';
+  await page.evaluate(async ([n, docx]) => { const p = await (await (await navigator.storage.getDirectory()).getDirectoryHandle('Mosaik Archivordner')).getDirectoryHandle(n);
+    const w = await (await (await p.getDirectoryHandle('Mitteilungen')).getFileHandle('2._Mitteilung_26.0995.docx', { create: true })).createWritable(); await w.write(Uint8Array.from(atob(docx), c => c.charCodeAt(0))); await w.close(); }, [FEHL, docx]);
+  await oeffne(page, KA); await oeffne(page, FEHL);
+  await warte(page, async () => (await ktext(page, 'bericht')) === '2. Mitteilung · Entwurf', 'FEHL: 2. Mitteilung mit Word-Datei');
+  assert.ok(!(await liste(page)).some(r => r[2] === 'AR-001.pdf'), 'AR-001 steckt in der übergebenen 1. Mitteilung');
+  await page.evaluate(async n => { const v = await (await (await (await (await navigator.storage.getDirectory()).getDirectoryHandle('Mosaik Archivordner')).getDirectoryHandle(n)).getDirectoryHandle('_Buero')).getDirectoryHandle('vermerke');
+    const id = 'aufgabe-26-0995-1-zurueck', w = await (await v.getFileHandle(id + '.json', { create: true })).createWritable();
+    await w.write(JSON.stringify({ format: 'spektron-buerokit', version: 1, typ: 'vermerk', id, aufgabe: 'aufgabe-26-0995-1', zeit: new Date().toISOString(), von: 'Nad', schritt: 'geloescht', wert: true })); await w.close(); }, FEHL);
+  if (!await page.locator('#bueroPanel [data-ab-form]').evaluate(e => e.open)) await page.locator('#bueroPanel [data-ab-summary]').click();
+  await page.locator('#bueroPanel [data-ab-los]').click();
+  await page.locator('#bueroPanel .ab-msg.err').filter({ hasText: 'Die Anlagen-Liste hat sich inzwischen geändert' }).waitFor();
+  assert.ok((await liste(page)).some(r => r[2] === 'AR-001.pdf'), 'nach dem Zurückziehen ist AR-001 wieder frei');
+  await page.locator('#bueroPanel [data-ab-los]').click();
+  await page.locator('#bueroPanel [data-ab-msg]').filter({ hasText: '✓ Ans Büro übergeben' }).waitFor();
+  assert.ok((await aufgaben(page, FEHL)).pop().anlagen.includes('Laborergebnisse/AR-001.pdf'), 'übergeben mit dem frischen Stand');
+  console.log('OK 6d zurückgezogene Übergabe: frische Büroaufgaben gelten vor dem Festschreiben');
 
   // ---------- 7. Schreiben künstlich angehalten ----------
   schritt = '7 Schreiben angehalten';
