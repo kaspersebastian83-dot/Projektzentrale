@@ -313,8 +313,27 @@ let schritt = 'Start';
   await b.waitForTimeout(800);
   assert.equal(await leseText(page, ZWEI), nachA, 'Datei unverändert – nichts überschrieben');
   await warte(b, async () => (await reiter(b)).length === 2, 'zweites Fenster hat neu gelesen');
-  await b.close();
   console.log('OK 6 zwei Fenster legen gleichzeitig an → Widerspruch, Datei unverändert, neu gelesen');
+  // 6c. Zwei Fenster ändern die Anlagen derselben Mitteilung (Codex-Review #94, Runde 2): das zweite bekommt den Widerspruch,
+  //     verwirft seine veraltete Liste, liest neu – danach geht die Änderung auf dem neuen Stand durch
+  schritt = '6c zwei Fenster, Anlagen';
+  await b.locator('#mtZeile .mt-tab').first().waitFor();
+  await oeffne(page, ZWEI);
+  const planZwei = `Pläne/Probenplan ${ZWEI} - 2. Termin.pdf`, bdAlt = 'Fotos/Bilddokumentation_26.0997_Teststadt_2026-08-12.pdf';
+  await page.locator(`#bueroPanel [data-mt-weg="${planZwei}"]`).click();
+  await warte(page, async () => ((await lese(page, ZWEI)).weitereMitteilungen[1].anlagenWeg || []).length, 'erstes Fenster gespeichert');
+  const nachA2 = await leseText(page, ZWEI);
+  await b.locator('#bueroPanel [data-mt-dazu]').selectOption(bdAlt);
+  await b.locator('#banner.err').filter({ hasText: 'Anlagen der Mitteilung nicht gespeichert' }).waitFor({ timeout: 8000 });
+  await b.waitForTimeout(800);
+  assert.equal(await leseText(page, ZWEI), nachA2, 'nichts überschrieben');
+  await warte(b, async () => !(await liste(b)).some(r => r[2] === planZwei.split('/').pop()), 'zweites Fenster zeigt den neuen Stand');
+  assert.ok(!(await liste(b)).some(r => r[2] === bdAlt.split('/').pop()), 'veraltete Änderung verworfen');
+  await b.locator('#bueroPanel [data-mt-dazu]').selectOption(bdAlt);
+  d = await warte(b, async () => { const x = await lese(b, ZWEI); return (x.weitereMitteilungen[1].anlagenDazu || []).length && x; }, 'auf dem neuen Stand gespeichert');
+  assert.deepEqual([d.weitereMitteilungen[1].anlagenWeg, d.weitereMitteilungen[1].anlagenDazu], [[planZwei], [bdAlt]]);
+  await b.close();
+  console.log('OK 6c zwei Fenster ändern die Anlagen → Widerspruch, neu gelesen, danach gespeichert');
 
   // ---------- 6b. Schreiben scheitert ohne Widerspruch (Datei gesperrt): die Wahl bleibt erhalten (Codex-Review #94, P1) ----------
   schritt = '6b Schreibfehler';
