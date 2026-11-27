@@ -514,12 +514,14 @@
         // eigener Vorschlag aus dem Bezug: Prüfberichte und Plan „noch in keiner Mitteilung“ (keiner festen Liste), Bilddoku je Termin
         for (const f of (e.labor || []).slice().sort((a, b) => nfc(a.name).localeCompare(nfc(b.name), 'de', { numeric: true }))){
           const p = 'Laborergebnisse/' + nfc(f.name);
-          if (inFestAnderer(m, p)) continue;
-          if (!lage){ zeilen.push({ art: 'pruefbericht', titel: 'Prüfbericht', dateien: [p], herkunft: 'frei', herkunftText: 'noch in keiner Mitteilung' }); continue; }
+          if (!lage){ if (!inFestAnderer(m, p)) zeilen.push({ art: 'pruefbericht', titel: 'Prüfbericht', dateien: [p], herkunft: 'frei', herkunftText: 'noch in keiner Mitteilung' }); continue; }
           // ab 1.55.0 (P5, P6): nach den Aufträgen seiner Proben – nur, wenn die Übernahme passt; sonst wie bisher mit dem Grund
           const info = lage.pdf(f.name);
+          const eigene = vonJe.get(m.schluessel), hier = info.auftraege ? info.auftraege.filter(id => eigene.ids.has(id)) : [];
+          // Steht er in der festen Liste einer anderen (übergebenen) Mitteilung, bleibt er dort – außer er enthält auch Proben eines Auftrags
+          // DIESER Mitteilung (P6, Bericht über beide Runden; Codex-Review #95): dann auch hier, „auch in der 1. Mitteilung“ kommt von selbst
+          if (inFestAnderer(m, p) && !hier.length) continue;
           if (!info.auftraege){ zeilen.push({ art: 'pruefbericht', titel: 'Prüfbericht', dateien: [p], herkunft: 'frei', herkunftText: 'noch in keiner Mitteilung', hinweis: `Auftrag unbekannt: ${info.grund}` }); continue; }
-          const eigene = vonJe.get(m.schluessel), hier = info.auftraege.filter(id => eigene.ids.has(id));
           if (hier.length){
             // weitere Aufträge des Berichts, die in keiner offenen anderen Mitteilung stehen (dort käme „auch in der …“ von selbst)
             const extra = info.auftraege.filter(id => !eigene.ids.has(id) && !mitAuftrag(id, m).some(x => !x.fest)).map(id => {

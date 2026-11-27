@@ -228,6 +228,15 @@ console.log('OK mitteilungen: Kacheltext je Mitteilung ändert nur Text und gelb
   l = M.liste(d, w19, [ueb19([])]);
   L = M.anlagenListen(l, E2(d, lab(A2), lage), A);
   assert.deepEqual(pb(L, 'm2'), [[A2, 'aus Auftrag 2', 'enthält auch Proben aus Auftrag 1 (1. Mitteilung schon übergeben)', '', '']]);
+  // B, 1. schon MIT dem gemeinsamen Bericht übergeben (Codex-Review #95): die 2. bekommt ihn trotzdem (enthält Proben von Auftrag 2)
+  l = M.liste(d, w19, [ueb19([`Laborergebnisse/${A2}`])]);
+  L = M.anlagenListen(l, E2(d, lab(A2), lage), A);
+  assert.deepEqual(pb(L, 'm2'), [[A2, 'aus Auftrag 2', 'enthält auch Proben aus Auftrag 1 (1. Mitteilung schon übergeben)', '1. Mitteilung', '']]);
+  assert.deepEqual(M.pfade(L.get('m1').zeilen), [`Laborergebnisse/${A2}`], 'feste Liste der 1. unverändert');
+  // … aber ein Bericht nur mit Proben von Auftrag 1 in der festen Liste der 1. bleibt dort
+  const lA = M.auftragsLage(LK2, erg('A'));
+  L = M.anlagenListen(M.liste(d, w19, [ueb19([`Laborergebnisse/${A1}`])]), E2(d, lab(A1, A2), lA), A);
+  assert.deepEqual(pb(L, 'm2').map(z => z[0]), [A2]);
   // anderer Auftrag keiner Mitteilung zugeordnet
   L = M.anlagenListen(M.liste(mit([], ['a2']), w19, []), E2(mit([], ['a2']), lab(A2), lage), A);
   assert.deepEqual(pb(L, 'm2'), [[A2, 'aus Auftrag 2', 'enthält auch Proben aus Auftrag 1 (keiner Mitteilung zugeordnet)', '', '']]);
