@@ -220,7 +220,7 @@ const MT = '1._Mitteilung_26.0600.docx', fixture = n => fs.readFile(path.join(__
     await page.waitForFunction(() => document.querySelector('#bueroPanel [data-ab-word]')?.value === 'Mitteilungen/2._Mitteilung_26.0604.docx');
     await page.locator('#mtZeile [data-mt="nr1"]').click();
     await page.waitForFunction(() => document.querySelector('#bueroPanel [data-ab-word]')?.value === 'Mitteilungen/1._Mitteilung_26.0604.docx');
-    assert.deepEqual(await optionen(), ['1._Mitteilung_26.0604.docx · 30.10.2026 10:00'], 'nur die Word-Datei der gewählten Mitteilung');
+    assert.deepEqual((await optionen()).map(o => o.split(' · ')[0]), ['1._Mitteilung_26.0604.docx'], 'nur die Word-Datei der gewählten Mitteilung');   // Uhrzeit hängt an der Zeitzone des Runners
     // ohne LabelKit-Datei, aber in BerichtKit gespeichert (Datei bis 1.14.0, ohne art = Asbestbericht): gemerkt → nur „Asbestbericht“ hervorgehoben
     await page.waitForFunction(() => document.querySelector('#goBericht.vorschlag'));
     assert.equal(await page.locator('#goBrand.vorschlag').count(), 0);
