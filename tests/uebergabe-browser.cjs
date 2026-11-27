@@ -161,7 +161,10 @@ const MT = '1._Mitteilung_26.0600.docx', fixture = n => fs.readFile(path.join(__
     // 5. Später eine 2. Mitteilung: Stufe 4 wieder „ans Büro übergeben“ (nach dem Zurückkehren ins Fenster)
     await fs.writeFile(in_('Mitteilungen', '2._Mitteilung_26.0600.docx'), await fixture('1._Mitteilung_fertig.docx')); await zeit('Mitteilungen/2._Mitteilung_26.0600.docx', '2099-01-05T10:00:00');
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-    await page.waitForFunction(() => /^Mitteilung vom 05\.01\. erstellt – ans Büro übergeben$/.test(document.querySelector('[data-kachel=bericht] [data-ktext]').textContent), null, { timeout: 10000 });
+    // 1.54: zwei Mitteilungen → Zeile über „Jetzt dran“, die Kachel spricht von der gewählten (2.) Mitteilung, „Jetzt dran“ ist das Übergeben
+    await page.waitForFunction(() => document.querySelector('[data-kachel=bericht] [data-ktext]').textContent === '2. Mitteilung · Entwurf', null, { timeout: 10000 });
+    assert.match(await page.locator('#mtZeile').innerText(), /1\. Mitteilung\s*beim Büro[\s\S]*2\. Mitteilung\s*Entwurf/);
+    assert.equal(await page.locator('#jetzt b').textContent(), 'Gutachten ans Büro übergeben');
 
     // 5b. Zweite Übergabe: die 1. Mitteilung ist beim Büro → die neue 2. Mitteilung ist vorgewählt (obwohl BerichtKit die 1. nennt);
     //     kein confirm, stattdessen der Hinweis über dem Knopf – ein Klick reicht
@@ -211,8 +214,13 @@ const MT = '1._Mitteilung_26.0600.docx', fixture = n => fs.readFile(path.join(__
     assert.equal(await page.locator('#bueroPanel [data-ab-word] option[value="?"]').count(), 0);
 
     // 9. BerichtKit geht vor: die dort gespeicherte 1. Mitteilung, obwohl eine 2. neuer ist
+    //    1.54: zwei Mitteilungen im Ordner → die Zeile entscheidet (Vorwahl: neueste nicht versandte, Entscheidung 10); die Word-Datei
+    //    ist die der gewählten Mitteilung. Gewählt wird die 1. – dann ihre Datei; die Wahl bleibt beim Wiederöffnen (im Browser gemerkt).
     await oeffnen(U);
+    await page.waitForFunction(() => document.querySelector('#bueroPanel [data-ab-word]')?.value === 'Mitteilungen/2._Mitteilung_26.0604.docx');
+    await page.locator('#mtZeile [data-mt="nr1"]').click();
     await page.waitForFunction(() => document.querySelector('#bueroPanel [data-ab-word]')?.value === 'Mitteilungen/1._Mitteilung_26.0604.docx');
+    assert.deepEqual((await optionen()).map(o => o.split(' · ')[0]), ['1._Mitteilung_26.0604.docx'], 'nur die Word-Datei der gewählten Mitteilung');   // Uhrzeit hängt an der Zeitzone des Runners
     // ohne LabelKit-Datei, aber in BerichtKit gespeichert (Datei bis 1.14.0, ohne art = Asbestbericht): gemerkt → nur „Asbestbericht“ hervorgehoben
     await page.waitForFunction(() => document.querySelector('#goBericht.vorschlag'));
     assert.equal(await page.locator('#goBrand.vorschlag').count(), 0);

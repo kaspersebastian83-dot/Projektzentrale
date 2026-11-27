@@ -122,8 +122,10 @@
       (fotos.begonnen), ResultKit-Ergebnisse, Probenplan, Bericht (berichtDa – Regel der Leiste; ohne Angabe: eine Mitteilung liegt
       vor), BelegKit-Stand. Der Text darunter ist der genaue Stand. zustand: Labor und Abrechnung wie ihre Stufe, sonst
       fertig / dran (die Aktion von „Jetzt dran“) / offen. jetzt = die Kachel, zu der „Jetzt dran“ führt.
-      r = berechnen(f), falls schon gerechnet. → [{ key, name, app, aktion, fertig, zustand, jetzt, text }] */
-  function kacheln(f, r){
+      r = berechnen(f), falls schon gerechnet. → [{ key, name, app, aktion, fertig, zustand, jetzt, text }]
+      je (1.54, optional): Stand je gewählter Mitteilung { fotos | labor | plan | bericht: { text, luecke } } – ersetzt nur den Text
+      und setzt luecke (gelb); fertig (✓) und zustand bleiben, wie sie sind (M7). Ohne je genau das Ergebnis wie bisher. */
+  function kacheln(f, r, je){
     f = f || {}; r = r || berechnen(f);
     const s = {}; for (const x of r.stufen) s[x.key] = x;
     const fotos = f.fotos || {}, art = BERICHT[f.berichtsart] ? f.berichtsart : '';
@@ -142,8 +144,12 @@
       { key: 'abrechnung', name: 'Abrechnung', app: 'BelegKit', aktion: 'beleg', fertig: !!f.abrechnung, text: s.abrechnung.text, stufe: s.abrechnung.zustand },
     ];
     const j = r.jetzt || {}, zu = KACHEL_ZU[j.aktion] || '';
-    return liste.map(({ stufe, ...k }) => ({ ...k, jetzt: k.key === zu, zustand: stufe || (k.fertig ? 'fertig' : k.key === zu ? 'dran' : 'offen') }));
+    const out = liste.map(({ stufe, ...k }) => ({ ...k, jetzt: k.key === zu, zustand: stufe || (k.fertig ? 'fertig' : k.key === zu ? 'dran' : 'offen') }));
+    if (!je || typeof je !== 'object') return out;
+    return out.map(k => { const x = JE_KACHELN.includes(k.key) ? je[k.key] : null; return x && typeof x.text === 'string' ? { ...k, text: x.text, luecke: !!x.luecke } : k; });
   }
+  /** Kacheln mit Stand je Mitteilung (Plan 4.3) – Proben und Abrechnung bleiben je Projekt. */
+  const JE_KACHELN = ['fotos', 'labor', 'plan', 'bericht'];
   /** Aktion von „Jetzt dran“ → Kachel (Projektdaten, Übergabe, Rückfrage, BüroKit haben keine Kachel) */
   const KACHEL_ZU = { label: 'proben', fotos: 'fotos', ergebnis: 'labor', plan: 'plan', bericht: 'bericht', brandbericht: 'bericht', berichtkit: 'bericht', beleg: 'abrechnung' };
 

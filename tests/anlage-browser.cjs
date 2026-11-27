@@ -82,7 +82,7 @@ const daten = {
   // Projektdaten: Neuzeichnen der Ansicht, bevor die Eingabe gespeichert ist (hier: fehlende Unterordner anlegen), behält die Eingabe
   // Projektansicht 1.42: sechs Kacheln wie das Kopfband; Asbest-/Brandbericht ausdrücklich und Anlage Probenahme unter „Mehr zum Projekt …“; Projektdaten zugeklappt (leer: einladend hervorgehoben)
   assert.deepEqual(await page.locator('#kacheln .kachel').evaluateAll(b => b.map(x => x.id)), ['goLabel', 'goFotos', 'goErgebnis', 'goPlan', 'kBericht', 'goAufwand']);
-  assert.deepEqual(await page.locator('#projektMehr button.sk').evaluateAll(b => b.map(x => x.id)), ['goBericht', 'goBrand', 'anlPlan', 'lagerProjekt', 'glasProjekt']);   // 1.47: GlasKit mit #projekt=, 1.52: LagerKit
+  assert.deepEqual(await page.locator('#projektMehr button.sk').evaluateAll(b => b.map(x => x.id)), ['goBericht', 'goBrand', 'anlPlan', 'lagerProjekt', 'mtBeginnen', 'glasProjekt']);   // 1.47: GlasKit mit #projekt=, 1.52: LagerKit, 1.54: „Weitere Mitteilung beginnen …“
   assert.equal(await page.locator('[data-stufe=projekt] #azQuick').count(), 1); assert.equal(await page.locator('[data-stufe=buero] #goUebergabe').count(), 1);
   await mehrAuf();
   // 1.40: Brandgeruch-Proben in LabelKit → „Brandbericht“ hervorgehoben, „Asbestbericht“ bleibt daneben

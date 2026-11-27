@@ -200,3 +200,23 @@ console.log('OK stufen: Brandbericht in „Mitteilungen“ wie der Asbestbericht
   k = K({ ...mit, abrechnung: '2026-11-02' }); assert.ok(k.abrechnung.fertig);
   console.log('OK stufen: Kacheln wie das Kopfband');
 }
+// 1.54: kacheln(f, r, je) – ohne drittes Argument byte-gleich mit 1.53.1 (Vergleich mit dem gespeicherten Ergebnis); mit je nur
+// Text und gelbe Lücke der Kacheln Fotos, Labor, Plan, Bericht – nie das ✓ (fertig) und nie der Zustand
+{
+  const fs = require('node:fs'), path = require('node:path');
+  const faelle = require('./fixtures/stufen-kacheln-faelle.cjs');
+  const vorher = fs.readFileSync(path.join(__dirname, 'fixtures', 'stufen-kacheln-1.53.1.json'), 'utf8');
+  assert.equal(JSON.stringify(faelle.map(f => S.kacheln(f))) + '\n', vorher, 'kacheln ohne je wie 1.53.1');
+  assert.equal(JSON.stringify(faelle.map(f => S.kacheln(f, S.berechnen(f), undefined))) + '\n', vorher);
+  assert.equal(JSON.stringify(faelle.map(f => S.kacheln(f, null, null))) + '\n', vorher);
+  const je = { fotos: { text: 'Bilddoku für 20.08. fehlt', luecke: true }, labor: { text: '2 Prüfberichte in der Liste' }, plan: { text: 'kein Plan zugeordnet', luecke: true },
+    bericht: { text: '2. Mitteilung · Entwurf', luecke: false }, proben: { text: 'nie' }, abrechnung: { text: 'nie' } };
+  for (const f of faelle){
+    const a = S.kacheln(f), b = S.kacheln(f, null, je);
+    assert.deepEqual(b.map(k => [k.key, k.fertig, k.zustand, k.jetzt, k.aktion, k.name]), a.map(k => [k.key, k.fertig, k.zustand, k.jetzt, k.aktion, k.name]));
+    for (const k of b) if (je[k.key] && ['fotos', 'labor', 'plan', 'bericht'].includes(k.key)) assert.deepEqual([k.text, k.luecke], [je[k.key].text, !!je[k.key].luecke]);
+      else assert.deepEqual(k, a.find(x => x.key === k.key));
+  }
+  assert.ok(!S.kacheln(faelle[1]).some(k => 'luecke' in k), 'ohne je kein neues Feld');
+  console.log('OK stufen: kacheln ohne drittes Argument wie 1.53.1, mit je nur Text und gelbe Lücke');
+}

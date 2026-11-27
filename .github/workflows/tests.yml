@@ -59,6 +59,15 @@ jobs:
       - run: node tests/rueckmeldung-link.cjs
       - run: node tests/stufen.cjs
       - run: node tests/ortstermine.cjs
+      - name: BerichtKit daneben holen (Anlagen-Baustein byte-gleich prüfen)
+        env:
+          ZWEIG: ${{ github.head_ref }}
+        # gleichnamiger Zweig in BerichtKit, falls es ihn gibt (Änderung in beiden Repos), sonst main
+        run: git clone --quiet --depth 1 --branch "$ZWEIG" https://github.com/kaspersebastian83-dot/berichtkit.git ../berichtkit 2>/dev/null || git clone --quiet --depth 1 https://github.com/kaspersebastian83-dot/berichtkit.git ../berichtkit
+      - run: node tests/anlagen-gleich.cjs
+        env:
+          BERICHTKIT_PFLICHT: '1'
+      - run: node tests/mitteilungen.cjs
       - run: node tests/word-luecken.cjs
       - run: node tests/word-wahl.cjs
 
@@ -109,6 +118,14 @@ jobs:
         run: node tests/durchlauf-neu-browser.cjs ${{ matrix.browser }}
       - name: Further site visits in the project data – add, change, remove, two windows, photo count, hand-over (1.53)
         run: node tests/ortstermine-browser.cjs ${{ matrix.browser }}
+      - name: FotoKit daneben holen (speichert nach der Projektzentrale – weitereMitteilungen bleibt)
+        env:
+          ZWEIG: ${{ github.head_ref }}
+        run: git clone --quiet --depth 1 --branch "$ZWEIG" https://github.com/kaspersebastian83-dot/Bildumbenenner.git ../Bildumbenenner 2>/dev/null || git clone --quiet --depth 1 https://github.com/kaspersebastian83-dot/Bildumbenenner.git ../Bildumbenenner
+      - name: Notices as a level (1.54) – row, choice, tiles, attachment list, hand-over in number order, two windows, slow write, one notice unchanged, FotoKit keeps the field
+        run: node tests/mitteilungen-browser.cjs ${{ matrix.browser }}
+        env:
+          FOTOKIT_PFLICHT: '1'
       - name: Independent F3 sessions and explicit recovery (synthetic shared disk)
         run: node tests/project-store-browser.cjs ${{ matrix.browser }}
       - name: Responsible person from the folder name, staff list and project data
