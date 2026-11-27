@@ -120,6 +120,15 @@ assert.deepEqual(z2, [[1, 'pruefbericht', 'Laborergebnisse/AR-002.pdf', 'frei', 
 assert.equal(L.get('m2').zeilen[2].herkunftText, 'aus Termin 20.08. (Nachbeprobung)');
 assert.equal(L.get('m1').fest, true); assert.deepEqual(M.pfade(L.get('m1').zeilen), a1.anlagen);
 assert.deepEqual(L.get('m2').zeilen[0].auch, []);
+// Codex-Review #94 (P2): feste Liste mit einer Bilddoku in Teilen und Plan je Geschoss – Nummern wie vor der Übergabe (eine je Anlage)
+{
+  const teile = [`Laborergebnisse/AR-002.pdf`, `Fotos/Bilddokumentation_${NR}_Teststadt_2026-08-20_Teil_1_von_2.pdf`, `Fotos/Bilddokumentation_${NR}_Teststadt_2026-08-20_Teil_2_von_2.pdf`,
+    `Pläne/Probenplan ${ORDNER} - EG.pdf`, `Pläne/Probenplan ${ORDNER} - OG.pdf`, 'Mitteilungen/Raumluft.pdf', 'Laborberichte Eurofins'];
+  const lf = M.liste(zwei, word, [a1, { ...a1, id: 'a2', word: word[1].rel, erstellt: '2026-11-27T12:00:00.000Z', erledigt: false, erledigtAm: '', anlagen: teile }]);
+  const zf = M.anlagenListen(lf, e(zwei), A).get('m2').zeilen;
+  assert.deepEqual(zf.map(z => z.nr), [1, 2, 2, 3, 3, 4, 5], 'Bilddoku in Teilen und Plan je Geschoss: je eine Nummer');
+  assert.deepEqual(M.pfade(zf), teile.slice(0, 6), 'Texte gehören nicht zu den Pfaden');
+}
 // Kacheltexte je Mitteilung
 assert.deepEqual(M.kachelTexte(l.mitteilungen[1], L.get('m2'), zwei), { fotos: { text: 'Bilddoku für 20.08. da', luecke: false }, labor: { text: '2 Prüfberichte in der Liste', luecke: false },
   plan: { text: 'Probenplan in der Liste', luecke: false }, bericht: { text: '2. Mitteilung · Entwurf', luecke: false } });

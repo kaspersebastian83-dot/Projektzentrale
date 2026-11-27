@@ -20,7 +20,7 @@ const playwright = require('playwright');
 
 const name = process.argv[2] || 'chromium';
 const root = path.join(__dirname, '..'), fkRoot = path.join(root, '..', 'Bildumbenenner');
-const KA = '26.0999 Teststadt Ka', EINS = '26.0998 Einzel Ka', ZWEI = '26.0997 Zwei Ka', LANG = '26.0996 Langsam Ka';
+const KA = '26.0999 Teststadt Ka', EINS = '26.0998 Einzel Ka', ZWEI = '26.0997 Zwei Ka', LANG = '26.0996 Langsam Ka', FEHL = '26.0995 Fehler Ka';
 const TYP = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.pdf': 'application/pdf', '.json': 'application/json', '.png': 'image/png' };
 const errors = [];
 let schritt = 'Start';
@@ -69,7 +69,7 @@ let schritt = 'Start';
   const PJ = { format: 'mosaik-projekt', version: 1, hinweis: 'Gemeinsame Projektdaten', objekt: 'EFH, Testweg 9', auftraggeber: 'Muster Versicherung AG', ortstermin: '2026-08-12' };
   const PJ_KA = { ...PJ, weitereOrtstermine: [{ id: 't2', datum: '2026-08-20', bezeichnung: 'Nachbeprobung', wer: 'Ka' }], ortsterminZaehler: 2 };
   const EINS_TEXT = JSON.stringify({ ...PJ, ortstermin: '2026-08-12' }, null, 2) + '\n';
-  await page.evaluate(async ([KA, EINS, ZWEI, LANG, PJ, PJ_KA, EINS_TEXT, docx]) => {
+  await page.evaluate(async ([KA, EINS, ZWEI, LANG, FEHL, PJ, PJ_KA, EINS_TEXT, docx]) => {
     const r = await navigator.storage.getDirectory();
     for await (const [n] of r.entries()) await r.removeEntry(n, { recursive: true });
     const archiv = await r.getDirectoryHandle('Mosaik Archivordner', { create: true });
@@ -109,9 +109,10 @@ let schritt = 'Start';
     await projekt(KA, PJ_KA, { zwei: true, labor: ['AR-001.pdf', 'AR-002.pdf', 'AR-003.pdf'], fk: fk('26.0999'), aufgabe: true, versandt: true });
     await projekt(EINS, EINS_TEXT, { anlage: true });
     await projekt(ZWEI, PJ_KA, { zwei: true, zweiteDatei: false, aufgabe: true, versandt: true, fk: fk('26.0997') });
+    await projekt(FEHL, PJ_KA, { zwei: true, zweiteDatei: false, aufgabe: true, versandt: true, fk: fk('26.0995') });
     await projekt(LANG, { ...PJ_KA, weitereMitteilungen: [{ id: 'm1', nr: 1, termine: ['t1'], auftraege: [] }, { id: 'm2', nr: 2, termine: ['t2'], auftraege: [] }], mitteilungZaehler: 2 },
       { zwei: true, labor: ['AR-001.pdf', 'AR-002.pdf', 'AR-003.pdf'], aufgabe: true, versandt: true, fk: fk('26.0996') });
-  }, [KA, EINS, ZWEI, LANG, PJ, PJ_KA, EINS_TEXT, docx]);
+  }, [KA, EINS, ZWEI, LANG, FEHL, PJ, PJ_KA, EINS_TEXT, docx]);
 
   // ---------- Hilfen ----------
   const start = async pg => { await pg.locator('#btnStart, #btnArchive').first().click(); await pg.locator(`.proj[data-name="${KA}"]`).waitFor(); };
@@ -314,6 +315,29 @@ let schritt = 'Start';
   await warte(b, async () => (await reiter(b)).length === 2, 'zweites Fenster hat neu gelesen');
   await b.close();
   console.log('OK 6 zwei Fenster legen gleichzeitig an → Widerspruch, Datei unverändert, neu gelesen');
+
+  // ---------- 6b. Schreiben scheitert ohne Widerspruch (Datei gesperrt): die Wahl bleibt erhalten (Codex-Review #94, P1) ----------
+  schritt = '6b Schreibfehler';
+  await oeffne(page, FEHL);
+  const vorFehl = await leseText(page, FEHL);
+  await page.evaluate(() => {
+    window.__fehler = 1;
+    const cw = FileSystemFileHandle.prototype.createWritable;
+    FileSystemFileHandle.prototype.createWritable = async function(...a){
+      if (this.name === '_Projekt.json' && window.__fehler > 0){ window.__fehler--; throw new DOMException('Datei gesperrt (Test)', 'NoModificationAllowedError'); }
+      return cw.apply(this, a);
+    };
+  });
+  await page.locator('#jetzt .mt-angebot button').click(); await page.locator('#dialog table.mtb').waitFor(); await dialogOk(page);
+  await page.locator('#banner.err').filter({ hasText: 'noch nicht gespeichert' }).waitFor();
+  assert.match(await page.locator('#banner').innerText(), /^2\. Mitteilung: noch nicht gespeichert \(Datei gesperrt \(Test\)\)\. Die Eingabe bleibt erhalten/);
+  assert.equal(await leseText(page, FEHL), vorFehl, 'nichts geschrieben');
+  assert.equal((await reiter(page)).length, 2, 'die Wahl ist noch da (nicht verworfen)');
+  // nächste Eingabe speichert sie mit
+  await page.evaluate(() => { const el = document.getElementById('pj_notizen'); el.value = 'Notiz nach dem Fehler'; el.dispatchEvent(new Event('input', { bubbles: true })); });
+  d = await warte(page, async () => { const x = await lese(page, FEHL); return x.weitereMitteilungen && x; }, 'mit der nächsten Eingabe gespeichert');
+  assert.deepEqual([d.weitereMitteilungen.map(e => [e.id, e.termine]), d.mitteilungZaehler, d.notizen], [[['m1', ['t1']], ['m2', ['t2']]], 2, 'Notiz nach dem Fehler']);
+  console.log('OK 6b Schreiben scheitert ohne Widerspruch → Eingabe bleibt, nächste Eingabe speichert sie');
 
   // ---------- 7. Schreiben künstlich angehalten ----------
   schritt = '7 Schreiben angehalten';

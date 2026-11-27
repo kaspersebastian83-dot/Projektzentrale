@@ -2899,6 +2899,9 @@ async function mtNachSpeichern(p, was){
   if (S.sel !== p) return false;
   const st = S.pjStatus && S.pjStatus.name === p.name ? S.pjStatus : null;
   if (!st || st.kind !== 'err' || !('weitereMitteilungen' in S.pjDirty)) return true;
+  // Anderer Fehler (Sperre, Lesefehler, Sicherung …): die Eingabe bleibt offen und wird mit der nächsten Eingabe erneut gespeichert –
+  // nichts verwerfen (Codex-Review #94, P1). Der Hinweis „Projektdaten nicht gespeichert“ steht oben.
+  if (!st.konflikt){ banner('err', `${esc(was)}: noch nicht gespeichert (${esc(st.text.replace(/^Projektdaten nicht gespeichert: /, ''))}). Die Eingabe bleibt erhalten – „Projektdaten ansehen“ oben, sonst mit der nächsten Eingabe erneut.`); return false; }
   delete S.pjDirty.weitereMitteilungen; delete S.pjDirty.mitteilungZaehler;
   const pj = await readPJ(await pjDir(p)); if (S.sel !== p) return false;
   S.pj = pj; S.pjStatus = null; renderDetail();
@@ -3459,7 +3462,9 @@ function flushPJ(){
       const zurueck = {};
       for (const k of Object.keys(patch)) if (!(k in S.pjDirty) && !spaeter.some(x => k in x.patch)) zurueck[k] = patch[k];
       S.pjDirty = Object.assign(zurueck, S.pjDirty);
-      S.pjStatus={name:p.name,kind:'err',text:'Projektdaten nicht gespeichert: '+e.message};showPJAttention();
+      // 1.54: Widerspruch (ein anderes Fenster hat inzwischen geschrieben) von anderen Fehlern (Sperre, Lesefehler, Sicherung) unterscheiden –
+      // nur nach einem Widerspruch verwirft „Mitteilungen“ die Eingabe und liest neu (Codex-Review #94, P1); project-store.js bleibt unverändert
+      S.pjStatus={name:p.name,kind:'err',text:'Projektdaten nicht gespeichert: '+e.message,konflikt:/während des Speicherns geändert/.test(String(e && e.message))};showPJAttention();
       const el = $('pjSave'); if (el && S.sel === p){ el.className = 'save err'; el.textContent = 'Nicht gespeichert: ' + e.message; }
     }finally{
       S.pjUnterwegs.splice(S.pjUnterwegs.indexOf(unterwegs), 1);

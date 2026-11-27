@@ -278,9 +278,15 @@
     const out = new Map();
     for (const m of ms){
       if (m.fest){
-        const zeilen = festeDateien(m).map((p, i) => {
-          const pfad = /^[^/\\]+\/[^/\\]+$/.test(p), fehlt = pfad && !!vorhanden && !vorhanden.has(key(p));
-          return { nr: i + 1, art: pfad ? artVon(p) : 'text', titel: pfad ? titelVon(A, artVon(p)) : p, dateien: pfad ? [p] : [], herkunft: 'fest', herkunftText: 'mit der Übergabe festgehalten',
+        // Nummern wie vor der Übergabe (nummerieren): aufeinanderfolgende Dateien einer Art, die eine Anlage ist (Bilddoku in Teilen,
+        // Plan je Geschoss), tragen eine Nummer; Prüfberichte, Weiteres und Texte je eine (Codex-Review #94)
+        const gruppe = A && A.PROFILE ? [...A.PROFILE.asbest.fest, ...A.PROFILE.asbest.optional] : ['bilddoku', 'probenplan'];
+        let n = 0, vorige = '';
+        const zeilen = festeDateien(m).map(p => {
+          const pfad = /^[^/\\]+\/[^/\\]+$/.test(p), fehlt = pfad && !!vorhanden && !vorhanden.has(key(p)), art = pfad ? artVon(p) : 'text';
+          if (!(gruppe.includes(art) && art === vorige)) n++;
+          vorige = art;
+          return { nr: n, art, titel: pfad ? titelVon(A, artVon(p)) : p, dateien: pfad ? [p] : [], herkunft: 'fest', herkunftText: 'mit der Übergabe festgehalten',
             fehlt, grund: fehlt ? 'Datei liegt nicht mehr im Projektordner' : '', veraltet: null, termin: '' };
         });
         out.set(m.schluessel, { zeilen, weg: [], fest: true, quelle: 'buero', bk: berichtEintrag(m, e.bk) });
