@@ -615,6 +615,19 @@ let schritt = 'Start';
     await datei('Laboraufträge', '26.0994_Daten.json', lkText);
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
     await warte(page, async () => (await liste(page)).some(r => /ResultKit-Übernahme veraltet/.test(r[3])), 'wieder lesbar');
+    // Codex-Review #95: LabelKit-Datei kurz weg (umbenannt/verschoben), vorher mehrere Aufträge bekannt → wie nicht lesbar, Übergabe gesperrt
+    const lkWeg = () => page.evaluate(async p => { const d = await (await (await (await navigator.storage.getDirectory()).getDirectoryHandle('Mosaik Archivordner')).getDirectoryHandle(p)).getDirectoryHandle('Laboraufträge'); await d.removeEntry('26.0994_Daten.json'); }, AUF);
+    await lkWeg();
+    if (!await page.locator('#bueroPanel [data-ab-form]').evaluate(e => e.open)) await page.locator('#bueroPanel [data-ab-summary]').click();
+    await page.locator('#bueroPanel [data-ab-los]').click();
+    await page.locator('#bueroPanel .ab-msg.err').filter({ hasText: 'nicht gefunden' }).waitFor();
+    assert.match(await page.locator('#bueroPanel [data-ab-msg]').innerText(), /LabelKit-Datei von Projekt 26\.0994 nicht gefunden – vorher waren mehrere Laboraufträge bekannt/);
+    assert.equal((await aufgaben(page, AUF)).length, 1, 'ohne LabelKit-Datei nicht übergeben');
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await warte(page, async () => (await liste(page)).some(r => /Auftrag unbekannt: LabelKit-Datei gerade nicht lesbar oder nicht gefunden/.test(r[3])), 'nicht still wie 1.54');
+    await datei('Laboraufträge', '26.0994_Daten.json', lkText);
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await warte(page, async () => (await liste(page)).some(r => /ResultKit-Übernahme veraltet/.test(r[3])), 'wieder da');
     console.log('OK 9c Übernahme veraltet → wie bisher mit Satz, Kachel „seit der Übernahme geändert“; LabelKit nicht lesbar → Grund, Übergabe gesperrt');
 
     // neuer Auftrag 3 in LabelKit und „+ Weiterer Ortstermin“ → gelbe Zeile (Mitteilungs-Zeile und unter den Ortsterminen), nichts springt auf

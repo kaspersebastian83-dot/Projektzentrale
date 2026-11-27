@@ -4298,6 +4298,8 @@ function anlTitelMerken(p, v){ try{ localStorage.setItem('pz-anlage-titel:' + p.
 function lkMerken(p, f, daten, fehler){
   if (S.sel !== p) return;   // nur für das gewählte Projekt (ein langsames Lesen nach einem Projektwechsel ändert nichts – Review 1.55.0)
   const alt = S.lk && S.lk.name === p.name ? S.lk : null;
+  // vorher mehrere Aufträge bekannt, jetzt keine Datei (umbenannt, verschoben, gerade beim Speichern): wie nicht lesbar (Codex-Review #95)
+  if (!daten && !fehler && alt && alt.auftraege && alt.auftraege.mehrere) fehler = 'LabelKit-Datei nicht mehr gefunden';
   // nicht lesbar: die zuletzt gelesenen Aufträge bleiben bekannt (mit Fehler) – dann „Auftrag unbekannt“ statt still wie 1.54.0
   const auftraege = daten && window.Laborauftraege ? Laborauftraege.lesen(daten) : fehler && alt ? alt.auftraege : null;
   S.lk = { name: p.name, datei: f ? f.name : '', t: f ? f.lastModified : 0, auftraege, fehler: fehler || '' };
@@ -4309,13 +4311,14 @@ const lkMehrere = p => !!(S.lk && S.lk.name === p.name && S.lk.auftraege && S.lk
 /** LabelKit-Datei frisch lesen (vor der Rückfrage und vor der Übergabe). Wirft, wenn Ordner oder Datei nicht lesbar sind. */
 async function lkFrisch(p){
   const la = p.st && !p.st.err && p.st.subs.labauf;
-  if (!la || !la.daten.length){ lkMerken(p, null, null); return; }
+  const weg = () => { lkMerken(p, null, null); if (lkMehrere(p) && S.lk.fehler) throw new Error(`LabelKit-Datei von Projekt ${p.nr} nicht gefunden – vorher waren mehrere Laboraufträge bekannt`); };
+  if (!la || !la.daten.length) return weg();
   let f = null;
   if (SO.labelkitWahl){
     let w; try{ w = await SO.labelkitWahl(la.datenDir || la.handle, p.name); }catch(e){ lkMerken(p, null, null, e.message || String(e)); throw new Error(`LabelKit-Ordner nicht lesbar (${e.message || e})`); }
     f = w.datei ? w.datei.file : null;
   } else f = (await lkWahlFuer(p)).datei;
-  if (!f){ lkMerken(p, null, null); return; }
+  if (!f) return weg();
   let daten; try{ daten = JSON.parse(await f.text()); }catch(e){ lkMerken(p, f, null, e.message); throw new Error(`LabelKit-Datei „${f.name}“ nicht lesbar (${e.message})`); }
   lkMerken(p, f, daten);
 }

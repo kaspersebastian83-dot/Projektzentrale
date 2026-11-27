@@ -216,7 +216,7 @@
   /** Sätze zum Grund „Auftrag unbekannt“ (F3). */
   const GRUND = {
     veraltet: 'ResultKit-Übernahme veraltet – in ResultKit erneut übernehmen',
-    labelkit: 'LabelKit-Datei gerade nicht lesbar – gleich noch einmal (Fenster wechseln) oder in LabelKit öffnen',
+    labelkit: 'LabelKit-Datei gerade nicht lesbar oder nicht gefunden – gleich noch einmal (Fenster wechseln) oder in LabelKit öffnen',
     keine: 'noch nicht in ResultKit übernommen',
     fehler: 'Ergebnisdatei von ResultKit nicht lesbar – in ResultKit erneut übernehmen',
     unklar: 'Stand der ResultKit-Übernahme nicht prüfbar',
