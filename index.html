@@ -2640,6 +2640,9 @@ async function abUebergeben(p){
       try{ await lkFrisch(p); }catch(e){ if (mehrereAuftraege) nichtLesbar.push(e.message || String(e)); }
       try{ await labFrisch(p); }catch(e){ if (mehrereAuftraege || lkMehrere(p)) nichtLesbar.push('„Laborergebnisse“ (' + (e.message || e) + ')'); }
       const vorher = Mitteilungen.pfade(ms.listen.get(mt.schluessel).zeilen, mt.datei && mt.datei.rel);
+      // 1.55 (Codex-Review #95): auch die Zuordnung je Zeile (Herkunft, Satz „Auftrag unbekannt“, gelbe BerichtKit-Zeile) muss gleich bleiben
+      const sinn = L => JSON.stringify(L.zeilen.map(z => [z.dateien, z.herkunftText || '', z.hinweis || '', z.warnung || '', !!z.fehlt]));
+      const sinnVorher = sinn(ms.listen.get(mt.schluessel));
       if (!S.sel || S.sel.name !== p.name){ st.busy = false; return; }
       if (frisch.error) return halt(`Nicht übergeben: Die Projektdaten sind nicht lesbar (${frisch.error}).`);
       if (nichtLesbar.length) return halt(`Nicht übergeben: ${nichtLesbar.join(', ')} gerade nicht lesbar – ohne frischen Stand wird keine Anlagen-Liste festgeschrieben. Bitte gleich noch einmal.`);
@@ -2655,6 +2658,8 @@ async function abUebergeben(p){
       // Liste hat sich durch das frische Lesen geändert (neue Bilddoku in FotoKit, Bericht in BerichtKit gespeichert, Datei dazu): erst zeigen
       if (JSON.stringify(Mitteilungen.pfade(msUeb.listen.get(mt.schluessel).zeilen, msUeb.m.datei.rel)) !== JSON.stringify(vorher))
         return halt('Nicht übergeben: Die Anlagen-Liste hat sich inzwischen geändert (z. B. neue Bilddokumentation in FotoKit oder Bericht in BerichtKit gespeichert) – sie ist neu gezeigt. Bitte prüfen und noch einmal übergeben.');
+      if (sinn(msUeb.listen.get(mt.schluessel)) !== sinnVorher)
+        return halt('Nicht übergeben: Die Zuordnung der Anlagen hat sich inzwischen geändert (Laborauftrag, ResultKit-Übernahme oder BerichtKit) – sie ist neu gezeigt. Bitte prüfen und noch einmal übergeben.');
     }
     const word = mt ? abWordMt(d, msUeb.m) : abWordWahl(st, d), bk = abBkAnlagen(st, word);
     // Lücken erst prüfen, wenn sonst alles passt (ohne Empfänger meldet aufgabeAnlegen das Nötige – keine Rückfrage vorher)
@@ -4326,7 +4331,13 @@ async function lkFrisch(p){
 }
 /** ResultKit-Übernahme frisch lesen (Stand und Auszug) – vor der Übergabe (Entscheidung 13 nimmt beide Quellen mit). */
 async function labFrisch(p){
-  const s = p.st && !p.st.err ? p.st.subs : null; if (!s || !s.laberg || !s.laberg.handle) return;
+  const s = p.st && !p.st.err ? p.st.subs : null; if (!s) return;
+  if (!s.laberg || !s.laberg.handle){
+    // „Laborergebnisse“ gab es beim Scan noch nicht – jetzt nachsehen (Codex-Review #95); fehlt der Ordner weiter, gibt es auch keine Prüfberichte
+    let h = null; try{ h = await p.handle.getDirectoryHandle('Laborergebnisse'); }catch(e){ if (e.name !== 'NotFoundError' && e.name !== 'TypeMismatchError') throw e; }
+    if (!h) return;
+    s.laberg = { handle: h, name: h.name, files: 0, images: 0, pdfDoc: [], probenplan: 0, sicherungen: 0, daten: [], bu: false, berichte: 0, ergebnisse: null };
+  }
   const la = s.labauf;
   let lkDir = la && (la.datenDir || la.handle), ergDir = p.st.ergebnisDir;
   // Orte jetzt bestimmen, nicht aus dem letzten Scan: ResultKit kann „_Ergebnisse.json“ inzwischen am neuen Ort („_Spektron/ResultKit“)

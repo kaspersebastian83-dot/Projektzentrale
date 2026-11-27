@@ -26,7 +26,7 @@ const playwright = require('playwright');
 const name = process.argv[2] || 'chromium';
 const root = path.join(__dirname, '..'), fkRoot = path.join(root, '..', 'Bildumbenenner');
 const KA = '26.0999 Teststadt Ka', EINS = '26.0998 Einzel Ka', ZWEI = '26.0997 Zwei Ka', LANG = '26.0996 Langsam Ka', FEHL = '26.0995 Fehler Ka';
-const AUF = '26.0994 Auftrag Ka', EIN1 = '26.0993 EinAuftrag Ka', SPAET = '26.0992 Spaet Ka';   // 1.55
+const AUF = '26.0994 Auftrag Ka', EIN1 = '26.0993 EinAuftrag Ka', SPAET = '26.0992 Spaet Ka', OHNE = '26.0991 OhneLabor Ka';   // 1.55
 const TYP = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.pdf': 'application/pdf', '.json': 'application/json', '.png': 'image/png' };
 const errors = [];
 let schritt = 'Start';
@@ -150,7 +150,7 @@ let schritt = 'Start';
   // ---------- 1.55: Projekte mit Laboraufträgen (Vorlagen: LabelKit 5.5.0 im Browser, ResultKit 2.7.0 echte Module; erfundene Prüfberichte) ----------
   const vorlage = n => fs.readFileSync(path.join(__dirname, 'fixtures', n), 'utf8');
   const lkFuer = (n, datei) => vorlage(datei).replace(/26\.0999/g, n.slice(0, 7));
-  await page.evaluate(async ([AUF, EIN1, PJ_KA, docx, lk2, lk1, ergA, ergE, SPAET]) => {
+  await page.evaluate(async ([AUF, EIN1, PJ_KA, docx, lk2, lk1, ergA, ergE, SPAET, OHNE, lkOhne]) => {
     const archiv = await (await navigator.storage.getDirectory()).getDirectoryHandle('Mosaik Archivordner');
     const pause = () => new Promise(res => setTimeout(res, 15));
     const put = async (d, n, t) => { const w = await (await d.getFileHandle(n, { create: true })).createWritable(); await w.write(t); await w.close(); await pause(); };
@@ -161,12 +161,14 @@ let schritt = 'Start';
       const auf = o.auftraege || [[], []];
       await put(p, '_Projekt.json', JSON.stringify({ ...PJ_KA, weitereMitteilungen: [{ id: 'm1', nr: 1, termine: ['t1'], auftraege: auf[0], angelegt: '2026-08-21T10:00:00.000Z', von: 'Ka' },
         { id: 'm2', nr: 2, termine: ['t2'], auftraege: auf[1], angelegt: '2026-08-21T10:00:00.000Z', von: 'Ka' }], mitteilungZaehler: 2 }, null, 2) + '\n');
-      const m = await sub(p, 'Mitteilungen'), f = await sub(p, 'Fotos'), pl = await sub(p, 'Pläne'), l = await sub(p, 'Laborergebnisse'), la = await sub(p, 'Laboraufträge');
+      const m = await sub(p, 'Mitteilungen'), f = await sub(p, 'Fotos'), pl = await sub(p, 'Pläne'), la = await sub(p, 'Laboraufträge');
       await put(m, `1._Mitteilung_${nr}.docx`, bin(docx)); await put(m, `2._Mitteilung_${nr}.docx`, bin(docx));
       for (const t of ['2026-08-12', '2026-08-20']) await put(f, `Bilddokumentation_${nr}_Teststadt_${t}.pdf`, '%PDF');
       await put(await sub(f, 'fotos ka'), 'IMG_0001.jpg', 'x');
       await put(f, '_Bildumbenenner.json', JSON.stringify({ format: 1, version: '2.7.0', bilder: {}, bilddokus: { t1: { dateien: [`Bilddokumentation_${nr}_Teststadt_2026-08-12.pdf`], erstellt: '2026-08-13T10:00:00.000Z' }, t2: { dateien: [`Bilddokumentation_${nr}_Teststadt_2026-08-20.pdf`], erstellt: '2026-08-21T10:00:00.000Z' } } }));
       await put(pl, `Probenplan ${name}.pdf`, '%PDF');
+      if (o.ohneLabor){ if (!o.ohneLK) await put(la, `${nr}_Daten.json`, lk); return; }   // „Laborergebnisse“ kommt erst nach dem Scan
+      const l = await sub(p, 'Laborergebnisse');
       for (const b of o.berichte) for (const x of ['.xml', '.pdf']) await put(l, b + x, x === '.pdf' ? '%PDF-' + b : '<xml>' + b + '</xml>');
       if (!o.ohneLK) await put(la, `${nr}_Daten.json`, lk);
       // Stand der Übernahme wie ResultKit/Projektzentrale (Name|Größe|Zeit der XML/PDF und der LabelKit-Datei) – dann „passt“
@@ -186,7 +188,8 @@ let schritt = 'Start';
     await projekt(AUF, lk2, ergA, { berichte: ['AR-26-0001-01', 'AR-26-0002-01'], uebergabe: true });
     await projekt(EIN1, lk1, ergE, { berichte: ['AR-26-0001-01'] });
     await projekt(SPAET, null, ergA, { berichte: ['AR-26-0001-01', 'AR-26-0002-01'], ohneLK: true, auftraege: [['a1'], ['a2']] });   // LabelKit-Datei kommt erst nach dem Scan
-  }, [AUF, EIN1, PJ_KA, docx, lkFuer(AUF, 'labelkit-5.5.0-zwei-auftraege.json'), lkFuer(EIN1, 'labelkit-5.5.0-ein-auftrag.json'), vorlage('ergebnisse-2.7.0-A.json'), vorlage('ergebnisse-2.7.0-E.json'), SPAET]);
+    await projekt(OHNE, lkOhne, ergA, { berichte: [], ohneLabor: true, auftraege: [['a1'], ['a2']] });
+  }, [AUF, EIN1, PJ_KA, docx, lkFuer(AUF, 'labelkit-5.5.0-zwei-auftraege.json'), lkFuer(EIN1, 'labelkit-5.5.0-ein-auftrag.json'), vorlage('ergebnisse-2.7.0-A.json'), vorlage('ergebnisse-2.7.0-E.json'), SPAET, OHNE, lkFuer(OHNE, 'labelkit-5.5.0-zwei-auftraege.json')]);
   await start(page);
 
   // ---------- 1. Bestand: zwei Mitteilungen im Ordner, kein Eintrag ----------
@@ -703,6 +706,51 @@ let schritt = 'Start';
     assert.equal((await aufgaben(page, SPAET)).length, 0, 'nicht übergeben');
     assert.deepEqual((await liste(page)).filter(r => r[1] === 'Prüfbericht').map(r => [r[2], r[3]]), [['AR-26-0002-01.pdf', 'aus Auftrag 2']], 'neuer Stand gezeigt');
     console.log('OK 9g LabelKit-Datei und ResultKit-Übernahme (neuer Ort) erst nach dem Scan: vor der Übergabe trotzdem gelesen, Liste neu gezeigt, nicht übergeben');
+    // Codex-Review #95: Zuordnung ändert sich ohne andere Datei (BerichtKit nennt AR-26-0002-01, danach ist die Übernahme veraltet) → erst zeigen
+    schritt = '9h Zuordnung geändert';
+    // Übergeben klicken; ein Neu-Zeichnen nach dem Fensterwechsel kann das Formular inzwischen zugeklappt haben – dann aufklappen und noch einmal
+    const uebergebenKlick = async () => { for (let k = 0; ; k++){
+      if (!await page.locator('#bueroPanel [data-ab-los]').isVisible()) await page.locator('#bueroPanel [data-ab-summary]').click();
+      try{ await page.locator('#bueroPanel [data-ab-los]').click({ timeout: 3000 }); return; }catch(e){ if (k > 4) throw e; } } };
+    const bk = async (n, anlagen) => page.evaluate(async ([n, anlagen]) => { const m = await (await (await (await navigator.storage.getDirectory()).getDirectoryHandle('Mosaik Archivordner')).getDirectoryHandle(n)).getDirectoryHandle('Mitteilungen');
+      const w = await (await m.getFileHandle('_BerichtKit.json', { create: true })).createWritable(); await w.write(JSON.stringify({ format: 'spektron-bericht', version: 1, berichte: [{ datei: `2._Mitteilung_${n.slice(0, 7)}.docx`, am: '2026-08-26T10:00:00.000Z', art: 'brand', anlagen }] })); await w.close(); }, [n, anlagen]);
+    await bk(SPAET, ['Laborergebnisse/AR-26-0002-01.pdf']);
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await warte(page, async () => (await liste(page)).some(r => r[2] === 'AR-26-0002-01.pdf' && r[3] === 'aus BerichtKit'), 'BerichtKit-Vorschlag');
+    await page.evaluate(async n => { const l = await (await (await (await navigator.storage.getDirectory()).getDirectoryHandle('Mosaik Archivordner')).getDirectoryHandle(n)).getDirectoryHandle('Laborergebnisse');
+      const w = await (await l.getFileHandle('AR-26-0002-01.pdf')).createWritable(); await w.write('%PDF-neu'); await w.close(); }, SPAET);   // ohne Fensterwechsel
+    await uebergebenKlick();
+    await page.locator('#bueroPanel .ab-msg.err').filter({ hasText: 'Die Zuordnung der Anlagen hat sich inzwischen geändert' }).waitFor();
+    assert.equal((await aufgaben(page, SPAET)).length, 0, 'gleiche Datei, andere Zuordnung: nicht übergeben');
+    assert.ok((await liste(page)).some(r => /Auftrag unbekannt: ResultKit-Übernahme veraltet/.test(r[3])), 'neuer Stand gezeigt');
+    await uebergebenKlick();
+    await page.locator('#bueroPanel [data-ab-msg]').filter({ hasText: '✓ Ans Büro übergeben' }).waitFor();
+    assert.deepEqual((await aufgaben(page, SPAET)).pop().anlagen.filter(x => /^Laborergebnisse/.test(x)), ['Laborergebnisse/AR-26-0002-01.pdf'], 'zweiter Klick übergibt, was gezeigt war');
+    console.log('OK 9h Zuordnung ändert sich ohne andere Datei → erst zeigen, beim zweiten Klick übergeben');
+
+    // Codex-Review #95: „Laborergebnisse“ entsteht erst nach dem Scan – vor der Übergabe trotzdem mit ResultKit gelesen, nur der Prüfbericht der 2.
+    schritt = '9i Laborergebnisse nach dem Scan';
+    await oeffne(page, OHNE);
+    await page.evaluate(async ([n, erg]) => {
+      const p = await (await (await navigator.storage.getDirectory()).getDirectoryHandle('Mosaik Archivordner')).getDirectoryHandle(n);
+      const put = async (d, x, t) => { const w = await (await d.getFileHandle(x, { create: true })).createWritable(); await w.write(t); await w.close(); };
+      const l = await p.getDirectoryHandle('Laborergebnisse', { create: true }), la = await p.getDirectoryHandle('Laboraufträge');
+      for (const b of ['AR-26-0001-01', 'AR-26-0002-01']){ await put(l, b + '.xml', '<xml>' + b + '</xml>'); await put(l, b + '.pdf', '%PDF-' + b); }
+      const stand = [];
+      for await (const [x, h] of l.entries()) if (h.kind === 'file' && /\.(xml|pdf)$/i.test(x)){ const d = await h.getFile(); stand.push({ name: x, size: d.size, t: d.lastModified }); }
+      const ld = await (await la.getFileHandle(`${n.slice(0, 7)}_Daten.json`)).getFile(); stand.push({ name: `Laboraufträge/${n.slice(0, 7)}_Daten.json`, size: ld.size, t: ld.lastModified });
+      const e = JSON.parse(erg); e.dateien = stand; e.stand = [...stand].sort((a, b) => a.name.localeCompare(b.name)).map(d => `${d.name}|${d.size}|${d.t}`).join('\n');
+      await put(l, '_Ergebnisse.json', JSON.stringify(e, null, 2));
+    }, [OHNE, vorlage('ergebnisse-2.7.0-A.json')]);
+    await uebergebenKlick();
+    await page.locator('#bueroPanel .ab-msg.err').filter({ hasText: 'hat sich inzwischen geändert' }).waitFor();
+    assert.equal((await aufgaben(page, OHNE)).length, 0);
+    await warte(page, async () => JSON.stringify((await liste(page)).filter(r => r[1] === 'Prüfbericht').map(r => [r[2], r[3]])) === JSON.stringify([['AR-26-0002-01.pdf', 'aus Auftrag 2']]), 'nur der Prüfbericht der 2.');
+    await uebergebenKlick();
+    await page.locator('#bueroPanel [data-ab-msg]').filter({ hasText: '✓ Ans Büro übergeben' }).waitFor();
+    assert.deepEqual((await aufgaben(page, OHNE)).pop().anlagen.filter(x => /^Laborergebnisse/.test(x)), ['Laborergebnisse/AR-26-0002-01.pdf'], 'nie der Prüfbericht der 1.');
+    console.log('OK 9i „Laborergebnisse“ erst nach dem Scan: vor der Übergabe mit ResultKit gelesen, nur der Prüfbericht der 2. übergeben');
+
 
     // echtes FotoKit 2.7.0 speichert danach – auftraege bleibt
     schritt = '9f FotoKit';
