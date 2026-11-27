@@ -252,11 +252,21 @@ let schritt = 'Start';
   await page.locator('#bueroPanel .ab-msg.err').filter({ hasText: '„AR-001.pdf“ liegt nicht mehr im Projektordner' }).waitFor();
   assert.equal((await aufgaben(page, KA)).length, 1, 'ohne die Datei nichts übergeben');
   await datei('zurueck');
+  // 4c (Runde 4): inzwischen erstellt FotoKit für Termin 2 eine neue Bilddoku (bilddokus.t2) → die Liste ändert sich: erst zeigen
+  const bdNeu = 'Bilddokumentation_26.0999_Teststadt_2026-08-20 (2).pdf';
+  await page.evaluate(async ([n, bdNeu]) => { const f = await (await (await (await navigator.storage.getDirectory()).getDirectoryHandle('Mosaik Archivordner')).getDirectoryHandle(n)).getDirectoryHandle('Fotos');
+    const put = async (x, t) => { const w = await (await f.getFileHandle(x, { create: true })).createWritable(); await w.write(t); await w.close(); };
+    await put(bdNeu, '%PDF'); const fk = JSON.parse(await (await (await f.getFileHandle('_Bildumbenenner.json')).getFile()).text());
+    fk.bilddokus.t2 = { ...fk.bilddokus.t2, dateien: [bdNeu], erstellt: new Date().toISOString() }; await put('_Bildumbenenner.json', JSON.stringify(fk)); }, [KA, bdNeu]);
+  await page.locator('#bueroPanel [data-ab-los]').click();
+  await page.locator('#bueroPanel .ab-msg.err').filter({ hasText: 'Die Anlagen-Liste hat sich inzwischen geändert' }).waitFor();
+  assert.equal((await aufgaben(page, KA)).length, 1, 'geänderte Liste erst zeigen, nicht übergeben');
+  assert.ok((await liste(page)).some(r => r[2] === bdNeu), 'neue Bilddoku gezeigt');
   await page.locator('#bueroPanel [data-ab-los]').click();
   await page.locator('#bueroPanel [data-ab-msg]').filter({ hasText: '✓ Ans Büro übergeben' }).waitFor();
   const a = (await aufgaben(page, KA)).pop();
   assert.equal(a.word, 'Mitteilungen/2._Mitteilung_26.0999.docx');
-  assert.deepEqual(a.anlagen, ['Laborergebnisse/AR-002.pdf', 'Laborergebnisse/AR-001.pdf', 'Fotos/Bilddokumentation_26.0999_Teststadt_2026-08-20.pdf', `Pläne/Probenplan ${KA} - 2. Termin.pdf`], 'in Nummernfolge');
+  assert.deepEqual(a.anlagen, ['Laborergebnisse/AR-002.pdf', 'Laborergebnisse/AR-001.pdf', 'Fotos/' + bdNeu, `Pläne/Probenplan ${KA} - 2. Termin.pdf`], 'in Nummernfolge');
   await warte(page, async () => (await ktext(page, 'bericht')) === '2. Mitteilung · beim Büro', 'beim Büro');
   assert.ok(await page.locator('#bueroPanel [data-ab-form]').isHidden());
   assert.match(await page.locator('#bueroPanel [data-mt-karte]').innerText(), /^Beim Büro seit \d\d\.\d\d\.\d{4} \(übergeben von Ka\)/);
@@ -344,7 +354,21 @@ let schritt = 'Start';
   await page.locator(`#bueroPanel [data-mt-weg="${planZwei}"]`).click();
   await warte(page, async () => ((await lese(page, ZWEI)).weitereMitteilungen[1].anlagenWeg || []).length, 'erstes Fenster gespeichert');
   const nachA2 = await leseText(page, ZWEI);
+  // das Neu-Lesen nach dem Widerspruch künstlich anhalten: in der Zeit sind Änderungen gesperrt (Codex-Review #94, Runde 4)
+  await b.evaluate(() => {
+    window.__haltLesen = true; window.__liestNeu = false;
+    const g = FileSystemFileHandle.prototype.getFile;
+    FileSystemFileHandle.prototype.getFile = async function(...a){
+      // nach dem gescheiterten Schreiben (Hinweis „nicht gespeichert“ steht schon oben) ist das nächste Lesen das Neu-Lesen
+      if (this.name === '_Projekt.json' && window.__haltLesen && /nicht gespeichert/.test(document.getElementById('pjAttention').textContent)){ window.__liestNeu = true; await new Promise(r => { window.__weiter = r; }); }
+      return g.apply(this, a);
+    };
+  });
   await b.locator('#bueroPanel [data-mt-dazu]').selectOption(bdAlt);
+  await b.waitForFunction(() => window.__liestNeu, null, { timeout: 8000 });
+  await b.locator(`#bueroPanel [data-mt-weg^="Fotos/"]`).first().click();
+  assert.match(await b.locator('#banner').innerText(), /werden gerade neu gelesen – die Änderung ist nicht übernommen/);
+  await b.evaluate(() => { window.__haltLesen = false; window.__weiter(); });
   await b.locator('#banner.err').filter({ hasText: 'Anlagen der Mitteilung nicht gespeichert' }).waitFor({ timeout: 8000 });
   await b.waitForTimeout(800);
   assert.equal(await leseText(page, ZWEI), nachA2, 'nichts überschrieben');
