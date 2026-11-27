@@ -2635,8 +2635,10 @@ async function abUebergeben(p){
       try{ const x = await otFotoKitLesen(p); if (x.fehler) nichtLesbar.push('FotoKits „_Bildumbenenner.json“ (' + x.fehler + ')'); else fkNeu = x.data; }catch(e){ nichtLesbar.push('FotoKit (' + (e.message || e) + ')'); }
       try{ bkNeu = await abBerichtKitLesen(p); }catch(e){ nichtLesbar.push('BerichtKit (' + (e.message || e) + ')'); }
       // 1.55: auch LabelKit (Laboraufträge) und die ResultKit-Übernahme frisch – ändert sich dadurch die Liste, gilt die Regel unten
-      try{ await lkFrisch(p); }catch(e){ nichtLesbar.push(e.message || String(e)); }
-      try{ await labFrisch(p); }catch(e){ nichtLesbar.push('„Laborergebnisse“ (' + (e.message || e) + ')'); }
+      // nur, wenn die Projektzentrale schon mehrere Aufträge kennt, sperrt ein Lesefehler (ein Auftrag: wie 1.54.0 – Review 1.55.0)
+      const mehrereAuftraege = lkMehrere(p);
+      try{ await lkFrisch(p); }catch(e){ if (mehrereAuftraege) nichtLesbar.push(e.message || String(e)); }
+      try{ await labFrisch(p); }catch(e){ if (mehrereAuftraege || lkMehrere(p)) nichtLesbar.push('„Laborergebnisse“ (' + (e.message || e) + ')'); }
       const vorher = Mitteilungen.pfade(ms.listen.get(mt.schluessel).zeilen, mt.datei && mt.datei.rel);
       if (!S.sel || S.sel.name !== p.name){ st.busy = false; return; }
       if (frisch.error) return halt(`Nicht übergeben: Die Projektdaten sind nicht lesbar (${frisch.error}).`);
@@ -2797,7 +2799,7 @@ function otFreiZeichnen(p){
   const html = abRo() ? '' : mtFreiHtml(p, mtGewaehlt(p), 'otFreiZu', true);
   if (el.dataset.html === html) return;
   el.dataset.html = html; el.innerHTML = html; el.hidden = !html; el.className = html ? 'ot-frei' : '';
-  if ($('otFreiZu')) $('otFreiZu').onclick = () => mtBezugDialog(p, 'zuordnen');
+  if ($('otFreiZu')) $('otFreiZu').onclick = () => mtBezugDialog(p, $('otFreiZu').dataset.neu ? 'neu' : 'zuordnen');
 }
 function otKnoepfe(p, ro){
   const box = $('otBlock'); if (!box || ro) return;
@@ -2933,7 +2935,7 @@ function mtZeichnen(p, ms){
   const v = ms.lage ? Mitteilungen.auftraegeVon(m, ms.lage) : null;
   const aufText = !v ? '' : ' · ' + (v.ids.size ? [...v.ids].map(id => { const a = ms.lage.auftrag(id);
     return !a ? `<span class="warn">${esc(ms.lage.name(id))} (gibt es in LabelKit nicht mehr)</span>` : `Auftrag ${a.nr}${a.am ? ' (' + esc(deDatum(a.am).slice(0, 6)) + ')' : ''}${v.gerechnet.includes(id) && !v.gespeichert.includes(id) ? ' <span class="m">aus der Übergabe</span>' : ''}`; }).join(' · ')
-    : '<span class="warn">kein Laborauftrag zugeordnet</span>');
+    : v.festUnbekannt.length ? `<span class="warn">Auftrag unbekannt (aus der Übergabe): ${esc(v.festUnbekannt[0].grund)}</span>` : '<span class="warn">kein Laborauftrag zugeordnet</span>');
   const hinweise = [];
   if (m.mehrdeutig) hinweise.push(`In „Mitteilungen“ liegen ${m.dateien.length} Word-Dateien mit der Nummer ${m.nr}: ${m.dateien.map(w => '„' + esc(w.name) + '“').join(', ')} – es gilt die neueste.`);
   for (const a of l.ohneWord) hinweise.push(`Übergabe ohne Word-Datei vom ${esc(abDatum(a.erstellt))} – keiner Mitteilung zuzuordnen.`);
@@ -2950,18 +2952,20 @@ function mtZeichnen(p, ms){
   if ($('mtNeu')) $('mtNeu').onclick = () => mtBezugDialog(p, 'neu');
   if ($('mtBezug')) $('mtBezug').onclick = () => mtBezugDialog(p, 'zuordnen');
   if ($('mtWeg')) $('mtWeg').onclick = () => mtEntfernen(p);
-  if ($('mtFreiZu')) $('mtFreiZu').onclick = () => mtBezugDialog(p, 'zuordnen');
+  if ($('mtFreiZu')) $('mtFreiZu').onclick = () => mtBezugDialog(p, $('mtFreiZu').dataset.neu ? 'neu' : 'zuordnen');
 }
 /** 1.55 (P3): gelbe Zeile „Gehört zu keiner Mitteilung: Termin 3 (05.09.) · Auftrag 3 (07.09.) – zuordnen …“ – nichts springt auf,
     geschrieben wird erst mit „Übernehmen“ in der Rückfrage. Nur bei mehreren Mitteilungen. */
 function mtFreiHtml(p, ms, knopf, nurMitTermin){
-  if (!ms || !ms.l.mehrere || vorSpektron(p)) return '';
+  if (!ms || !ms.l.mehrere || vorSpektron(p) || !Mitteilungen.frei) return '';
   const f = Mitteilungen.frei(ms.l, ms.lage, otStand()), t = Mitteilungen.freiText(f);
   if (nurMitTermin && !(f && f.termine.length)) return '';   // unter den Ortsterminen: erst, wenn ein Termin zu keiner Mitteilung gehört
   // Aufträge übergebener Mitteilungen gerade nicht zu rechnen (Übernahme veraltet …): sagen, warum – nicht als „frei“ anbieten
   const unklar = !nurMitTermin && f && f.unklar.length ? `<div class="mt-frei m" data-mt-unklar>${esc(f.unklar.map(a => 'Auftrag ' + a.nr).join(', '))}: Zuordnung zur übergebenen ${esc([...new Set(f.festUnbekannt.map(x => x.m.nr + '.'))].join(', '))} Mitteilung gerade unbekannt – ${esc([...new Set(f.festUnbekannt.map(x => x.grund))].join('; '))}</div>` : '';
   if (!t) return unklar;
-  return `<div class="mt-frei warn" data-mt-frei>Gehört zu keiner Mitteilung: ${esc(t)} – <button type="button" class="linkbtn" id="${knopf}">zuordnen …</button></div>` + unklar;
+  // sind alle Mitteilungen übergeben, ist dort nichts zuzuordnen – dann eine weitere Mitteilung beginnen (Review 1.55.0)
+  const alleFest = ms.l.mitteilungen.every(m => m.fest);
+  return `<div class="mt-frei warn" data-mt-frei>Gehört zu keiner Mitteilung: ${esc(t)} – <button type="button" class="linkbtn" id="${knopf}"${alleFest ? ' data-neu="1"' : ''}>${alleFest ? `${Mitteilungen.naechsteNr(ms.st.word, otStand())}. Mitteilung beginnen …` : 'zuordnen …'}</button></div>` + unklar;
 }
 /** Liste und Zähler in einem Patch (O13 sinngemäß). */
 function mtListeSetzen(liste, zaehler){
@@ -3014,6 +3018,8 @@ async function mtBezugDialog(p, modus){
   if (modus === 'neu') spalten.push({ schluessel: 'neu', eintrag: null, m: null, nr: neuNr, gesperrt: false, zustand: 'neu', neu: true });
   const vor = Mitteilungen.vorwahlTermine(d, spalten, { versandt: pjFakten(d).versandt });
   const g = !spalten.some(s => s.eintrag) ? Mitteilungen.grenze(l, { versandt: pjFakten(d).versandt }) : null;
+  // 1.55 (Review): freie Termine, die nach dem Datum vorgewählt sind (alle Spalten haben Einträge) – sagen, warum
+  const tFreiVor = spalten.every(s => s.eintrag) ? t.map((x, i) => [x, i]).filter(([x]) => !spalten.some(s => (s.eintrag.termine || []).includes(x.id))).flatMap(([x, i]) => spalten.filter(s => (vor[s.schluessel] || []).includes(x.id)).map(s => `Termin ${i + 1} (${Mitteilungen.terminText(x, true)}) gehört noch zu keiner Mitteilung – nach dem Datum vorgewählt: ${s.nr}. Mitteilung.`)) : [];
   const kopf = spalten.map(s => `<th>${s.nr}. Mitteilung<small>${esc(s.zustand)}</small></th>`).join('');
   const zeilen = t.map((x, i) => `<tr><td>Termin ${i + 1} · ${esc(Mitteilungen.terminText(x))}</td>${spalten.map(s =>
     `<td><input type="checkbox" data-mtb-spalte="${esc(s.schluessel)}" data-mtb-termin="${esc(x.id)}" aria-label="${esc(Mitteilungen.terminText(x))} – ${s.nr}. Mitteilung"${(vor[s.schluessel] || []).includes(x.id) ? ' checked' : ''}${s.gesperrt ? ' disabled' : ''}></td>`).join('')}</tr>`).join('');
@@ -3034,6 +3040,7 @@ async function mtBezugDialog(p, modus){
   const html = `<h3>${esc(titel)}</h3><div class="m">
       <p>Worauf bezieht sich ${modus === 'neu' ? `die ${neuNr}. Mitteilung` : 'jede Mitteilung'}? Haken je Ortstermin – ein Termin darf zu mehreren Mitteilungen gehören (gemeinsame Anlagen).${g ? ` Vorgewählt nach der Grenze: Termine ${esc(g.text)} gehören zur neueren Mitteilung.` : spalten.some(s => s.eintrag) && modus === 'neu' ? ' Vorgewählt ist, was noch in keiner Mitteilung steht.' : ''}</p>
       <table class="mtb"><thead><tr><th>Ortstermin</th>${kopf}</tr></thead><tbody>${zeilen}</tbody></table>
+      ${tFreiVor.length ? `<ul class="mtb-saetze m">${tFreiVor.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
       ${spalten.some(s => s.gesperrt) ? '<p class="m">Gesperrt: Mitteilungen, die beim Büro oder versandt sind – ihr Bezug ist mit der Übergabe fest.</p>' : ''}
       ${aTabelle}
       ${modus === 'neu' ? `<label class="mtb-anlass">Anlass (optional)<input type="text" id="mtbAnlass" list="mtbVorschlag" maxlength="80" placeholder="z. B. Nachbeprobung"></label><datalist id="mtbVorschlag">${['Nachbeprobung', 'Freimessung', 'Ergänzung', 'Nachtrag'].map(v => `<option value="${v}"></option>`).join('')}</datalist>` : ''}
@@ -4264,7 +4271,7 @@ const heuteIso = () => { const d = new Date(), z = n => String(n).padStart(2, '0
 async function lkWahlFuer(p){
   const la = p.st && p.st.subs.labauf, leer = { datei: null, fremd: [], pfad: '' }; if (!la || !la.daten.length) return leer;
   const dir = la.datenDir || la.handle, pfad = la.datenPfad || la.name;
-  if (SO.labelkitWahl){ try{ const w = await SO.labelkitWahl(dir, p.name); return { datei: w.datei ? w.datei.file : null, fremd: w.fremd, pfad }; }catch(e){ return { ...leer, pfad }; } }
+  if (SO.labelkitWahl){ try{ const w = await SO.labelkitWahl(dir, p.name); return { datei: w.datei ? w.datei.file : null, fremd: w.fremd, pfad }; }catch(e){ return { ...leer, pfad, fehler: e.message || String(e) }; } }
   let best = null;   // ohne Modul (Testausschnitte): wie bisher die neueste
   for (const n of la.daten){ try{ const f = await (await dir.getFileHandle(n)).getFile(); if (!best || f.lastModified > best.lastModified) best = f; }catch(e){} }
   return { datei: best, fremd: [], pfad };
@@ -4289,15 +4296,25 @@ function anlTitelMerken(p, v){ try{ localStorage.setItem('pz-anlage-titel:' + p.
    Speicher gemerkt. Die Projektzentrale schreibt sie nie und vergibt keine Kennung. Ändern sich die Aufträge, werden Zeile, Kacheln
    und Büro-Karte neu gezeichnet. */
 function lkMerken(p, f, daten, fehler){
+  if (S.sel !== p) return;   // nur für das gewählte Projekt (ein langsames Lesen nach einem Projektwechsel ändert nichts – Review 1.55.0)
   const alt = S.lk && S.lk.name === p.name ? S.lk : null;
-  const auftraege = daten && window.Laborauftraege ? Laborauftraege.lesen(daten) : null;
+  // nicht lesbar: die zuletzt gelesenen Aufträge bleiben bekannt (mit Fehler) – dann „Auftrag unbekannt“ statt still wie 1.54.0
+  const auftraege = daten && window.Laborauftraege ? Laborauftraege.lesen(daten) : fehler && alt ? alt.auftraege : null;
   S.lk = { name: p.name, datei: f ? f.name : '', t: f ? f.lastModified : 0, auftraege, fehler: fehler || '' };
-  const kenn = x => x && x.auftraege ? JSON.stringify([x.auftraege.auftraege, x.auftraege.kennungJe, x.auftraege.neu]) : '';
-  if (kenn(alt) !== kenn(S.lk) && S.sel === p){ bueroZeigen(p); otFreiZeichnen(p); }
+  const kenn = x => x && x.auftraege ? JSON.stringify([x.auftraege.auftraege, x.auftraege.kennungJe, x.auftraege.neu, !!x.fehler]) : '';
+  if (kenn(alt) !== kenn(S.lk)){ bueroZeigen(p); otFreiZeichnen(p); }
 }
-/** LabelKit-Datei frisch lesen (vor der Rückfrage und vor der Übergabe). Wirft, wenn die Datei da, aber nicht lesbar ist. */
+/** Wusste die Projektzentrale schon von mehreren Laboraufträgen in diesem Projekt? (dann sperrt ein Lesefehler die Übergabe) */
+const lkMehrere = p => !!(S.lk && S.lk.name === p.name && S.lk.auftraege && S.lk.auftraege.mehrere);
+/** LabelKit-Datei frisch lesen (vor der Rückfrage und vor der Übergabe). Wirft, wenn Ordner oder Datei nicht lesbar sind. */
 async function lkFrisch(p){
-  const w = await lkWahlFuer(p), f = w.datei;
+  const la = p.st && !p.st.err && p.st.subs.labauf;
+  if (!la || !la.daten.length){ lkMerken(p, null, null); return; }
+  let f = null;
+  if (SO.labelkitWahl){
+    let w; try{ w = await SO.labelkitWahl(la.datenDir || la.handle, p.name); }catch(e){ lkMerken(p, null, null, e.message || String(e)); throw new Error(`LabelKit-Ordner nicht lesbar (${e.message || e})`); }
+    f = w.datei ? w.datei.file : null;
+  } else f = (await lkWahlFuer(p)).datei;
   if (!f){ lkMerken(p, null, null); return; }
   let daten; try{ daten = JSON.parse(await f.text()); }catch(e){ lkMerken(p, f, null, e.message); throw new Error(`LabelKit-Datei „${f.name}“ nicht lesbar (${e.message})`); }
   lkMerken(p, f, daten);
@@ -4310,8 +4327,10 @@ async function labFrisch(p){
 }
 /** Lage der Laboraufträge des gewählten Projekts – null bei einem Auftrag (alles wie bis 1.54.0) oder solange LabelKit nicht gelesen ist. */
 function lageVon(p){
+  if (!Mitteilungen.auftragsLage) return null;   // veralteter Zwischenspeicher (mitteilungen.js von 1.54): wie 1.54
   const lk = S.lk && S.lk.name === p.name && S.lk.auftraege ? S.lk.auftraege : null;
   if (!lk || !lk.mehrere) return null;
+  if (S.lk.fehler) return Mitteilungen.auftragsLage(lk, { lkFehler: true });
   const er = p.st && !p.st.err && p.st.subs.laberg ? p.st.subs.laberg.ergebnisse : null;
   const erg = !er ? null : er.fehler || !er.lage ? { fehler: true, kennung: {}, berichte: [], offen: [], dateien: [] } : { ...er.lage, veraltet: er.veraltet };
   return Mitteilungen.auftragsLage(lk, erg);
@@ -4330,7 +4349,7 @@ async function anlStatus(p){
   // Ohne LabelKit-Daten oder ohne PN 98/Brandgeruch bleibt der Anhang am Schritt leer (unsichtbar) – außer es gibt schon erstellte Anlagen.
   const gemerkt = await berichtArtGemerkt(p);   // in BerichtKit gemerkte Berichtsart – „Jetzt dran“ Stufe 4
   if (!aktuell()) return;
-  if (!f){ lkMerken(p, null, null); berichtVorschlagZeigen(p, null, gemerkt); S.anl = null; box.innerHTML = fremdZeile + (erstellt.length ? `<div class="row"><b>Anlage PN 98 / Brandgeruch</b></div>${liste}` : ''); return; }
+  if (!f){ lkMerken(p, null, null, w.fehler); berichtVorschlagZeigen(p, null, gemerkt); S.anl = null; box.innerHTML = fremdZeile + (erstellt.length ? `<div class="row"><b>Anlage PN 98 / Brandgeruch</b></div>${liste}` : ''); return; }
   let daten;
   try{ daten = JSON.parse(await f.text()); }
   catch(e){ if (!aktuell()) return; lkMerken(p, f, null, e.message); berichtVorschlagZeigen(p, null, gemerkt); S.anl = null; $('anl').innerHTML = `<div class="warn">„${esc(f.name)}“ ist nicht lesbar: ${esc(e.message)}</div>`; return; }

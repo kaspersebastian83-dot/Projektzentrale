@@ -206,13 +206,17 @@
     const kennung = {}, proben = o.auftrag && Array.isArray(o.auftrag.proben) ? o.auftrag.proben : [];
     for (const x of proben) if (x && typeof x.label === 'string' && typeof x.auftrag === 'string' && /^a\d+$/.test(x.auftrag)) kennung[gross(x.label)] = x.auftrag;
     const berichte = (Array.isArray(o.berichte) ? o.berichte : []).filter(b => b && typeof b === 'object').map(b => ({ bericht: text(b.bericht),
-      pdf: b.sources && typeof b.sources.pdf === 'string' ? base(b.sources.pdf) : '', labels: (Array.isArray(b.proben) ? b.proben : []).map(x => x && gross(x.label)).filter(Boolean) }));
+      pdf: b.sources && typeof b.sources.pdf === 'string' ? base(b.sources.pdf) : '', labels: (Array.isArray(b.proben) ? b.proben : []).map(x => x && gross(x.label)).filter(Boolean),
+      // Proben des Berichts ohne Probennummer (Labor-Probe, die ResultKit keiner LabelKit-Probe zuordnen konnte) – Bericht dann „unbekannt“.
+      // Nicht zu sehen sind Proben ohne Werte: ResultKit schreibt sie nicht in berichte[].proben.
+      ohneLabel: (Array.isArray(b.proben) ? b.proben : []).filter(x => !x || !gross(x.label)).length }));
     return { kennung, berichte, offen: (Array.isArray(o.offen) ? o.offen : []).map(gross).filter(Boolean),
       dateien: (Array.isArray(o.dateien) ? o.dateien : []).map(d => d && typeof d.name === 'string' ? base(d.name) : '').filter(Boolean), mitAuftrag: !!(o.auftrag && proben.length) };
   }
   /** Sätze zum Grund „Auftrag unbekannt“ (F3). */
   const GRUND = {
     veraltet: 'ResultKit-Übernahme veraltet – in ResultKit erneut übernehmen',
+    labelkit: 'LabelKit-Datei gerade nicht lesbar – gleich noch einmal (Fenster wechseln) oder in LabelKit öffnen',
     keine: 'noch nicht in ResultKit übernommen',
     fehler: 'Ergebnisdatei von ResultKit nicht lesbar – in ResultKit erneut übernehmen',
     unklar: 'Stand der ResultKit-Übernahme nicht prüfbar',
@@ -231,7 +235,8 @@
     if (!lk || !lk.mehrere) return null;
     const je = new Map(lk.auftraege.map(a => [a.id, a]));
     let grund = '';
-    if (!erg) grund = 'keine';
+    if (erg && erg.lkFehler) grund = 'labelkit';
+    else if (!erg) grund = 'keine';
     else if (erg.fehler) grund = 'fehler';
     else if (erg.veraltet === true) grund = 'veraltet';
     else if (erg.veraltet !== false) grund = 'unklar';
@@ -252,6 +257,7 @@
         return { grund: GRUND.nicht, art: 'nicht' };
       }
       const b = treffer[0], ohne = b.labels.filter(l => !lk.kennungJe[l]);
+      if (b.ohneLabel) return { grund: `enthält ${b.ohneLabel === 1 ? 'eine Probe' : b.ohneLabel + ' Proben'} ohne Probennummer`, art: 'ohneKennung' };
       if (ohne.length) return { grund: `enthält Proben ohne Laborauftrag in LabelKit (${ohne.slice(0, 4).join(', ')}${ohne.length > 4 ? ' …' : ''})`, art: 'ohneKennung' };
       const ids = [...new Set(b.labels.map(l => lk.kennungJe[l]))].sort((x, y) => (je.has(x) ? je.get(x).nr : 0) - (je.has(y) ? je.get(y).nr : 0));
       return ids.length ? { auftraege: ids } : { grund: GRUND.nicht, art: 'leer' };
@@ -488,7 +494,15 @@
         for (const z of zeilen){
           if (z.art !== 'pruefbericht' || z.dateien.length !== 1) continue;
           const info = lage.pdf(base(z.dateien[0]));
-          if (!info.auftraege || info.auftraege.some(id => eigene.ids.has(id))) continue;
+          if (!info.auftraege){
+            // Auftrag gerade unbekannt (z. B. Übernahme veraltet): sagen, statt still nichts zu prüfen (Review 1.55.0); steht der Prüfbericht
+            // in der festen Liste einer anderen, übergebenen Mitteilung, gelb – er ging schon mit ihr hinaus
+            const fest = ms.filter(x => x !== m && festJe.get(x.schluessel).has(key(z.dateien[0])));
+            z.hinweis = `Auftrag unbekannt: ${info.grund}`;
+            if (fest.length) z.warnung = `schon mit der ${fest.map(x => x.nr + '.').join(', ')} Mitteilung übergeben – prüfen, ob er hierher gehört; sonst in BerichtKit abwählen oder hier entfernen`;
+            continue;
+          }
+          if (info.auftraege.some(id => eigene.ids.has(id))) continue;
           const andere = ms.filter(x => x !== m && info.auftraege.some(id => vonJe.get(x.schluessel).ids.has(id)));
           if (!andere.length) continue;
           const n = nrn(info.auftraege);
@@ -602,7 +616,7 @@
     // Proben und Labor je Auftrag der Mitteilung (P7) – das ✓ und „Jetzt dran“ bleiben Projektfakt (Stufen.kacheln je)
     const v = auftraegeVon(m, lage), bekannt = lage.auftraege.filter(a => v.ids.has(a.id)), neu = !m.fest && lage.neu.length ? ` · ${anz(lage.neu.length, 'neue Probe', 'neue Proben')} noch nicht beim Labor` : '';
     if (!bekannt.length){
-      out.proben = v.unbekannt.length ? { text: `${v.unbekannt.map(lage.name).join(', ')} gibt es in LabelKit nicht mehr${neu}`, luecke: true } : { text: `kein Laborauftrag zugeordnet${neu}`, luecke: true };
+      out.proben = v.festUnbekannt.length ? { text: `Auftrag unbekannt (aus der Übergabe): ${v.festUnbekannt[0].grund}`, luecke: true } : v.unbekannt.length ? { text: `${v.unbekannt.map(lage.name).join(', ')} gibt es in LabelKit nicht mehr${neu}`, luecke: true } : { text: `kein Laborauftrag zugeordnet${neu}`, luecke: true };
       return out;
     }
     const proben = new Set(bekannt.flatMap(a => a.proben));

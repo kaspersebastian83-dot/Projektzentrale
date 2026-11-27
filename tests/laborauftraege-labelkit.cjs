@@ -99,5 +99,16 @@ assert.equal(L.nrListeText(v.auftraege[1].proben), 'P14–P21');
 assert.equal(L.lesen(FAELLE[12][1]).mehrere, false, 'Runde 1: ein Auftrag');
 assert.deepEqual(L.lesen(FAELLE[12][1]).kennungJe, {});
 assert.equal(L.lesen(null).mehrere, false); assert.deepEqual(L.lesen({}).auftraege, []);
+// Review 1.55.0: Zählen und Vergleich mit _Ergebnisse.json wie ResultKit labelkitReport – Bohrkern-Rückstellprobe (bekommt in LabelKit
+// eine Kennung, fehlt aber in ResultKit) und doppelt vergebene Nummer (ResultKit: die erste) zählen nicht; die Kennung je Probe bleibt LabelKits.
+{
+  const d = gespeichert();
+  const rueck = { ...probe(22, 'a2'), matrix: 'Bohrkern', bkStatus: 'R' }, doppelt = { ...probe(14, 'a2'), id: 99 };
+  d.sonstigeProben.push(rueck); d.weitereAuftraege[0].proben.push(22); d.sonstigeProben.push(doppelt);
+  const x = L.lesen(d), lkx = labelkit(JSON.parse(JSON.stringify(d)));
+  assert.equal(x.von(rueck), 'a2'); assert.equal(lkx.kennung[lkx.kennung.length - 2], 'a2', 'LabelKit gibt der Rückstellprobe die Kennung');
+  assert.equal(x.kennungJe.P22, undefined, 'Rückstellprobe nicht im Vergleich (wie ResultKit)');
+  assert.deepEqual(x.auftraege[1].proben, r(14, 21), 'Auftrag 2: 8 Proben, ohne Rückstellprobe, P14 einmal');
+}
 const vorher = JSON.stringify(FAELLE[0][1]); L.lesen(FAELLE[0][1]); assert.equal(JSON.stringify(FAELLE[0][1]), vorher, 'ändert die Datei nicht');
 console.log(`OK Kopie LabelKit: Laborauftrag je Probe, Aufträge und neue Proben gleich (${n} Fälle, ${lk})`);

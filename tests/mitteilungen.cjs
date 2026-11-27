@@ -253,6 +253,15 @@ console.log('OK mitteilungen: Kacheltext je Mitteilung ändert nur Text und gelb
   assert.equal(lage.pdf('AR-99.pdf').grund, M.GRUND.nicht);
   assert.equal(M.auftragsLage(LK2, { ...e2, berichte: [...e2.berichte, { bericht: 'AR-X', pdf: A2, labels: ['P14'] }] }).pdf(A2).grund, M.GRUND.mehrdeutig);
   assert.match(M.auftragsLage(LK2, { ...e2, berichte: [{ bericht: 'AR-Y', pdf: A2, labels: ['P14', 'P22'] }] }).pdf(A2).grund, /^enthält Proben ohne Laborauftrag in LabelKit \(P22\)$/);
+  // Labor-Probe ohne Probennummer im Bericht → unbekannt, nie nur nach den übrigen Proben zuordnen (Review 1.55.0)
+  const mitLeer = fix('ergebnisse-2.7.0-A.json'); mitLeer.berichte[1].proben.push({ ref: 'Probe X', desc: '', werte: [{ p: 'x', r: '1', u: 'µg/m²' }] });
+  assert.equal(M.auftragsLage(LK2, { ...M.ergebnisAuszug(mitLeer), veraltet: false }).pdf(A2).grund, 'enthält eine Probe ohne Probennummer');
+  // Bohrkern-Rückstellprobe in LabelKit mit Kennung (fehlt in ResultKit) → Übernahme passt trotzdem (Review 1.55.0)
+  const mitR = fix('labelkit-5.5.0-zwei-auftraege.json'); mitR.sonstigeProben = [{ id: 22, _nr: 22, matrix: 'Bohrkern', bkStatus: 'R', nrFest: { am: '2026-08-22T10:00:00.000Z' }, auftrag: 'a2' }]; mitR.weitereAuftraege[0].proben.push(22);
+  const lgR = M.auftragsLage(LA.lesen(mitR), erg('A'));
+  assert.equal(lgR.ok, true); assert.equal(lgR.auftraege[1].proben.length, 8);
+  // LabelKit-Datei gerade nicht lesbar (vorher zwei Aufträge bekannt) → unbekannt mit Grund
+  assert.equal(M.auftragsLage(LK2, { lkFehler: true }).pdf(A1).grund, M.GRUND.labelkit);
   L = M.anlagenListen(M.liste(d, w19, []), E2(d, lab(A1, 'AR-26-0002-01 (2).pdf', 'AR-26-0001-02.pdf'), lage), A);
   assert.deepEqual(pb(L, 'm1'), [[A1, 'noch in keiner Mitteilung', 'Auftrag unbekannt: ' + M.GRUND.ersetzt, '2. Mitteilung', ''], ['AR-26-0001-02.pdf', 'aus Auftrag 1', '', '', ''],
     ['AR-26-0002-01 (2).pdf', 'noch in keiner Mitteilung', `Auftrag unbekannt: nicht in der Übernahme – vielleicht eine Kopie von „${A2}“`, '2. Mitteilung', '']], 'Kopie nie dem Zwilling zugeordnet');
@@ -271,6 +280,8 @@ console.log('OK mitteilungen: Kacheltext je Mitteilung ändert nur Text und gelb
   assert.deepEqual(M.pfade(L.get('m1').zeilen), [`Laborergebnisse/${A1}`], 'feste Liste unverändert');
   assert.deepEqual(pb(L, 'm2'), [[A2, 'noch in keiner Mitteilung · Auftrag 2 keiner Mitteilung zugeordnet', '', '', '']]);
   assert.deepEqual(M.auftraegeVon(l.mitteilungen[0], M.auftragsLage(LK2, erg('A', { veraltet: true }))).festUnbekannt.map(x => x.grund), [M.GRUND.veraltet]);
+  { const lv = M.auftragsLage(LK2, erg('A', { veraltet: true }));
+    assert.deepEqual(M.kachelTexte(l.mitteilungen[0], M.anlagenListen(l, E2(d, lab(A1, A2), lv), A).get('m1'), d, lv).proben, { text: 'Auftrag unbekannt (aus der Übergabe): ' + M.GRUND.veraltet, luecke: true }, 'übergeben + veraltet: nicht „kein Laborauftrag zugeordnet“'); }
   assert.equal(M.auftraegeVon(l.mitteilungen[0], null), null);
   // unbekannte Kennung bleibt im Eintrag und wird genannt
   v = M.auftraegeVon(M.liste(mit(['a1', 'a7'], []), w19, []).mitteilungen[0], lage);
@@ -330,11 +341,19 @@ console.log('OK mitteilungen: Kacheltext je Mitteilung ändert nur Text und gelb
     assert.deepEqual(pb(L, 'm1'), [[A1, 'aus BerichtKit', '', '', ''], [A2, 'aus BerichtKit', '', '2. Mitteilung', 'laut Laborauftrag 2 zur 2. Mitteilung – in BerichtKit abwählen oder hier entfernen']]);
     assert.deepEqual(M.pfade(L.get('m1').zeilen), bk1.anlagen, 'nie still entfernt');
   }
-  // keine Markierung: Auftrag unbekannt, Auftrag keiner Mitteilung zugeordnet, ohne Lage, gehört auch zu dieser
-  for (const [lx, dx] of [[M.auftragsLage(LK2, erg('A', { veraltet: true })), d], [lage, mit(['a1'], [])], [null, d]]){
+  // keine Markierung: Auftrag keiner Mitteilung zugeordnet, ohne Lage
+  for (const [lx, dx] of [[lage, mit(['a1'], [])], [null, d]]){
     L = M.anlagenListen(M.liste(dx, w19, []), E2(dx, lab(A1, A2), lx, { bk: [bk1] }), A);
-    assert.ok(L.get('m1').zeilen.every(z => !z.warnung));
+    assert.ok(L.get('m1').zeilen.every(z => !z.warnung && !z.hinweis));
   }
+  // Auftrag unbekannt (Übernahme veraltet): Satz an der BerichtKit-Zeile; steht sie in der festen Liste einer anderen Mitteilung → gelb (Review 1.55.0)
+  const lgV = M.auftragsLage(LK2, erg('A', { veraltet: true }));
+  L = M.anlagenListen(M.liste(d, w19, []), E2(d, lab(A1, A2), lgV, { bk: [bk1] }), A);
+  assert.deepEqual(pb(L, 'm1').map(z => [z[2], z[4]]), [['Auftrag unbekannt: ' + M.GRUND.veraltet, ''], ['Auftrag unbekannt: ' + M.GRUND.veraltet, '']]);
+  const bk2 = { datei: word[1].name, am: '2026-08-25T10:00:00.000Z', anlagen: [`Laborergebnisse/${A1}`, `Laborergebnisse/${A2}`] };
+  L = M.anlagenListen(M.liste(d, w19, [ueb19()]), E2(d, lab(A1, A2), lgV, { bk: [bk2] }), A);
+  assert.match(pb(L, 'm2')[0][4], /^schon mit der 1\. Mitteilung übergeben – prüfen, ob er hierher gehört; sonst in BerichtKit abwählen oder hier entfernen$/);
+  assert.equal(pb(L, 'm2')[1][4], '');
   L = M.anlagenListen(M.liste(mit(['a1'], ['a2']), w19, []), E2(mit(['a1'], ['a2']), lab(A2), M.auftragsLage(LK2, erg('B')), { bk: [{ ...bk1, anlagen: [`Laborergebnisse/${A2}`] }] }), A);
   assert.ok(!L.get('m1').zeilen[0].warnung, 'Bericht mit Proben auch aus Auftrag 1: gehört auch zur 1.');
   // von Hand entfernt → Zeile weg (anlagenWeg wie bisher)

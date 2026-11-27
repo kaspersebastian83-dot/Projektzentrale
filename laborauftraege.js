@@ -20,12 +20,16 @@
   /** Tag wie LabelKit tagIso (Ortszeit des Rechners). */
   const tagIso = v => { const d = new Date(v); return Number.isNaN(d.getTime()) ? '' : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
   /** Nummer einer Probe wie ResultKit („P<n>“ aus _nr, sonst chloridNr, sonst id); 0 = keine. */
+  /** wie ResultKit isRueckstellprobe (src/labelkit.ts): Bohrkern-Segment „R“ – kein Laborwert, nicht in „_Ergebnisse.json“. */
+  const RUECKSTELLPROBE = 'Rückstellprobe – nicht analysieren';
+  const str = v => v === undefined || v === null ? '' : String(v).replace(/\s+/g, ' ').trim();
+  const istRueckstellprobe = p => p.matrix === 'Bohrkern' && (str(p.bkStatus).toUpperCase() === 'R' || str(p.notiz) === RUECKSTELLPROBE);
   const nummer = p => { for (const v of [p._nr, p.chloridNr, p.id]){ const n = Number(v); if (Number.isSafeInteger(n) && n > 0 && n < 1e9) return n; } return 0; };
   /** Probenahmedatum als JJJJ-MM-TT (LabelKit speichert ISO, ältere Dateien TT.MM.JJJJ); '' wenn nicht lesbar. */
   const datum = v => { const s = String(v == null ? '' : v).trim(); if (ISO.test(s)) return s; const m = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(s); return m ? `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : ''; };
 
   /** Laboraufträge einer LabelKit-Projektdatei (reine Funktion, ändert `data` nicht).
-      → { auftraege: [{ id, nr, am, von, proben: [Nummern, aktiv, nach Nummer], probenahme: [früheste, späteste] }],
+      → { auftraege: [{ id, nr, am, von, proben: [Nummern wie in ResultKit: aktiv, ohne Rückstellproben, nach Nummer], probenahme: [früheste, späteste] }],
           von(probe) → Kennung | null, kennungJe: { 'P14': 'a2', … } (nur gültige), neu: [Nummern der neuen Proben],
           aufgebaut: Liste/Zähler fehlten und wurden neu aufgebaut, mehrere: mindestens eine aktive Probe mit gültiger Kennung (sonst: ein Auftrag, alles wie bis 1.54.0) } */
   function lesen(data){
@@ -53,10 +57,18 @@
     // auftraegeBekannt (ohne die Rückfrage der laufenden LabelKit-Sitzung – die steht nicht in der Datei)
     const bekannt = new Map(), dazu = (id, o) => { if (auftragNr(id) && !bekannt.has(id)) bekannt.set(id, o || {}); };
     if (auftrag1) dazu('a1', auftrag1); for (const a of weitere || []) if (a) dazu(a.id, a);
-    const aktiv = alle.filter(p => !p.storniert), kennungJe = {}, neu = [];
+    // Zählen und Vergleich mit „_Ergebnisse.json“ über dieselben Proben wie ResultKit labelkitReport (Review 1.55.0): ohne stornierte,
+    // ohne Bohrkern-Rückstellproben (nur gesägt und aufbewahrt, keine Analyse), ohne Nummer, bei doppelt vergebener Nummer die erste.
+    // Die Kennung je Probe (von) bleibt genau LabelKits Regel; nur Zählen/Vergleich laufen über diese Zeilen.
+    const gesehen = new Set(), aktiv = [];
+    for (const p of alle){
+      const n = nummer(p);
+      if (p.storniert || !n || istRueckstellprobe(p) || gesehen.has(n)) continue;
+      gesehen.add(n); aktiv.push(p);
+    }
+    const kennungJe = {}, neu = [];
     let mehrere = false;
-    for (const p of aktiv){ const k = von(p); if (k){ mehrere = true; const n = nummer(p); if (n) kennungJe['P' + n] = k; } }   // wie ResultKit: stornierte Proben fehlen
-    for (const p of aktiv) if (!von(p)){ const n = nummer(p); if (n) neu.push(n); }
+    for (const p of aktiv){ const k = von(p); if (k){ mehrere = true; kennungJe['P' + nummer(p)] = k; } else neu.push(nummer(p)); }
     const auftraege = [...bekannt].sort((a, b) => auftragNr(a[0]) - auftragNr(b[0])).map(([id, o]) => {
       const eigene = aktiv.filter(p => von(p) === id), tage = eigene.map(p => datum(p.datum)).filter(Boolean).sort();
       const am = String(o.am == null ? '' : o.am).slice(0, 10);

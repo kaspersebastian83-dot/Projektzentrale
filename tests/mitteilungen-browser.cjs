@@ -602,7 +602,20 @@ let schritt = 'Start';
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
     await warte(page, async () => (await ktext(page, 'labor')) === 'Auftrag 2: seit der Übernahme geändert – in ResultKit übernehmen', 'Kachel veraltet');
     assert.deepEqual((await liste(page)).filter(r => r[1] === 'Prüfbericht').map(r => r[3]), ['noch in keiner Mitteilung · Auftrag unbekannt: ResultKit-Übernahme veraltet – in ResultKit erneut übernehmen'], 'nie raten');
-    console.log('OK 9c Übernahme veraltet → wie bisher mit Satz, Kachel „seit der Übernahme geändert“');
+    // LabelKit-Datei gerade halb geschrieben (nicht lesbar): nicht still wie 1.54.0, sondern „Auftrag unbekannt“ mit Grund; Übergabe gesperrt
+    const lkText = await datei('Laboraufträge', '26.0994_Daten.json');
+    await datei('Laboraufträge', '26.0994_Daten.json', '{ "version": "5.5.0", "proben": [');
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await warte(page, async () => (await liste(page)).some(r => /Auftrag unbekannt: LabelKit-Datei gerade nicht lesbar/.test(r[3])), 'LabelKit nicht lesbar → Grund');
+    if (!await page.locator('#bueroPanel [data-ab-form]').evaluate(e => e.open)) await page.locator('#bueroPanel [data-ab-summary]').click();
+    await page.locator('#bueroPanel [data-ab-los]').click();
+    await page.locator('#bueroPanel .ab-msg.err').filter({ hasText: 'gerade nicht lesbar' }).waitFor();
+    assert.match(await page.locator('#bueroPanel [data-ab-msg]').innerText(), /LabelKit-Datei „26\.0994_Daten\.json“ nicht lesbar/);
+    assert.equal((await aufgaben(page, AUF)).length, 1, 'nicht übergeben');
+    await datei('Laboraufträge', '26.0994_Daten.json', lkText);
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await warte(page, async () => (await liste(page)).some(r => /ResultKit-Übernahme veraltet/.test(r[3])), 'wieder lesbar');
+    console.log('OK 9c Übernahme veraltet → wie bisher mit Satz, Kachel „seit der Übernahme geändert“; LabelKit nicht lesbar → Grund, Übergabe gesperrt');
 
     // neuer Auftrag 3 in LabelKit und „+ Weiterer Ortstermin“ → gelbe Zeile (Mitteilungs-Zeile und unter den Ortsterminen), nichts springt auf
     schritt = '9d neu';
