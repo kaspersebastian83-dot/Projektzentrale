@@ -4328,7 +4328,15 @@ async function lkFrisch(p){
 async function labFrisch(p){
   const s = p.st && !p.st.err ? p.st.subs : null; if (!s || !s.laberg || !s.laberg.handle) return;
   const la = s.labauf;
-  Object.assign(s.laberg, await laborStand(s.laberg.handle, la && (la.datenDir || la.handle), p.st.ergebnisDir, p.name));
+  let lkDir = la && (la.datenDir || la.handle), ergDir = p.st.ergebnisDir;
+  // Orte jetzt bestimmen, nicht aus dem letzten Scan: ResultKit kann „_Ergebnisse.json“ inzwischen am neuen Ort („_Spektron/ResultKit“)
+  // angelegt haben, LabelKit seine Datei an einem anderen Ort (Codex-Review #95) – wie scanProject/spektronUeberlagern
+  if (SO.ort){
+    const a = await SO.ort(p.handle, 'labelkit'); lkDir = a.dir || null;
+    const r = await SO.ort(p.handle, 'resultkit'); ergDir = r.wo === 'neu' && r.dir ? r.dir : null;
+    p.st.ergebnisDir = ergDir;
+  }
+  Object.assign(s.laberg, await laborStand(s.laberg.handle, lkDir, ergDir, p.name));
 }
 /** Lage der Laboraufträge des gewählten Projekts – null bei einem Auftrag (alles wie bis 1.54.0) oder solange LabelKit nicht gelesen ist. */
 function lageVon(p){

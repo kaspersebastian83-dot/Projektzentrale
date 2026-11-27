@@ -677,8 +677,8 @@ let schritt = 'Start';
     assert.deepEqual(dE.weitereMitteilungen.map(e => e.auftraege), [[], []], 'auftraege bleibt []');
     console.log('OK 9e ein Laborauftrag: keine Tabelle, Datei nach dem Öffnen byte-gleich, auftraege bleibt []');
 
-    // Codex-Review #95: die LabelKit-Datei entsteht erst nach dem Ordnerscan (kein Fensterwechsel) – vor der Übergabe wird sie trotzdem
-    // gefunden: die Liste der 2. ändert sich (nur noch der Prüfbericht von Auftrag 2) → erst zeigen, nicht übergeben
+    // Codex-Review #95: die LabelKit-Datei entsteht erst nach dem Ordnerscan, ResultKit übernimmt danach an den neuen Ort (kein Fensterwechsel)
+    // – vor der Übergabe werden beide trotzdem gefunden: die Liste der 2. ändert sich (nur noch der Prüfbericht von Auftrag 2) → erst zeigen
     schritt = '9g LabelKit nach dem Scan';
     await oeffne(page, SPAET);
     await warte(page, async () => (await liste(page)).filter(r => r[1] === 'Prüfbericht').length === 2, 'ohne LabelKit: beide Prüfberichte (wie 1.54)');
@@ -693,14 +693,16 @@ let schritt = 'Start';
       const ld = await (await la.getFileHandle('26.0992_Daten.json')).getFile(); stand.push({ name: 'Laboraufträge/26.0992_Daten.json', size: ld.size, t: ld.lastModified });
       const e = JSON.parse(await (await (await l.getFileHandle('_Ergebnisse.json')).getFile()).text());
       e.dateien = stand; e.stand = [...stand].sort((a, b) => a.name.localeCompare(b.name)).map(d => `${d.name}|${d.size}|${d.t}`).join('\n');
-      await put(l, '_Ergebnisse.json', JSON.stringify(e, null, 2));
+      // … und zwar am neuen Ort „_Spektron/ResultKit“ (den der Scan noch nicht kannte); die alte Datei ist weg
+      const rk = await (await p.getDirectoryHandle('_Spektron', { create: true })).getDirectoryHandle('ResultKit', { create: true });
+      await put(rk, '_Ergebnisse.json', JSON.stringify(e, null, 2)); await l.removeEntry('_Ergebnisse.json');
     }, [SPAET, lkFuer(SPAET, 'labelkit-5.5.0-zwei-auftraege.json')]);
     if (!await page.locator('#bueroPanel [data-ab-form]').evaluate(e => e.open)) await page.locator('#bueroPanel [data-ab-summary]').click();
     await page.locator('#bueroPanel [data-ab-los]').click();
     await page.locator('#bueroPanel .ab-msg.err').filter({ hasText: 'Die Anlagen-Liste hat sich inzwischen geändert' }).waitFor();
     assert.equal((await aufgaben(page, SPAET)).length, 0, 'nicht übergeben');
     assert.deepEqual((await liste(page)).filter(r => r[1] === 'Prüfbericht').map(r => [r[2], r[3]]), [['AR-26-0002-01.pdf', 'aus Auftrag 2']], 'neuer Stand gezeigt');
-    console.log('OK 9g LabelKit-Datei erst nach dem Scan: vor der Übergabe trotzdem gelesen, Liste neu gezeigt, nicht übergeben');
+    console.log('OK 9g LabelKit-Datei und ResultKit-Übernahme (neuer Ort) erst nach dem Scan: vor der Übergabe trotzdem gelesen, Liste neu gezeigt, nicht übergeben');
 
     // echtes FotoKit 2.7.0 speichert danach – auftraege bleibt
     schritt = '9f FotoKit';
