@@ -4312,12 +4312,14 @@ const lkMehrere = p => !!(S.lk && S.lk.name === p.name && S.lk.auftraege && S.lk
 async function lkFrisch(p){
   const la = p.st && !p.st.err && p.st.subs.labauf;
   const weg = () => { lkMerken(p, null, null); if (lkMehrere(p) && S.lk.fehler) throw new Error(`LabelKit-Datei von Projekt ${p.nr} nicht gefunden – vorher waren mehrere Laboraufträge bekannt`); };
-  if (!la || !la.daten.length) return weg();
   let f = null;
-  if (SO.labelkitWahl){
-    let w; try{ w = await SO.labelkitWahl(la.datenDir || la.handle, p.name); }catch(e){ lkMerken(p, null, null, e.message || String(e)); throw new Error(`LabelKit-Ordner nicht lesbar (${e.message || e})`); }
+  if (SO.labelkitWahl && SO.ort){
+    // Ort und Datei jetzt suchen, nicht aus dem letzten Ordnerscan (die Datei kann erst danach entstanden sein – Codex-Review #95)
+    let w;
+    try{ const r = await SO.ort(p.handle, 'labelkit'); if (!r.dir) return weg(); w = await SO.labelkitWahl(r.dir, p.name); }
+    catch(e){ lkMerken(p, null, null, e.message || String(e)); throw new Error(`LabelKit-Ordner nicht lesbar (${e.message || e})`); }
     f = w.datei ? w.datei.file : null;
-  } else f = (await lkWahlFuer(p)).datei;
+  } else { if (!la || !la.daten.length) return weg(); f = (await lkWahlFuer(p)).datei; }
   if (!f) return weg();
   let daten; try{ daten = JSON.parse(await f.text()); }catch(e){ lkMerken(p, f, null, e.message); throw new Error(`LabelKit-Datei „${f.name}“ nicht lesbar (${e.message})`); }
   lkMerken(p, f, daten);
