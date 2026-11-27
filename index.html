@@ -522,6 +522,35 @@ summary.stufe-kopf::-webkit-details-marker{display:none}
 #teamRahmen{position:fixed;left:0;right:0;top:52px;width:100%;height:calc(100dvh - 52px);border:0;background:#eeeeec;z-index:4}
 @media (max-width:860px){ #btnTeam{font-size:0} #btnTeam b{margin:0} .appbar .brand{min-width:26px} .hstatus{min-width:44px} }   /* schmal: das Zeichen ⬡ bleibt, der Archivname (gekürzt) gibt nach */
 @media (max-width:860px){ .appbar{gap:8px;padding:0 10px} .appbar .brand small{display:none} .hbadge.help{padding:4px 7px} #btnHelp{font-size:0} #btnHelp b{font-size:11px;margin:0} .hstatus{max-width:110px} }
+/* 1.54: Mitteilungen als Ebene – Zeile über „Jetzt dran“, Anlagen-Liste in der Büro-Karte, Rückfrage */
+.mt-zeile{margin:12px 0 0}
+.mt-zeile[hidden]{display:none}
+.mt-reiter{display:flex;flex-wrap:wrap;gap:6px;align-items:stretch}
+.mt-tab{display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:6px 12px;border:1px solid var(--line2);border-radius:10px;background:var(--panel);color:var(--text);font:inherit;font-size:13.5px;font-weight:600;cursor:pointer}
+.mt-tab small{font-weight:400;color:var(--muted);font-size:12px}
+.mt-tab.an{border-color:var(--accent);box-shadow:inset 0 -3px 0 var(--accent);background:var(--panel2)}
+.mt-tab.z-versandt small{color:var(--ok)}
+.mt-plus{min-width:38px;border:1px dashed var(--line2);border-radius:10px;background:transparent;color:var(--accent);font-size:18px;cursor:pointer}
+.mt-bezug{margin:6px 2px 0;font-size:13px;color:var(--text)}
+.mt-hinweis{margin:4px 2px 0;font-size:12.5px}
+.kachel.luecke .ks{color:var(--warn);font-weight:600}
+.jetzt.mit-angebot{flex-wrap:wrap}
+.mt-angebot{flex-basis:100%;font-size:13px;color:var(--text);border-top:1px solid var(--line);padding-top:8px}
+#bueroPanel .mt-karte{margin:8px 0}
+#bueroPanel table.mt-anl{width:100%;border-collapse:collapse;font-size:13px;margin:6px 0}
+#bueroPanel table.mt-anl td{padding:4px 6px;border-top:1px solid var(--line);vertical-align:top}
+#bueroPanel table.mt-anl td.mt-nr{white-space:nowrap;font-weight:600}
+#bueroPanel table.mt-anl tr.mt-fehlt td{background:color-mix(in srgb,var(--warn) 8%,transparent)}
+#bueroPanel .mt-akt{white-space:nowrap;text-align:right}
+#bueroPanel .mt-akt select{font-size:12px;max-width:170px}
+#bueroPanel .mt-dazu{display:flex;gap:6px;align-items:center;font-size:13px;margin:4px 0}
+#bueroPanel .mt-vergleich{margin:6px 0;font-size:12.5px}
+#bueroPanel .mt-fest{font-size:13px;margin:4px 0}
+.dialog table.mtb{border-collapse:collapse;margin:8px 0;font-size:13px}
+.dialog table.mtb th,.dialog table.mtb td{padding:4px 8px;border-bottom:1px solid var(--line);text-align:center}
+.dialog table.mtb th:first-child,.dialog table.mtb td:first-child{text-align:left}
+.dialog table.mtb th small{display:block;font-weight:400;color:var(--muted)}
+.dialog .mtb-anlass{display:flex;flex-direction:column;gap:3px;font-size:13px;margin:6px 0}
 </style>
 <script src="spektron-ordner.js"></script>
 <script src="spektron-umzug.js"></script>
@@ -530,6 +559,8 @@ summary.stufe-kopf::-webkit-details-marker{display:none}
 <script src="buero-aufgaben.js"></script>
 <script src="stufen.js"></script>
 <script src="ortstermine.js"></script>
+<script src="anlagen.js"></script>
+<script src="mitteilungen.js"></script>
 <script src="word-luecken.js"></script>
 <script src="word-wahl.js"></script>
 </head>
@@ -1034,9 +1065,10 @@ const ANLAGE = (() => {
    ===================================================================================================== */
 
 /* ---------- version ---------- */
-const APP_VERSION = '1.53.1';
-const APP_DATE = '2026-11-26';
+const APP_VERSION = '1.54.0';
+const APP_DATE = '2026-11-27';
 const CHANGELOG = [
+  ['1.54.0', '27.11.2026', 'Mitteilungen als Ebene: Hat ein Projekt mehr als eine Mitteilung (z. B. 1. Mitteilung nach dem ersten Ortstermin, 2. nach einer Nachbeprobung), steht über „Jetzt dran“ eine Zeile mit einem Reiter je Mitteilung und ihrem Stand (in Arbeit · Entwurf · beim Büro · versandt am). Die gewählte Mitteilung bestimmt „Jetzt dran“, die Texte unter den Kacheln (gelb, wenn für sie etwas fehlt – das ✓ bleibt wie im Kopfband) und die Büro-Karte: dort steht ihre Anlagen-Liste mit Nummer, Art, Datei und Herkunft (aus BerichtKit, aus dem Termin, noch in keiner Mitteilung, von Hand) – jede Zeile änderbar, „+ Datei zuordnen“, Fehlendes gelb. Eine versandte Mitteilung zeigt nur, was hinausging. Eine weitere Mitteilung beginnt mit „+“ in der Zeile oder unter „Mehr zum Projekt …“ (eine Rückfrage: welcher Ortstermin gehört wohin). Die Übergabe ans Büro schickt die Anlagen jetzt in der Reihenfolge des Berichts (Prüfberichte, Bilddokumentation, Probenplan, Weiteres) – auch bei nur einer Mitteilung, damit „Anlage 1, 2, 3“ in BüroKit zum Bericht passt. Ein Projekt mit einer Mitteilung sieht sonst aus wie bisher, seine Projektdaten bleiben unverändert.'],
   ['1.53.1', '26.11.2026', 'Weitere Ortstermine, drei Korrekturen: (1) Wer schnell hintereinander Termine anlegt, ändert oder entfernt, während das Speichern noch läuft (langsames Netzlaufwerk), verliert nichts mehr – bisher konnte die zweite Änderung die erste überschreiben und ein gerade angelegter Termin wieder verschwinden. Scheitert ein Speichern, bleibt die neuere Eingabe je Termin erhalten, Älteres kommt nicht zurück. (2) Ein angefangener Termin ohne Datum in einem Projekt sperrt „+ Weiterer Ortstermin“ in anderen Projekten nicht mehr; er bleibt beim Projekt, bis man ihn fertig macht oder entfernt. (3) „Ans Büro übergeben“ sendet genau die Anlagen, die angehakt sind. Wird bei offener Übergabe ein weiterer Ortstermin gespeichert (oder entfernt), wird die Liste neu vorgewählt und eine Zeile sagt es; von Hand gesetzte Haken bleiben.'],
   ['1.53.0', '26.11.2026', 'Mehrere Ortstermine in einem Projekt: In den Projektdaten unter „Ortstermin“ steht ein kleiner Link „+ Weiterer Ortstermin“. Ab zwei Terminen zeigt die Karte je Termin eine Zeile mit Datum, Bezeichnung (frei, mit Vorschlägen Erstbegehung · Nachbeprobung · Freimessung) und „Wer war da“; Termin 1 ist weiter das bekannte Feld „Ortstermin“ (Pflichtangabe, Arbeitszettel und alle Apps lesen es wie bisher). Ein neuer Termin wird gespeichert, sobald sein Datum eingetragen ist. Eine Termin-Kennung wird nie ein zweites Mal vergeben – auch nicht nach dem Entfernen (Zähler in den Projektdaten). „Entfernen“ fragt nach und nennt, was FotoKit diesem Termin zugeordnet hat (Foto-Ordner werden dort wieder gelb, eine gemerkte Bilddokumentation bleibt liegen). Hat ein anderes Fenster die Termine inzwischen geändert, wird nichts überschrieben – es erscheint die bekannte Meldung. Im Kopf steht dann „Ortstermine 12.08. · 20.08.2026“. Dazu: „n Bilder“ zählt auch Fotos in Unterordnern von „Fotos“ (eine Ebene, ohne Ordner mit „_“ vorn), und bei mehreren Terminen hakt „Ans Büro übergeben“ PDFs aus „Fotos“ nur noch vor, wenn BerichtKit sie als Anlage der gewählten Mitteilung nennt. Ein Projekt mit einem Termin sieht aus wie bisher (bis auf den Link) und bekommt kein neues Feld.'],
   ['1.52.0', '21.11.2026', 'Neu: LagerKit – Rückstellproben im Büro. Unter „⋯ Büro & Apps“ öffnet „LagerKit“ die Übersicht (was liegt wo, was ist fällig); im Projekt unter „Mehr zum Projekt …“ öffnet „Rückstellproben (LagerKit)“ das Projekt direkt in LagerKit. Gibt es für das Projekt Rückstellproben, steht dort eine Zeile mit Anzahl und nächster Frist (aus der LagerKit-Übersicht, nur gelesen). Sonst unverändert.'],
@@ -1358,7 +1390,7 @@ const S = { pjUnterwegs: [], otEntwuerfe: new Map(), archive: null, ma: null, pr
    Wirkt einmal: danach verschwindet das Fragment aus der Adresse (neu laden öffnet wieder das zuletzt gewählte Projekt). */
 function sprungLesen(){
   const h = new URLSearchParams(location.hash.slice(1)), projekt = h.get('projekt');
-  return projekt ? { projekt: projekt.normalize('NFC'), uebergabe: h.get('uebergabe') || '' } : null;
+  return projekt ? { projekt: projekt.normalize('NFC'), uebergabe: h.get('uebergabe') || '', mitteilung: h.get('mitteilung') || '' } : null;   // 1.54: &mitteilung=<Kennung> wählt die Mitteilung
 }
 S.sprung = sprungLesen();
 function sprungBereinigen(){ try{ if (location.hash) history.replaceState(history.state, '', location.pathname + location.search); }catch(e){} }
@@ -1367,6 +1399,7 @@ async function sprungOeffnen(z){
   sprungBereinigen();
   const p = S.projects.find(x => x.name.normalize('NFC') === z.projekt);
   if (!p){ banner('err', `Das Projekt „${esc(z.projekt)}“ aus dem Link liegt nicht im Archivordner „${esc(S.archive ? S.archive.name : '')}“.`); return false; }
+  if (z.mitteilung && /^m\d+$/.test(z.mitteilung)) lsSet(MT_WAHL + p.name, z.mitteilung);   // gilt, wenn es sie gibt (sonst die Vorwahl)
   if (z.uebergabe){ const d = abEntwurf(p); d.wunsch = z.uebergabe; d.offen = true; }   // halb ausgefüllte Angaben (Empfänger, Hinweis) bleiben
   await selectProject(p);
   const el = [...$('list').querySelectorAll('.proj')].find(e => e.dataset.name === p.name); if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
@@ -2248,8 +2281,10 @@ async function abAnlagenLesen(p){
   for (const [ordner, muster] of AB_ANL_ORDNER){
     let dir; try{ dir = await p.handle.getDirectoryHandle(ordner); }catch(e){ continue; }
     const hier = [];
-    for await (const f of dir.values()) if (f.kind === 'file' && !/^(~\$|\.)/.test(f.name) && muster.test(f.name)) hier.push({ name: f.name, rel: dir.name + '/' + f.name, ordner: dir.name,
-      vorschlag: /anlage|bilddoku/i.test(f.name) || (ordner === 'Fotos'), fotos: ordner === 'Fotos' });
+    for await (const f of dir.values()) if (f.kind === 'file' && !/^(~\$|\.)/.test(f.name) && muster.test(f.name)){
+      let t = 0; try{ t = (await f.getFile()).lastModified; }catch(e){}   // 1.54: Dateizeit (neuester Plan-Export, Angebot „2. Mitteilung“)
+      hier.push({ name: f.name, rel: dir.name + '/' + f.name, ordner: dir.name, t, vorschlag: /anlage|bilddoku/i.test(f.name) || (ordner === 'Fotos'), fotos: ordner === 'Fotos' });
+    }
     liste.push(...hier.sort((a, b) => a.name.localeCompare(b.name, 'de', { numeric: true })));
   }
   return liste;
@@ -2326,6 +2361,8 @@ const abWordSelbst = (st, d) => d.word === '' || (!!d.word && (st.word || []).so
 const abUebergebeneWorte = st => new Set(((st.r && st.r.aufgaben) || []).filter(a => a.word && !a.geloescht).map(a => abKey(String(a.word).split('/').pop())));
 function abWordVorwahl(st){ return WordWahl.vorwahl(st.word || [], { berichte: st.bk || [], protokoll: st.prot, uebergeben: abUebergebeneWorte(st) }); }
 function abWordWahl(st, d){ return abWordSelbst(st, d) ? d.word : abWordVorwahl(st).rel; }
+/** 1.54: Word-Datei bei mehreren Mitteilungen – eine Datei mit der Nummer der gewählten Mitteilung (selbst gewählt, sonst die neueste). */
+const abWordMt = (d, m) => m.dateien.some(w => w.rel === d.word) ? d.word : m.datei ? m.datei.rel : '';
 /** Nichts gewählt und nichts vorwählbar, obwohl Word-Dateien da sind: „Bitte die Mitteilung auswählen“. */
 const abWordOffen = (st, d) => !abWordSelbst(st, d) && (st.word || []).length > 0 && !abWordVorwahl(st).rel;
 const abDateiZeit = t => { if (!t) return ''; const x = new Date(t); return isNaN(x) ? '' : x.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(',', ''); };
@@ -2341,8 +2378,9 @@ async function bueroLesen(p){
   try{ abr = await abAbrechnungLesen(p); }catch(e){ abr = undefined; }
   try{ bk = await abBerichtKitLesen(p); }catch(e){ bk = bk || []; }
   let prot = st.prot; try{ prot = await abProtokollLesen(p); }catch(e){ prot = prot || new Set(); }
+  let fk = st.fk; try{ const x = await otFotoKitLesen(p); fk = x.data; }catch(e){ fk = fk || null; }   // 1.54: Bilddoku je Termin (FotoKit bilddokus)
   if (S.ab !== st || lauf !== st.lauf) return;
-  if (r) st.r = r; st.fehler = fehler; st.word = word; st.anl = anl; st.abr = abr; st.bk = bk; st.prot = prot;   // Lesefehler: bekannter Stand bleibt sichtbar, mit Hinweis
+  if (r) st.r = r; st.fehler = fehler; st.word = word; st.anl = anl; st.abr = abr; st.bk = bk; st.prot = prot; st.fk = fk;   // Lesefehler: bekannter Stand bleibt sichtbar, mit Hinweis
   const d = abEntwurf(p), sprung = abWunschAnwenden(st, d);
   bueroZeigen(p);
   if (sprung){ const form = document.querySelector('#bueroPanel [data-ab-form]'); if (form && form.scrollIntoView) form.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
@@ -2368,15 +2406,16 @@ function abStandHtml(st){
 function abGeruest(p, d){
   const rows = BueroAufgaben.GRUPPEN.map(([, label], i) => `<div data-ab-row="${i}"><label class="ab-an"><input type="checkbox" data-ab-an="${i}"> ${esc(label)}</label>
       <textarea data-ab-details="${i}" rows="3" aria-label="${esc(label)}: Name, Anschrift oder E-Mail" placeholder="Name, Anschrift oder E-Mail"></textarea></div>`).join('');
-  return `<div class="ab-kopf"><h3>Ans Büro</h3><a href="${BUEROKIT_URL}" target="buerokit" rel="noopener" data-ab-kit title="Öffnet BüroKit in einem eigenen Fenster – dort arbeitet das Büro die Aufgaben ab">BüroKit öffnen ↗</a></div>
+  return `<div class="ab-kopf"><h3 data-ab-titel>Ans Büro</h3><a href="${BUEROKIT_URL}" target="buerokit" rel="noopener" data-ab-kit title="Öffnet BüroKit in einem eigenen Fenster – dort arbeitet das Büro die Aufgaben ab">BüroKit öffnen ↗</a></div>
     <div class="ab-stand" data-ab-stand></div>
     <div class="ab-msg" data-ab-msg role="status"></div>
+    <div class="mt-karte" data-mt-karte hidden></div>
     <details class="ab-form" data-ab-form><summary data-ab-summary>Gutachten ans Büro übergeben</summary>
       <div class="ab-felder">
         <div><label>Word-Datei (Ordner „Mitteilungen“)<select data-ab-word><option value="">– keine Word-Datei –</option></select></label>
           <div class="ab-klein" data-ab-word-hinweis hidden></div></div>
         <div><div class="ab-klein">Empfänger – anhaken, wer das Gutachten bekommt</div><div class="ab-empf">${rows}</div></div>
-        <div><div class="ab-klein">Anlagen – anhaken, was mit dem Gutachten mitgeht</div><div class="ab-klein warn" data-ab-anl-hinweis role="status" hidden></div><div class="ab-anl" data-ab-anl></div>
+        <div><div data-ab-anl-block><div class="ab-klein">Anlagen – anhaken, was mit dem Gutachten mitgeht</div><div class="ab-klein warn" data-ab-anl-hinweis role="status" hidden></div><div class="ab-anl" data-ab-anl></div></div>
           <input type="text" data-ab-anl-text maxlength="400" aria-label="Weitere Anlagen" placeholder="Weitere Anlagen, z. B. Laborberichte Eurofins (mehrere mit ; trennen)"></div>
         <div class="ab-abr" data-ab-abr></div>
         <div class="ab-zwei"><label>Fällig bis (optional)<input type="date" data-ab-faellig></label><label>Hinweis fürs Büro (optional)<textarea data-ab-hinweis rows="2"></textarea></label></div>
@@ -2397,6 +2436,18 @@ function abVerdrahten(p, panel, d){
   panel.querySelectorAll('[data-ab-an]').forEach(el => el.onchange = () => { d.rows[+el.dataset.abAn].an = el.checked; el.closest('[data-ab-row]').classList.toggle('aus', !el.checked); });
   panel.querySelectorAll('[data-ab-details]').forEach(el => el.oninput = () => { d.rows[+el.dataset.abDetails].details = el.value; });
   q('[data-ab-los]').onclick = () => abUebergeben(p);
+  // 1.54: Anlagen-Liste der gewählten Mitteilung – von Hand dazu / weg / ändern (gespeichert im Eintrag der Mitteilung)
+  const karte = q('[data-mt-karte]'), mtId = () => { const ms = mtGewaehlt(p); return ms && ms.m && ms.m.eintrag ? ms.m.id : ''; };
+  karte.addEventListener('click', e => {
+    const w = e.target.closest('[data-mt-weg]'), z = e.target.closest('[data-mt-zurueck]'), id = mtId(); if (!id) return;
+    if (w) mtAnlageAendern(p, id, w.dataset.mtWeg.split('\n'), []);
+    if (z) mtAnlageAendern(p, id, [], [z.dataset.mtZurueck]);
+  });
+  karte.addEventListener('change', e => {
+    const s = e.target, id = mtId(); if (!id || !s.value) return;
+    if (s.matches('[data-mt-dazu]')) mtAnlageAendern(p, id, [], [s.value]);
+    else if (s.matches('[data-mt-tausch]')) mtAnlageAendern(p, id, [s.dataset.mtTausch], [s.value]);
+  });
 }
 /** Karte „Ans Büro“ und Rückfragen am Projektkopf zeichnen. Das Formular wird nur beim ersten Mal gebaut; danach werden
     nur Stand, Auswahlliste und nicht selbst geänderte Empfänger aktualisiert – Eingaben und Cursor bleiben. */
@@ -2410,6 +2461,14 @@ function bueroZeigen(p){
     abVerdrahten(p, panel, d);
     bueroLesen(p);
   }
+  // 1.54: bei mehreren Mitteilungen ist die Karte die der gewählten Mitteilung (Anlagen-Liste statt Vorhak-Liste, Entscheidung 7)
+  const ms = mtGewaehlt(p), mt = ms && ms.m;
+  const titel = mt ? `${mt.nr}. Mitteilung · Anlagen und Übergabe` : 'Ans Büro', sum = mt ? `${mt.nr}. Mitteilung ans Büro übergeben` : 'Gutachten ans Büro übergeben';
+  if (q('[data-ab-titel]').textContent !== titel) q('[data-ab-titel]').textContent = titel;
+  if (q('[data-ab-summary]').textContent !== sum) q('[data-ab-summary]').textContent = sum;
+  const karte = q('[data-mt-karte]'), kHtml = mt ? mtKarteHtml(p, ms, ro) : '';
+  if (karte.dataset.html !== kHtml){ karte.innerHTML = kHtml; karte.dataset.html = kHtml; }
+  karte.hidden = !mt; q('[data-ab-anl-block]').hidden = !!mt; q('[data-ab-form]').hidden = !!(mt && mt.fest);
   const html = abStandHtml(st), standEl = q('[data-ab-stand]');
   if (standEl.dataset.html !== html){ standEl.innerHTML = html; standEl.dataset.html = html; }
   const msg = q('[data-ab-msg]'); msg.textContent = st.msg; msg.classList.toggle('err', !!st.msgErr);
@@ -2418,18 +2477,19 @@ function bueroZeigen(p){
   if (d.offen !== null && form.open !== d.offen) form.open = d.offen;
   void offen;
   // Word-Dateien: neueste zuerst, mit Datum und Uhrzeit; vorgewählt nach word-wahl.js (nie eine Anlage), sonst „bitte wählen“
-  const sel = q('[data-ab-word]'), wahl = abWordWahl(st, d), wOffen = abWordOffen(st, d);
-  const opts = (st.word || []).map(w => [w.rel, w.name + (abDateiZeit(w.t) ? ' · ' + abDateiZeit(w.t) : '') + (WordWahl.istAnlage(w.name, st.prot) ? ' · Anlage' : '')]);
-  const key = JSON.stringify([opts, wOffen]);
+  const sel = q('[data-ab-word]'), wahl = mt ? abWordMt(d, mt) : abWordWahl(st, d), wOffen = mt ? false : abWordOffen(st, d);
+  const opts = (mt ? mt.dateien : (st.word || [])).map(w => [w.rel, w.name + (abDateiZeit(w.t) ? ' · ' + abDateiZeit(w.t) : '') + (WordWahl.istAnlage(w.name, st.prot) ? ' · Anlage' : '')]);
+  const key = JSON.stringify([opts, wOffen, mt ? mt.nr : 0]);
   if (sel.dataset.key !== key){
-    sel.innerHTML = (wOffen ? '<option value="?" disabled>– bitte die Mitteilung wählen –</option>' : '') + '<option value="">– keine Word-Datei –</option>'
+    // bei mehreren Mitteilungen nur die Word-Datei(en) der gewählten Mitteilung, ohne „keine Word-Datei“ (Entscheidung 3)
+    sel.innerHTML = (wOffen ? '<option value="?" disabled>– bitte die Mitteilung wählen –</option>' : '') + (mt ? (opts.length ? '' : '<option value="">– noch keine Word-Datei –</option>') : '<option value="">– keine Word-Datei –</option>')
       + opts.map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join('');
     sel.dataset.key = key;
   }
   const selWert = wOffen ? '?' : wahl;
   if (sel.value !== selWert) sel.value = selWert;
   sel.classList.toggle('ab-fehlt', wOffen);
-  const wh = q('[data-ab-word-hinweis]'), whText = wOffen ? 'Bitte die Mitteilung auswählen – in „Mitteilungen“ ist keine Datei als Mitteilung erkennbar (Anlagen werden nie vorgewählt).'
+  const wh = q('[data-ab-word-hinweis]'), whText = mt ? '' : wOffen ? 'Bitte die Mitteilung auswählen – in „Mitteilungen“ ist keine Datei als Mitteilung erkennbar (Anlagen werden nie vorgewählt).'
     : st.word && !st.word.length ? 'Noch keine Word-Datei in „Mitteilungen“.' : '';
   if (wh.textContent !== whText){ wh.textContent = whText; wh.hidden = !whText; wh.classList.toggle('warn', wOffen); }
   // Schon ein Gutachten beim Büro: keine Rückfrage beim Klick, sondern hier sichtbar – das wird eine weitere Übergabe
@@ -2472,7 +2532,7 @@ function bueroZeigen(p){
   });
   for (const s of ['[data-ab-word]', '[data-ab-faellig]']) q(s).disabled = ro;
   q('[data-ab-hinweis]').readOnly = ro;
-  q('[data-ab-los]').disabled = ro || st.busy;
+  q('[data-ab-los]').disabled = ro || st.busy || !!(mt && !mt.datei);
   const ich = lsGet(ICH_KEY);
   q('[data-ab-ich]').textContent = ro ? 'Nur Ansicht – Projektdaten nicht beschreibbar.' : ich ? 'als ' + ich : 'Bitte oben „Ich bin …“ wählen.';
   abFragenZeigen(p, st, d, ro);
@@ -2532,7 +2592,11 @@ async function abUebergeben(p){
   // 1.53.1: Anlagen = genau die Zeilen, die beim Klick angehakt sind (nicht neu gerechnet – Review #92, P2)
   const anlBox = document.querySelector('#bueroPanel [data-ab-anl]');
   const angehakt = anlBox && st.anl ? [...anlBox.querySelectorAll('input[data-ab-anl-rel]')].filter(el => el.checked).map(el => el.dataset.abAnlRel) : null;
-  if (abWordOffen(st, d)){ st.msg = 'Bitte die Mitteilung auswählen (oder „– keine Word-Datei –“, wenn ohne Word-Datei übergeben wird).'; st.msgErr = true; zeigen();
+  // 1.54: bei mehreren Mitteilungen geht die Übergabe nur mit der Word-Datei der gewählten Mitteilung (Entscheidung 3)
+  const ms = mtGewaehlt(p), mt = ms && ms.m;
+  if (mt && mt.fest) return;
+  if (mt && !mt.datei){ st.msg = `Für die ${mt.nr}. Mitteilung liegt noch keine Word-Datei in „Mitteilungen“ – bei mehreren Mitteilungen geht die Übergabe nur mit Word-Datei.`; st.msgErr = true; zeigen(); return; }
+  if (!mt && abWordOffen(st, d)){ st.msg = 'Bitte die Mitteilung auswählen (oder „– keine Word-Datei –“, wenn ohne Word-Datei übergeben wird).'; st.msgErr = true; zeigen();
     const sel = document.querySelector('#bueroPanel [data-ab-word]'); if (sel && !sel.disabled) sel.focus(); return; }
   st.busy = true; st.msg = ''; st.msgErr = false; zeigen();
   let ok = false;
@@ -2543,11 +2607,14 @@ async function abUebergeben(p){
     if (abOffeneGutachten(r).some(a => !bekannt.has(a.id))){
       st.r = r; st.busy = false; st.msg = 'Inzwischen ist beim Büro ein Gutachten offen (siehe Hinweis über dem Knopf) – zum Übergeben noch einmal klicken.'; st.msgErr = true; zeigen(); return;
     }
-    const word = abWordWahl(st, d), bk = abBkAnlagen(st, word);
+    const word = mt ? abWordMt(d, mt) : abWordWahl(st, d), bk = abBkAnlagen(st, word);
     // Lücken erst prüfen, wenn sonst alles passt (ohne Empfänger meldet aufgabeAnlegen das Nötige – keine Rückfrage vorher)
     if (empfaenger.some(r => String(r.details || '').trim()) && !(await abLueckenOk(st, word))){ st.busy = false; zeigen(); return; }
-    const anlagen = [...(angehakt ? angehakt.filter(r => r !== word) : (st.anl || []).filter(x => x.rel !== word && (d.anl[x.rel] === undefined ? abAnlVorschlag(x, bk) : d.anl[x.rel])).map(x => x.rel)),
-      ...String(d.anlText || '').split(/[;\n]/).map(x => x.trim()).filter(Boolean)];
+    // 1.54: Anlagen in Nummernfolge wie im Bericht (Entscheidung 7) – bei mehreren Mitteilungen ihre Liste, sonst die angehakten Zeilen
+    const roh = angehakt ? angehakt.filter(r => r !== word) : (st.anl || []).filter(x => x.rel !== word && (d.anl[x.rel] === undefined ? abAnlVorschlag(x, bk) : d.anl[x.rel])).map(x => x.rel);
+    const bkE = Mitteilungen.berichtEintrag({ datei: { name: String(word || '').split('/').pop() } }, st.bk);
+    const geordnet = mt ? Mitteilungen.pfade(ms.listen.get(mt.schluessel).zeilen, word) : Mitteilungen.sortiert(roh, window.BerichtAnlagen, bkE && bkE.anlagen);
+    const anlagen = [...geordnet, ...String(d.anlText || '').split(/[;\n]/).map(x => x.trim()).filter(Boolean)];
     await BueroAufgaben.aufgabeAnlegen(p.handle, { art: 'gutachten', titel: 'Gutachten', von, word, faellig: d.faellig || '', hinweis: d.hinweis, empfaenger, anlagen });
     ok = true;
     AB_ENTWURF.delete(p.name);
@@ -2728,6 +2795,17 @@ async function otEntfernen(p, id){
   if (S.sel !== p) return;
   const was = [Ortstermine.gueltig(String(t.datum || '')) ? deDatum(t.datum) : 'ohne Datum', String(t.bezeichnung || '').trim()].filter(Boolean).join(' · ');
   const teile = [`<p><b>Termin ${nr}</b> (${esc(was)}) wird aus den Projektdaten entfernt.</p>`];
+  // 1.54 (O12-Ergänzung): Rückfrage nennt die Mitteilung; steht der Termin in einer übergebenen Mitteilung, ist er nicht entfernbar
+  const ms = mtStand(p);
+  if (!ms && (otStand().weitereMitteilungen || []).some(e => e && Array.isArray(e.termine) && e.termine.includes(id))){
+    await hinweisDialog('Bitte einen Moment', '<p>Die Mitteilungen werden noch gelesen – erst danach lässt sich prüfen, ob der Termin in einer übergebenen Mitteilung steht. Bitte gleich noch einmal.</p>'); return; }
+  const inM = ms ? ms.l.mitteilungen.filter(m => m.eintrag && Array.isArray(m.eintrag.termine) && m.eintrag.termine.includes(id)) : [], festM = inM.filter(m => m.fest);
+  const mtNamen = l => l.map(m => m.nr + '. Mitteilung').join(' und ');
+  if (festM.length){
+    await hinweisDialog(`Ortstermin ${nr} nicht entfernbar`, `<p><b>Termin ${nr}</b> (${esc(was)}) gehört zur ${esc(mtNamen(festM))}, die ${festM.some(m => m.zustand === 'versandt') ? 'versandt' : 'beim Büro'} ist – ihr Bezug ist mit der Übergabe fest.</p><p class="m">Erst nach dem Zurückziehen der Übergabe in BüroKit lässt sich der Termin entfernen.</p>`);
+    return;
+  }
+  if (inM.length) teile.push(`<p>Der Termin steht im Bezug der ${esc(mtNamen(inM))} – dort erscheint er danach gelb „entfernt“, bis jemand den Bezug ändert.</p>`);
   if (fk.fehler) teile.push(`<p class="warn">FotoKits „_Bildumbenenner.json“ ist nicht lesbar (${esc(fk.fehler)}) – ob dort Foto-Ordner oder eine Bilddokumentation diesem Termin zugeordnet sind, ist unbekannt.</p>`);
   else {
     teile.push(r.ordner.length || r.fotos
@@ -2745,6 +2823,220 @@ async function otEntfernen(p, id){
   otZeichnen(p, false);
   await flushPJ();
   if (S.sel === p) renderDetail();   // Kopfzeile, Übergabe (Vorhaken in „Fotos“) und Liste neu
+}
+/* ---------- 1.54: Mitteilungen als Ebene (mitteilungen.js; claude/projektzentrale-mitteilungen-plan.md 3, 4, 7) ----------
+   Nur bei mehr als einer Mitteilung: Zeile #mtZeile über „Jetzt dran“ (ein Reiter je Mitteilung mit Zustand, darunter der Bezug),
+   „Jetzt dran“ und die Kacheltexte für die gewählte Mitteilung, Büro-Karte mit ihrer Anlagen-Liste. Ein Projekt mit einer
+   Mitteilung sieht aus wie bisher und bekommt kein Feld. Gespeichert wird wie jedes Feld über S.pjDirty → flushPJ → patchPJ:
+   weitereMitteilungen und mitteilungZaehler immer im selben Patch (Widerspruchsprüfung für beide); Stand für Folgeeingaben ist
+   otStand() (gespeichert + unterwegs + offen, 1.53.1). Die gewählte Mitteilung merkt sich der Browser je Projekt (Entscheidung 10). */
+const MT_WAHL = 'pz-mitteilung:';
+const mtGemerkt = p => lsGet(MT_WAHL + p.name);
+/** Eingaben für mitteilungen.js aus dem, was „Ans Büro“ ohnehin liest (Word-Dateien, mögliche Anlagen, BerichtKit, FotoKit). */
+function mtEingaben(p, st, d){
+  const anl = st.anl || [], im = o => anl.filter(x => abKey(x.ordner) === abKey(o)).map(x => ({ name: x.name, t: x.t || 0 }));
+  return { pj: d, fotos: im('Fotos').filter(x => /\.pdf$/i.test(x.name)), plaene: im('Pläne'), labor: im('Laborergebnisse').filter(x => /\.pdf$/i.test(x.name)),
+    vorhanden: new Set([...anl.map(x => abKey(x.rel)), ...(st.word || []).map(w => abKey(w.rel))]), fk: st.fk || null, bk: st.bk || [], ordnerName: p.name, projektNr: p.nr };
+}
+/** Stand der Mitteilungen des gewählten Projekts: { l (Liste mit Zustand), listen (Anlagen je Mitteilung), m (gewählt, nur bei
+    mehreren), e } – null, solange Word-Dateien oder Büroaufgaben nicht gelesen sind (dann gilt alles wie bisher). */
+function mtStand(p){
+  const st = S.ab && p && S.ab.name === p.name ? S.ab : null;
+  if (!st || !st.word || !st.r || !st.anl || S.sel !== p) return null;
+  const d = otStand(), l = Mitteilungen.liste(d, st.word, st.r.aufgaben, { versandt: pjFakten(d).versandt });
+  const e = mtEingaben(p, st, d), listen = Mitteilungen.anlagenListen(l, e, window.BerichtAnlagen);
+  return { l, listen, m: l.mehrere ? Mitteilungen.vorwahl(l, mtGemerkt(p)) : null, e, st };
+}
+/** Gewählte Mitteilung, wenn die Zeile gezeigt wird (sonst null). */
+const mtGewaehlt = p => { const ms = mtStand(p); return ms && ms.l.mehrere && !vorSpektron(p) ? ms : null; };   // vor Spektron: wie bisher
+/** Kennung für den Link (&mitteilung=…): nur bei gezeigter Zeile und mit Eintrag (Bestand ohne Eintrag hat keine Kennung). */
+const mtLink = p => { const ms = mtGewaehlt(p); return ms && ms.m && ms.m.id ? ms.m.id : ''; };
+/** Fakten für „Jetzt dran“ je gewählter Mitteilung: mitteilung, buero, uebergabe, versand nur aus ihr (Büroaufgaben, deren Word-Datei
+    ihre Nummer trägt). Rückfragen und „nicht lesbar“ bleiben je Projekt. Proben, Fotos, Labor, Plan bleiben Projektfakten. */
+function mtFakten(f, ms){
+  const m = ms.m, alle = ms.st.r.aufgaben, eigene = alle.filter(a => a.art === 'gutachten' && Mitteilungen.nrAusName(a.word) === m.nr);
+  const bf = bueroFakten(eigene, ms.st.r.fehler), ganz = bueroFakten(alle, ms.st.r.fehler);
+  bf.frage = ganz.frage; if (ganz.unklar) bf.unklar = true;
+  return { ...f, mitteilung: m.datei ? { datei: m.datei.name, datum: Mitteilungen.tag(m.datei.t) } : null, buero: bf,
+    uebergabe: bf.uebergabe || '', versand: bf.versand || (m.quelle === 'verteiler' ? m.versandtAm : '') };
+}
+const mtTermine = d => new Map(Mitteilungen.termine(d).map(t => [t.id, t]));
+/** Zeile über „Jetzt dran“. */
+function mtZeichnen(p, ms){
+  const box = $('mtZeile'); if (!box) return;
+  const beg = $('mtBeginnen'), ro = abRo();
+  if (beg) beg.hidden = !ms || ms.l.mehrere || !!ro || vorSpektron(p);
+  if (!ms || !ms.l.mehrere || vorSpektron(p)){ if (box.dataset.key){ box.innerHTML = ''; box.dataset.key = ''; } box.hidden = true; return; }
+  const m = ms.m, d = otStand(), tJe = mtTermine(d), l = ms.l;
+  const bez = m.eintrag && Array.isArray(m.eintrag.termine) ? m.eintrag.termine : null;
+  const bezText = !bez ? '<span class="warn">nicht zugeordnet</span>' : bez.length ? bez.map(id => tJe.has(id) ? 'Termin ' + esc(Mitteilungen.terminText(tJe.get(id), true)) : `<span class="warn">Termin ${esc(id)} (entfernt)</span>`).join(' · ') : '<span class="m">kein Ortstermin</span>';
+  const hinweise = [];
+  if (m.mehrdeutig) hinweise.push(`In „Mitteilungen“ liegen ${m.dateien.length} Word-Dateien mit der Nummer ${m.nr}: ${m.dateien.map(w => '„' + esc(w.name) + '“').join(', ')} – es gilt die neueste.`);
+  for (const a of l.ohneWord) hinweise.push(`Übergabe ohne Word-Datei vom ${esc(abDatum(a.erstellt))} – keiner Mitteilung zuzuordnen.`);
+  for (const a of l.fremd) hinweise.push(`Übergabe von „${esc(String(a.word).split('/').pop())}“ (${esc(abDatum(a.erstellt))}) – der Name trägt keine Nummer, keiner Mitteilung zuzuordnen.`);
+  const html = `<div class="mt-reiter" role="tablist" aria-label="Mitteilungen">${l.mitteilungen.map(x => `<button type="button" role="tab" class="mt-tab z-${x.zustand}${x === m ? ' an' : ''}" aria-selected="${x === m}" data-mt="${esc(x.schluessel)}">${x.nr}. Mitteilung${x.zustand === 'versandt' ? ' ✓' : ''}<small>${esc(Mitteilungen.zustandText(x))}</small></button>`).join('')}`
+    + `${ro ? '' : '<button type="button" class="mt-plus" id="mtNeu" title="Weitere Mitteilung beginnen – eine Rückfrage: welcher Ortstermin gehört wohin">+</button>'}</div>`
+    + `<div class="mt-bezug">Bezug der ${m.nr}. Mitteilung: ${bezText}${m.fest ? ' <span class="m">· fest seit der Übergabe</span>' : ro ? '' : ` · <button type="button" class="linkbtn" id="mtBezug">${bez ? 'ändern' : 'zuordnen …'}</button>`}`
+    + `${!ro && Mitteilungen.entfernbar(m) ? ` · <button type="button" class="linkbtn" id="mtWeg" title="Nur ohne Word-Datei und nie übergeben – die Kennung ${esc(m.id)} wird nicht neu vergeben">Mitteilung entfernen</button>` : ''}</div>`
+    + hinweise.map(h => `<div class="mt-hinweis warn">${h}</div>`).join('');
+  box.hidden = false;
+  if (box.dataset.key === html) return;
+  box.innerHTML = html; box.dataset.key = html;
+  box.querySelectorAll('[data-mt]').forEach(b => b.onclick = () => { lsSet(MT_WAHL + p.name, b.dataset.mt); bueroZeigen(p); });
+  if ($('mtNeu')) $('mtNeu').onclick = () => mtBezugDialog(p, 'neu');
+  if ($('mtBezug')) $('mtBezug').onclick = () => mtBezugDialog(p, 'zuordnen');
+  if ($('mtWeg')) $('mtWeg').onclick = () => mtEntfernen(p);
+}
+/** Liste und Zähler in einem Patch (O13 sinngemäß). */
+function mtListeSetzen(liste, zaehler){
+  const z = zaehler || Mitteilungen.zaehler(otStand());
+  if (z) S.pjDirty.mitteilungZaehler = z;
+  S.pjDirty.weitereMitteilungen = liste;
+}
+/** Nach dem Speichern: Ist es an einem Widerspruch gescheitert, nichts weiter versuchen – Eingabe verwerfen, neu lesen, sagen. */
+async function mtNachSpeichern(p, was){
+  await flushPJ();
+  if (S.sel !== p) return false;
+  const st = S.pjStatus && S.pjStatus.name === p.name ? S.pjStatus : null;
+  if (!st || st.kind !== 'err' || !('weitereMitteilungen' in S.pjDirty)) return true;
+  delete S.pjDirty.weitereMitteilungen; delete S.pjDirty.mitteilungZaehler;
+  const pj = await readPJ(await pjDir(p)); if (S.sel !== p) return false;
+  S.pj = pj; S.pjStatus = null; renderDetail();
+  banner('err', `${esc(was)} nicht gespeichert: Die Mitteilungen wurden inzwischen in einem anderen Fenster geändert. Nichts wurde überschrieben – der neue Stand ist gelesen, bitte noch einmal.`);
+  return false;
+}
+/** Rückfrage „Worauf bezieht sich …?“ (Abschnitt 3): Haken je Ortstermin und Mitteilung. modus 'neu' (weitere Mitteilung beginnen –
+    bei einer Mitteilung schreibt sie m1 und m2 in einem Patch) oder 'zuordnen' (Bestand zuordnen / Bezug ändern). Mitteilungen,
+    deren Bezug mit der Übergabe fest ist, sind gesperrt. */
+async function mtBezugDialog(p, modus){
+  if (S.sel !== p || abRo()) return;
+  await flushPJ(); if (S.sel !== p) return;
+  const ms = mtStand(p);
+  if (!ms){ banner('err', 'Die Mitteilungen werden noch gelesen – bitte gleich noch einmal.'); return; }
+  const d = otStand(), t = Mitteilungen.termine(d), st = ms.st, l = ms.l;
+  const spalten = l.mitteilungen.map(m => ({ schluessel: m.schluessel, eintrag: m.eintrag, m, nr: m.nr, gesperrt: m.fest && !!m.eintrag, zustand: Mitteilungen.zustandText(m) }));
+  if (!spalten.length) spalten.push({ schluessel: 'nr1', eintrag: null, m: null, nr: 1, gesperrt: false, zustand: 'in Arbeit' });
+  const neuNr = modus === 'neu' ? Mitteilungen.naechsteNr(st.word, d) : 0;
+  if (modus === 'neu') spalten.push({ schluessel: 'neu', eintrag: null, m: null, nr: neuNr, gesperrt: false, zustand: 'neu', neu: true });
+  const vor = Mitteilungen.vorwahlTermine(d, spalten, { versandt: pjFakten(d).versandt });
+  const g = !spalten.some(s => s.eintrag) ? Mitteilungen.grenze(l, { versandt: pjFakten(d).versandt }) : null;
+  const kopf = spalten.map(s => `<th>${s.nr}. Mitteilung<small>${esc(s.zustand)}</small></th>`).join('');
+  const zeilen = t.map((x, i) => `<tr><td>Termin ${i + 1} · ${esc(Mitteilungen.terminText(x))}</td>${spalten.map(s =>
+    `<td><input type="checkbox" data-mtb-spalte="${esc(s.schluessel)}" data-mtb-termin="${esc(x.id)}" aria-label="${esc(Mitteilungen.terminText(x))} – ${s.nr}. Mitteilung"${(vor[s.schluessel] || []).includes(x.id) ? ' checked' : ''}${s.gesperrt ? ' disabled' : ''}></td>`).join('')}</tr>`).join('');
+  const titel = modus === 'neu' ? `${neuNr}. Mitteilung beginnen` : 'Bezug der Mitteilungen';
+  const html = `<h3>${esc(titel)}</h3><div class="m">
+      <p>Worauf bezieht sich ${modus === 'neu' ? `die ${neuNr}. Mitteilung` : 'jede Mitteilung'}? Haken je Ortstermin – ein Termin darf zu mehreren Mitteilungen gehören (gemeinsame Anlagen).${g ? ` Vorgewählt nach der Grenze: Termine ${esc(g.text)} gehören zur neueren Mitteilung.` : spalten.some(s => s.eintrag) && modus === 'neu' ? ' Vorgewählt ist, was noch in keiner Mitteilung steht.' : ''}</p>
+      <table class="mtb"><thead><tr><th>Ortstermin</th>${kopf}</tr></thead><tbody>${zeilen}</tbody></table>
+      ${spalten.some(s => s.gesperrt) ? '<p class="m">Gesperrt: Mitteilungen, die beim Büro oder versandt sind – ihr Bezug ist mit der Übergabe fest.</p>' : ''}
+      ${modus === 'neu' ? `<label class="mtb-anlass">Anlass (optional)<input type="text" id="mtbAnlass" list="mtbVorschlag" maxlength="80" placeholder="z. B. Nachbeprobung"></label><datalist id="mtbVorschlag">${['Nachbeprobung', 'Freimessung', 'Ergänzung', 'Nachtrag'].map(v => `<option value="${v}"></option>`).join('')}</datalist>` : ''}
+      <p class="m">Die Anlagen schlägt die Projektzentrale danach aus dem Bezug vor; jede Zeile bleibt bis zur Übergabe von Hand änderbar.</p></div>
+    <div class="btns"><button id="dNo">Abbrechen</button><button class="primary" id="dYes">${modus === 'neu' ? 'Anlegen' : 'Übernehmen'}</button></div>`;
+  const wahl = await new Promise(res => {
+    showDialog(html);
+    $('dNo').onclick = () => { closeDialog(); res(null); };
+    $('dYes').onclick = () => {
+      const w = {}; for (const s of spalten) w[s.schluessel] = [];
+      $('dialog').querySelectorAll('[data-mtb-spalte]').forEach(el => { if (el.checked) w[el.dataset.mtbSpalte].push(el.dataset.mtbTermin); });
+      const anlass = $('mtbAnlass') ? $('mtbAnlass').value.trim() : '';
+      closeDialog(); res({ w, anlass });
+    };
+  });
+  if (!wahl || S.sel !== p) return;
+  // Neue Einträge: Kennungen nach dem Zähler (nie neu vergeben); das allererste Mal (kein Eintrag, kein Zähler) bekommt die 1. Mitteilung m1
+  const d2 = otStand(), roh = Array.isArray(d2.weitereMitteilungen) ? d2.weitereMitteilungen.slice() : [], vergeben = [];
+  const neueKennung = () => { const id = !roh.length && !Mitteilungen.zaehler(d2) && !vergeben.length ? 'm1' : Mitteilungen.naechsteKennung(d2, vergeben); vergeben.push(id); return id; };
+  const jetzt = new Date().toISOString(), von = lsGet(ICH_KEY) || '';
+  const neueIds = {};
+  for (const s of spalten){
+    if (s.gesperrt) continue;
+    const termine = wahl.w[s.schluessel] || [];
+    const i = s.eintrag ? roh.findIndex(e => e && e.id === s.eintrag.id) : -1;
+    if (i >= 0) roh[i] = { ...roh[i], termine };
+    else { const id = neueKennung(); neueIds[s.schluessel] = id;
+      roh.push({ id, nr: s.nr, termine, auftraege: [], ...(s.neu && wahl.anlass ? { anlass: wahl.anlass } : {}), angelegt: jetzt, ...(von ? { von } : {}) }); }
+  }
+  roh.sort((a, b) => (a && a.nr || 0) - (b && b.nr || 0));
+  mtListeSetzen(roh, Mitteilungen.zaehlerNach(d2, ...vergeben));
+  // gewählt: die neue Mitteilung; beim Zuordnen bleibt die gewählte (aus „nr2“ wird ihre neue Kennung)
+  if (neueIds.neu) lsSet(MT_WAHL + p.name, neueIds.neu);
+  else if (neueIds[mtGemerkt(p)]) lsSet(MT_WAHL + p.name, neueIds[mtGemerkt(p)]);
+  bueroZeigen(p);
+  if (await mtNachSpeichern(p, modus === 'neu' ? `${neuNr}. Mitteilung` : 'Bezug der Mitteilungen')) bueroZeigen(p);
+}
+/** Mitteilung entfernen (Entscheidung 11): nur ohne Word-Datei und nie übergeben; Kennung bleibt verbraucht. */
+async function mtEntfernen(p){
+  const ms = mtGewaehlt(p); if (!ms || abRo()) return;
+  const m = ms.m; if (!Mitteilungen.entfernbar(m)) return;
+  const d = otStand(), rest = (Array.isArray(d.weitereMitteilungen) ? d.weitereMitteilungen : []).filter(e => !(e && e.id === m.id));
+  const eine = Mitteilungen.eintraege({ weitereMitteilungen: rest }).length <= 1 && ms.l.mitteilungen.filter(x => x !== m).length <= 1;
+  const hand = rest.some(e => e && ((e.anlagenDazu || []).length || (e.anlagenWeg || []).length));
+  if (!await confirmDialog(`${m.nr}. Mitteilung entfernen?`, `<p>Die ${m.nr}. Mitteilung (noch ohne Word-Datei, nie übergeben) wird aus den Projektdaten entfernt. Dateien im Projektordner bleiben unberührt.</p>`
+    + (eine ? `<p>Danach hat das Projekt wieder eine Mitteilung – die Zeile verschwindet, die Übergabe wählt die Anlagen wie bisher${hand ? '; von Hand geänderte Anlagen der anderen Mitteilung gelten dann nicht mehr' : ''}.</p>` : '')
+    + `<p class="m">Die Kennung ${esc(m.id)} wird nicht neu vergeben.</p>`, 'Entfernen')) return;
+  if (S.sel !== p) return;
+  const ids = (Array.isArray(d.weitereMitteilungen) ? d.weitereMitteilungen : []).map(e => e && e.id).filter(Boolean);
+  mtListeSetzen(eine ? null : rest, Mitteilungen.zaehlerNach(otStand(), ...ids));
+  lsSet(MT_WAHL + p.name, '');
+  bueroZeigen(p);
+  if (await mtNachSpeichern(p, 'Entfernen der Mitteilung')) bueroZeigen(p);
+}
+/** Anlagen von Hand (M16, M18): gespeichert wird nur die Abweichung im Eintrag der Mitteilung (anlagenDazu / anlagenWeg). */
+function mtAnlageAendern(p, schluessel, weg, dazu){
+  if (abRo() || S.sel !== p) return;
+  const d = otStand(), l = Array.isArray(d.weitereMitteilungen) ? d.weitereMitteilungen.slice() : [], i = l.findIndex(e => e && e.id === schluessel); if (i < 0) return;
+  const e = { ...l[i] }, k = abKey, D = (e.anlagenDazu || []).slice(), W = (e.anlagenWeg || []).slice();
+  for (const x of weg || []){ const j = D.findIndex(y => k(y) === k(x)); if (j >= 0) D.splice(j, 1); else if (!W.some(y => k(y) === k(x))) W.push(x); }
+  for (const x of dazu || []){ const j = W.findIndex(y => k(y) === k(x)); if (j >= 0) W.splice(j, 1); else if (!D.some(y => k(y) === k(x))) D.push(x); }
+  e.anlagenDazu = D; e.anlagenWeg = W; l[i] = e;
+  mtListeSetzen(l); schedulePJ(); bueroZeigen(p);
+}
+const mtArtText = (A, art) => art === 'text' ? 'Text' : art === 'sonstiges' ? 'Weitere Anlage' : (A && A.ARTEN[art] ? A.ARTEN[art].titel : 'Anlage');
+/** Karte der gewählten Mitteilung in „Ans Büro“: Anlagen-Liste (änderbar bis zur Übergabe) oder – übergeben – nur ansehen. */
+function mtKarteHtml(p, ms, ro){
+  const m = ms.m, L = ms.listen.get(m.schluessel), A = window.BerichtAnlagen, a = m.aufgabe;
+  const kannAendern = !ro && !m.fest && !!m.eintrag;
+  const zeile = z => {
+    const datei = z.dateien.length ? z.dateien.map(x => `<span class="mt-datei" title="${esc(x)}">${esc(x.split('/').pop())}</span>`).join(', ') : `<span class="warn">${esc(z.grund || 'fehlt')}</span>`;
+    const herkunft = [z.herkunftText, z.fehlt && z.dateien.length ? `<span class="warn">${esc(z.grund)}</span>` : '', z.veraltet === true ? '<span class="warn">veraltet – in der App neu erstellen</span>' : '',
+      (z.auch || []).length ? `auch in der ${z.auch.map(esc).join(', ')}` : ''].filter(Boolean).join(' · ');
+    const tausch = kannAendern && z.dateien.length === 1 ? mtAlternativen(ms, z) : [];
+    const akt = !kannAendern || !z.dateien.length ? '' : `${tausch.length ? `<select class="mt-tausch" data-mt-tausch="${esc(z.dateien[0])}" aria-label="ändern: ${esc(z.dateien[0].split('/').pop())}"><option value="">ändern …</option>${tausch.map(x => `<option value="${esc(x)}">${esc(x.split('/').pop())}</option>`).join('')}</select>` : ''}`
+      + `<button type="button" class="linkbtn" data-mt-weg="${esc(z.dateien.join('\n'))}" title="Aus der Liste der ${m.nr}. Mitteilung nehmen (die Datei bleibt im Ordner)">entfernen</button>`;
+    return `<tr class="${z.fehlt ? 'mt-fehlt' : ''}" data-mt-zeile="${esc(z.art)}"><td class="mt-nr">${z.nr != null ? 'Anlage ' + z.nr : '–'}</td><td>${esc(m.fest ? mtArtText(A, z.art) : z.titel && z.art === 'sonstiges' ? z.titel : mtArtText(A, z.art))}</td><td>${datei}</td><td class="m">${herkunft}</td><td class="mt-akt">${akt}</td></tr>`;
+  };
+  const tabelle = L.zeilen.length ? `<table class="mt-anl"><tbody>${L.zeilen.map(zeile).join('')}</tbody></table>` : `<div class="m">${m.fest ? (m.quelle === 'verteiler' ? 'Welche Anlagen mitgingen, ist nicht festgehalten (Versand nur in den früheren Versandangaben).' : 'Ohne Anlagen übergeben.') : 'Noch keine Anlagen.'}</div>`;
+  if (m.fest){
+    const so = m.zustand === 'versandt' ? `So versandt am ${esc(abDatum(a && a.erledigtAm ? a.erledigtAm : m.versandtAm))}${m.quelle === 'verteiler' ? ' (laut früheren Versandangaben)' : ''}` : `Beim Büro seit ${esc(abDatum(a.erstellt))}${a.von ? ' (übergeben von ' + esc(a.von) + ')' : ''} · noch offen: ${esc(BueroAufgaben.offenText(a))}`;
+    const empf = a && a.empfaenger && a.empfaenger.length ? a.empfaenger.map(r => `${esc(r.label || r.gruppe || '')}${r.details ? ': ' + esc(String(r.details).split('\n')[0]) : ''}`).join(' · ') : '';
+    return `<div class="mt-fest"><b>${so}</b>${a && a.word ? `<div>Word-Datei: ${esc(String(a.word).split('/').pop())}</div>` : ''}${empf ? `<div>Empfänger: ${empf}</div>` : ''}</div>${tabelle}<div class="m">Nur zum Ansehen – die Liste ist mit der Übergabe fest. Ändern erst nach dem Zurückziehen in BüroKit.</div>`;
+  }
+  const quelle = L.quelle === 'berichtkit' ? `Vorschlag aus BerichtKit (zuletzt gespeichert ${esc(abZeit(L.bk.am))})` : m.eintrag ? 'Vorschlag aus dem Bezug' : 'Vorschlag: was noch in keiner Mitteilung steht';
+  const wegZeile = L.weg.length ? `<div class="m">Von Hand aus der Liste genommen: ${L.weg.map(x => `${esc(x.split('/').pop())}${kannAendern ? ` <button type="button" class="linkbtn" data-mt-zurueck="${esc(x)}">zurücknehmen</button>` : ''}`).join(', ')}</div>` : '';
+  const frei = kannAendern ? mtFreieDateien(ms) : [];
+  const dazu = kannAendern ? `<label class="mt-dazu">+ Datei zuordnen <select data-mt-dazu aria-label="Datei der ${m.nr}. Mitteilung zuordnen"><option value="">– Datei wählen –</option>${frei.map(x => `<option value="${esc(x)}">${esc(x)}</option>`).join('')}</select></label>` : '';
+  const ohne = !m.eintrag ? `<div class="m warn">Zum Ändern der Liste erst oben den Bezug zuordnen – bis dahin gilt der Vorschlag.</div>` : '';
+  const vg = L.bk ? Mitteilungen.vergleich(Mitteilungen.pfade(L.zeilen, m.datei && m.datei.rel), L.bk) : null;
+  const abw = vg && (vg.fehlen.length || vg.mehr.length) ? `<div class="mt-vergleich warn" data-mt-vergleich>Abweichung zum Bericht (BerichtKit, ${esc(abZeit(L.bk.am))}): ${[vg.fehlen.length ? `im Bericht, nicht in der Liste: ${vg.fehlen.map(x => '„' + esc(x.split('/').pop()) + '“').join(', ')}` : '',
+    vg.mehr.length ? `in der Liste, nicht im Bericht: ${vg.mehr.map(x => '„' + esc(x.split('/').pop()) + '“').join(', ')}` : ''].filter(Boolean).join('; ')} – Liste oder Bericht anpassen, bevor du übergibst.</div>` : '';
+  const ohneWord = !m.datei ? `<div class="warn" data-mt-ohne-word>Für die ${m.nr}. Mitteilung liegt noch keine Word-Datei in „Mitteilungen“ („${m.nr}. Mitteilung ….docx“) – erst in BerichtKit speichern oder in Word anlegen. Bei mehreren Mitteilungen geht die Übergabe nur mit Word-Datei.</div>` : '';
+  return `<div class="m">${quelle} · von Hand änderbar bis zur Übergabe</div>${tabelle}${wegZeile}${dazu}${ohne}${abw}${ohneWord}`;
+}
+/** Dateien, die noch nicht in der Liste der gewählten Mitteilung stehen (für „+ Datei zuordnen“). */
+function mtFreieDateien(ms){
+  const L = ms.listen.get(ms.m.schluessel), drin = new Set(L.zeilen.flatMap(z => z.dateien).map(abKey));
+  return (ms.st.anl || []).map(x => x.rel).filter(r => !drin.has(abKey(r)) && !Mitteilungen.nrAusName(r));   // keine Word-Datei einer Mitteilung als Anlage
+}
+/** Andere Dateien derselben Art und desselben Ordners (für „ändern …“). */
+function mtAlternativen(ms, z){
+  const ordner = abKey(z.dateien[0].split('/')[0]), drin = new Set(ms.listen.get(ms.m.schluessel).zeilen.flatMap(y => y.dateien).map(abKey));
+  return (ms.st.anl || []).map(x => x.rel).filter(r => abKey(r.split('/')[0]) === ordner && !drin.has(abKey(r)) && (z.art === 'sonstiges' || Mitteilungen.artVon(r) === z.art));
+}
+/** Hinweis mit einem Knopf (ohne Rückfrage). */
+function hinweisDialog(title, html){
+  return new Promise(res => {
+    showDialog(`<h3>${esc(title)}</h3><div class="m">${html}</div><div class="btns"><button class="primary" id="dYes">OK</button></div>`);
+    $('dYes').onclick = () => { closeDialog(); res(true); };
+  });
 }
 function ordnerKurz(p){
   const s = p.st.subs, da = SUBS.filter(([k]) => s[k]).length, dateien = SUBS.reduce((n, [k]) => n + (s[k] ? s[k].files : 0), 0);
@@ -2854,6 +3146,7 @@ function renderDetail(){
     <div class="kopfzeile">${zustHtml(p, zustaendigVon(p, pj.error ? undefined : d), ro)}<button type="button" class="pflichtFehlt" id="pflichtFehlt" hidden></button>${p.key < SPEKTRON_START_KEY && d.spektron === true && !ro ? `<span class="uebernommen-tag">In Spektron übernommen</span>` : ''}<button type="button" class="pj-aendern" id="pjAendern" data-aktion="daten-auf" title="Projektdaten aufklappen – Objekt, Auftraggeber, Termine, Beteiligte">${ro ? 'Projektdaten ansehen' : 'Projektdaten ändern'}</button></div>
     <div id="pjAttention" role="status"></div><div id="umzugAttention" role="status" style="display:none;margin:10px 0;padding:10px;border-left:3px solid var(--warn);background:var(--panel2)"></div><div id="bueroAttention" role="status"></div>
     <div class="az-meldung" id="azMeldung" role="status" aria-live="polite"></div>
+    <div class="mt-zeile" id="mtZeile" hidden></div>
     <div class="jetzt" id="jetzt" role="status" aria-live="polite"></div>
     <div class="kacheln" id="kacheln" role="group" aria-label="Arbeitsschritte">${KACHELN.map(([key, id, name, app, aktion, farbe, tip]) =>
       `<button type="button" class="kachel" id="${id}" data-kachel="${key}" data-aktion="${aktion}"${key === 'labor' || key === 'abrechnung' ? ` data-stufe="${key}"` : ''} style="--ac:${farbe}" title="${esc(tip)}">${kachelSymbol(key)}<span class="kn">${esc(name)}</span><span class="ks" data-ktext${key === 'labor' || key === 'abrechnung' ? ' data-stext' : ''}></span></button>`).join('')}</div>
@@ -2890,6 +3183,7 @@ function renderDetail(){
       <div class="pm-knoepfe">${knopf('goBericht', 'Asbestbericht öffnen', 'bericht', TIP_BERICHT.asbest) + knopf('goBrand', 'Brandbericht öffnen', 'brandbericht', TIP_BERICHT.brand)
         + (stand.plan.present ? knopf('anlPlan', 'Anlage Probenahme …', 'anlage', 'Öffnet PlanKit gleich im Export „Word · Anlage Probenahme“: Lagepläne, Probenverzeichnis, Fotos, Laborwerte') : '')
         + knopf('lagerProjekt', 'Rückstellproben (LagerKit)', 'lagerkit', 'Öffnet dieses Projekt in LagerKit (eigenes Fenster): Rückstellproben erfassen, Etiketten mit QR drucken, Fristen und Regalplätze. Schreibt nur in „_Spektron/LagerKit“')
+        + (ro ? '' : `<button type="button" class="sk" id="mtBeginnen" data-aktion="mitteilung-neu" hidden title="Zweite (dritte …) Mitteilung in diesem Projekt, z. B. nach einer Nachbeprobung – eine Rückfrage: welcher Ortstermin gehört wohin. Danach steht über „Jetzt dran“ eine Zeile je Mitteilung">Weitere Mitteilung beginnen …</button>`)
         + knopf('glasProjekt', 'GlasKit öffnen', 'glaskit', 'Öffnet dieses Projekt in GlasKit (eigenes Fenster): das Gebäude aus Glas – Geschosse und Proben aus PlanKit dreidimensional, mit Fotos aus FotoKit und Rundgang. Liest nur, ändert nichts im Projekt')
         + (p.key < SPEKTRON_START_KEY && d.spektron === true && !ro && !spektronSpur(p.st) ? `<button type="button" class="sk" id="spektronAus" title="Wieder unter „Vor Spektron“ einordnen">Zurück zu „Vor Spektron“</button>` : '')
         + (p.key < SPEKTRON_START_KEY && !vorSpektron(p) && p.st && !p.st.spektronDa && !ro ? `<button type="button" class="sk" id="spektronOrdner" title="Die App-Dateien dieses älteren Projekts in den Ordner „${esc(SO.ORDNER)}“ umziehen – wie bei Projekten ab ${esc(SO.AB)}">Ordner „${esc(SO.ORDNER)}“ anlegen</button>` : '')}</div>
@@ -3030,11 +3324,16 @@ const kachelSymbol = k => `<svg class="ksym" viewBox="0 0 24 24" fill="none" str
 function stufenZeichnen(p){
   const box = $('jetzt'), kb = $('kacheln');
   if (!box || !kb || !S.sel || S.sel.name !== p.name) return;
-  const f0 = faktenAusDetail(p), r = Stufen.berechnen(f0), j = r.jetzt;
+  // 1.54: Bei mehreren Mitteilungen gelten „Jetzt dran“ und die Texte unter den Kacheln für die gewählte Mitteilung; das ✓ der
+  // Kacheln bleibt aus den Projektfakten (wie das Kopfband, M7), Stufen.berechnen bleibt unverändert.
+  const f0 = faktenAusDetail(p), ms = mtStand(p), mehr = !!(ms && ms.l.mehrere && ms.m) && !vorSpektron(p);
+  const fM = mehr ? mtFakten(f0, ms) : f0, r = Stufen.berechnen(fM), j = r.jetzt;
+  const je = mehr ? Mitteilungen.kachelTexte(ms.m, ms.listen.get(ms.m.schluessel), otStand()) : undefined;
+  mtZeichnen(p, ms);
   // Kacheln: ✓ wie das Kopfband (Datei der App da), darunter der genaue Stand; Ring = dorthin führt „Jetzt dran“
-  for (const k of Stufen.kacheln(f0, r)){
+  for (const k of Stufen.kacheln(f0, r, je)){
     const el = kb.querySelector(`[data-kachel="${k.key}"]`); if (!el) continue;
-    el.className = `kachel z-${k.zustand}${k.fertig ? ' fertig' : ''}${k.jetzt ? ' passt' : ''}${r.aktuell === k.key ? ' aktuell' : ''}`;
+    el.className = `kachel z-${k.zustand}${k.fertig ? ' fertig' : ''}${k.jetzt ? ' passt' : ''}${r.aktuell === k.key ? ' aktuell' : ''}${k.luecke ? ' luecke' : ''}`;
     el.dataset.aktion = k.aktion;
     const n = el.querySelector('.kn'), t = el.querySelector('[data-ktext]'), name = k.name + (k.fertig ? ' ✓' : '');
     if (n.textContent !== name) n.textContent = name;
@@ -3053,7 +3352,7 @@ function stufenZeichnen(p){
   const form = document.querySelector('#bueroPanel [data-ab-form]'), entwurf = abEntwurf(p);
   if (form && entwurf.offen === null){ const auf = j.aktion === 'uebergeben'; if (form.open !== auf) form.open = auf; }
   // „Ans Büro übergeben“ in der Stufe nur, solange nichts beim Büro ist (für eine zweite Übergabe bleibt das Formular darunter)
-  const ueb = $('goUebergabe'), f = f0, beimBuero = !!(f.buero && (f.buero.offen || f.buero.frage));
+  const ueb = $('goUebergabe'), f = fM, beimBuero = !!(f.buero && (f.buero.offen || f.buero.frage));
   if (ueb) ueb.hidden = beimBuero;
   // Rückfrage: die Frage mit Antwortfeld steht schon oben – „Jetzt dran“ verweist nur darauf
   const frageOben = j.aktion === 'frage' && $('bueroAttention') && $('bueroAttention').querySelector('[data-ab-antwort]');
@@ -3067,15 +3366,19 @@ function stufenZeichnen(p){
     $('spektronAn').onclick = () => spektronSetzen(p, true);
     return;
   }
-  const key = JSON.stringify([j, !!frageOben]);
+  // 1.54: Angebot „2. Mitteilung beginnen?“ (M5) – nur bei einer übergebenen Mitteilung und etwas Neuem danach
+  const ang = !mehr && ms && !abRo() ? Mitteilungen.angebot(ms.l, ms.e) : null;
+  const angHtml = ang ? `<div class="mt-angebot" id="mtAngebot">${esc(ang.text)} <button type="button" class="sk" data-aktion="mitteilung-neu">${Mitteilungen.naechsteNr(ms.st.word, otStand())}. Mitteilung beginnen …</button></div>` : '';
+  const key = JSON.stringify([j, !!frageOben, angHtml]);
   if (box.dataset.key === key) return;
   if (frageOben){ box.dataset.key = key; box.className = 'jetzt'; box.innerHTML = ''; return; }
   box.dataset.key = key;
-  box.className = 'jetzt' + (j.wartet ? ' wartet' : '') + (!j.aktion ? ' fertig' : '');
+  box.className = 'jetzt' + (j.wartet ? ' wartet' : '') + (!j.aktion ? ' fertig' : '') + (angHtml ? ' mit-angebot' : '');
   box.style.setProperty('--ac', AKTION_FARBE[j.aktion] || '');   // Farbe der App, in der es weitergeht
   box.innerHTML = `<div class="t"><small>${j.wartet ? (r.aktuell === 'buero' ? 'Gerade beim Büro' : 'Gerade beim Labor') : j.aktion ? 'Jetzt dran' : 'Stand'}</small><b>${esc(j.titel)}</b>${j.text && j.text !== j.titel ? `<span>${esc(j.text)}</span>` : ''}</div>`
-    + (j.aktion && j.knopf ? `<button type="button" class="${j.wartet ? '' : 'primary'}" id="jetztGo" data-aktion="${esc(j.aktion)}">${esc(j.knopf)} →</button>` : '');
+    + (j.aktion && j.knopf ? `<button type="button" class="${j.wartet ? '' : 'primary'}" id="jetztGo" data-aktion="${esc(j.aktion)}">${esc(j.knopf)} →</button>` : '') + angHtml;
   const go = $('jetztGo'); if (go) go.onclick = () => stufeAktion(p, j.aktion);
+  box.querySelectorAll('.mt-angebot [data-aktion]').forEach(b => b.onclick = e => { e.preventDefault(); stufeAktion(p, b.dataset.aktion); });
 }
 /** Eine Aktion aus Stufe oder „Jetzt dran“ ausführen. */
 function stufeAktion(p, aktion){
@@ -3106,6 +3409,7 @@ function stufeAktion(p, aktion){
       if (v && v.gemerkt) openBerichtKit(p, v.gemerkt, true); else openApp(p, BERICHTKIT_URL, 'berichtkit');
       return; }
     case 'beleg': openApp(p, AUFWANDKIT_URL, 'aufwandkit'); return;
+    case 'mitteilung-neu': mtBezugDialog(p, 'neu'); return;   // 1.54: „Weitere Mitteilung beginnen …“ und Angebot in „Jetzt dran“
     case 'glaskit': openApp(p, GLASKIT_URL, 'glaskit'); return;   // GlasKit liest nur (#projekt=<Ordner>, ab GlasKit 1.1.0)
     case 'lagerkit': openApp(p, LAGERKIT_URL, 'lagerkit'); return;   // LagerKit: #projekt=<Ordnername>
     case 'buerokit': window.open(BUEROKIT_URL, 'buerokit', 'noopener'); return;
@@ -3133,7 +3437,7 @@ function flushPJ(){
   if (!p || !Object.keys(patch).length) return S.pjWriting;
   S.pjDirty = {};
   // Texte getrimmt; die Liste der weiteren Ortstermine je Eintrag (ortstermine.js), null entfernt ein Feld (pjBauen)
-  for (const k of Object.keys(patch)) patch[k] = k === 'weitereOrtstermine' ? Ortstermine.bereinigt(patch[k]) : typeof patch[k] === 'string' ? patch[k].trim() : patch[k];
+  for (const k of Object.keys(patch)) patch[k] = k === 'weitereOrtstermine' ? Ortstermine.bereinigt(patch[k]) : k === 'weitereMitteilungen' ? Mitteilungen.bereinigt(patch[k]) : typeof patch[k] === 'string' ? patch[k].trim() : patch[k];
   // 1.53.1: Solange der Patch geschrieben wird, gehört er zum Stand, auf dem weitere Eingaben aufbauen (otStand) – sonst baut
   // eine zweite Änderung an den Ortsterminen die Liste aus dem alten Stand und überschreibt die erste (Codex-Review #92, P1).
   const unterwegs = { name: p.name, patch };
@@ -3145,7 +3449,7 @@ function flushPJ(){
         S.pj = { data: o, exists: true };S.pjStatus={name:p.name,kind:'ok'};showPJAttention();S.pjRecoveryRefresh?.();
         if ($('pjSumme')) $('pjSumme').textContent = kopfSumme(o);
         const el = $('pjSave'); if (el){ el.className = 'save ok'; el.textContent = `✓ Gespeichert ${new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`; el.title = `in ${PJ_FILE} im Projektordner`; }
-        if ('weitereOrtstermine' in patch) bueroZeigen(p);   // 1.53.1: Vorauswahl der Anlagen hängt daran (Review #92, P2)
+        if ('weitereOrtstermine' in patch || 'weitereMitteilungen' in patch) bueroZeigen(p);   // 1.53.1: Vorauswahl der Anlagen hängt daran (Review #92, P2); 1.54: Mitteilungen
       }
       if (p.st) p.st.pj = true;
     }catch(e){
@@ -3742,12 +4046,14 @@ function projektNavigation(href, target){
     if (target) fenster.focus();
   }
 // Projektkontext gehört ins Fragment und wird dadurch nicht an den Webserver gesendet.
-function projektLink(base, name, aktion){
+// 1.54: &mitteilung=<Kennung> (Entscheidung 5) nur, wenn die Zeile der Mitteilungen gezeigt wird – Apps, die es nicht kennen, übergehen es.
+function projektLink(base, name, aktion, mitteilung){
   const url = new URL(base, location.href);
-  const teile = url.hash.slice(1).split('&').filter(t => t && !new URLSearchParams(t).has('projekt') && (!aktion || !new URLSearchParams(t).has('aktion')));
+  const teile = url.hash.slice(1).split('&').filter(t => t && !new URLSearchParams(t).has('projekt') && (!aktion || !new URLSearchParams(t).has('aktion')) && (!mitteilung || !new URLSearchParams(t).has('mitteilung')));
   url.searchParams.delete('projekt');
   teile.push('projekt=' + encodeURIComponent(name));
   if (aktion){ url.searchParams.delete('aktion'); teile.push('aktion=' + encodeURIComponent(aktion)); }
+  if (mitteilung) teile.push('mitteilung=' + encodeURIComponent(mitteilung));
   url.hash = teile.join('&');
   return url.href;
 }
@@ -3786,18 +4092,18 @@ async function lagerStandZeigen(p){
 async function openApp(p, base, target){
   await flushPJ();
   await SUITE.set('archiv', S.archive).catch(() => {});
-  projektNavigation(projektLink(base, p.name), target);
+  projektNavigation(projektLink(base, p.name, '', mtLink(p)), target);
 }
 /** BerichtKit mit Berichtsart: #projekt=<Ordner>&art=asbest|brand (BerichtKit ab 1.14.0; ohne art wäre es der Asbestbericht). */
-function berichtLink(name, art, auto){
-  const url = new URL(projektLink(BERICHTKIT_URL, name));
+function berichtLink(name, art, auto, mitteilung){
+  const url = new URL(projektLink(BERICHTKIT_URL, name, '', mitteilung));
   url.hash = url.hash.slice(1).split('&').filter(t => t && !new URLSearchParams(t).has('art') && !new URLSearchParams(t).has('auto')).concat('art=' + encodeURIComponent(art), ...(auto ? ['auto=1'] : [])).join('&');
   return url.href;
 }
 async function openBerichtKit(p, art, auto){
   await flushPJ();
   await SUITE.set('archiv', S.archive).catch(() => {});
-  projektNavigation(berichtLink(p.name, art, auto), 'berichtkit');
+  projektNavigation(berichtLink(p.name, art, auto, mtLink(p)), 'berichtkit');
 }
 /** Hervorgehoben wird der Bericht, den die LabelKit-Proben nahelegen (Stufen.berichtsart); beide Knöpfe bleiben immer da.
     lk = Inhalt der neuesten LabelKit-Projektdatei, null = keine/nicht lesbar. Ohne lk: das zuletzt für dieses Projekt Erkannte
@@ -3818,12 +4124,12 @@ function berichtVorschlagZeigen(p, lk, gemerkt){
 async function openPlanKit(p, aktion){
   await flushPJ();
   await SUITE.set('archiv', S.archive).catch(() => {});
-  projektNavigation(projektLink(PROBENPLAN_URL, p.name, aktion), 'plankit');
+  projektNavigation(projektLink(PROBENPLAN_URL, p.name, aktion, mtLink(p)), 'plankit');
 }
 async function openBildumbenenner(p){
   await flushPJ();
   await SUITE.set('archiv', S.archive).catch(() => {});
-  projektNavigation(projektLink(BILDUMBENENNER_URL, p.name), 'bildumbenenner');
+  projektNavigation(projektLink(BILDUMBENENNER_URL, p.name, '', mtLink(p)), 'bildumbenenner');
 }
 
 /* ---------- Anlagen zum Gutachten (Word) ----------
