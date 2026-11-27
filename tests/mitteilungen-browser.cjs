@@ -231,6 +231,27 @@ let schritt = 'Start';
   if (!await page.locator('#bueroPanel [data-ab-form]').evaluate(e => e.open)) await page.locator('#bueroPanel [data-ab-summary]').click();
   assert.equal(await page.locator('#bueroPanel [data-ab-summary]').textContent(), '2. Mitteilung ans Büro übergeben');
   assert.deepEqual(await page.locator('#bueroPanel [data-ab-word] option').allTextContents().then(o => o.map(x => x.split(' · ')[0])), ['2._Mitteilung_26.0999.docx'], 'nur die Word-Datei der 2.');
+  // 4a (Codex-Review #94, Runde 3): ein anderes Fenster ändert die Anlagen, dieses hat noch den alten Stand → nicht übergeben, neu gelesen
+  const c = await neueSeite(); await c.waitForSelector('#btnInfo'); await start(c); await oeffne(c, KA);
+  await c.locator('#mtZeile [data-mt="m2"]').click();
+  await c.locator('#bueroPanel [data-mt-weg="Laborergebnisse/AR-002.pdf"]').click();
+  await warte(c, async () => ((await lese(c, KA)).weitereMitteilungen[1].anlagenWeg || []).length === 2, 'anderes Fenster gespeichert');
+  await c.close();
+  await page.locator('#bueroPanel [data-ab-los]').click();
+  await page.locator('#bueroPanel .ab-msg.err').filter({ hasText: 'in einem anderen Fenster geändert' }).waitFor();
+  assert.equal((await aufgaben(page, KA)).length, 1, 'nichts übergeben');
+  await warte(page, async () => !(await liste(page)).some(r => r[2] === 'AR-002.pdf'), 'neuer Stand gezeigt');
+  await page.locator('#bueroPanel [data-mt-zurueck="Laborergebnisse/AR-002.pdf"]').click();
+  await warte(page, async () => ((await lese(page, KA)).weitereMitteilungen[1].anlagenWeg || []).length === 1, 'zurückgenommen');
+  // 4b: eine zugeordnete Datei ist inzwischen weg → nicht übergeben, Datei genannt; zurückgelegt → geht
+  const datei = async (op) => page.evaluate(async ([n, op]) => { const l = await (await (await (await navigator.storage.getDirectory()).getDirectoryHandle('Mosaik Archivordner')).getDirectoryHandle(n)).getDirectoryHandle('Laborergebnisse');
+    if (op === 'weg') await l.removeEntry('AR-001.pdf'); else { const w = await (await l.getFileHandle('AR-001.pdf', { create: true })).createWritable(); await w.write('%PDF'); await w.close(); } }, [KA, op]);
+  await datei('weg');
+  if (!await page.locator('#bueroPanel [data-ab-form]').evaluate(e => e.open)) await page.locator('#bueroPanel [data-ab-summary]').click();
+  await page.locator('#bueroPanel [data-ab-los]').click();
+  await page.locator('#bueroPanel .ab-msg.err').filter({ hasText: '„AR-001.pdf“ liegt nicht mehr im Projektordner' }).waitFor();
+  assert.equal((await aufgaben(page, KA)).length, 1, 'ohne die Datei nichts übergeben');
+  await datei('zurueck');
   await page.locator('#bueroPanel [data-ab-los]').click();
   await page.locator('#bueroPanel [data-ab-msg]').filter({ hasText: '✓ Ans Büro übergeben' }).waitFor();
   const a = (await aufgaben(page, KA)).pop();

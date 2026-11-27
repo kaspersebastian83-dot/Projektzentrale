@@ -2607,13 +2607,33 @@ async function abUebergeben(p){
     if (abOffeneGutachten(r).some(a => !bekannt.has(a.id))){
       st.r = r; st.busy = false; st.msg = 'Inzwischen ist beim Büro ein Gutachten offen (siehe Hinweis über dem Knopf) – zum Übergeben noch einmal klicken.'; st.msgErr = true; zeigen(); return;
     }
-    const word = mt ? abWordMt(d, mt) : abWordWahl(st, d), bk = abBkAnlagen(st, word);
+    // 1.54 (Codex-Review #94, Runde 3): vor dem Festschreiben frisch lesen – Projektdaten (ein anderes Fenster kann die Anlagen der
+    // Mitteilung geändert haben; die Übergabe schreibt _Projekt.json nicht, kein Widerspruch würde es melden) und die Dateien im Ordner
+    // (eine zugeordnete Datei kann inzwischen fehlen). Nie eine veraltete Liste oder einen Pfad ohne Datei festschreiben.
+    let msUeb = ms;
+    if (mt){
+      const halt = text => { st.busy = false; st.msg = text; st.msgErr = true; zeigen(); };
+      await flushPJ(); if (!S.sel || S.sel.name !== p.name){ st.busy = false; return; }
+      if (Object.keys(S.pjDirty).length) return halt('Nicht übergeben: Die Projektdaten sind noch nicht gespeichert (siehe Hinweis oben) – erst danach übergeben.');
+      const frisch = await readPJ(await pjDir(p));
+      let anlNeu = st.anl, wNeu = st.word; try{ anlNeu = await abAnlagenLesen(p); }catch(e){} try{ wNeu = await abWordLesen(p); }catch(e){}
+      if (!S.sel || S.sel.name !== p.name){ st.busy = false; return; }
+      if (frisch.error) return halt(`Nicht übergeben: Die Projektdaten sind nicht lesbar (${frisch.error}).`);
+      const kenn = o => JSON.stringify([(o || {}).weitereMitteilungen ?? null, (o || {}).mitteilungZaehler ?? null]);
+      st.anl = anlNeu; st.word = wNeu;
+      if (kenn(frisch.data) !== kenn(S.pj && S.pj.data)){ S.pj = frisch; halt('Nicht übergeben: Die Mitteilungen wurden inzwischen in einem anderen Fenster geändert – die Liste ist neu gelesen. Bitte prüfen und noch einmal übergeben.'); renderDetail(); return; }
+      msUeb = mtGewaehlt(p);
+      if (!msUeb || !msUeb.m || msUeb.m.schluessel !== mt.schluessel || msUeb.m.fest || !msUeb.m.datei) return halt('Nicht übergeben: Der Stand der Mitteilung hat sich inzwischen geändert – bitte prüfen und noch einmal übergeben.');
+      const weg = msUeb.listen.get(mt.schluessel).zeilen.filter(z => z.nr != null && z.fehlt && z.dateien.length).flatMap(z => z.dateien);
+      if (weg.length) return halt(`Nicht übergeben: ${weg.map(x => '„' + x.split('/').pop() + '“').join(', ')} ${weg.length === 1 ? 'liegt' : 'liegen'} nicht mehr im Projektordner – in der Liste entfernen oder die Datei zurücklegen, dann übergeben.`);
+    }
+    const word = mt ? abWordMt(d, msUeb.m) : abWordWahl(st, d), bk = abBkAnlagen(st, word);
     // Lücken erst prüfen, wenn sonst alles passt (ohne Empfänger meldet aufgabeAnlegen das Nötige – keine Rückfrage vorher)
     if (empfaenger.some(r => String(r.details || '').trim()) && !(await abLueckenOk(st, word))){ st.busy = false; zeigen(); return; }
     // 1.54: Anlagen in Nummernfolge wie im Bericht (Entscheidung 7) – bei mehreren Mitteilungen ihre Liste, sonst die angehakten Zeilen
     const roh = angehakt ? angehakt.filter(r => r !== word) : (st.anl || []).filter(x => x.rel !== word && (d.anl[x.rel] === undefined ? abAnlVorschlag(x, bk) : d.anl[x.rel])).map(x => x.rel);
     const bkE = Mitteilungen.berichtEintrag({ datei: { name: String(word || '').split('/').pop() } }, st.bk);
-    const geordnet = mt ? Mitteilungen.pfade(ms.listen.get(mt.schluessel).zeilen, word) : Mitteilungen.sortiert(roh, window.BerichtAnlagen, bkE && bkE.anlagen);
+    const geordnet = mt ? Mitteilungen.pfade(msUeb.listen.get(mt.schluessel).zeilen, word) : Mitteilungen.sortiert(roh, window.BerichtAnlagen, bkE && bkE.anlagen);
     const anlagen = [...geordnet, ...String(d.anlText || '').split(/[;\n]/).map(x => x.trim()).filter(Boolean)];
     await BueroAufgaben.aufgabeAnlegen(p.handle, { art: 'gutachten', titel: 'Gutachten', von, word, faellig: d.faellig || '', hinweis: d.hinweis, empfaenger, anlagen });
     ok = true;
