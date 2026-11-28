@@ -17,6 +17,8 @@
 //     gelbe Zeile „Gehört zu keiner Mitteilung: Auftrag 2 …“, Rückfrage mit Auftrags-Tabelle und Vorwahl, ein Patch; Prüfberichte getrennt,
 //     Kacheltexte; BerichtKit-Zeile gelb (P9); Übernahme veraltet → Satz; neuer Auftrag und „+ Weiterer Ortstermin“ → gelbe Zeile; zwei
 //     Fenster → Widerspruch; ein Auftrag („26.0993 EinAuftrag Ka“) → keine Tabelle, Datei byte-gleich; FotoKit speichert ohne Verlust von auftraege
+// 10. 1.56 Plan je Mitteilung nach ihren Terminen („26.0990 TerminPlan Ka“, PlanKit-2.7.0-Namen): Liste je Mitteilung, Kachel, Übergabe sendet
+//     den Plan von Termin 2, fehlt der Plan von Termin 1 → gelb (nie der von Termin 2)
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const http = require('node:http');
@@ -772,7 +774,58 @@ let schritt = 'Start';
       console.log('OK 9f FotoKit speichert – weitereMitteilungen[].auftraege bleibt');
     } else if (process.env.FOTOKIT_PFLICHT) assert.fail('FotoKit liegt nicht daneben (../Bildumbenenner)');
   }
+  // ---------- 10. 1.56 Plan je Mitteilung nach ihren Terminen („26.0990 TerminPlan Ka“: Plan ohne Zusatz von Termin 1, PlanKit-2.7.0-Name
+  //      „… - Termin 20.08.2026.pdf“ von Termin 2; m1 → t1, m2 → t2, beide offen) – Liste je Mitteilung, Kachel, Übergabe sendet den richtigen Plan ----------
+  schritt = '10 Plan je Termin';
+  {
+    const TP = '26.0990 TerminPlan Ka';
+    await page.evaluate(async ([TP, PJ_KA, docx]) => {
+      const archiv = await (await navigator.storage.getDirectory()).getDirectoryHandle('Mosaik Archivordner');
+      const put = async (d, n, t) => { const w = await (await d.getFileHandle(n, { create: true })).createWritable(); await w.write(t); await w.close(); await new Promise(r => setTimeout(r, 15)); };
+      const sub = async (d, ...ns) => { for (const n of ns) d = await d.getDirectoryHandle(n, { create: true }); return d; };
+      const bin = b64 => Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+      const p = await sub(archiv, TP), nr = TP.slice(0, 7);
+      await put(p, '_Projekt.json', JSON.stringify({ ...PJ_KA, weitereMitteilungen: [{ id: 'm1', nr: 1, termine: ['t1'], auftraege: [] }, { id: 'm2', nr: 2, termine: ['t2'], auftraege: [] }], mitteilungZaehler: 2 }, null, 2) + '\n');
+      const m = await sub(p, 'Mitteilungen'), pl = await sub(p, 'Pläne'), l = await sub(p, 'Laborergebnisse'); await sub(p, 'Fotos');
+      await put(m, `1._Mitteilung_${nr}.docx`, bin(docx)); await put(m, `2._Mitteilung_${nr}.docx`, bin(docx));
+      await put(l, 'AR-001.pdf', '%PDF');
+      await put(pl, `Probenplan ${TP}.pdf`, '%PDF T1'); await put(pl, `Probenplan ${TP} - Termin 20.08.2026.pdf`, '%PDF T2');
+    }, [TP, PJ_KA, docx]);
+    const pg = await neueSeite(); await pg.waitForSelector('#btnInfo'); await start(pg); await pg.locator(`.proj[data-name="${TP}"]`).waitFor();
+    const vorher = await leseText(pg, TP);
+    await oeffne(pg, TP);
+    await pg.locator('#mtZeile:not([hidden]) .mt-tab').first().waitFor();
+    const planZeilen = async () => (await liste(pg)).filter(r => r[1] === 'Probenplan');
+    await pg.locator('#mtZeile [data-mt="m1"]').click();
+    await warte(pg, async () => (await planZeilen()).some(r => r[3] === 'aus Termin 12.08.'), 'Plan der 1. Mitteilung');
+    assert.deepEqual(await planZeilen(), [['Anlage 2', 'Probenplan', `Probenplan ${TP}.pdf`, 'aus Termin 12.08.']], 'bis 1.55: der Termin-2-Plan, „noch in keiner Mitteilung“');
+    assert.equal(await ktext(pg, 'plan'), 'Probenplan in der Liste');
+    await pg.locator('#mtZeile [data-mt="m2"]').click();
+    await warte(pg, async () => (await planZeilen()).some(r => /Nachbeprobung/.test(r[3])), 'Plan der 2. Mitteilung');
+    assert.deepEqual(await planZeilen(), [['Anlage 2', 'Probenplan', `Probenplan ${TP} - Termin 20.08.2026.pdf`, 'aus Termin 20.08. (Nachbeprobung)']]);
+    assert.equal(await leseText(pg, TP), vorher, 'Öffnen und Wechseln schreibt nichts');
+    // Übergabe der 2. Mitteilung sendet nur den Plan von Termin 2
+    if (!await pg.locator('#bueroPanel [data-ab-form]').evaluate(e => e.open)) await pg.locator('#bueroPanel [data-ab-summary]').click();
+    await pg.locator('#bueroPanel [data-ab-los]').click();
+    await pg.locator('#bueroPanel [data-ab-msg]').filter({ hasText: '✓ Ans Büro übergeben' }).waitFor();
+    const a = (await aufgaben(pg, TP)).pop();
+    assert.equal(a.word, `Mitteilungen/2._Mitteilung_${TP.slice(0, 7)}.docx`);
+    assert.deepEqual(a.anlagen, ['Laborergebnisse/AR-001.pdf', `Pläne/Probenplan ${TP} - Termin 20.08.2026.pdf`], 'in Nummernfolge, nur der Plan von Termin 2');
+    // danach: die 1. Mitteilung bekommt weiter ihren Plan; fehlt der Plan von Termin 1, wird es gelb – nie der von Termin 2
+    await pg.locator('#mtZeile [data-mt="m1"]').click();
+    await warte(pg, async () => (await planZeilen()).some(r => r[3] === 'aus Termin 12.08.'), 'Plan der 1. Mitteilung nach der Übergabe');
+    await pg.evaluate(async TP => { const pl = await (await (await (await navigator.storage.getDirectory()).getDirectoryHandle('Mosaik Archivordner')).getDirectoryHandle(TP)).getDirectoryHandle('Pläne');
+      await pl.removeEntry(`Probenplan ${TP}.pdf`); }, TP);
+    await pg.locator(`.proj[data-name="${KA}"]`).click(); await pg.waitForTimeout(300); await oeffne(pg, TP);
+    await pg.locator('#mtZeile [data-mt="m1"]').click();
+    await warte(pg, async () => (await planZeilen()).some(r => r[2] === 'Plan für 12.08. fehlt'), 'Lücke gelb');
+    assert.deepEqual(await planZeilen(), [['–', 'Probenplan', 'Plan für 12.08. fehlt', 'aus Termin 12.08.']]);
+    assert.equal(await ktext(pg, 'plan'), 'Plan für 12.08. fehlt');
+    assert.ok(await pg.locator('[data-kachel="plan"]').evaluate(e => e.classList.contains('luecke')), 'Kachel gelb');
+    await pg.close();
+    console.log('OK 10 Plan je Mitteilung nach ihren Terminen: Liste je Mitteilung, Übergabe sendet den Plan von Termin 2, fehlt → gelb');
+  }
   assert.deepEqual(errors, [], 'keine Fehler im Browser');
   await browser.close(); server.close();
-  console.log(`OK (${name}): 1.54 Mitteilungen als Ebene – Bestand, Zuordnen, Anlagen von Hand, Link, Übergabe in Nummernfolge, eine Mitteilung unverändert, Angebot, zwei Fenster, Schreiben angehalten, FotoKit; 1.55 Laboraufträge je Mitteilung`);
+  console.log(`OK (${name}): 1.54 Mitteilungen als Ebene – Bestand, Zuordnen, Anlagen von Hand, Link, Übergabe in Nummernfolge, eine Mitteilung unverändert, Angebot, zwei Fenster, Schreiben angehalten, FotoKit; 1.55 Laboraufträge je Mitteilung; 1.56 Plan je Termin`);
 })().catch(async e => { console.error('Schritt:', schritt); console.error(e); console.error('Fehler im Browser:', errors); process.exit(1); });

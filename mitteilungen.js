@@ -431,6 +431,43 @@
     const imNamen = fotos.filter(f => BILDDOKU.test(nfc(f.name)) && nfc(f.name).includes('_' + t.datum) && !/alle Termine/i.test(nfc(f.name))).sort((a, b) => nfc(a.name).localeCompare(nfc(b.name), 'de', { numeric: true }));
     return imNamen.length ? { dateien: imNamen.map(f => 'Fotos/' + nfc(f.name)), quelle: 'name', veraltet: null } : null;
   }
+  /** Plan je Mitteilung nach ihren Terminen (ab 1.56.0, claude/plankit-ortstermine-plan.md 4 PR B, T5, T6, T13; Basti 28.11.2026).
+      Nur, wenn die Mitteilung einen Eintrag mit Terminen hat UND im Projekt mindestens eine Plan-PDF mit Termin-Zusatz liegt (PlanKit 2.7.0
+      schreibt sie erst bei mehreren Ortsterminen) – sonst null und alles wie bis 1.55.0 („noch in keiner Mitteilung“).
+      Gerechnet wird nach dem Tag (T13): Tage der Mitteilung = verschiedene gültige Daten ihrer Termine. Deckt sie alle Tage des Projekts ab
+      und sind es mindestens zwei: zuerst der Plan „alle Termine“, gibt es den nicht, je Tag ein Plan; sonst je Tag ein Plan. Termin 1 nimmt
+      die PDF ohne Zusatz, solange es keine mit seinem Datum gibt (anlagen.js planFinden, wahl). Nie der Plan eines anderen Tages.
+      Gefunden → „aus Termin 20.08. (Nachbeprobung)“; nicht gefunden → gelb „Plan für 20.08. fehlt“; entfernter Termin → gelb wie die
+      Bilddokumentation. Steht der Plan in der festen Liste einer anderen Mitteilung, wird er wie bisher nicht vorgeschlagen. */
+  function planJeTermin(m, bez, t, tJe, e, A, inFestAnderer){
+    if (!bez || !bez.length || !A || typeof A.planFinden !== 'function' || typeof A.planName !== 'function') return null;
+    const plaene = e.plaene || [], ordner = nfc(e.ordnerName || '');
+    if (!plaene.some(f => { const z = A.planName(f.name, [ordner]); return z && z.termin && (!ordner || z.ordner); })) return null;
+    const erster = t[0].datum, alleTage = [...new Set(t.map(x => x.datum).filter(Boolean))];
+    const zeilen = [], jeTag = new Map();
+    for (const id of bez){
+      const tt = tJe.get(id);
+      if (!tt){ zeilen.push({ art: 'probenplan', titel: 'Probenplan', dateien: [], herkunft: 'termin', herkunftText: `aus Termin ${id} (entfernt)`, fehlt: true, termin: id, planFuer: id, grund: `Termin ${id} gibt es nicht mehr` }); continue; }
+      if (!tt.datum){ zeilen.push({ art: 'probenplan', titel: 'Probenplan', dateien: [], herkunft: 'termin', herkunftText: `aus Termin ${terminText(tt, true)}`, fehlt: true, termin: id, planFuer: id, grund: `Plan für ${id} fehlt – Termin ohne Datum` }); continue; }
+      if (!jeTag.has(tt.datum)) jeTag.set(tt.datum, []);
+      jeTag.get(tt.datum).push(tt);
+    }
+    const tage = [...jeTag.keys()].sort();
+    const finde = wahl => A.planFinden('probenplan', plaene, e.plan || null, e.ordnerName || '', undefined, wahl);
+    const zeile = (plan, herkunftText, termin, planFuer) => plan
+      ? (plan.dateien.some(p => inFestAnderer(m, p)) ? null : { art: 'probenplan', titel: 'Probenplan', dateien: plan.dateien, herkunft: 'termin', herkunftText, veraltet: plan.veraltet, termin, planFuer })
+      : { art: 'probenplan', titel: 'Probenplan', dateien: [], herkunft: 'termin', herkunftText, fehlt: true, termin, planFuer, grund: `Plan für ${planFuer} fehlt` };
+    if (tage.length >= 2 && alleTage.every(d => jeTag.has(d))){
+      const alle = finde({ termin: 'alle' });
+      if (alle){ const z = zeile(alle, `aus allen Ortsterminen (${tage.map(de).join(' · ')})`, bez.filter(id => tJe.has(id) && tJe.get(id).datum).join(','), 'alle Termine'); if (z) zeilen.push(z); return zeilen; }
+    }
+    for (const d of tage){
+      const ts = jeTag.get(d), namen = ts.map(x => x.bezeichnung).filter(Boolean);
+      const z = zeile(finde({ termin: d, ersterTermin: d === erster }), `aus Termin ${de(d)}${namen.length ? ` (${namen.join(' · ')})` : ''}`, ts.map(x => x.id).join(','), de(d));
+      if (z) zeilen.push(z);
+    }
+    return zeilen;
+  }
   /** Neuester Eintrag aus _BerichtKit.json → berichte[] zur Word-Datei der Mitteilung. */
   function berichtEintrag(m, bk){
     if (!m || !m.datei) return null;
@@ -547,8 +584,12 @@
             if (!inFestAnderer(m, p)) zeilen.push({ art: 'bilddoku', titel: 'Bilddokumentation', dateien: [p], herkunft: 'frei', herkunftText: 'noch in keiner Mitteilung' });
           }
         }
-        const plan = A && typeof A.planFinden === 'function' ? A.planFinden('probenplan', e.plaene || [], e.plan || null, e.ordnerName || '') : null;
-        if (plan && !plan.dateien.some(p => inFestAnderer(m, p))) zeilen.push({ art: 'probenplan', titel: 'Probenplan', dateien: plan.dateien, herkunft: 'frei', herkunftText: 'noch in keiner Mitteilung', veraltet: plan.veraltet });
+        const jeTermin = planJeTermin(m, bez, t, tJe, e, A, inFestAnderer);
+        if (jeTermin) zeilen.push(...jeTermin);
+        else {
+          const plan = A && typeof A.planFinden === 'function' ? A.planFinden('probenplan', e.plaene || [], e.plan || null, e.ordnerName || '') : null;
+          if (plan && !plan.dateien.some(p => inFestAnderer(m, p))) zeilen.push({ art: 'probenplan', titel: 'Probenplan', dateien: plan.dateien, herkunft: 'frei', herkunftText: 'noch in keiner Mitteilung', veraltet: plan.veraltet });
+        }
       }
       // von Hand: weg / dazu (M16 – bleiben, auch wenn sich der Bezug ändert)
       const weg = m.eintrag && Array.isArray(m.eintrag.anlagenWeg) ? m.eintrag.anlagenWeg.map(text) : [];
@@ -565,6 +606,8 @@
       }
       // Bilddoku-Lücke geschlossen, wenn von Hand eine Bilddoku dazukam
       if (zeilen.some(z => z.art === 'bilddoku' && z.dateien.length && z.herkunft === 'hand')) zeilen = zeilen.filter(z => !(z.art === 'bilddoku' && z.fehlt && !z.dateien.length));
+      // ebenso die Plan-Lücke (ab 1.56.0), wenn von Hand ein Probenplan dazukam
+      if (zeilen.some(z => z.art === 'probenplan' && z.dateien.length && z.herkunft === 'hand')) zeilen = zeilen.filter(z => !(z.art === 'probenplan' && z.fehlt && !z.dateien.length));
       zeilen = zeilen.map(z => {
         const fehltDatei = !!vorhanden && z.dateien.some(p => !vorhanden.has(key(p)));
         return { herkunftText: '', fehlt: false, grund: '', veraltet: null, termin: '', ...z, ...(fehltDatei ? { fehlt: true, grund: 'Datei liegt nicht mehr im Projektordner' } : {}) };
@@ -608,10 +651,13 @@
     }
     const pb = z.filter(x => x.art === 'pruefbericht' && x.dateien.length && !x.fehlt).length;
     const plan = z.some(x => x.art === 'probenplan' && x.dateien.length && !x.fehlt);
+    const planFehlt = z.filter(x => x.art === 'probenplan' && x.fehlt && x.planFuer);   // ab 1.56.0: Plan je Termin
+
     const out = {
       fotos,
       labor: pb ? { text: `${anz(pb, 'Prüfbericht', 'Prüfberichte')} in der Liste`, luecke: false } : { text: 'kein Prüfbericht zugeordnet', luecke: true },
-      plan: plan ? { text: 'Probenplan in der Liste', luecke: false } : { text: 'kein Plan zugeordnet', luecke: true },
+      plan: planFehlt.length ? { text: `Plan für ${[...new Set(planFehlt.map(x => x.planFuer))].join(' · ')} fehlt`, luecke: true }
+        : plan ? { text: 'Probenplan in der Liste', luecke: false } : { text: 'kein Plan zugeordnet', luecke: true },
       bericht: { text: `${m.nr}. Mitteilung · ${zustandText(m)}`, luecke: false },
     };
     if (!lage) return out;

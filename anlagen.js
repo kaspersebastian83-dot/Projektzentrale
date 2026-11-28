@@ -113,28 +113,99 @@ function bilddokuFinden(fotos, fk, projektNr, fremd, bilder, projekt) {
   return k;
 }
 
-/** Plan-PDFs aus PlanKit: Pläne/Probenplan <Ordner>[ - <Geschoss>][ - Ergebniskarte][ (k)].pdf – „alle Geschosse“ ohne Geschoss-Zusatz.
-    Nur Dateien mit dem Namen dieses Projektordners: ein hineinkopierter Plan eines anderen Projekts wird nie Anlage. */
-function planFinden(art, plaene, plan, ordnerName, wo) {
-  if (wo && Array.isArray(wo.geschosse)) return planFindenNamen(art, plaene, plan, ordnerName, wo);
-  const ergebnis = art === 'ergebniskarte', praefix = ('Probenplan ' + nfc(ordnerName)).toLowerCase();
+/* Plannamen mit Termin (ab 1.27.0, PlanKit 2.7.0 – claude/plankit-ortstermine-plan.md F7, T5, T6, T10, T13, T18; Basti 28.11.2026).
+   Gemeinsame Namensregel (genau so):
+     Pläne/Probenplan <Ordner>[ - <Plan/Geschoss>][ - Termin TT.MM.JJJJ | - alle Termine][ - Ergebniskarte][ (k)].pdf
+   - Der Termin-Zusatz steht hinter Ordnername und Plan, vor „ - Ergebniskarte“. Nur ein gültiges Datum zählt („Termin 31.02.2026“ ist
+     kein Termin-Zusatz und bleibt, wie bis 1.26, Teil des Plannamens).
+   - Ohne Zusatz = aus der Zeit mit einem Termin; gilt als Termin 1, solange es keine PDF mit „ - Termin <Datum von Termin 1>“ gibt.
+   - Der Zusatz ist nie ein Plan-/Geschossname (der Vergleich mit den Plannamen der .probenplan läuft nach dem Abtrennen).
+   - Gerechnet wird nach dem Tag (T13): zwei Ortstermine am selben Tag sind ein Eintrag. */
+const TERMIN_ZUSATZ = / - (?:Termin (\d{2})\.(\d{2})\.(\d{4})|(alle Termine))$/i;
+const ERGEBNIS_ZUSATZ = / - Ergebniskarte$/i;
+const tagGueltig = v => { if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return false; const d = new Date(v + 'T12:00:00Z'); return Number.isFinite(d.getTime()) && d.toISOString().slice(0, 10) === v; };
+const terminDe = v => v === 'alle' ? 'alle Termine' : v ? `Termin ${v.slice(8, 10)}.${v.slice(5, 7)}.${v.slice(0, 4)}` : 'ohne Termin-Zusatz';
+/** Einen Plan-PDF-Namen zerlegen (die eine Stelle für die Namensregel). ordnerNamen: bekannte Ordnernamen (jetziger, frühere) – die PDF
+    gehört zum längsten, mit dem ihr Name beginnt (danach Ende oder „ - “). → { name, ohne (ohne „ (k)“), kern („Probenplan <Ordner>[ - <Plan>]“),
+    ordner ('' = keiner der bekannten), plan, termin ('JJJJ-MM-TT' | 'alle' | ''), ergebnis, kopie (k oder 0) } | null (kein Probenplan-PDF) */
+function planName(name, ordnerNamen) {
+  const n = nfc(name); if (!/^Probenplan\b.*\.pdf$/i.test(n)) return null;
+  const km = KOPIE.exec(n), ohne = n.replace(KOPIE, '');
+  let kern = ohne.replace(/\.pdf$/i, '');
+  const ergebnis = ERGEBNIS_ZUSATZ.test(kern); if (ergebnis) kern = kern.replace(ERGEBNIS_ZUSATZ, '');
+  let termin = '';
+  const tm = TERMIN_ZUSATZ.exec(kern);
+  if (tm) { const v = tm[4] ? 'alle' : `${tm[3]}-${tm[2]}-${tm[1]}`; if (v === 'alle' || tagGueltig(v)) { termin = v; kern = kern.slice(0, tm.index); } }
+  const klein = kern.toLowerCase();
+  const ordner = (ordnerNamen || []).map(nfc).filter(o => { if (!o) return false; const p = ('Probenplan ' + o).toLowerCase(); return klein === p || klein.startsWith(p + ' - '); })
+    .sort((x, y) => y.length - x.length)[0] || '';
+  const plan = ordner ? kern.slice(('Probenplan ' + ordner).length).replace(/^ - /, '').trim() : '';
+  return { name: n, ohne, kern, ordner, plan, termin, ergebnis, kopie: km ? +km[1] : 0 };
+}
+
+/** Plan-PDFs aus PlanKit: Pläne/Probenplan <Ordner>[ - <Geschoss>][ - Termin …][ - Ergebniskarte][ (k)].pdf – „alle Geschosse“ ohne Geschoss-Zusatz.
+    Nur Dateien mit dem Namen dieses Projektordners: ein hineinkopierter Plan eines anderen Projekts wird nie Anlage.
+    wo (o11): mit lesbarer .probenplan { frueher, geschosse, nr } → planFindenNamen; sonst das ältere Verfahren (planFindenAlt).
+    wahl (ab 1.27.0, optional): { termin: 'JJJJ-MM-TT' | 'alle', ersterTermin: true|false } – nur die PDFs dieses Termins; für Termin 1
+    die PDFs ohne Zusatz, wenn es keine mit dem Zusatz von Termin 1 gibt. Nichts gefunden → null. Nie eine PDF eines anderen Termins.
+    Ohne wahl: Liegt keine PDF mit Termin-Zusatz da, ist das Ergebnis genau wie bis 1.26. Sonst Fassungen je Gruppe (ohne Zusatz · je
+    Datum · alle Termine): gewählt wird die neueste Gruppe, aber nie vorgehakt (unklar), der Hinweis nennt alle Gruppen. Die o11-Regeln
+    gelten innerhalb jeder Gruppe weiter. Mit Termin-PDFs (oder mit wahl) nennt das Ergebnis zusätzlich termin (der gewählten Dateien)
+    und termine (alle gefundenen, '' = ohne Zusatz). */
+function planFinden(art, plaene, plan, ordnerName, wo, wahl) {
+  const mitNamen = !!(wo && Array.isArray(wo.geschosse)), ergebnis = art === 'ergebniskarte';
+  const namen = mitNamen ? [nfc(ordnerName), ...(wo.frueher || []).map(nfc)].filter((n, i, a) => n && a.findIndex(x => x.toLowerCase() === n.toLowerCase()) === i) : [nfc(ordnerName)];
+  const liste = [];
+  for (const f of plaene || []) { const z = planName(f.name, namen); if (z && z.ergebnis === ergebnis) liste.push({ ...z, t: +f.t || 0 }); }
+  const kern = l => mitNamen ? planFindenNamen(art, l, plan, ordnerName, wo, namen) : planFindenAlt(art, l, plan, ordnerName);
+  if (!wahl && !liste.some(x => x.termin)) return kern(liste);   // bis 1.26: genau wie bisher
+  // Gruppen je Termin – nur Gruppen mit einem Plan dieses Projekts zählen (ein kopierter Termin-Plan eines anderen Projekts nie)
+  const RANG = v => v === '' ? 0 : v === 'alle' ? 2 : 1;
+  const gruppen = [...new Set(liste.map(x => x.termin))].sort((a, b) => RANG(a) - RANG(b) || a.localeCompare(b))
+    .map(termin => ({ termin, k: kern(liste.filter(x => x.termin === termin)) })).filter(g => g.k);
+  const termine = gruppen.map(g => g.termin);
+  const mitTermin = (g, extra) => {
+    const k = { ...g.k, termin: g.termin, termine, ...extra };
+    // T18: bei einem Termin-Plan ehrlich sagen, dass die Änderung einen anderen Termin betreffen kann – nur Hinweis, nie Sperre
+    if (k.veraltet && g.termin) k.grund = 'Plan in PlanKit nach dem Export geändert – prüfen, ob dieser Termin betroffen ist';
+    return k;
+  };
+  if (wahl) {
+    const soll = s(wahl.termin);
+    if (soll !== 'alle' && !tagGueltig(soll)) return null;
+    const g = gruppen.find(x => x.termin === soll) || (wahl.ersterTermin && soll !== 'alle' ? gruppen.find(x => x.termin === '') : null);
+    return g ? mitTermin(g) : null;
+  }
+  if (!gruppen.length) return null;
+  if (gruppen.length === 1 && gruppen[0].termin === '') return gruppen[0].k;   // Termin-PDFs nur aus anderen Projekten: wie bisher
+  const w = [...gruppen].sort((a, b) => b.k.t - a.k.t || RANG(b.termin) - RANG(a.termin) || b.termin.localeCompare(a.termin))[0];
+  const nenne = g => g.k.dateien.map(p => `„${p.replace(/^Pläne\//, '')}“`).join(', ');
+  const wort = ergebnis ? ['Ergebniskarte', 'Ergebniskarten'] : ['Probenplan', 'Probenpläne'];
+  const text = (gruppen.length > 1
+    ? `${wort[1]} für mehrere Ortstermine: ${gruppen.map(g => `${nenne(g)} (${terminDe(g.termin)})`).join(' und ')} – bitte wählen; angehakt kommt ${nenne(w)} in den Bericht`
+    : `${wort[0]} für einen Ortstermin: ${nenne(w)} (${terminDe(w.termin)}) – bitte prüfen, ob er in diesen Bericht gehört`)
+    + (w.k.unklarText ? `; außerdem: ${w.k.unklarText}` : '');
+  return mitTermin(w, { unklar: true, unklarText: text, terminUnklar: true });
+}
+
+/** Das ältere Verfahren (ohne lesbare .probenplan): jeder Namensteil hinter dem Ordnernamen gilt als Geschoss, die neueste Gruppe gewinnt.
+    liste: zerlegte Namen (planName) dieser Art mit t. */
+function planFindenAlt(art, liste, plan, ordnerName) {
+  const praefix = ('Probenplan ' + nfc(ordnerName)).toLowerCase();
   const neueste = new Map();   // Name ohne „ (k)“ → neueste Datei
-  for (const f of plaene || []) {
-    const name = nfc(f.name); if (!/^Probenplan\b.*\.pdf$/i.test(name)) continue;
-    const ohne = name.replace(KOPIE, ''), istErg = / - Ergebniskarte\.pdf$/i.test(ohne);
-    if (s(ordnerName) && !ohne.toLowerCase().startsWith(praefix)) continue;   // Plan eines anderen Projekts (kopiert) – nie als Anlage
-    if (istErg !== ergebnis) continue;
-    const key = ohne.toLowerCase(), alt = neueste.get(key);
-    if (!alt || (+f.t || 0) > alt.t) neueste.set(key, { name, ohne, t: +f.t || 0 });
+  for (const x of liste) {
+    if (s(ordnerName) && !x.ohne.toLowerCase().startsWith(praefix)) continue;   // Plan eines anderen Projekts (kopiert) – nie als Anlage
+    const key = x.ohne.toLowerCase(), alt = neueste.get(key);
+    if (!alt || x.t > alt.t) neueste.set(key, x);
   }
   if (!neueste.size) return null;
   const geschoss = x => {
-    let rest = x.ohne.replace(/\.pdf$/i, '').replace(/ - Ergebniskarte$/i, '');
+    let rest = x.kern;
     if (rest.toLowerCase().startsWith(praefix)) rest = rest.slice(praefix.length);
     else { const i = rest.lastIndexOf(' - '); rest = i > 0 ? rest.slice(i) : ''; }
     return rest.replace(/^ - /, '').trim();
   };
-  const alle = [...neueste.values()].map(x => ({ ...x, geschoss: geschoss(x) }));
+  const alle = [...neueste.values()].map(x => ({ name: x.name, t: x.t, geschoss: geschoss(x) }));
   const gesamt = alle.filter(x => !x.geschoss).sort((a, b) => b.t - a.t)[0];
   const je = alle.filter(x => x.geschoss).sort((a, b) => a.geschoss.localeCompare(b.geschoss, 'de', { numeric: true }));
   const nimm = gesamt && (!je.length || gesamt.t >= Math.max(...je.map(x => x.t))) ? [gesamt] : je;
@@ -146,29 +217,25 @@ function planFinden(art, plaene, plan, ordnerName, wo) {
   return k;
 }
 
-/** Audit o11 – nur wenn eine .probenplan gelesen werden konnte (sonst planFinden wie bisher).
+/** Audit o11 – nur wenn eine .probenplan gelesen werden konnte (sonst planFindenAlt wie bisher).
     wo.frueher: frühere Ordnernamen aus den Namen der eigenen .probenplan-Dateien („Probenplan <Ordner>.probenplan“, z. B. nach dem
     Umbenennen des Ordners); wo.geschosse: Namen der Pläne in der gelesenen .probenplan (PlanKit floorName – nur bei mehr als einem Plan,
     Zeichen wie im Export ersetzt). Eine PDF gehört zum längsten Ordnernamen, mit dem ihr Name beginnt (danach Ende oder „ - “) – ein
     früherer, längerer Name wird so kein „Geschoss“. Ein Geschoss-Zusatz, den es im Plan nicht gibt, ist unklar. Gibt es mehr als eine
     passende Fassung (jetziger und früherer Name, zwei frühere Namen, unklares Geschoss), wählt BerichtKit nicht still: Hinweis, und
-    vorgehakt nur, wenn die PDF unter dem jetzigen Namen die neueste ist. */
-function planFindenNamen(art, plaene, plan, ordnerName, wo) {
-  const ergebnis = art === 'ergebniskarte', jetzt = nfc(ordnerName);
-  const namen = [jetzt, ...(wo.frueher || []).map(nfc)].filter((n, i, a) => n && a.findIndex(x => x.toLowerCase() === n.toLowerCase()) === i);
+    vorgehakt nur, wenn die PDF unter dem jetzigen Namen die neueste ist. liste: zerlegte Namen (planName mit namen) dieser Art mit t. */
+function planFindenNamen(art, liste, plan, ordnerName, wo, namen) {
+  const jetzt = nfc(ordnerName);
   const geschosse = new Set(wo.geschosse.map(g => nfc(g).replace(/[<>:"/\\|?*]/g, '_').toLowerCase()));
   const neueste = new Map();
-  for (const f of plaene || []) {
-    const name = nfc(f.name); if (!/^Probenplan\b.*\.pdf$/i.test(name)) continue;
-    const ohne = name.replace(KOPIE, ''), istErg = / - Ergebniskarte\.pdf$/i.test(ohne); if (istErg !== ergebnis) continue;
-    const kern = ohne.replace(/\.pdf$/i, '').replace(/ - Ergebniskarte$/i, ''), klein = kern.toLowerCase();
-    const ordner = namen.filter(n => { const p = ('Probenplan ' + n).toLowerCase(); return klein === p || klein.startsWith(p + ' - '); }).sort((x, y) => y.length - x.length)[0];
+  for (const x of liste) {
+    const ordner = x.ordner, klein = x.kern.toLowerCase();
     // Kein bekannter Name: mit der Projektnummer dieses Projekts vorn (z. B. frühere .probenplan von Hand gelöscht) → unklar, sonst nie
     const nrVorn = !ordner && s(wo.nr) && new RegExp('^probenplan ' + s(wo.nr).replace(/\./g, '\\.') + '(?![0-9])').test(klein);
     if (!ordner && !nrVorn) continue;   // anderes Projekt (kopiert) – nie als Anlage
-    const geschoss = ordner ? kern.slice(('Probenplan ' + ordner).length).replace(/^ - /, '').trim() : '';
-    const key = ohne.toLowerCase(), alt = neueste.get(key);
-    if (!alt || (+f.t || 0) > alt.t) neueste.set(key, { name, t: +f.t || 0, ordner: ordner || '', geschoss, ohneName: !ordner,
+    const geschoss = ordner ? x.plan : '';
+    const key = x.ohne.toLowerCase(), alt = neueste.get(key);
+    if (!alt || x.t > alt.t) neueste.set(key, { name: x.name, t: x.t, ordner: ordner || '', geschoss, ohneName: !ordner,
       unbekannt: !ordner || (!!geschoss && !geschosse.has(geschoss.toLowerCase())) });
   }
   if (!neueste.size) return null;
@@ -290,6 +357,7 @@ function zusammenstellen(o) {
     if (k.unklarText) {   // o11: mehrere passende Probenpläne oder nur einer unter einem früheren Namen – nie still gewählt
       if (!k.unklar) hinweise.push(`${A.titel}: ${k.unklarText}.`);
       else if (an) hinweis(`${A.titel} ist angehakt, aber ${k.unklarText}.`, art, 'öffnen');
+      else if (k.terminUnklar) hinweis(`${A.titel}: ${k.unklarText}. Nicht im Bericht – den Plan für diesen Bericht anhaken.`, art, 'öffnen');   // 1.27.0
       else hinweis(`${A.titel}: ${k.unklarText}. Nicht im Bericht – in ${A.app} neu exportieren (und den alten Plan löschen) oder trotzdem anhaken.`, art, 'öffnen');
     }
     const mangel = k.unvollstaendig ? 'unvollständig' : k.veraltet ? 'veraltet' : '';
@@ -318,7 +386,7 @@ function verweisSatz(nr, eine) {
   return '';
 }
 
-const API = { VERSION: 1, ARTEN, PROFILE, erkennen, zusammenstellen, verweisSatz, protokollLesen, bilddokuFinden, planFinden, wordFinden };
+const API = { VERSION: 1, ARTEN, PROFILE, erkennen, zusammenstellen, verweisSatz, protokollLesen, bilddokuFinden, planFinden, planName, wordFinden };
 if (typeof module === 'object' && module.exports) module.exports = API;
 root.BerichtAnlagen = API;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

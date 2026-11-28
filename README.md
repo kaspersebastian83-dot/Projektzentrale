@@ -2,7 +2,15 @@
 
 Alle Projektordner im Überblick – Status je Unterordner, gemeinsame Projektdaten und Absprung in die Projekt-Apps LabelKit, FotoKit (früher Bildumbenenner), PlanKit (früher Probenplan) und BelegKit (früher AufwandKit). Dazu ohne Projektbezug SpesenKit (früher Reisekosten Pro) für die monatliche Spesenabrechnung, GlasKit (Gebäude aus Glas, 3D-Ansicht der PlanKit-Pläne) und LexiKit (Themensuche in den fertigen Berichten).
 
-**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.55.0** (Änderungen: Klick auf die Versionsnummer in der App)
+**App öffnen:** https://kaspersebastian83-dot.github.io/Projektzentrale/ · aktuelle Version **1.56.0** (Änderungen: Klick auf die Versionsnummer in der App)
+
+## Neu in 1.56.0 · 28.11.2026 – Probenplan je Mitteilung nach Termin (PlanKit-Ortstermine, PR B)
+
+Plan `claude/plankit-ortstermine-plan.md` (F7, Abschnitt 4 PR B, T5, T6, T10, T13), Spektron-Projekt. Vorbereitung für PlanKit 2.7.0; zusammen mit BerichtKit 1.27.0 (gleichnamiger Zweig `plan-termin-namen`).
+- **`anlagen.js`** byte-gleich aus BerichtKit 1.27.0: Namensregel `Probenplan <Ordner>[ - <Plan>][ - Termin TT.MM.JJJJ | - alle Termine][ - Ergebniskarte][ (k)].pdf` (`planName`), neuer optionaler Parameter `{ termin, ersterTermin }` für `planFinden`.
+- **`mitteilungen.js`** (`planJeTermin`, nur im Zweig „eigener Vorschlag“ von `anlagenListen`): nur wenn die Mitteilung einen Eintrag mit Terminen hat und im Projekt mindestens eine Plan-PDF mit Termin-Zusatz liegt. Tage = verschiedene gültige Daten ihrer Termine (T13). Alle Tage des Projekts (mindestens zwei) → zuerst „alle Termine“, sonst je Tag. Gefunden → „aus Termin 20.08. (Nachbeprobung)“, nicht gefunden → gelb „Plan für 20.08. fehlt“, entfernter Termin → gelb „Termin t3 gibt es nicht mehr“. Feste Listen, BerichtKit-Zeilen und Zeilen von Hand wie bisher. Kachel „Plan“ gelb bei „fehlt“. Mehrere Plan-Zeilen (je Tag) sind eine Anlage.
+- Unverändert: `project-store.js`, `buero-aufgaben.js`, `ortstermine.js`, `laborauftraege.js`, `word-wahl.js`, `durchlauf.js`, `spektron-ordner.js`, `stufen.js`, Format von `_Projekt.json`, Prüfbericht- und Bilddoku-Vorschlag, feste Listen. Ein Projekt ohne Termin-PDFs: Anlagen-Listen genau wie 1.55.0 (Test gegen gespeichertes Ergebnis, 42 Fälle).
+- Tests: `tests/mitteilungen.cjs` (Plan je Termin, fehlt, T13, „alle Termine“, entfernter Termin, übergeben, Angebot, ohne Termin-PDFs wie 1.55.0), `tests/mitteilungen-browser.cjs` Teil 10.
 
 ## Neu in 1.55.0 · 27.11.2026 – Laboraufträge je Mitteilung (Plan 4, Entscheidungen P1–P9)
 

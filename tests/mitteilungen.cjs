@@ -407,4 +407,89 @@ console.log('OK mitteilungen: Kacheltext je Mitteilung ändert nur Text und gelb
   assert.equal(JSON.stringify([...M.anlagenListen(l, E2(d, lab(A1), M.auftragsLage(LK1, erg('E'))), A)]), JSON.stringify([...M.anlagenListen(l, E2(d, lab(A1), undefined), A)]));
   console.log('OK mitteilungen 1.55: ohne Lage und ohne viertes Argument byte-gleich mit 1.54.0; ein Auftrag wie ohne Lage');
 }
+
+// ---------- 1.56.0: Plan je Mitteilung nach ihren Terminen (claude/plankit-ortstermine-plan.md 4 PR B, T5, T6, T13) ----------
+{
+  const fs = require('node:fs');
+  const LA = require('../laborauftraege.js');
+  const P = (...l) => l.map(([z, iso]) => ({ name: `Probenplan ${ORDNER}${z}.pdf`, t: ms(iso) }));
+  const T1 = ['', '2026-08-13T11:00:00'], T2 = [' - Termin 20.08.2026', '2026-08-22T11:00:00'];
+  const E = (d, pl, x = {}) => ({ ...e(d), plaene: pl, vorhanden: new Set([...vorhanden, ...pl.map(f => ('pläne/' + f.name).normalize('NFC').toLowerCase())]), ...x });
+  const plan = (L, k) => L.get(k).zeilen.filter(z => z.art === 'probenplan').map(z => [z.nr, z.dateien.map(x => x.split('/').pop()).join(' | '), z.herkunftText, z.fehlt ? z.grund : '']);
+  const kachel = (l, L, d, i) => M.kachelTexte(l.mitteilungen[i], L.get(l.mitteilungen[i].schluessel), d).plan;
+  const zweiTerm = { ...pj, weitereMitteilungen: [{ id: 'm1', nr: 1, termine: ['t1'], auftraege: [] }, { id: 'm2', nr: 2, termine: ['t2'], auftraege: [] }], mitteilungZaehler: 2 };
+  let l = M.liste(zweiTerm, word, []), L;
+
+  // F7: m1 → Plan ohne Zusatz „aus Termin 12.08.“, m2 → Termin-20.08.-Plan (bis 1.55: beide den Termin-2-Plan „noch in keiner Mitteilung“)
+  L = M.anlagenListen(l, E(zweiTerm, P(T1, T2)), A);
+  assert.deepEqual(plan(L, 'm1'), [[5, `Probenplan ${ORDNER}.pdf`, 'aus Termin 12.08.', '']]);
+  assert.deepEqual(plan(L, 'm2'), [[5, `Probenplan ${ORDNER} - Termin 20.08.2026.pdf`, 'aus Termin 20.08. (Nachbeprobung)', '']]);
+  assert.deepEqual(L.get('m1').zeilen.find(z => z.art === 'probenplan').auch, [], 'nie in beiden');
+  assert.deepEqual(kachel(l, L, zweiTerm, 1), { text: 'Probenplan in der Liste', luecke: false });
+  // EG und 1. OG: je Mitteilung nur die Pläne ihres Termins, eine Anlage (bis 1.55: alle vier PDFs in einer Zeile)
+  L = M.anlagenListen(l, E(zweiTerm, P([' - EG', T1[1]], [' - 1. OG', T1[1]], [' - EG - Termin 20.08.2026', T2[1]], [' - 1. OG - Termin 20.08.2026', T2[1]])), A);
+  assert.deepEqual(plan(L, 'm1'), [[5, `Probenplan ${ORDNER} - 1. OG.pdf | Probenplan ${ORDNER} - EG.pdf`, 'aus Termin 12.08.', '']]);
+  assert.deepEqual(plan(L, 'm2'), [[5, `Probenplan ${ORDNER} - 1. OG - Termin 20.08.2026.pdf | Probenplan ${ORDNER} - EG - Termin 20.08.2026.pdf`, 'aus Termin 20.08. (Nachbeprobung)', '']]);
+  // Termin 1 mit eigenem Zusatz geht vor der PDF ohne Zusatz
+  L = M.anlagenListen(l, E(zweiTerm, P(T1, T2, [' - Termin 12.08.2026', '2026-08-22T12:00:00'])), A);
+  assert.deepEqual(plan(L, 'm1'), [[5, `Probenplan ${ORDNER} - Termin 12.08.2026.pdf`, 'aus Termin 12.08.', '']]);
+  console.log('OK mitteilungen 1.56: Plan je Mitteilung nach ihrem Termin (F7), EG/1. OG nie gemischt, Termin 1 mit Zusatz vor ohne');
+
+  // fehlt → gelb, Kachel gelb; nie der Plan eines anderen Termins
+  L = M.anlagenListen(l, E(zweiTerm, P([' - Termin 12.08.2026', T2[1]])), A);
+  assert.deepEqual(plan(L, 'm1'), [[5, `Probenplan ${ORDNER} - Termin 12.08.2026.pdf`, 'aus Termin 12.08.', '']]);
+  assert.deepEqual(plan(L, 'm2'), [[null, '', 'aus Termin 20.08. (Nachbeprobung)', 'Plan für 20.08. fehlt']]);
+  assert.deepEqual(kachel(l, L, zweiTerm, 1), { text: 'Plan für 20.08. fehlt', luecke: true });
+  assert.deepEqual(M.pfade(L.get('m2').zeilen).filter(p => /^Pläne/.test(p)), [], 'nichts übergeben');
+  L = M.anlagenListen(l, E(zweiTerm, P(T2)), A);
+  assert.deepEqual(plan(L, 'm1'), [[null, '', 'aus Termin 12.08.', 'Plan für 12.08. fehlt']], 'nie der Termin-2-Plan für Termin 1');
+  // von Hand ein Plan dazu → Lücke geschlossen
+  const hand = { ...zweiTerm, weitereMitteilungen: [zweiTerm.weitereMitteilungen[0], { ...zweiTerm.weitereMitteilungen[1], anlagenDazu: [`Pläne/Probenplan ${ORDNER} - Skizze.pdf`] }] };
+  L = M.anlagenListen(M.liste(hand, word, []), E(hand, [...P([' - Termin 12.08.2026', T2[1]]), ...P([' - Skizze', T2[1]])]), A);
+  assert.deepEqual(plan(L, 'm2'), [[5, `Probenplan ${ORDNER} - Skizze.pdf`, 'von Hand', '']]);
+  // Termin-Plan eines anderen Projekts: nie, und er schaltet die Termin-Zuordnung nicht ein
+  const fremd = { name: 'Probenplan 99.8888 Andere Straße Köln Ben - Termin 20.08.2026.pdf', t: ms(T2[1]) };
+  L = M.anlagenListen(l, E(zweiTerm, [...P(T1), fremd]), A);
+  assert.deepEqual(plan(L, 'm2'), [[5, `Probenplan ${ORDNER}.pdf`, 'noch in keiner Mitteilung', '']], 'wie bis 1.55');
+  console.log('OK mitteilungen 1.56: fehlt gelb (Zeile und Kachel), nie ein anderer Termin, von Hand schließt die Lücke, fremdes Projekt nie');
+
+  // T13: zwei Termine am selben Tag sind ein Eintrag; Mitteilung über alle Tage → „alle Termine“, sonst je Tag (eine Anlage)
+  const gleich = { ...pj, weitereOrtstermine: [...pj.weitereOrtstermine, { id: 't3', datum: '2026-08-20', bezeichnung: 'Freimessung' }], ortsterminZaehler: 3,
+    weitereMitteilungen: [{ id: 'm1', nr: 1, termine: ['t1'], auftraege: [] }, { id: 'm2', nr: 2, termine: ['t2', 't3'], auftraege: [] }], mitteilungZaehler: 2 };
+  L = M.anlagenListen(M.liste(gleich, word, []), E(gleich, P(T1, T2)), A);
+  assert.deepEqual(plan(L, 'm2'), [[5, `Probenplan ${ORDNER} - Termin 20.08.2026.pdf`, 'aus Termin 20.08. (Nachbeprobung · Freimessung)', '']]);
+  const alle = { ...zweiTerm, weitereMitteilungen: [zweiTerm.weitereMitteilungen[0], { ...zweiTerm.weitereMitteilungen[1], termine: ['t1', 't2'] }] };
+  const la = M.liste(alle, word, []);
+  L = M.anlagenListen(la, E(alle, P(T1, T2, [' - alle Termine', '2026-08-22T12:00:00'])), A);
+  assert.deepEqual(plan(L, 'm2'), [[5, `Probenplan ${ORDNER} - alle Termine.pdf`, 'aus allen Ortsterminen (12.08. · 20.08.)', '']]);
+  L = M.anlagenListen(la, E(alle, P(T1, T2)), A);
+  assert.deepEqual(plan(L, 'm2'), [[5, `Probenplan ${ORDNER}.pdf`, 'aus Termin 12.08.', ''], [5, `Probenplan ${ORDNER} - Termin 20.08.2026.pdf`, 'aus Termin 20.08. (Nachbeprobung)', '']], 'je Tag, eine Anlage wie Plan je Geschoss');
+  assert.deepEqual(M.pfade(L.get('m2').zeilen).filter(p => /^Pläne/.test(p)), [`Pläne/Probenplan ${ORDNER}.pdf`, `Pläne/Probenplan ${ORDNER} - Termin 20.08.2026.pdf`]);
+  L = M.anlagenListen(la, E(alle, P(T2)), A);
+  assert.deepEqual(plan(L, 'm2'), [[5, `Probenplan ${ORDNER} - Termin 20.08.2026.pdf`, 'aus Termin 20.08. (Nachbeprobung)', ''], [null, '', 'aus Termin 12.08.', 'Plan für 12.08. fehlt']], 'fehlt hinter der Zeile mit Nummer');
+  assert.deepEqual(M.kachelTexte(la.mitteilungen[1], L.get('m2'), alle).plan, { text: 'Plan für 12.08. fehlt', luecke: true });
+  // „alle Termine“ nur, wenn die Mitteilung ALLE Tage abdeckt (hier nur t2 → je Tag)
+  L = M.anlagenListen(l, E(zweiTerm, P(T1, T2, [' - alle Termine', '2026-08-22T12:00:00'])), A);
+  assert.deepEqual(plan(L, 'm2'), [[5, `Probenplan ${ORDNER} - Termin 20.08.2026.pdf`, 'aus Termin 20.08. (Nachbeprobung)', '']]);
+  console.log('OK mitteilungen 1.56: zwei Termine am selben Tag ein Eintrag, „alle Termine“ nur über alle Tage, sonst je Tag als eine Anlage');
+
+  // entfernter Termin → gelb wie die Bilddokumentation; 1. Mitteilung übergeben → fest, ihr Plan wird der 2. nicht vorgeschlagen
+  const weg = { ...zweiTerm, weitereMitteilungen: [zweiTerm.weitereMitteilungen[0], { ...zweiTerm.weitereMitteilungen[1], termine: ['t1', 't2', 't9'] }] };
+  l = M.liste(weg, word, [a1]);   // a1: 1. Mitteilung mit dem Plan ohne Zusatz übergeben
+  L = M.anlagenListen(l, E(weg, P(T1, T2)), A);
+  assert.equal(L.get('m1').fest, true);
+  assert.deepEqual(plan(L, 'm1'), [[3, `Probenplan ${ORDNER}.pdf`, 'mit der Übergabe festgehalten', '']]);
+  assert.deepEqual(plan(L, 'm2'), [[4, `Probenplan ${ORDNER} - Termin 20.08.2026.pdf`, 'aus Termin 20.08. (Nachbeprobung)', ''], [null, '', 'aus Termin t9 (entfernt)', 'Termin t9 gibt es nicht mehr']], 'Plan von Termin 1 ging mit der 1. hinaus – nicht noch einmal');
+  assert.deepEqual(M.kachelTexte(l.mitteilungen[1], L.get('m2'), weg).plan, { text: 'Plan für t9 fehlt', luecke: true });
+  console.log('OK mitteilungen 1.56: entfernter Termin gelb, übergebene Mitteilung fest, ihr Plan nicht noch einmal vorgeschlagen');
+
+  // Angebot „2. Mitteilung beginnen …“: ein Termin-Plan nach der Übergabe zählt als neu (wie jeder Plan-Export)
+  const eins = { ortstermin: '2026-08-12', weitereOrtstermine: [] }, le = M.liste(eins, [word[0]], [{ ...a1, anlagen: [`Pläne/Probenplan ${ORDNER}.pdf`] }]);
+  assert.match(M.angebot(le, { pj: eins, fotos: [], plaene: P(T1, T2), labor: [] }).text, /„Probenplan 26\.0999 Teststadt Ka - Termin 20\.08\.2026\.pdf“/);
+
+  // Ein Projekt ohne Termin-PDFs: Anlagen-Listen, Kacheln, Angebot genau wie 1.55.0 (gespeichertes Ergebnis von fa8dfe8)
+  const vorher = fs.readFileSync(path.join(__dirname, 'fixtures', 'mitteilungen-1.55.0.json'), 'utf8');
+  assert.equal(JSON.stringify(require('./fixtures/mitteilungen-faelle-1.55.cjs')(M, A, LA)) + '\n', vorher, 'ohne Termin-PDFs wie 1.55.0');
+  console.log('OK mitteilungen 1.56: Angebot mit Termin-Plan; ohne Termin-PDFs byte-gleich mit 1.55.0 (42 Fälle)');
+}
 void path;
