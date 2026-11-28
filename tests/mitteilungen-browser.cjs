@@ -12,6 +12,11 @@
 //  7. Schreiben künstlich angehalten → zwei Änderungen an den Anlagen hintereinander, keine geht verloren
 //  8. FotoKit 2.7.0 (../Bildumbenenner) speichert das Deckblatt – weitereMitteilungen und mitteilungZaehler bleiben
 //     (ohne FotoKit daneben übersprungen – in der CI nie, FOTOKIT_PFLICHT)
+//  9. 1.55 Laboraufträge je Mitteilung („26.0994 Auftrag Ka“: LabelKit-Datei von LabelKit 5.5.0 mit zwei Aufträgen, „_Ergebnisse.json“ von
+//     ResultKit 2.7.0, 1. Mitteilung am 19.08. übergeben mit AR-26-0001-01, Einträge von 1.54.0 mit auftraege: []): Öffnen schreibt nichts,
+//     gelbe Zeile „Gehört zu keiner Mitteilung: Auftrag 2 …“, Rückfrage mit Auftrags-Tabelle und Vorwahl, ein Patch; Prüfberichte getrennt,
+//     Kacheltexte; BerichtKit-Zeile gelb (P9); Übernahme veraltet → Satz; neuer Auftrag und „+ Weiterer Ortstermin“ → gelbe Zeile; zwei
+//     Fenster → Widerspruch; ein Auftrag („26.0993 EinAuftrag Ka“) → keine Tabelle, Datei byte-gleich; FotoKit speichert ohne Verlust von auftraege
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const http = require('node:http');
@@ -21,6 +26,7 @@ const playwright = require('playwright');
 const name = process.argv[2] || 'chromium';
 const root = path.join(__dirname, '..'), fkRoot = path.join(root, '..', 'Bildumbenenner');
 const KA = '26.0999 Teststadt Ka', EINS = '26.0998 Einzel Ka', ZWEI = '26.0997 Zwei Ka', LANG = '26.0996 Langsam Ka', FEHL = '26.0995 Fehler Ka';
+const AUF = '26.0994 Auftrag Ka', EIN1 = '26.0993 EinAuftrag Ka', SPAET = '26.0992 Spaet Ka', OHNE = '26.0991 OhneLabor Ka';   // 1.55
 const TYP = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.pdf': 'application/pdf', '.json': 'application/json', '.png': 'image/png' };
 const errors = [];
 let schritt = 'Start';
@@ -140,6 +146,50 @@ let schritt = 'Start';
   const liste = pg => pg.locator('#bueroPanel [data-mt-karte] table.mt-anl tr').evaluateAll(r => r.map(e => [...e.querySelectorAll('td')].slice(0, 4).map(td => td.textContent.replace(/\s+/g, ' ').trim())));
   const dialogOk = async pg => { await pg.locator('#dialog #dYes').click(); await pg.waitForFunction(() => !document.getElementById('dlgBack').classList.contains('show')); };
 
+
+  // ---------- 1.55: Projekte mit Laboraufträgen (Vorlagen: LabelKit 5.5.0 im Browser, ResultKit 2.7.0 echte Module; erfundene Prüfberichte) ----------
+  const vorlage = n => fs.readFileSync(path.join(__dirname, 'fixtures', n), 'utf8');
+  const lkFuer = (n, datei) => vorlage(datei).replace(/26\.0999/g, n.slice(0, 7));
+  await page.evaluate(async ([AUF, EIN1, PJ_KA, docx, lk2, lk1, ergA, ergE, SPAET, OHNE, lkOhne]) => {
+    const archiv = await (await navigator.storage.getDirectory()).getDirectoryHandle('Mosaik Archivordner');
+    const pause = () => new Promise(res => setTimeout(res, 15));
+    const put = async (d, n, t) => { const w = await (await d.getFileHandle(n, { create: true })).createWritable(); await w.write(t); await w.close(); await pause(); };
+    const bin = b64 => Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+    const sub = async (d, ...ns) => { for (const n of ns) d = await d.getDirectoryHandle(n, { create: true }); return d; };
+    const projekt = async (name, lk, erg, o) => {
+      const nr = name.slice(0, 7), p = await sub(archiv, name);
+      const auf = o.auftraege || [[], []];
+      await put(p, '_Projekt.json', JSON.stringify({ ...PJ_KA, weitereMitteilungen: [{ id: 'm1', nr: 1, termine: ['t1'], auftraege: auf[0], angelegt: '2026-08-21T10:00:00.000Z', von: 'Ka' },
+        { id: 'm2', nr: 2, termine: ['t2'], auftraege: auf[1], angelegt: '2026-08-21T10:00:00.000Z', von: 'Ka' }], mitteilungZaehler: 2 }, null, 2) + '\n');
+      const m = await sub(p, 'Mitteilungen'), f = await sub(p, 'Fotos'), pl = await sub(p, 'Pläne'), la = await sub(p, 'Laboraufträge');
+      await put(m, `1._Mitteilung_${nr}.docx`, bin(docx)); await put(m, `2._Mitteilung_${nr}.docx`, bin(docx));
+      for (const t of ['2026-08-12', '2026-08-20']) await put(f, `Bilddokumentation_${nr}_Teststadt_${t}.pdf`, '%PDF');
+      await put(await sub(f, 'fotos ka'), 'IMG_0001.jpg', 'x');
+      await put(f, '_Bildumbenenner.json', JSON.stringify({ format: 1, version: '2.7.0', bilder: {}, bilddokus: { t1: { dateien: [`Bilddokumentation_${nr}_Teststadt_2026-08-12.pdf`], erstellt: '2026-08-13T10:00:00.000Z' }, t2: { dateien: [`Bilddokumentation_${nr}_Teststadt_2026-08-20.pdf`], erstellt: '2026-08-21T10:00:00.000Z' } } }));
+      await put(pl, `Probenplan ${name}.pdf`, '%PDF');
+      if (o.ohneLabor){ if (!o.ohneLK) await put(la, `${nr}_Daten.json`, lk); return; }   // „Laborergebnisse“ kommt erst nach dem Scan
+      const l = await sub(p, 'Laborergebnisse');
+      for (const b of o.berichte) for (const x of ['.xml', '.pdf']) await put(l, b + x, x === '.pdf' ? '%PDF-' + b : '<xml>' + b + '</xml>');
+      if (!o.ohneLK) await put(la, `${nr}_Daten.json`, lk);
+      // Stand der Übernahme wie ResultKit/Projektzentrale (Name|Größe|Zeit der XML/PDF und der LabelKit-Datei) – dann „passt“
+      const stand = [];
+      for await (const [n, h] of l.entries()) if (h.kind === 'file' && /\.(xml|pdf)$/i.test(n)){ const d = await h.getFile(); stand.push({ name: n, size: d.size, t: d.lastModified }); }
+      if (!o.ohneLK){ const ld = await (await la.getFileHandle(`${nr}_Daten.json`)).getFile(); stand.push({ name: `Laboraufträge/${nr}_Daten.json`, size: ld.size, t: ld.lastModified }); }
+      const e = JSON.parse(erg); e.dateien = stand; e.stand = [...stand].sort((a, b) => a.name.localeCompare(b.name)).map(d => `${d.name}|${d.size}|${d.t}`).join('\n');
+      await put(l, '_Ergebnisse.json', JSON.stringify(e, null, 2));
+      if (o.uebergabe){
+        const a = await sub(p, '_Buero', 'aufgaben'), id = 'aufgabe-' + nr.replace('.', '-') + '-1';
+        await put(a, id + '.json', JSON.stringify({ format: 'spektron-buerokit', version: 1, typ: 'aufgabe', id, erstellt: '2026-08-19T09:00:00.000Z', von: 'Ka', projekt: { name, nr },
+          art: 'gutachten', titel: 'Gutachten', word: `Mitteilungen/1._Mitteilung_${nr}.docx`, empfaenger: [{ id: 'versicherung', gruppe: 'versicherung', label: 'Auftraggeber', details: 'Muster Versicherung AG' }],
+          anlagen: ['Laborergebnisse/AR-26-0001-01.pdf', `Fotos/Bilddokumentation_${nr}_Teststadt_2026-08-12.pdf`, `Pläne/Probenplan ${name}.pdf`] }));
+        const v = await sub(p, '_Buero', 'vermerke'); await put(v, id + '-v1.json', JSON.stringify({ format: 'spektron-buerokit', version: 1, typ: 'vermerk', id: id + '-v1', aufgabe: id, zeit: '2026-08-20T10:00:00.000Z', von: 'Nad', schritt: 'erledigt', wert: true }));
+      }
+    };
+    await projekt(AUF, lk2, ergA, { berichte: ['AR-26-0001-01', 'AR-26-0002-01'], uebergabe: true });
+    await projekt(EIN1, lk1, ergE, { berichte: ['AR-26-0001-01'] });
+    await projekt(SPAET, null, ergA, { berichte: ['AR-26-0001-01', 'AR-26-0002-01'], ohneLK: true, auftraege: [['a1'], ['a2']] });   // LabelKit-Datei kommt erst nach dem Scan
+    await projekt(OHNE, lkOhne, ergA, { berichte: [], ohneLabor: true, auftraege: [['a1'], ['a2']] });
+  }, [AUF, EIN1, PJ_KA, docx, lkFuer(AUF, 'labelkit-5.5.0-zwei-auftraege.json'), lkFuer(EIN1, 'labelkit-5.5.0-ein-auftrag.json'), vorlage('ergebnisse-2.7.0-A.json'), vorlage('ergebnisse-2.7.0-E.json'), SPAET, OHNE, lkFuer(OHNE, 'labelkit-5.5.0-zwei-auftraege.json')]);
   await start(page);
 
   // ---------- 1. Bestand: zwei Mitteilungen im Ordner, kein Eintrag ----------
@@ -479,7 +529,250 @@ let schritt = 'Start';
     console.log(`OK 8 FotoKit ${fkVersion} speichert das Deckblatt – weitereMitteilungen und mitteilungZaehler bleiben`);
   }
 
+
+  // ---------- 9. 1.55 Laboraufträge je Mitteilung ----------
+  schritt = '9 Laboraufträge';
+  {
+    const vorAuf = await leseText(page, AUF);
+    await oeffne(page, AUF);
+    await page.locator('#mtZeile:not([hidden]) .mt-tab').first().waitFor();
+    // Bestand von 1.54.0 (auftraege: []): Auftrag 1 kommt aus der übergebenen 1. Mitteilung (gerechnet), Auftrag 2 gehört zu keiner
+    await warte(page, async () => /Gehört zu keiner Mitteilung: Auftrag 2 \(22\.08\.\) – zuordnen …/.test(await page.locator('#mtZeile').innerText()), 'gelbe Zeile');
+    assert.match(await page.locator('#mtZeile .mt-bezug').innerText(), /^Bezug der 2\. Mitteilung: Termin 20\.08\. \(Nachbeprobung\) · kein Laborauftrag zugeordnet · ändern$/);
+    assert.deepEqual(await page.locator('#otFrei').evaluate(e => [e.hidden, e.textContent]), [true, ''], 'unter den Ortsterminen erst mit einem neuen Termin');
+    assert.deepEqual((await liste(page)).filter(r => r[1] === 'Prüfbericht'), [['Anlage 1', 'Prüfbericht', 'AR-26-0002-01.pdf', 'noch in keiner Mitteilung · Auftrag 2 keiner Mitteilung zugeordnet']]);
+    assert.deepEqual([await ktext(page, 'proben'), (await kacheln(page)).find(k => k[0] === 'proben')[2]], ['kein Laborauftrag zugeordnet', true]);
+    assert.equal(await leseText(page, AUF), vorAuf, 'Öffnen schreibt nichts');
+    // Rückfrage: Auftrags-Tabelle, 1. gesperrt „aus der Übergabe“, Vorwahl nach dem Auftragsdatum, ein Patch
+    await page.locator('#mtFreiZu').click();
+    await page.locator('#dialog [data-mtb-auftraege]').waitFor();
+    const aHaken = pg => pg.locator('#dialog [data-mtb-auftrag]').evaluateAll(i => i.map(e => [e.dataset.mtbSpalte, e.dataset.mtbAuftrag, e.checked, e.disabled]));
+    assert.deepEqual(await aHaken(page), [['m1', 'a1', true, true], ['m2', 'a1', false, false], ['m1', 'a2', false, true], ['m2', 'a2', true, false]]);
+    assert.deepEqual(await page.locator('#dialog [data-mtb-auftraege] td.mtb-auftrag').allTextContents(), ['Auftrag 1 · 14.08. · 13 Proben (P1–P13) · Probenahme 12.08.', 'Auftrag 2 · 22.08. · 8 Proben (P14–P21) · Probenahme 20.08.']);
+    assert.match(await page.locator('#dialog').innerText(), /Auftrag 2 vom 22\.08\. liegt nach der Übergabe am 19\.08\. → 2\. Mitteilung/);
+    assert.equal(await page.locator('#dialog [data-mtb-auftrag="a1"][data-mtb-spalte="m1"]').getAttribute('title'), 'aus der Übergabe – gerechnet aus den festgehaltenen Prüfberichten');
+    await page.evaluate(() => { window.__pjSchreiben = 0; const cw = FileSystemFileHandle.prototype.createWritable;
+      FileSystemFileHandle.prototype.createWritable = async function(...a){ if (this.name === '_Projekt.json') window.__pjSchreiben++; return cw.apply(this, a); }; });
+    // zweites Fenster (vorher geöffnet, alter Stand) – für den Widerspruch unten
+    const b2 = await neueSeite(); await b2.waitForSelector('#btnInfo'); await start(b2); await oeffne(b2, AUF);
+    await dialogOk(page);
+    let dA = await warte(page, async () => { const x = await lese(page, AUF); return x.weitereMitteilungen[1].auftraege.length && x; }, 'Aufträge geschrieben');
+    assert.deepEqual(dA.weitereMitteilungen.map(e => [e.id, e.termine, e.auftraege]), [['m1', ['t1'], []], ['m2', ['t2'], ['a2']]], 'm2 = [a2]; m1 bleibt (gesperrt, gerechnet)');
+    assert.equal(dA.mitteilungZaehler, 2);
+    assert.equal(await page.evaluate(() => window.__pjSchreiben), 1, 'ein Patch');
+    const ohne = x => { const { weitereMitteilungen, mitteilungZaehler, geaendert, geaendertMit, hinweis, projektnummer, schadenort, ...rest } = x; return rest; };
+    assert.deepEqual(ohne(dA), ohne(JSON.parse(vorAuf)), 'sonst nichts geändert');
+    await warte(page, async () => /· Auftrag 2 \(22\.08\.\) · ändern$/.test(await page.locator('#mtZeile .mt-bezug').innerText()), 'Bezug mit Auftrag');
+    assert.equal(await page.locator('#mtZeile [data-mt-frei]').count(), 0, 'gelbe Zeile weg');
+    assert.deepEqual((await liste(page)).filter(r => r[1] === 'Prüfbericht'), [['Anlage 1', 'Prüfbericht', 'AR-26-0002-01.pdf', 'aus Auftrag 2']], 'nur der Prüfbericht von Auftrag 2');
+    assert.equal(await ktext(page, 'proben'), '8 Proben · Auftrag 2 vom 22.08.');
+    assert.equal(await ktext(page, 'labor'), 'Auftrag 2: 8 von 8 mit Ergebnis · 1 Prüfbericht in der Liste');
+    await page.locator('#mtZeile [data-mt="m1"]').click();
+    await warte(page, async () => (await ktext(page, 'proben')) === '13 Proben · Auftrag 1 vom 14.08.', 'Kachel der 1.');
+    assert.match(await page.locator('#mtZeile .mt-bezug').innerText(), /Auftrag 1 \(14\.08\.\) aus der Übergabe/);
+    await page.locator('#mtZeile [data-mt="m2"]').click();
+    await warte(page, async () => (await ktext(page, 'proben')) === '8 Proben · Auftrag 2 vom 22.08.', 'zurück zur 2.');
+    assert.equal((await sprung(page, '#goLabel')).get('mitteilung'), 'm2', 'Link zu LabelKit mit der Mitteilung (wählt dort Auftrag 2 vor)');
+    // zwei Fenster: das andere hat noch den alten Stand → Widerspruch, nichts überschrieben
+    const nachA = await leseText(page, AUF);
+    await b2.locator('#mtFreiZu').click(); await b2.locator('#dialog [data-mtb-auftraege]').waitFor();
+    await b2.locator('#dialog [data-mtb-auftrag="a1"][data-mtb-spalte="m2"]').check();
+    await dialogOk(b2);
+    await b2.locator('#banner.err').filter({ hasText: 'in einem anderen Fenster geändert' }).waitFor();
+    await b2.waitForTimeout(800);
+    assert.equal(await leseText(page, AUF), nachA, 'zwei Fenster: Datei unverändert');
+    await b2.close();
+    console.log('OK 9a Laboraufträge: Bestand gelb, Rückfrage mit Auftrags-Tabelle (gesperrt aus der Übergabe, Vorwahl nach Auftragsdatum), ein Patch, Prüfberichte getrennt, Kacheltexte, Link, zwei Fenster');
+
+    // P9: BerichtKit nennt für die 2. Mitteilung auch AR-26-0001-01 (Auftrag 1, 1. Mitteilung) → gelb, bleibt stehen
+    schritt = '9b P9';
+    await page.evaluate(async n => { const m = await (await (await (await navigator.storage.getDirectory()).getDirectoryHandle('Mosaik Archivordner')).getDirectoryHandle(n)).getDirectoryHandle('Mitteilungen');
+      const w = await (await m.getFileHandle('_BerichtKit.json', { create: true })).createWritable();
+      await w.write(JSON.stringify({ format: 'spektron-bericht', version: 1, berichte: [{ datei: '2._Mitteilung_26.0994.docx', am: '2026-08-26T10:00:00.000Z', art: 'brand', anlagen: ['Laborergebnisse/AR-26-0001-01.pdf', 'Laborergebnisse/AR-26-0002-01.pdf'] }] })); await w.close(); }, AUF);
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await warte(page, async () => (await liste(page)).some(r => /laut Laborauftrag 1 zur 1\. Mitteilung – in BerichtKit abwählen oder hier entfernen/.test(r[3])), 'BerichtKit-Zeile gelb');
+    assert.deepEqual((await liste(page)).filter(r => r[1] === 'Prüfbericht').map(r => [r[2], r[3]]), [['AR-26-0001-01.pdf', 'aus BerichtKit · auch in der 1. Mitteilung · laut Laborauftrag 1 zur 1. Mitteilung – in BerichtKit abwählen oder hier entfernen'], ['AR-26-0002-01.pdf', 'aus BerichtKit']]);
+    assert.equal(await page.locator('#bueroPanel tr.mt-warn').count(), 1);
+    await page.locator('#bueroPanel [data-mt-weg="Laborergebnisse/AR-26-0001-01.pdf"]').click();
+    await warte(page, async () => ((await lese(page, AUF)).weitereMitteilungen[1].anlagenWeg || []).length === 1, 'hier entfernt');
+    assert.equal(await page.locator('#bueroPanel tr.mt-warn').count(), 0);
+    await page.evaluate(async n => { const m = await (await (await (await navigator.storage.getDirectory()).getDirectoryHandle('Mosaik Archivordner')).getDirectoryHandle(n)).getDirectoryHandle('Mitteilungen'); await m.removeEntry('_BerichtKit.json'); }, AUF);
+    console.log('OK 9b P9: Prüfbericht aus BerichtKit, der laut Auftrag zur 1. gehört, gelb – entfernt nur von Hand');
+
+    // Übernahme veraltet (Prüfbericht geändert) → Grund statt Zuordnung, Kachel sagt es
+    schritt = '9c veraltet';
+    const datei = (ordner, n, t) => page.evaluate(async ([p, ordner, n, t]) => { const d = await (await (await (await navigator.storage.getDirectory()).getDirectoryHandle('Mosaik Archivordner')).getDirectoryHandle(p)).getDirectoryHandle(ordner);
+      if (t == null) return (await (await d.getFileHandle(n)).getFile()).text(); const w = await (await d.getFileHandle(n, { create: true })).createWritable(); await w.write(t); await w.close(); }, [AUF, ordner, n, t]);
+    await datei('Laborergebnisse', 'AR-26-0002-01.pdf', '%PDF-geaendert');
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await warte(page, async () => (await ktext(page, 'labor')) === 'Auftrag 2: seit der Übernahme geändert – in ResultKit übernehmen', 'Kachel veraltet');
+    assert.deepEqual((await liste(page)).filter(r => r[1] === 'Prüfbericht').map(r => r[3]), ['noch in keiner Mitteilung · Auftrag unbekannt: ResultKit-Übernahme veraltet – in ResultKit erneut übernehmen'], 'nie raten');
+    // LabelKit-Datei gerade halb geschrieben (nicht lesbar): nicht still wie 1.54.0, sondern „Auftrag unbekannt“ mit Grund; Übergabe gesperrt
+    const lkText = await datei('Laboraufträge', '26.0994_Daten.json');
+    await datei('Laboraufträge', '26.0994_Daten.json', '{ "version": "5.5.0", "proben": [');
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await warte(page, async () => (await liste(page)).some(r => /Auftrag unbekannt: LabelKit-Datei gerade nicht lesbar/.test(r[3])), 'LabelKit nicht lesbar → Grund');
+    if (!await page.locator('#bueroPanel [data-ab-form]').evaluate(e => e.open)) await page.locator('#bueroPanel [data-ab-summary]').click();
+    await page.locator('#bueroPanel [data-ab-los]').click();
+    await page.locator('#bueroPanel .ab-msg.err').filter({ hasText: 'gerade nicht lesbar' }).waitFor();
+    assert.match(await page.locator('#bueroPanel [data-ab-msg]').innerText(), /LabelKit-Datei „26\.0994_Daten\.json“ nicht lesbar/);
+    assert.equal((await aufgaben(page, AUF)).length, 1, 'nicht übergeben');
+    await datei('Laboraufträge', '26.0994_Daten.json', lkText);
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await warte(page, async () => (await liste(page)).some(r => /ResultKit-Übernahme veraltet/.test(r[3])), 'wieder lesbar');
+    // Codex-Review #95: LabelKit-Datei kurz weg (umbenannt/verschoben), vorher mehrere Aufträge bekannt → wie nicht lesbar, Übergabe gesperrt
+    const lkWeg = () => page.evaluate(async p => { const d = await (await (await (await navigator.storage.getDirectory()).getDirectoryHandle('Mosaik Archivordner')).getDirectoryHandle(p)).getDirectoryHandle('Laboraufträge'); await d.removeEntry('26.0994_Daten.json'); }, AUF);
+    await lkWeg();
+    if (!await page.locator('#bueroPanel [data-ab-form]').evaluate(e => e.open)) await page.locator('#bueroPanel [data-ab-summary]').click();
+    await page.locator('#bueroPanel [data-ab-los]').click();
+    await page.locator('#bueroPanel .ab-msg.err').filter({ hasText: 'nicht gefunden' }).waitFor();
+    assert.match(await page.locator('#bueroPanel [data-ab-msg]').innerText(), /LabelKit-Datei von Projekt 26\.0994 nicht gefunden – vorher waren mehrere Laboraufträge bekannt/);
+    assert.equal((await aufgaben(page, AUF)).length, 1, 'ohne LabelKit-Datei nicht übergeben');
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await warte(page, async () => (await liste(page)).some(r => /Auftrag unbekannt: LabelKit-Datei gerade nicht lesbar oder nicht gefunden/.test(r[3])), 'nicht still wie 1.54');
+    await datei('Laboraufträge', '26.0994_Daten.json', lkText);
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await warte(page, async () => (await liste(page)).some(r => /ResultKit-Übernahme veraltet/.test(r[3])), 'wieder da');
+    console.log('OK 9c Übernahme veraltet → wie bisher mit Satz, Kachel „seit der Übernahme geändert“; LabelKit nicht lesbar → Grund, Übergabe gesperrt');
+
+    // neuer Auftrag 3 in LabelKit und „+ Weiterer Ortstermin“ → gelbe Zeile (Mitteilungs-Zeile und unter den Ortsterminen), nichts springt auf
+    schritt = '9d neu';
+    const lk = JSON.parse(await datei('Laboraufträge', '26.0994_Daten.json'));
+    lk.proben.push({ ...lk.proben[0], id: 99, _nr: 22, datum: '2026-09-05', nrFest: { am: '2026-09-07T10:00:00.000Z', anlass: 'Abschluss' }, auftrag: 'a3' });
+    lk.weitereAuftraege.push({ id: 'a3', am: '2026-09-07', von: 'Ka', proben: [22] }); lk.auftragZaehler = 3;
+    await datei('Laboraufträge', '26.0994_Daten.json', JSON.stringify(lk, null, 2));
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await warte(page, async () => /Gehört zu keiner Mitteilung: Auftrag 3 \(07\.09\.\) – zuordnen …/.test(await page.locator('#mtZeile').innerText()), 'neuer Auftrag gelb');
+    // Übernahme noch veraltet: Auftrag 1 (vor der Übergabe der 1.) ist nicht „frei“, sondern „gerade unbekannt“ – mit Grund
+    assert.equal(await page.locator('#mtZeile [data-mt-unklar]').innerText(), 'Auftrag 1: Zuordnung zur übergebenen 1. Mitteilung gerade unbekannt – ResultKit-Übernahme veraltet – in ResultKit erneut übernehmen');
+    if (!await page.locator('#pjBox').evaluate(e => e.open)) await page.locator('#pjBox > summary').click();
+    const vorT3 = await lese(page, AUF);
+    await page.locator('#otNeu').click(); await page.locator('#pj_ot_t3_datum').fill('2026-09-05');
+    await warte(page, async () => ((await lese(page, AUF)).weitereOrtstermine || []).length === 2, 'Termin 3 gespeichert');
+    await warte(page, async () => /Gehört zu keiner Mitteilung: Termin 3 \(05\.09\.\) · Auftrag 3 \(07\.09\.\) – zuordnen …/.test(await page.locator('#otFrei').innerText()), 'Zeile unter den Ortsterminen');
+    await warte(page, async () => /^Gehört zu keiner Mitteilung: Termin 3 \(05\.09\.\) · Auftrag 3 \(07\.09\.\) – zuordnen …$/.test(await page.locator('#mtZeile [data-mt-frei]').innerText()), 'Zeile in der Mitteilungs-Zeile');
+    assert.equal(await page.locator('#dlgBack.show').count(), 0, 'kein Fenster springt auf');
+    assert.deepEqual((await lese(page, AUF)).weitereMitteilungen, vorT3.weitereMitteilungen, 'nichts still zugeordnet');
+    await page.locator('#otFreiZu').click(); await page.locator('#dialog [data-mtb-auftraege]').waitFor();
+    assert.deepEqual((await aHaken(page)).filter(h => h[1] === 'a3'), [['m1', 'a3', false, true], ['m2', 'a3', true, false]], 'Auftrag 3 nach dem Datum vorgewählt');
+    await dialogOk(page);
+    dA = await warte(page, async () => { const x = await lese(page, AUF); return x.weitereMitteilungen[1].auftraege.length === 2 && x; }, 'Auftrag 3 zugeordnet');
+    assert.deepEqual(dA.weitereMitteilungen.map(e => [e.termine, e.auftraege]), [[['t1'], []], [['t2', 't3'], ['a2', 'a3']]]);
+    await warte(page, async () => (await page.locator('#otFrei').evaluate(e => e.hidden)), 'Zeile weg');
+    console.log('OK 9d neuer Auftrag und „+ Weiterer Ortstermin“ → gelbe Zeile hier und unter den Ortsterminen, zuordnen …, nichts still');
+
+    // ein Auftrag (LabelKit Runde 1): keine Tabelle, Datei byte-gleich, auftraege bleibt []
+    schritt = '9e ein Auftrag';
+    const vorEin = await leseText(page, EIN1);
+    await oeffne(page, EIN1);
+    await page.locator('#mtZeile:not([hidden]) .mt-tab').first().waitFor();
+    await page.waitForTimeout(400);
+    assert.equal(await leseText(page, EIN1), vorEin, '_Projekt.json byte-gleich');
+    assert.equal(await page.locator('#mtZeile [data-mt-frei]').count(), 0);
+    assert.doesNotMatch(await page.locator('#mtZeile .mt-bezug').innerText(), /Auftrag/);
+    assert.doesNotMatch(await ktext(page, 'proben'), /Auftrag \d|Laborauftrag zugeordnet/, 'Proben-Kachel wie bisher');
+    assert.deepEqual((await liste(page)).filter(r => r[1] === 'Prüfbericht').map(r => r[3]), ['noch in keiner Mitteilung · auch in der 1. Mitteilung'], 'wie bisher (beide offen: in beiden), ohne Satz');
+    await page.locator('#mtBezug').click(); await page.locator('#dialog table.mtb').waitFor();
+    assert.equal(await page.locator('#dialog [data-mtb-auftraege]').count(), 0, 'keine Auftrags-Tabelle');
+    await page.locator('#dialog [data-mtb-termin="t2"][data-mtb-spalte="m1"]').check();
+    await dialogOk(page);
+    const dE = await warte(page, async () => { const x = await lese(page, EIN1); return x.weitereMitteilungen[0].termine.length === 2 && x; }, 'Bezug geändert');
+    assert.deepEqual(dE.weitereMitteilungen.map(e => e.auftraege), [[], []], 'auftraege bleibt []');
+    console.log('OK 9e ein Laborauftrag: keine Tabelle, Datei nach dem Öffnen byte-gleich, auftraege bleibt []');
+
+    // Codex-Review #95: die LabelKit-Datei entsteht erst nach dem Ordnerscan, ResultKit übernimmt danach an den neuen Ort (kein Fensterwechsel)
+    // – vor der Übergabe werden beide trotzdem gefunden: die Liste der 2. ändert sich (nur noch der Prüfbericht von Auftrag 2) → erst zeigen
+    schritt = '9g LabelKit nach dem Scan';
+    await oeffne(page, SPAET);
+    await warte(page, async () => (await liste(page)).filter(r => r[1] === 'Prüfbericht').length === 2, 'ohne LabelKit: beide Prüfberichte (wie 1.54)');
+    await page.evaluate(async ([n, lk]) => {
+      const p = await (await (await navigator.storage.getDirectory()).getDirectoryHandle('Mosaik Archivordner')).getDirectoryHandle(n);
+      const put = async (d, x, t) => { const w = await (await d.getFileHandle(x, { create: true })).createWritable(); await w.write(t); await w.close(); };
+      const la = await p.getDirectoryHandle('Laboraufträge'), l = await p.getDirectoryHandle('Laborergebnisse');
+      await put(la, '26.0992_Daten.json', lk);
+      // ResultKit übernimmt danach (Stand mit der LabelKit-Datei)
+      const stand = [];
+      for await (const [x, h] of l.entries()) if (h.kind === 'file' && /\.(xml|pdf)$/i.test(x)){ const d = await h.getFile(); stand.push({ name: x, size: d.size, t: d.lastModified }); }
+      const ld = await (await la.getFileHandle('26.0992_Daten.json')).getFile(); stand.push({ name: 'Laboraufträge/26.0992_Daten.json', size: ld.size, t: ld.lastModified });
+      const e = JSON.parse(await (await (await l.getFileHandle('_Ergebnisse.json')).getFile()).text());
+      e.dateien = stand; e.stand = [...stand].sort((a, b) => a.name.localeCompare(b.name)).map(d => `${d.name}|${d.size}|${d.t}`).join('\n');
+      // … und zwar am neuen Ort „_Spektron/ResultKit“ (den der Scan noch nicht kannte); die alte Datei ist weg
+      const rk = await (await p.getDirectoryHandle('_Spektron', { create: true })).getDirectoryHandle('ResultKit', { create: true });
+      await put(rk, '_Ergebnisse.json', JSON.stringify(e, null, 2)); await l.removeEntry('_Ergebnisse.json');
+    }, [SPAET, lkFuer(SPAET, 'labelkit-5.5.0-zwei-auftraege.json')]);
+    if (!await page.locator('#bueroPanel [data-ab-form]').evaluate(e => e.open)) await page.locator('#bueroPanel [data-ab-summary]').click();
+    await page.locator('#bueroPanel [data-ab-los]').click();
+    await page.locator('#bueroPanel .ab-msg.err').filter({ hasText: 'Die Anlagen-Liste hat sich inzwischen geändert' }).waitFor();
+    assert.equal((await aufgaben(page, SPAET)).length, 0, 'nicht übergeben');
+    assert.deepEqual((await liste(page)).filter(r => r[1] === 'Prüfbericht').map(r => [r[2], r[3]]), [['AR-26-0002-01.pdf', 'aus Auftrag 2']], 'neuer Stand gezeigt');
+    console.log('OK 9g LabelKit-Datei und ResultKit-Übernahme (neuer Ort) erst nach dem Scan: vor der Übergabe trotzdem gelesen, Liste neu gezeigt, nicht übergeben');
+    // Codex-Review #95: Zuordnung ändert sich ohne andere Datei (BerichtKit nennt AR-26-0002-01, danach ist die Übernahme veraltet) → erst zeigen
+    schritt = '9h Zuordnung geändert';
+    // Übergeben klicken; ein Neu-Zeichnen nach dem Fensterwechsel kann das Formular inzwischen zugeklappt haben – dann aufklappen und noch einmal
+    const uebergebenKlick = async () => { for (let k = 0; ; k++){
+      if (!await page.locator('#bueroPanel [data-ab-los]').isVisible()) await page.locator('#bueroPanel [data-ab-summary]').click();
+      try{ await page.locator('#bueroPanel [data-ab-los]').click({ timeout: 3000 }); return; }catch(e){ if (k > 4) throw e; } } };
+    const bk = async (n, anlagen) => page.evaluate(async ([n, anlagen]) => { const m = await (await (await (await navigator.storage.getDirectory()).getDirectoryHandle('Mosaik Archivordner')).getDirectoryHandle(n)).getDirectoryHandle('Mitteilungen');
+      const w = await (await m.getFileHandle('_BerichtKit.json', { create: true })).createWritable(); await w.write(JSON.stringify({ format: 'spektron-bericht', version: 1, berichte: [{ datei: `2._Mitteilung_${n.slice(0, 7)}.docx`, am: '2026-08-26T10:00:00.000Z', art: 'brand', anlagen }] })); await w.close(); }, [n, anlagen]);
+    await bk(SPAET, ['Laborergebnisse/AR-26-0002-01.pdf']);
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await warte(page, async () => (await liste(page)).some(r => r[2] === 'AR-26-0002-01.pdf' && r[3] === 'aus BerichtKit'), 'BerichtKit-Vorschlag');
+    await page.evaluate(async n => { const l = await (await (await (await navigator.storage.getDirectory()).getDirectoryHandle('Mosaik Archivordner')).getDirectoryHandle(n)).getDirectoryHandle('Laborergebnisse');
+      const w = await (await l.getFileHandle('AR-26-0002-01.pdf')).createWritable(); await w.write('%PDF-neu'); await w.close(); }, SPAET);   // ohne Fensterwechsel
+    await uebergebenKlick();
+    await page.locator('#bueroPanel .ab-msg.err').filter({ hasText: 'Die Zuordnung der Anlagen hat sich inzwischen geändert' }).waitFor();
+    assert.equal((await aufgaben(page, SPAET)).length, 0, 'gleiche Datei, andere Zuordnung: nicht übergeben');
+    assert.ok((await liste(page)).some(r => /Auftrag unbekannt: ResultKit-Übernahme veraltet/.test(r[3])), 'neuer Stand gezeigt');
+    await uebergebenKlick();
+    await page.locator('#bueroPanel [data-ab-msg]').filter({ hasText: '✓ Ans Büro übergeben' }).waitFor();
+    assert.deepEqual((await aufgaben(page, SPAET)).pop().anlagen.filter(x => /^Laborergebnisse/.test(x)), ['Laborergebnisse/AR-26-0002-01.pdf'], 'zweiter Klick übergibt, was gezeigt war');
+    console.log('OK 9h Zuordnung ändert sich ohne andere Datei → erst zeigen, beim zweiten Klick übergeben');
+
+    // Codex-Review #95: „Laborergebnisse“ entsteht erst nach dem Scan – vor der Übergabe trotzdem mit ResultKit gelesen, nur der Prüfbericht der 2.
+    schritt = '9i Laborergebnisse nach dem Scan';
+    await oeffne(page, OHNE);
+    await page.evaluate(async ([n, erg]) => {
+      const p = await (await (await navigator.storage.getDirectory()).getDirectoryHandle('Mosaik Archivordner')).getDirectoryHandle(n);
+      const put = async (d, x, t) => { const w = await (await d.getFileHandle(x, { create: true })).createWritable(); await w.write(t); await w.close(); };
+      const l = await p.getDirectoryHandle('Laborergebnisse', { create: true }), la = await p.getDirectoryHandle('Laboraufträge');
+      for (const b of ['AR-26-0001-01', 'AR-26-0002-01']){ await put(l, b + '.xml', '<xml>' + b + '</xml>'); await put(l, b + '.pdf', '%PDF-' + b); }
+      const stand = [];
+      for await (const [x, h] of l.entries()) if (h.kind === 'file' && /\.(xml|pdf)$/i.test(x)){ const d = await h.getFile(); stand.push({ name: x, size: d.size, t: d.lastModified }); }
+      const ld = await (await la.getFileHandle(`${n.slice(0, 7)}_Daten.json`)).getFile(); stand.push({ name: `Laboraufträge/${n.slice(0, 7)}_Daten.json`, size: ld.size, t: ld.lastModified });
+      const e = JSON.parse(erg); e.dateien = stand; e.stand = [...stand].sort((a, b) => a.name.localeCompare(b.name)).map(d => `${d.name}|${d.size}|${d.t}`).join('\n');
+      await put(l, '_Ergebnisse.json', JSON.stringify(e, null, 2));
+    }, [OHNE, vorlage('ergebnisse-2.7.0-A.json')]);
+    await uebergebenKlick();
+    await page.locator('#bueroPanel .ab-msg.err').filter({ hasText: 'hat sich inzwischen geändert' }).waitFor();
+    assert.equal((await aufgaben(page, OHNE)).length, 0);
+    await warte(page, async () => JSON.stringify((await liste(page)).filter(r => r[1] === 'Prüfbericht').map(r => [r[2], r[3]])) === JSON.stringify([['AR-26-0002-01.pdf', 'aus Auftrag 2']]), 'nur der Prüfbericht der 2.');
+    await uebergebenKlick();
+    await page.locator('#bueroPanel [data-ab-msg]').filter({ hasText: '✓ Ans Büro übergeben' }).waitFor();
+    assert.deepEqual((await aufgaben(page, OHNE)).pop().anlagen.filter(x => /^Laborergebnisse/.test(x)), ['Laborergebnisse/AR-26-0002-01.pdf'], 'nie der Prüfbericht der 1.');
+    console.log('OK 9i „Laborergebnisse“ erst nach dem Scan: vor der Übergabe mit ResultKit gelesen, nur der Prüfbericht der 2. übergeben');
+
+
+    // echtes FotoKit 2.7.0 speichert danach – auftraege bleibt
+    schritt = '9f FotoKit';
+    if (fs.existsSync(path.join(fkRoot, 'index.html'))){
+      const fk = await neueSeite('/fk/index.html', AUF);
+      await fk.waitForFunction(() => !document.body.inert); await fk.waitForTimeout(300);
+      // FotoKit hat den Ordner aus Teil 8 wieder geöffnet: „Mehr …“ › „Anderen Ordner öffnen …“ (die Aktion hinter dem Menü)
+      if (await fk.locator('#btnOpen2').isVisible()) await fk.click('#btnOpen2'); else await fk.evaluate(() => document.getElementById('btnOpen').click());
+      await fk.waitForFunction(n => document.body.textContent.includes(n.slice(0, 7)), AUF);
+      const ruhig = () => fk.waitForFunction(() => !document.body.inert && !document.querySelector('#overlay').classList.contains('show') && !/Lese Ordner/.test(document.getElementById('banner').textContent));
+      await ruhig();
+      const vorFk = await lese(page, AUF);
+      await fk.click('#btnPdf'); await fk.locator('#zOk').waitFor();
+      await fk.locator('#m_objekt').fill('EFH, Testweg 9 (Nachauftrag)'); await fk.locator('#zCancel').click(); await ruhig();
+      const nachFk = await warte(page, async () => { const x = await lese(page, AUF); return x.objekt === 'EFH, Testweg 9 (Nachauftrag)' && x; }, 'FotoKit hat gespeichert');
+      assert.deepEqual(nachFk.weitereMitteilungen, vorFk.weitereMitteilungen, 'FotoKit erhält auftraege');
+      assert.deepEqual(nachFk.weitereMitteilungen[1].auftraege, ['a2', 'a3']);
+      await fk.close();
+      console.log('OK 9f FotoKit speichert – weitereMitteilungen[].auftraege bleibt');
+    } else if (process.env.FOTOKIT_PFLICHT) assert.fail('FotoKit liegt nicht daneben (../Bildumbenenner)');
+  }
   assert.deepEqual(errors, [], 'keine Fehler im Browser');
   await browser.close(); server.close();
-  console.log(`OK (${name}): 1.54 Mitteilungen als Ebene – Bestand, Zuordnen, Anlagen von Hand, Link, Übergabe in Nummernfolge, eine Mitteilung unverändert, Angebot, zwei Fenster, Schreiben angehalten, FotoKit`);
+  console.log(`OK (${name}): 1.54 Mitteilungen als Ebene – Bestand, Zuordnen, Anlagen von Hand, Link, Übergabe in Nummernfolge, eine Mitteilung unverändert, Angebot, zwei Fenster, Schreiben angehalten, FotoKit; 1.55 Laboraufträge je Mitteilung`);
 })().catch(async e => { console.error('Schritt:', schritt); console.error(e); console.error('Fehler im Browser:', errors); process.exit(1); });
