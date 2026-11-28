@@ -504,6 +504,10 @@ console.log('OK mitteilungen: Kacheltext je Mitteilung ändert nur Text und gelb
       assert.deepEqual(M.kachelTexte(m, Lb.get(m.schluessel), d).plan, { text: 'kein Plan zugeordnet', luecke: true });
     }
   }
+  // Codex #96: ein Plan „2. Termin“ bzw. „Termine“ MIT gültigem Termin-Zusatz ist ein Plan (Geschoss) dieses Termins
+  L = M.anlagenListen(l, E(zweiTerm, P(T1, [' - 2. Termin - Termin 20.08.2026', T2[1]], [' - Termine - Termin 20.08.2026', T2[1]])), A);
+  assert.deepEqual(plan(L, 'm2'), [[5, `Probenplan ${ORDNER} - 2. Termin - Termin 20.08.2026.pdf | Probenplan ${ORDNER} - Termine - Termin 20.08.2026.pdf`, 'aus Termin 20.08. (Nachbeprobung)', '']]);
+  assert.equal(L.get('m2').zeilen.find(z => z.art === 'probenplan').warnung, undefined);
   console.log('OK mitteilungen 1.56 (Review): nie „… Ka Nord“, „- 2. Termin“ und falsches Datum nie zugeordnet (gelb genannt), Ergebniskarte nie, ohne Termine gelb');
 
   // Angebot „2. Mitteilung beginnen …“: ein Termin-Plan nach der Übergabe zählt als neu (wie jeder Plan-Export)

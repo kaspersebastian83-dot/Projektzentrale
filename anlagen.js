@@ -167,16 +167,20 @@ function planFinden(art, plaene, plan, ordnerName, wo, wahl) {
   const kern = l => mitNamen ? planFindenNamen(art, l, plan, ordnerName, wo, namen) : planFindenAlt(art, l, plan, ordnerName);
   // Termin-Betrieb nur mit einem eigenen Termin-Plan (Name beginnt genau mit einem bekannten Ordnernamen, danach Ende oder „ - “)
   if (!wahl && !liste.some(x => x.termin && x.ordner)) return kern(liste);   // bis 1.26: genau wie bisher
-  // Im Termin-Betrieb (Review 1.27.0) zählen nur eigene PDFs mit dieser Grenze – nie „Probenplan <Ordner> Nord …“ eines anderen Projekts –
-  // und nie ein Plan-Teil, der nach Termin oder Ergebniskarte aussieht („- 2. Termin“, „Termin 20.8.2026“, „Termin 31.02.2026“,
-  // „… - Termin 20.08.2026 - EG“, „… - Ergebniskarte - Termin …“): nach der Namensregel ist so etwas nie ein Plan. Solche eigenen Dateien
-  // werden genannt (ausgelassen), nie still einem Termin zugeordnet.
-  // ganze Wörter (Codex #40): „Terminal“ ist ein Plan; ein Plan, den es in der .probenplan gibt, ist nie verdächtig
-  const VERDAECHTIG = /(?:^|[\s.-])(termine?|ergebniskarten?)(?![a-zäöüß])/i;
+  // Im Termin-Betrieb (Review 1.27.0) zählen nur eigene PDFs – nie „Probenplan <Ordner> Nord …“ eines anderen Projekts – und nie eine Datei,
+  // deren Plan-Teil einen anderen Termin bedeuten könnte. Solche eigenen Dateien werden genannt (ausgelassen), nie still zugeordnet.
+  // Verdächtig (ganze Wörter, Codex #40): „Ergebniskarte“ im Plan-Teil (falsche Reihenfolge); ein Plan-Teil, wie ihn PlanKit als Plannamen
+  // ablehnt („Termin TT.MM.JJJJ“, „alle Termine“); und – nur OHNE gültigen Zusatz – jedes „Termin(e)“ („- 2. Termin“, „Termin 20.8.2026“).
+  // Mit gültigem Zusatz ist der Termin eindeutig: ein Plan „Termine“ oder „2. Termin“ ist dann ein Plan. „Terminal“ ist nie verdächtig,
+  // ein Plan aus der gelesenen .probenplan auch nicht.
+  const ERGEBNIS_WORT = /(?:^|[\s.-])ergebniskarten?(?![a-zäöüß])/i, TERMIN_NAME = /(?:^|[\s.-])(?:termin \d{1,2}\.\d{1,2}\.\d{2,4}|alle termine)(?![a-zäöüß0-9])/i;
+  const TERMIN_WORT = /(?:^|[\s.-])termine?(?![a-zäöüß])/i;
   const bekannt = new Set(mitNamen ? wo.geschosse.map(g => nfc(g).replace(/[<>:"/\\|?*]/g, '_').toLowerCase()) : []);
-  const verdaechtig = x => VERDAECHTIG.test(x.plan) && !bekannt.has(x.plan.toLowerCase());
-  const eigen = liste.filter(x => x.ordner), weg = eigen.filter(verdaechtig), ausgelassen = weg.map(x => x.name);
-  const gut = eigen.filter(x => !verdaechtig(x));
+  const verdaechtig = x => !bekannt.has(x.plan.toLowerCase()) && (ERGEBNIS_WORT.test(x.plan) || TERMIN_NAME.test(x.plan) || (!x.termin && TERMIN_WORT.test(x.plan)));
+  // eigene PDFs: Ordnergrenze; mit lesbarer .probenplan auch die mit dieser Projektnummer vorn (o11: „Ordnername nicht bekannt“ – unklar, nie still)
+  const nrVorn = x => mitNamen && !x.ordner && s(wo.nr) && new RegExp('^probenplan ' + s(wo.nr).replace(/\./g, '\\.') + '(?![0-9])').test(x.kern.toLowerCase());
+  const eigen = liste.filter(x => x.ordner || nrVorn(x)), weg = eigen.filter(x => x.ordner && verdaechtig(x)), ausgelassen = weg.map(x => x.name);
+  const gut = eigen.filter(x => !weg.includes(x));
   // Stand der ausgelassenen Dateien gehört zum Schlüssel der eigenen Wahl (Codex #40): kommt eine dazu, verfällt ein Haken
   const wegKey = weg.length ? '#weg:' + weg.map(x => x.name.toLowerCase() + '@' + x.t).sort().join(';') : '';
   const RANG = v => v === '' ? 0 : v === 'alle' ? 2 : 1;
