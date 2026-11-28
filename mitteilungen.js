@@ -438,8 +438,9 @@
       und sind es mindestens zwei: zuerst der Plan „alle Termine“, gibt es den nicht, je Tag ein Plan; sonst je Tag ein Plan. Termin 1 nimmt
       die PDF ohne Zusatz, solange es keine mit seinem Datum gibt (anlagen.js planFinden, wahl). Nie der Plan eines anderen Tages.
       Gefunden → „aus Termin 20.08. (Nachbeprobung)“; nicht gefunden → gelb „Plan für 20.08. fehlt“; entfernter Termin → gelb wie die
-      Bilddokumentation. Steht der Plan in der festen Liste einer anderen Mitteilung, wird er wie bisher nicht vorgeschlagen. */
-  function planJeTermin(m, bez, t, tJe, e, A, inFestAnderer){
+      Bilddokumentation. Steht der Plan in der festen Liste einer anderen Mitteilung, wird er nicht noch einmal vorgeschlagen; die Zeile sagt
+      gelb „schon mit der 1. Mitteilung übergeben“. Ging „alle Termine“ schon hinaus, gilt je Tag weiter (Basti, #96). */
+  function planJeTermin(m, bez, t, tJe, e, A, festIn){
     if (!bez || !bez.length || !A || typeof A.planFinden !== 'function' || typeof A.planName !== 'function') return null;
     const plaene = e.plaene || [], ordner = nfc(e.ordnerName || '');
     if (!plaene.some(f => { const z = A.planName(f.name, [ordner]); return z && z.termin && (!ordner || z.ordner); })) return null;
@@ -458,9 +459,13 @@
     let ausgelassen = [];
     const zeile = (plan, herkunftText, termin, planFuer) => {
       if (plan && plan.ausgelassen) ausgelassen = plan.ausgelassen;
-      return plan
-        ? (plan.dateien.some(p => inFestAnderer(m, p)) ? null : { art: 'probenplan', titel: 'Probenplan', dateien: plan.dateien, herkunft: 'termin', herkunftText, veraltet: plan.veraltet, termin, planFuer })
-        : { art: 'probenplan', titel: 'Probenplan', dateien: [], herkunft: 'termin', herkunftText, fehlt: true, termin, planFuer, grund: `Plan für ${planFuer} fehlt` };
+      if (!plan) return { art: 'probenplan', titel: 'Probenplan', dateien: [], herkunft: 'termin', herkunftText, fehlt: true, termin, planFuer, grund: `Plan für ${planFuer} fehlt` };
+      // schon in der festen Liste einer anderen Mitteilung: nicht noch einmal vorschlagen, aber sagen (wie die Bilddoku, Basti #96) –
+      // ohne planFuer, die Kachel meldet dafür kein „fehlt“
+      const nrn = [...new Set(plan.dateien.flatMap(festIn))].sort((a, b) => a - b);
+      if (nrn.length) return { art: 'probenplan', titel: 'Probenplan', dateien: [], herkunft: 'termin', herkunftText, fehlt: true, termin, schonUebergeben: true,
+        grund: `für ${planFuer === 'alle Termine' ? 'alle Termine' : 'den ' + planFuer} schon mit der ${nrn.map(n => n + '.').join(', ')} Mitteilung übergeben` };
+      return { art: 'probenplan', titel: 'Probenplan', dateien: plan.dateien, herkunft: 'termin', herkunftText, veraltet: plan.veraltet, termin, planFuer };
     };
     const fertig = () => {
       if (!ausgelassen.length){ const k = finde(undefined); if (k && k.ausgelassen) ausgelassen = k.ausgelassen; }
@@ -470,12 +475,12 @@
     };
     if (tage.length >= 2 && alleTage.every(d => jeTag.has(d))){
       const alle = finde({ termin: 'alle' });
-      if (alle){ const z = zeile(alle, `aus allen Ortsterminen (${tage.map(de).join(' · ')})`, bez.filter(id => tJe.has(id) && tJe.get(id).datum).join(','), 'alle Termine'); if (z) zeilen.push(z); return fertig(); }
+      // „alle Termine“ zuerst – ging er schon mit einer anderen Mitteilung hinaus, nicht noch einmal, sondern je Tag weiter (Basti #96)
+      if (alle && !alle.dateien.some(p => festIn(p).length)){ zeilen.push(zeile(alle, `aus allen Ortsterminen (${tage.map(de).join(' · ')})`, bez.filter(id => tJe.has(id) && tJe.get(id).datum).join(','), 'alle Termine')); return fertig(); }
     }
     for (const d of tage){
       const ts = jeTag.get(d), namen = ts.map(x => x.bezeichnung).filter(Boolean);
-      const z = zeile(finde({ termin: d, ersterTermin: d === erster }), `aus Termin ${de(d)}${namen.length ? ` (${namen.join(' · ')})` : ''}`, ts.map(x => x.id).join(','), de(d));
-      if (z) zeilen.push(z);
+      zeilen.push(zeile(finde({ termin: d, ersterTermin: d === erster }), `aus Termin ${de(d)}${namen.length ? ` (${namen.join(' · ')})` : ''}`, ts.map(x => x.id).join(','), de(d)));
     }
     return fertig();
   }
@@ -595,7 +600,7 @@
             if (!inFestAnderer(m, p)) zeilen.push({ art: 'bilddoku', titel: 'Bilddokumentation', dateien: [p], herkunft: 'frei', herkunftText: 'noch in keiner Mitteilung' });
           }
         }
-        const jeTermin = planJeTermin(m, bez, t, tJe, e, A, inFestAnderer);
+        const jeTermin = planJeTermin(m, bez, t, tJe, e, A, p => ms.filter(x => x !== m && festJe.get(x.schluessel).has(key(p))).map(x => x.nr));
         if (jeTermin) zeilen.push(...jeTermin);
         else {
           const plan = A && typeof A.planFinden === 'function' ? A.planFinden('probenplan', e.plaene || [], e.plan || null, e.ordnerName || '') : null;
