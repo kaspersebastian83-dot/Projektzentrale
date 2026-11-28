@@ -171,9 +171,14 @@ function planFinden(art, plaene, plan, ordnerName, wo, wahl) {
   // und nie ein Plan-Teil, der nach Termin oder Ergebniskarte aussieht („- 2. Termin“, „Termin 20.8.2026“, „Termin 31.02.2026“,
   // „… - Termin 20.08.2026 - EG“, „… - Ergebniskarte - Termin …“): nach der Namensregel ist so etwas nie ein Plan. Solche eigenen Dateien
   // werden genannt (ausgelassen), nie still einem Termin zugeordnet.
-  const VERDAECHTIG = /(?:^|[\s.-])(termin|ergebniskarte)/i;
-  const eigen = liste.filter(x => x.ordner), ausgelassen = eigen.filter(x => VERDAECHTIG.test(x.plan)).map(x => x.name);
-  const gut = eigen.filter(x => !VERDAECHTIG.test(x.plan));
+  // ganze Wörter (Codex #40): „Terminal“ ist ein Plan; ein Plan, den es in der .probenplan gibt, ist nie verdächtig
+  const VERDAECHTIG = /(?:^|[\s.-])(termine?|ergebniskarten?)(?![a-zäöüß])/i;
+  const bekannt = new Set(mitNamen ? wo.geschosse.map(g => nfc(g).replace(/[<>:"/\\|?*]/g, '_').toLowerCase()) : []);
+  const verdaechtig = x => VERDAECHTIG.test(x.plan) && !bekannt.has(x.plan.toLowerCase());
+  const eigen = liste.filter(x => x.ordner), weg = eigen.filter(verdaechtig), ausgelassen = weg.map(x => x.name);
+  const gut = eigen.filter(x => !verdaechtig(x));
+  // Stand der ausgelassenen Dateien gehört zum Schlüssel der eigenen Wahl (Codex #40): kommt eine dazu, verfällt ein Haken
+  const wegKey = weg.length ? '#weg:' + weg.map(x => x.name.toLowerCase() + '@' + x.t).sort().join(';') : '';
   const RANG = v => v === '' ? 0 : v === 'alle' ? 2 : 1;
   const gruppen = [...new Set(gut.map(x => x.termin))].sort((a, b) => RANG(a) - RANG(b) || a.localeCompare(b))
     .map(termin => ({ termin, k: kern(gut.filter(x => x.termin === termin)) })).filter(g => g.k);
@@ -181,6 +186,7 @@ function planFinden(art, plaene, plan, ordnerName, wo, wahl) {
   const termine = gruppen.map(g => g.termin);
   const mitTermin = (g, extra) => {
     const k = { ...g.k, termin: g.termin, termine, ...(ausgelassen.length ? { ausgelassen } : {}), ...extra };
+    if (wegKey) k.key = (extra && extra.key || g.k.key) + wegKey;
     // T18: bei einem Termin-Plan ehrlich sagen, dass die Änderung einen anderen Termin betreffen kann – nur Hinweis, nie Sperre
     if (k.veraltet && g.termin) k.grund = 'Plan in PlanKit nach dem Export geändert – prüfen, ob dieser Termin betroffen ist';
     return k;
