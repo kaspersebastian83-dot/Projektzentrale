@@ -133,12 +133,13 @@ function planName(name, ordnerNamen) {
   const km = KOPIE.exec(n), ohne = n.replace(KOPIE, '');
   let kern = ohne.replace(/\.pdf$/i, '');
   const ergebnis = ERGEBNIS_ZUSATZ.test(kern); if (ergebnis) kern = kern.replace(ERGEBNIS_ZUSATZ, '');
+  const ordnerVon = k => { const klein = k.toLowerCase(); return (ordnerNamen || []).map(nfc).filter(o => { if (!o) return false; const p = ('Probenplan ' + o).toLowerCase(); return klein === p || klein.startsWith(p + ' - '); })
+    .sort((x, y) => y.length - x.length)[0] || ''; };
   let termin = '';
-  const tm = TERMIN_ZUSATZ.exec(kern);
-  if (tm) { const v = tm[4] ? 'alle' : `${tm[3]}-${tm[2]}-${tm[1]}`; if (v === 'alle' || tagGueltig(v)) { termin = v; kern = kern.slice(0, tm.index); } }
-  const klein = kern.toLowerCase();
-  const ordner = (ordnerNamen || []).map(nfc).filter(o => { if (!o) return false; const p = ('Probenplan ' + o).toLowerCase(); return klein === p || klein.startsWith(p + ' - '); })
-    .sort((x, y) => y.length - x.length)[0] || '';
+  const tm = TERMIN_ZUSATZ.exec(kern), vorher = ordnerVon(kern);
+  // Ordnername zuerst (Review): endet der Ordnername selbst auf „ - Termin …“, ist das kein Termin-Zusatz
+  if (tm && !(vorher && tm.index < ('Probenplan ' + vorher).length)) { const v = tm[4] ? 'alle' : `${tm[3]}-${tm[2]}-${tm[1]}`; if (v === 'alle' || tagGueltig(v)) { termin = v; kern = kern.slice(0, tm.index); } }
+  const ordner = ordnerVon(kern);
   const plan = ordner ? kern.slice(('Probenplan ' + ordner).length).replace(/^ - /, '').trim() : '';
   return { name: n, ohne, kern, ordner, plan, termin, ergebnis, kopie: km ? +km[1] : 0 };
 }
@@ -156,16 +157,30 @@ function planFinden(art, plaene, plan, ordnerName, wo, wahl) {
   const mitNamen = !!(wo && Array.isArray(wo.geschosse)), ergebnis = art === 'ergebniskarte';
   const namen = mitNamen ? [nfc(ordnerName), ...(wo.frueher || []).map(nfc)].filter((n, i, a) => n && a.findIndex(x => x.toLowerCase() === n.toLowerCase()) === i) : [nfc(ordnerName)];
   const liste = [];
-  for (const f of plaene || []) { const z = planName(f.name, namen); if (z && z.ergebnis === ergebnis) liste.push({ ...z, t: +f.t || 0 }); }
+  for (const f of plaene || []) {
+    const z = planName(f.name, namen); if (!z || z.ergebnis !== ergebnis) continue;
+    // Eine PDF mit Termin-Zusatz ohne Ordnergrenze („Probenplan <Ordner> Nord - Termin …“) gehört nie zu diesem Projekt – auch im älteren
+    // Verfahren nicht, das jeden Namensteil als Geschoss nimmt (Review 1.27.0). PDFs ohne Zusatz bleiben dort wie bis 1.26.
+    if (!mitNamen && z.termin && !z.ordner && s(ordnerName)) continue;
+    liste.push({ ...z, t: +f.t || 0 });
+  }
   const kern = l => mitNamen ? planFindenNamen(art, l, plan, ordnerName, wo, namen) : planFindenAlt(art, l, plan, ordnerName);
-  if (!wahl && !liste.some(x => x.termin)) return kern(liste);   // bis 1.26: genau wie bisher
-  // Gruppen je Termin – nur Gruppen mit einem Plan dieses Projekts zählen (ein kopierter Termin-Plan eines anderen Projekts nie)
+  // Termin-Betrieb nur mit einem eigenen Termin-Plan (Name beginnt genau mit einem bekannten Ordnernamen, danach Ende oder „ - “)
+  if (!wahl && !liste.some(x => x.termin && x.ordner)) return kern(liste);   // bis 1.26: genau wie bisher
+  // Im Termin-Betrieb (Review 1.27.0) zählen nur eigene PDFs mit dieser Grenze – nie „Probenplan <Ordner> Nord …“ eines anderen Projekts –
+  // und nie ein Plan-Teil, der nach Termin oder Ergebniskarte aussieht („- 2. Termin“, „Termin 20.8.2026“, „Termin 31.02.2026“,
+  // „… - Termin 20.08.2026 - EG“, „… - Ergebniskarte - Termin …“): nach der Namensregel ist so etwas nie ein Plan. Solche eigenen Dateien
+  // werden genannt (ausgelassen), nie still einem Termin zugeordnet.
+  const VERDAECHTIG = /(?:^|[\s.-])(termin|ergebniskarte)/i;
+  const eigen = liste.filter(x => x.ordner), ausgelassen = eigen.filter(x => VERDAECHTIG.test(x.plan)).map(x => x.name);
+  const gut = eigen.filter(x => !VERDAECHTIG.test(x.plan));
   const RANG = v => v === '' ? 0 : v === 'alle' ? 2 : 1;
-  const gruppen = [...new Set(liste.map(x => x.termin))].sort((a, b) => RANG(a) - RANG(b) || a.localeCompare(b))
-    .map(termin => ({ termin, k: kern(liste.filter(x => x.termin === termin)) })).filter(g => g.k);
+  const gruppen = [...new Set(gut.map(x => x.termin))].sort((a, b) => RANG(a) - RANG(b) || a.localeCompare(b))
+    .map(termin => ({ termin, k: kern(gut.filter(x => x.termin === termin)) })).filter(g => g.k);
+  const nichtLesbar = ausgelassen.length ? `nicht zugeordnet: ${ausgelassen.map(n => `„${n}“`).join(', ')} (Termin im Namen nicht lesbar – in PlanKit neu exportieren)` : '';
   const termine = gruppen.map(g => g.termin);
   const mitTermin = (g, extra) => {
-    const k = { ...g.k, termin: g.termin, termine, ...extra };
+    const k = { ...g.k, termin: g.termin, termine, ...(ausgelassen.length ? { ausgelassen } : {}), ...extra };
     // T18: bei einem Termin-Plan ehrlich sagen, dass die Änderung einen anderen Termin betreffen kann – nur Hinweis, nie Sperre
     if (k.veraltet && g.termin) k.grund = 'Plan in PlanKit nach dem Export geändert – prüfen, ob dieser Termin betroffen ist';
     return k;
@@ -177,15 +192,19 @@ function planFinden(art, plaene, plan, ordnerName, wo, wahl) {
     return g ? mitTermin(g) : null;
   }
   if (!gruppen.length) return null;
-  if (gruppen.length === 1 && gruppen[0].termin === '') return gruppen[0].k;   // Termin-PDFs nur aus anderen Projekten: wie bisher
+  // nur Pläne ohne Zusatz übrig (die Termin-PDFs waren nicht lesbar): wie bisher, aber nie still – die ausgelassenen werden genannt
+  if (gruppen.length === 1 && gruppen[0].termin === '')
+    return ausgelassen.length ? mitTermin(gruppen[0], { unklar: true, unklarText: (gruppen[0].k.unklarText ? gruppen[0].k.unklarText + '; ' : '') + nichtLesbar, terminUnklar: true }) : gruppen[0].k;
   const w = [...gruppen].sort((a, b) => b.k.t - a.k.t || RANG(b.termin) - RANG(a.termin) || b.termin.localeCompare(a.termin))[0];
   const nenne = g => g.k.dateien.map(p => `„${p.replace(/^Pläne\//, '')}“`).join(', ');
   const wort = ergebnis ? ['Ergebniskarte', 'Ergebniskarten'] : ['Probenplan', 'Probenpläne'];
   const text = (gruppen.length > 1
     ? `${wort[1]} für mehrere Ortstermine: ${gruppen.map(g => `${nenne(g)} (${terminDe(g.termin)})`).join(' und ')} – bitte wählen; angehakt kommt ${nenne(w)} in den Bericht`
     : `${wort[0]} für einen Ortstermin: ${nenne(w)} (${terminDe(w.termin)}) – bitte prüfen, ob er in diesen Bericht gehört`)
-    + (w.k.unklarText ? `; außerdem: ${w.k.unklarText}` : '');
-  return mitTermin(w, { unklar: true, unklarText: text, terminUnklar: true });
+    + (w.k.unklarText ? `; außerdem: ${w.k.unklarText}` : '') + (nichtLesbar ? `; ${nichtLesbar}` : '');
+  // Eigene Wahl gilt nur für denselben Stand ALLER Gruppen (Codex-Review #40): kommt ein Plan eines anderen Termins dazu oder ändert sich
+  // einer, ist ein früher selbst gesetzter Haken nicht mehr gültig – der Plan fällt dann nach der Regel heraus (Hinweis), nie still hinein
+  return mitTermin(w, { unklar: true, unklarText: text, terminUnklar: true, key: w.k.key + '#termine:' + gruppen.map(g => (g.termin || '-') + '=' + g.k.key).join(';') });
 }
 
 /** Das ältere Verfahren (ohne lesbare .probenplan): jeder Namensteil hinter dem Ordnernamen gilt als Geschoss, die neueste Gruppe gewinnt.

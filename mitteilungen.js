@@ -447,26 +447,37 @@
     const zeilen = [], jeTag = new Map();
     for (const id of bez){
       const tt = tJe.get(id);
-      if (!tt){ zeilen.push({ art: 'probenplan', titel: 'Probenplan', dateien: [], herkunft: 'termin', herkunftText: `aus Termin ${id} (entfernt)`, fehlt: true, termin: id, planFuer: id, grund: `Termin ${id} gibt es nicht mehr` }); continue; }
+      if (!tt){ zeilen.push({ art: 'probenplan', titel: 'Probenplan', dateien: [], herkunft: 'termin', herkunftText: `aus Termin ${id} (entfernt)`, fehlt: true, termin: id, planFuer: `${id} (entfernt)`, grund: `Termin ${id} gibt es nicht mehr` }); continue; }
       if (!tt.datum){ zeilen.push({ art: 'probenplan', titel: 'Probenplan', dateien: [], herkunft: 'termin', herkunftText: `aus Termin ${terminText(tt, true)}`, fehlt: true, termin: id, planFuer: id, grund: `Plan für ${id} fehlt – Termin ohne Datum` }); continue; }
       if (!jeTag.has(tt.datum)) jeTag.set(tt.datum, []);
       jeTag.get(tt.datum).push(tt);
     }
     const tage = [...jeTag.keys()].sort();
     const finde = wahl => A.planFinden('probenplan', plaene, e.plan || null, e.ordnerName || '', undefined, wahl);
-    const zeile = (plan, herkunftText, termin, planFuer) => plan
-      ? (plan.dateien.some(p => inFestAnderer(m, p)) ? null : { art: 'probenplan', titel: 'Probenplan', dateien: plan.dateien, herkunft: 'termin', herkunftText, veraltet: plan.veraltet, termin, planFuer })
-      : { art: 'probenplan', titel: 'Probenplan', dateien: [], herkunft: 'termin', herkunftText, fehlt: true, termin, planFuer, grund: `Plan für ${planFuer} fehlt` };
+    // Eigene Plan-PDFs, deren Termin im Namen nicht lesbar ist (anlagen.js ausgelassen), nennt die Zeile gelb – nie still zugeordnet (Review)
+    let ausgelassen = [];
+    const zeile = (plan, herkunftText, termin, planFuer) => {
+      if (plan && plan.ausgelassen) ausgelassen = plan.ausgelassen;
+      return plan
+        ? (plan.dateien.some(p => inFestAnderer(m, p)) ? null : { art: 'probenplan', titel: 'Probenplan', dateien: plan.dateien, herkunft: 'termin', herkunftText, veraltet: plan.veraltet, termin, planFuer })
+        : { art: 'probenplan', titel: 'Probenplan', dateien: [], herkunft: 'termin', herkunftText, fehlt: true, termin, planFuer, grund: `Plan für ${planFuer} fehlt` };
+    };
+    const fertig = () => {
+      if (!ausgelassen.length){ const k = finde(undefined); if (k && k.ausgelassen) ausgelassen = k.ausgelassen; }
+      const z = zeilen.find(x => x.art === 'probenplan');
+      if (ausgelassen.length && z) z.warnung = `nicht zugeordnet: ${ausgelassen.map(n => `„${n}“`).join(', ')} – Termin im Namen nicht lesbar, in PlanKit neu exportieren`;
+      return zeilen;
+    };
     if (tage.length >= 2 && alleTage.every(d => jeTag.has(d))){
       const alle = finde({ termin: 'alle' });
-      if (alle){ const z = zeile(alle, `aus allen Ortsterminen (${tage.map(de).join(' · ')})`, bez.filter(id => tJe.has(id) && tJe.get(id).datum).join(','), 'alle Termine'); if (z) zeilen.push(z); return zeilen; }
+      if (alle){ const z = zeile(alle, `aus allen Ortsterminen (${tage.map(de).join(' · ')})`, bez.filter(id => tJe.has(id) && tJe.get(id).datum).join(','), 'alle Termine'); if (z) zeilen.push(z); return fertig(); }
     }
     for (const d of tage){
       const ts = jeTag.get(d), namen = ts.map(x => x.bezeichnung).filter(Boolean);
       const z = zeile(finde({ termin: d, ersterTermin: d === erster }), `aus Termin ${de(d)}${namen.length ? ` (${namen.join(' · ')})` : ''}`, ts.map(x => x.id).join(','), de(d));
       if (z) zeilen.push(z);
     }
-    return zeilen;
+    return fertig();
   }
   /** Neuester Eintrag aus _BerichtKit.json → berichte[] zur Word-Datei der Mitteilung. */
   function berichtEintrag(m, bk){
@@ -588,7 +599,10 @@
         if (jeTermin) zeilen.push(...jeTermin);
         else {
           const plan = A && typeof A.planFinden === 'function' ? A.planFinden('probenplan', e.plaene || [], e.plan || null, e.ordnerName || '') : null;
-          if (plan && !plan.dateien.some(p => inFestAnderer(m, p))) zeilen.push({ art: 'probenplan', titel: 'Probenplan', dateien: plan.dateien, herkunft: 'frei', herkunftText: 'noch in keiner Mitteilung', veraltet: plan.veraltet });
+          // ab 1.56.0 (Review): Pläne für mehrere Ortstermine, aber diese Mitteilung hat keine Termine (Bestand, termine: []) – nie still einen nehmen
+          if (plan && plan.terminUnklar) zeilen.push({ art: 'probenplan', titel: 'Probenplan', dateien: [], herkunft: 'frei', herkunftText: 'noch in keiner Mitteilung', fehlt: true,
+            grund: `Pläne für mehrere Ortstermine – ${bez ? 'zuerst die Ortstermine dieser Mitteilung zuordnen' : 'zuerst oben den Bezug zuordnen'}` });
+          else if (plan && !plan.dateien.some(p => inFestAnderer(m, p))) zeilen.push({ art: 'probenplan', titel: 'Probenplan', dateien: plan.dateien, herkunft: 'frei', herkunftText: 'noch in keiner Mitteilung', veraltet: plan.veraltet });
         }
       }
       // von Hand: weg / dazu (M16 – bleiben, auch wenn sich der Bezug ändert)

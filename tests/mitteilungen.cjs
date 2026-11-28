@@ -480,8 +480,31 @@ console.log('OK mitteilungen: Kacheltext je Mitteilung ändert nur Text und gelb
   assert.equal(L.get('m1').fest, true);
   assert.deepEqual(plan(L, 'm1'), [[3, `Probenplan ${ORDNER}.pdf`, 'mit der Übergabe festgehalten', '']]);
   assert.deepEqual(plan(L, 'm2'), [[4, `Probenplan ${ORDNER} - Termin 20.08.2026.pdf`, 'aus Termin 20.08. (Nachbeprobung)', ''], [null, '', 'aus Termin t9 (entfernt)', 'Termin t9 gibt es nicht mehr']], 'Plan von Termin 1 ging mit der 1. hinaus – nicht noch einmal');
-  assert.deepEqual(M.kachelTexte(l.mitteilungen[1], L.get('m2'), weg).plan, { text: 'Plan für t9 fehlt', luecke: true });
+  assert.deepEqual(M.kachelTexte(l.mitteilungen[1], L.get('m2'), weg).plan, { text: 'Plan für t9 (entfernt) fehlt', luecke: true });
   console.log('OK mitteilungen 1.56: entfernter Termin gelb, übergebene Mitteilung fest, ihr Plan nicht noch einmal vorgeschlagen');
+
+  // Review 1.56: Plan eines Projekts, dessen Ordnername mit unserem beginnt („… Ka Nord“) – nie; „- 2. Termin“ (von Hand) oder falsch
+  // geschriebenes Datum – nie als Plan von Termin 1, die Zeile nennt die Datei gelb; Mitteilung ohne Termine (Bestand, termine: []) – gelb statt still
+  l = M.liste(zweiTerm, word, []);
+  L = M.anlagenListen(l, E(zweiTerm, [...P([' - Termin 12.08.2026', T1[1]]), { name: `Probenplan ${ORDNER} Nord - Termin 20.08.2026.pdf`, t: ms(T2[1]) }]), A);
+  assert.deepEqual(plan(L, 'm2'), [[null, '', 'aus Termin 20.08. (Nachbeprobung)', 'Plan für 20.08. fehlt']], 'nie der Plan von „… Ka Nord“');
+  for (const bad of [' - 2. Termin', ' - Termin 20.8.2026']){
+    L = M.anlagenListen(l, E(zweiTerm, P(T1, [bad, '2026-08-23T11:00:00'], T2)), A);
+    assert.deepEqual(plan(L, 'm1'), [[5, `Probenplan ${ORDNER}.pdf`, 'aus Termin 12.08.', '']], bad);
+    for (const k of ['m1', 'm2']) assert.equal(L.get(k).zeilen.find(z => z.art === 'probenplan').warnung, `nicht zugeordnet: „Probenplan ${ORDNER}${bad}.pdf“ – Termin im Namen nicht lesbar, in PlanKit neu exportieren`);
+  }
+  L = M.anlagenListen(l, E(zweiTerm, P([' - Termin 20.08.2026', T2[1]], [' - Termin 20.8.2026', '2026-08-23T11:00:00'])), A);
+  assert.deepEqual(plan(L, 'm1'), [[null, '', 'aus Termin 12.08.', 'Plan für 12.08. fehlt']], 'auch ohne Plan ohne Zusatz nie die falsch geschriebene Datei');
+  L = M.anlagenListen(l, E(zweiTerm, P([' - Ergebniskarte - Termin 20.08.2026', T2[1]], [' - Termin 12.08.2026', T1[1]])), A);
+  assert.deepEqual(plan(L, 'm2'), [[null, '', 'aus Termin 20.08. (Nachbeprobung)', 'Plan für 20.08. fehlt']], 'Ergebniskarte in falscher Reihenfolge ist kein Probenplan');
+  for (const [d, wort] of [[pj, 'zuerst oben den Bezug zuordnen'], [{ ...zweiTerm, weitereMitteilungen: zweiTerm.weitereMitteilungen.map(x => ({ ...x, termine: [] })) }, 'zuerst die Ortstermine dieser Mitteilung zuordnen']]){
+    const lb = M.liste(d, word, []), Lb = M.anlagenListen(lb, E(d, P([' - Termin 12.08.2026', T1[1]], T2)), A);
+    for (const m of lb.mitteilungen){
+      assert.deepEqual(plan(Lb, m.schluessel), [[null, '', 'noch in keiner Mitteilung', `Pläne für mehrere Ortstermine – ${wort}`]], 'nie still der neueste');
+      assert.deepEqual(M.kachelTexte(m, Lb.get(m.schluessel), d).plan, { text: 'kein Plan zugeordnet', luecke: true });
+    }
+  }
+  console.log('OK mitteilungen 1.56 (Review): nie „… Ka Nord“, „- 2. Termin“ und falsches Datum nie zugeordnet (gelb genannt), Ergebniskarte nie, ohne Termine gelb');
 
   // Angebot „2. Mitteilung beginnen …“: ein Termin-Plan nach der Übergabe zählt als neu (wie jeder Plan-Export)
   const eins = { ortstermin: '2026-08-12', weitereOrtstermine: [] }, le = M.liste(eins, [word[0]], [{ ...a1, anlagen: [`Pläne/Probenplan ${ORDNER}.pdf`] }]);
